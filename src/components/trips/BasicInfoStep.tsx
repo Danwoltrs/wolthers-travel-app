@@ -1,0 +1,265 @@
+import React, { useState } from 'react'
+import { Plus, X, Calendar } from 'lucide-react'
+import { TripFormData } from '@/app/trips/new/page'
+import type { Company, User } from '@/types'
+
+interface BasicInfoStepProps {
+  formData: TripFormData
+  updateFormData: (data: Partial<TripFormData>) => void
+}
+
+// Mock data - will be replaced with API calls
+const availableCompanies: Company[] = [
+  {
+    id: '1',
+    name: 'Cooxupe Coffee Cooperative',
+    fantasyName: 'Cooxupe',
+    email: 'contact@cooxupe.com.br',
+    industry: 'coffee',
+    totalTripCostsThisYear: 15000,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: '2',
+    name: 'Swiss Coffee Trading AG',
+    fantasyName: 'Swiss Coffee',
+    email: 'info@swisscoffee.ch',
+    industry: 'coffee',
+    totalTripCostsThisYear: 25000,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: '3',
+    name: 'Brasil Coffee Exports',
+    fantasyName: 'BCE',
+    email: 'export@bce.com.br',
+    industry: 'coffee',
+    totalTripCostsThisYear: 18000,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+]
+
+export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
+  const [companySearch, setCompanySearch] = useState('')
+
+  const filteredCompanies = availableCompanies.filter(
+    company => 
+      !formData.companies.some(c => c.id === company.id) &&
+      (company.name.toLowerCase().includes(companySearch.toLowerCase()) ||
+       company.fantasyName?.toLowerCase().includes(companySearch.toLowerCase()))
+  )
+
+  const addCompany = (company: Company) => {
+    updateFormData({ companies: [...formData.companies, company] })
+    setCompanySearch('')
+    setShowCompanyDropdown(false)
+  }
+
+  const removeCompany = (companyId: string) => {
+    updateFormData({ 
+      companies: formData.companies.filter(c => c.id !== companyId) 
+    })
+  }
+
+  const formatDateForInput = (date: Date | null): string => {
+    if (!date) return ''
+    const d = new Date(date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-medium text-latte-800 mb-4">
+          Basic Trip Information
+        </h2>
+      </div>
+
+      {/* Trip Title */}
+      <div>
+        <label htmlFor="title" className="block text-sm font-medium text-latte-700">
+          Trip Title *
+        </label>
+        <input
+          type="text"
+          id="title"
+          value={formData.title}
+          onChange={(e) => updateFormData({ title: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+          placeholder="e.g., NCA Convention 2025"
+        />
+      </div>
+
+      {/* Subject */}
+      <div>
+        <label htmlFor="subject" className="block text-sm font-medium text-latte-700">
+          Subject
+        </label>
+        <input
+          type="text"
+          id="subject"
+          value={formData.subject}
+          onChange={(e) => updateFormData({ subject: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+          placeholder="Brief description of the trip purpose"
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label htmlFor="description" className="block text-sm font-medium text-latte-700">
+          Description
+        </label>
+        <textarea
+          id="description"
+          rows={3}
+          value={formData.description}
+          onChange={(e) => updateFormData({ description: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+          placeholder="Detailed description of the trip"
+        />
+      </div>
+
+      {/* Companies */}
+      <div>
+        <label className="block text-sm font-medium text-latte-700 mb-2">
+          Companies *
+        </label>
+        
+        {/* Selected Companies */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {formData.companies.map(company => (
+            <div
+              key={company.id}
+              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-sage-100 text-sage-800 border border-sage-200"
+            >
+              <span>{company.fantasyName || company.name}</span>
+              <button
+                onClick={() => removeCompany(company.id)}
+                className="ml-2 hover:text-sage-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Company */}
+        <div className="relative">
+          <div className="flex items-center">
+            <input
+              type="text"
+              value={companySearch}
+              onChange={(e) => {
+                setCompanySearch(e.target.value)
+                setShowCompanyDropdown(true)
+              }}
+              onFocus={() => setShowCompanyDropdown(true)}
+              placeholder="Search for companies..."
+              className="flex-1 rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+            />
+            <button
+              type="button"
+              className="ml-2 btn-secondary"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Company Dropdown */}
+          {showCompanyDropdown && companySearch && (
+            <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 max-h-60 overflow-auto">
+              {filteredCompanies.length > 0 ? (
+                filteredCompanies.map(company => (
+                  <button
+                    key={company.id}
+                    onClick={() => addCompany(company)}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      {company.fantasyName || company.name}
+                    </div>
+                    {company.fantasyName && (
+                      <div className="text-sm text-gray-500 dark:text-latte-400">
+                        {company.name}
+                      </div>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-2 text-sm text-gray-500 dark:text-latte-400">
+                  No companies found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Date Range */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="startDate" className="block text-sm font-medium text-latte-700">
+            Start Date *
+          </label>
+          <div className="mt-1 relative">
+            <input
+              type="date"
+              id="startDate"
+              value={formatDateForInput(formData.startDate)}
+              onChange={(e) => updateFormData({ startDate: new Date(e.target.value) })}
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
+            />
+            <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
+          </div>
+        </div>
+        
+        <div>
+          <label htmlFor="endDate" className="block text-sm font-medium text-latte-700">
+            End Date *
+          </label>
+          <div className="mt-1 relative">
+            <input
+              type="date"
+              id="endDate"
+              value={formatDateForInput(formData.endDate)}
+              onChange={(e) => updateFormData({ endDate: new Date(e.target.value) })}
+              min={formatDateForInput(formData.startDate)}
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
+            />
+            <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* Estimated Budget */}
+      <div>
+        <label htmlFor="budget" className="block text-sm font-medium text-latte-700">
+          Estimated Budget (USD)
+        </label>
+        <div className="mt-1 relative">
+          <span className="absolute left-3 top-2 text-gray-500 dark:text-latte-400">$</span>
+          <input
+            type="number"
+            id="budget"
+            value={formData.estimatedBudget || ''}
+            onChange={(e) => updateFormData({ estimatedBudget: e.target.value ? parseFloat(e.target.value) : undefined })}
+            className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm pl-8 pr-3 py-2"
+            placeholder="0.00"
+            step="0.01"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
