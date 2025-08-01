@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-pearl-50 text-latte-800;
+  }
+  
+  /* Form input styles */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    @apply border border-pearl-300 bg-white rounded-lg px-3 py-2 
+           transition-all duration-200 focus:outline-none 
+           focus:ring-2 focus:ring-sage-300 focus:border-sage-400 
+           hover:border-pearl-400;
+  }
+  
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="number"]:focus,
+  input[type="date"]:focus,
+  textarea:focus,
+  select:focus {
+    @apply outline-none ring-2 ring-sage-300 border-sage-400;
+  }
+  
+  /* Button base styles */
+  .btn-primary {
+    @apply bg-sage-500 hover:bg-sage-600 text-white px-4 py-2 rounded-lg
+           transition-all duration-200 font-medium shadow-sm hover:shadow-md;
+  }
+  
+  .btn-secondary {
+    @apply bg-latte-200 hover:bg-latte-300 text-latte-800 px-4 py-2 rounded-lg
+           transition-all duration-200 font-medium border border-latte-300;
+  }
+  
+  .btn-accent {
+    @apply bg-cream-400 hover:bg-cream-500 text-latte-800 px-4 py-2 rounded-lg
+           transition-all duration-200 font-medium shadow-sm hover:shadow-md;
+  }
+  
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-pearl-200 
+           hover:shadow-md transition-all duration-200;
+  }
+  
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-pearl-100 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-sage-300 rounded-full hover:bg-sage-400;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-sage-400;
+  }
+  
+  /* Smooth transitions */
+  * {
+    @apply transition-colors duration-200;
+  }
+  
+  /* Custom utilities for vertical text */
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Dashboard card hover effects */
+  .dashboard-card {
+    @apply transform transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+  
+  /* Color-coded section lanes */
+  .section-lane-current {
+    @apply border-l-4 border-blue-500 bg-blue-50 pl-4 py-3 rounded-r-lg;
+  }
+  
+  .section-lane-past {
+    @apply border-l-4 border-gray-500 bg-gray-50 pl-4 py-3 rounded-r-lg;
+  }
+}
