@@ -3,9 +3,67 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* shadcn/ui CSS variables - adapted for Danish minimalist design */
+    --background: 252 252 252; /* pearl-50 */
+    --foreground: 84 66 50; /* latte-800 */
+    --card: 255 255 255;
+    --card-foreground: 84 66 50; /* latte-800 */
+    --popover: 255 255 255;
+    --popover-foreground: 84 66 50; /* latte-800 */
+    --primary: 107 156 107; /* sage-500 */
+    --primary-foreground: 255 255 255;
+    --secondary: 244 241 237; /* latte-100 */
+    --secondary-foreground: 111 87 64; /* latte-700 */
+    --muted: 245 245 245; /* pearl-200 */
+    --muted-foreground: 117 117 117; /* pearl-700 */
+    --accent: 232 224 215; /* latte-200 */
+    --accent-foreground: 111 87 64; /* latte-700 */
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 238 238 238; /* pearl-300 */
+    --input: 238 238 238; /* pearl-300 */
+    --ring: 107 156 107; /* sage-500 */
+    --radius: 0.75rem; /* 12px - matches existing rounded-xl */
+  }
+
+  .dark {
+    --background: 33 33 33; /* #212121 converted to RGB */
+    --foreground: 248 250 252; /* Light gray-white */
+    --card: 14 61 47; /* Dark green card background #0E3D2F */
+    --card-foreground: 248 250 252; /* Light gray-white */
+    --popover: 14 61 47; /* Dark green popover background */
+    --popover-foreground: 248 250 252; /* Light gray-white */
+    --primary: 52 211 153; /* Emerald-400 */
+    --primary-foreground: 6 78 59; /* Dark emerald */
+    --secondary: 5 25 20; /* Very dark green secondary */
+    --secondary-foreground: 226 232 240; /* Light secondary text */
+    --muted: 14 61 47; /* Dark green muted background */
+    --muted-foreground: 148 163 184; /* Muted text */
+    --accent: 14 61 47; /* Dark green accent background */
+    --accent-foreground: 226 232 240; /* Accent text */
+    --destructive: 239 68 68;
+    --destructive-foreground: 248 250 252;
+    --border: 14 61 47; /* Dark green borders */
+    --input: 14 61 47; /* Dark green input borders */
+    --ring: 52 211 153; /* Focus ring */
+  }
+
+  * {
+    @apply border-border;
+  }
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    @apply bg-pearl-50 text-latte-800;
+    @apply bg-beige-100 text-latte-800 dark:bg-[#212121] dark:text-slate-50;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  html.dark {
+    background-color: #212121;
+  }
+  
+  html.dark body {
+    background-color: #212121;
   }
   
   /* Form input styles */
@@ -15,10 +73,12 @@
   input[type="date"],
   textarea,
   select {
-    @apply border border-pearl-300 bg-white rounded-lg px-3 py-2 
+    @apply border border-pearl-300 dark:border-[#0E3D2F] bg-white dark:bg-[#0E3D2F]/50 
+           text-latte-800 dark:text-green-50 rounded-lg px-3 py-2 
            transition-all duration-200 focus:outline-none 
-           focus:ring-2 focus:ring-sage-300 focus:border-sage-400 
-           hover:border-pearl-400;
+           focus:ring-2 focus:ring-sage-300 dark:focus:ring-emerald-400 
+           focus:border-sage-400 dark:focus:border-emerald-400
+           hover:border-pearl-400 dark:hover:border-[#0E3D2F];
   }
   
   input[type="text"]:focus,
@@ -27,29 +87,33 @@
   input[type="date"]:focus,
   textarea:focus,
   select:focus {
-    @apply outline-none ring-2 ring-sage-300 border-sage-400;
+    @apply outline-none ring-2 ring-sage-300 dark:ring-emerald-400 
+           border-sage-400 dark:border-emerald-400;
   }
   
   /* Button base styles */
   .btn-primary {
-    @apply bg-sage-500 hover:bg-sage-600 text-white px-4 py-2 rounded-lg
+    @apply bg-sage-500 hover:bg-sage-600 dark:bg-emerald-500 dark:hover:bg-emerald-600 
+           text-white px-4 py-2 rounded-lg
            transition-all duration-200 font-medium shadow-sm hover:shadow-md;
   }
   
   .btn-secondary {
-    @apply bg-latte-200 hover:bg-latte-300 text-latte-800 px-4 py-2 rounded-lg
-           transition-all duration-200 font-medium border border-latte-300;
+    @apply bg-latte-200 hover:bg-latte-300 dark:bg-[#0E3D2F] dark:hover:bg-[#051914]
+           text-latte-800 dark:text-green-100 px-4 py-2 rounded-lg
+           transition-all duration-200 font-medium border border-latte-300 dark:border-[#0E3D2F];
   }
   
   .btn-accent {
-    @apply bg-cream-400 hover:bg-cream-500 text-latte-800 px-4 py-2 rounded-lg
+    @apply bg-cream-400 hover:bg-cream-500 dark:bg-emerald-600 dark:hover:bg-emerald-700
+           text-latte-800 dark:text-white px-4 py-2 rounded-lg
            transition-all duration-200 font-medium shadow-sm hover:shadow-md;
   }
   
   /* Card styles */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-pearl-200 
-           hover:shadow-md transition-all duration-200;
+    @apply bg-white dark:bg-[#0E3D2F]/50 rounded-xl shadow-sm border border-pearl-200 dark:border-[#0E3D2F]
+           hover:shadow-md dark:hover:shadow-green-950/50 transition-all duration-200;
   }
   
   /* Scrollbar styles */
@@ -59,15 +123,15 @@
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-pearl-100 rounded-full;
+    @apply bg-pearl-100 dark:bg-[#051914] rounded-full;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-sage-300 rounded-full hover:bg-sage-400;
+    @apply bg-sage-300 dark:bg-[#0E3D2F] rounded-full hover:bg-sage-400 dark:hover:bg-[#051914];
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-sage-400;
+    @apply bg-sage-400 dark:bg-[#051914];
   }
   
   /* Smooth transitions */
@@ -94,12 +158,44 @@
     @apply transform transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
   }
   
-  /* Color-coded section lanes */
+  /* Color-coded section lanes with golden theme */
   .section-lane-current {
-    @apply border-l-4 border-blue-500 bg-blue-50 pl-4 py-3 rounded-r-lg;
+    @apply border-l-4 border-golden-500 dark:border-amber-500 
+           bg-golden-50 dark:bg-amber-900/20 
+           pl-4 py-3 rounded-r-lg shadow-sm;
   }
   
   .section-lane-past {
-    @apply border-l-4 border-gray-500 bg-gray-50 pl-4 py-3 rounded-r-lg;
+    @apply border-l-4 border-gray-400 dark:border-slate-500 
+           bg-gray-100 dark:bg-slate-800/50 
+           pl-4 py-3 rounded-r-lg shadow-sm;
+  }
+  
+  /* 3D Card effects with golden glow */
+  .card-3d {
+    @apply transform transition-all duration-300 shadow-lg;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(245, 158, 11, 0.05);
+  }
+  
+  .dark .card-3d {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(245, 158, 11, 0.1);
+  }
+  
+  .card-3d-hover {
+    @apply hover:-translate-y-2 hover:shadow-2xl;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(245, 158, 11, 0.1), 0 0 20px rgba(245, 158, 11, 0.15);
+  }
+  
+  .dark .card-3d-hover {
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 10px 20px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(245, 158, 11, 0.2), 0 0 20px rgba(245, 158, 11, 0.2);
+  }
+  
+  .card-3d:hover {
+    @apply -translate-y-2 shadow-2xl;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(245, 158, 11, 0.1), 0 0 20px rgba(245, 158, 11, 0.15);
+  }
+  
+  .dark .card-3d:hover {
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 10px 20px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(245, 158, 11, 0.2), 0 0 20px rgba(245, 158, 11, 0.2);
   }
 }

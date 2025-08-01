@@ -239,6 +239,7 @@ export interface TripCard {
   title: string
   subject: string
   client: Company[]
+  guests: { companyId: string; names: string[] }[]
   wolthersStaff: User[]
   vehicles: Vehicle[]
   drivers: User[]
@@ -247,6 +248,7 @@ export interface TripCard {
   duration: number
   status: TripCardStatus
   progress?: number
+  notesCount?: number
 }
 
 export interface MeetingNote {

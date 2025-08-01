@@ -1,7 +1,7 @@
 import React from 'react'
-import { X, Calendar, Users, Car, Clock, MapPin, Phone, Mail, Globe } from 'lucide-react'
+import { X, Users, Car } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
-import { formatDateRange } from '@/lib/utils'
+import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
 
 interface QuickViewModalProps {
   trip: TripCardType
@@ -9,204 +9,361 @@ interface QuickViewModalProps {
   onClose: () => void
 }
 
+// Mock destination companies data based on real Wolthers trips
+const getDestinationCompanies = (tripId: string) => {
+  const destinationData: Record<string, Array<{date: string, location: string, company: string, keyHosts: string}>> = {
+    '1': [ // Brazil Coffee Farm Tour
+      { date: 'Jul 29', location: 'Santos', company: 'Unicafé', keyHosts: 'Fabio Mattos' },
+      { date: 'Jul 29', location: 'Santos', company: 'Comexim', keyHosts: 'Maurício Dicunto' },
+      { date: 'Jul 30', location: 'Varginha', company: 'Brascof', keyHosts: 'Wilian, Thiago' },
+      { date: 'Jul 30', location: 'Varginha', company: 'Minasul', keyHosts: 'Caroline Nery' },
+      { date: 'Jul 30', location: 'Varginha', company: 'Cocatrel', keyHosts: 'Gabriel Miari' },
+      { date: 'Aug 1', location: 'Poços de Caldas', company: 'Exp. Bourbon', keyHosts: 'Icaro Carneiro' },
+      { date: 'Aug 2', location: 'Carmo do Paranaiba', company: 'Veloso Farm', keyHosts: 'Paulo Veloso Junior' }
+    ],
+    '2': [ // European Coffee Summit
+      { date: 'Jul 30', location: 'Copenhagen', company: 'Nordic Coffee Roasters', keyHosts: 'Hansen, Nielsen' },
+      { date: 'Jul 30', location: 'Copenhagen', company: 'Coffee Collective', keyHosts: 'Peter Dupont' },
+      { date: 'Aug 2', location: 'Stockholm', company: 'Löfbergs', keyHosts: 'Erik Lundberg' },
+      { date: 'Aug 4', location: 'Oslo', company: 'Solberg & Hansen', keyHosts: 'Magnus Solberg' }
+    ],
+    '3': [ // Colombia Coffee Expo
+      { date: 'Aug 8', location: 'Bogotá', company: 'FNC', keyHosts: 'Carlos Rodriguez' },
+      { date: 'Aug 10', location: 'Medellín', company: 'Pergamino Café', keyHosts: 'Alejandro Cadena' },
+      { date: 'Aug 11', location: 'Manizales', company: 'Coocentral', keyHosts: 'Maria Gonzalez' }
+    ],
+    '4': [ // Guatemala Highland Visit
+      { date: 'Aug 18', location: 'Antigua', company: 'Finca El Injerto', keyHosts: 'Arturo Aguirre' },
+      { date: 'Aug 20', location: 'Huehuetenango', company: 'La Morelia', keyHosts: 'Pedro Echeverría' },
+      { date: 'Aug 21', location: 'Cobán', company: 'Finca Santa Isabel', keyHosts: 'Roberto Dalton' }
+    ],
+    '5': [ // NCA Convention 2025
+      { date: 'Sep 15', location: 'New Orleans', company: 'Community Coffee', keyHosts: 'Matt Saurage' },
+      { date: 'Sep 16', location: 'New Orleans', company: 'French Truck Coffee', keyHosts: 'Sean O\'Connor' },
+      { date: 'Sep 18', location: 'New Orleans', company: 'Addiction Coffee', keyHosts: 'John Smith' }
+    ],
+    '6': [ // Swiss Coffee Dinner 2025
+      { date: 'Jun 10', location: 'Zurich', company: 'Cafés Richard', keyHosts: 'Klaus Weber' },
+      { date: 'Jun 11', location: 'Geneva', company: 'Boissons du Monde', keyHosts: 'Pierre Dubois' }
+    ],
+    '7': [ // Kenya Coffee Origin Tour
+      { date: 'May 5', location: 'Nairobi', company: 'Dormans Coffee', keyHosts: 'Samuel Kimani' },
+      { date: 'May 7', location: 'Nyeri', company: 'Barichu Cooperative', keyHosts: 'Grace Wanjiku' },
+      { date: 'May 9', location: 'Kirinyaga', company: 'New Ngariama Cooperative', keyHosts: 'Peter Mwangi' }
+    ],
+    '8': [ // Vietnam Coffee Industry Summit
+      { date: 'Apr 20', location: 'Ho Chi Minh City', company: 'Trung Nguyên', keyHosts: 'Nguyen Van Duc' },
+      { date: 'Apr 22', location: 'Buon Ma Thuot', company: 'Highland Coffee', keyHosts: 'Tran Minh Hai' },
+      { date: 'Apr 23', location: 'Da Lat', company: 'K\'Coffee', keyHosts: 'Le Thi Lan' }
+    ]
+  }
+  
+  return destinationData[tripId] || []
+}
+
+// Helper function to group destinations by location and date
+const groupDestinationsByLocation = (destinations: Array<{date: string, location: string, company: string, keyHosts: string}>) => {
+  const locationGroups = new Map<string, Array<{date: string, company: string, keyHosts: string}>>()
+  
+  // First, group by location
+  destinations.forEach(dest => {
+    if (!locationGroups.has(dest.location)) {
+      locationGroups.set(dest.location, [])
+    }
+    locationGroups.get(dest.location)!.push({
+      date: dest.date,
+      company: dest.company,
+      keyHosts: dest.keyHosts
+    })
+  })
+  
+  // Then, create grouped results with date ranges
+  const grouped: Array<{dateRange: string, location: string, companies: Array<{company: string, keyHosts: string}>}> = []
+  
+  locationGroups.forEach((visits, location) => {
+    const uniqueDates = Array.from(new Set(visits.map(v => v.date))).sort()
+    const allCompanies = visits.map(v => ({ company: v.company, keyHosts: v.keyHosts }))
+    
+    let dateRange: string
+    if (uniqueDates.length === 1) {
+      dateRange = uniqueDates[0]
+    } else {
+      // Create date range like "28-29 Jul"
+      const firstDate = uniqueDates[0]
+      const lastDate = uniqueDates[uniqueDates.length - 1]
+      
+      // Extract day numbers and month
+      const firstDay = firstDate.split(' ')[1] // "29" from "Jul 29"
+      const lastDay = lastDate.split(' ')[1]   // "30" from "Jul 30"
+      const month = firstDate.split(' ')[0]    // "Jul" from "Jul 29"
+      
+      if (firstDay && lastDay && month) {
+        dateRange = `${firstDay}-${lastDay} ${month}`
+      } else {
+        dateRange = `${firstDate}-${lastDate}`
+      }
+    }
+    
+    grouped.push({
+      dateRange,
+      location,
+      companies: allCompanies
+    })
+  })
+  
+  return grouped
+}
+
 export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModalProps) {
   if (!isOpen) return null
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ongoing':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'upcoming':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'completed':
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
+  const progress = getTripProgress(trip.startDate, trip.endDate)
+  const tripStatus = getTripStatus(trip.startDate, trip.endDate)
+  const destinations = getDestinationCompanies(trip.id)
+  const groupedDestinations = groupDestinationsByLocation(destinations)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
-            <h2 className="text-2xl font-bold text-gray-900">{trip.title}</h2>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(trip.status)}`}>
-              {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
+        {/* Header with Title */}
+        <div className="bg-white dark:bg-white px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-gray-200">
+          <div className="flex items-center justify-between w-full mr-4">
+            <h2 className="text-xl font-bold text-black dark:text-black">{trip.title}</h2>
+            <span className="text-sm text-gray-600 dark:text-gray-600 font-medium">
+              {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-600 dark:text-gray-600 hover:text-gray-800 dark:hover:text-gray-800 transition-colors flex-shrink-0"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
+        {/* Progress Bar */}
+        {tripStatus === 'ongoing' && (
+          <div className="h-6 relative overflow-hidden bg-emerald-900 dark:bg-[#111111]">
+            <div 
+              className="absolute left-0 top-0 h-full transition-all duration-700 shadow-sm bg-emerald-700 dark:bg-[#123d32]"
+              style={{ width: `${progress}%` }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-medium text-white z-10">
+                {progress}% COMPLETE
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Trip Description */}
+        <div className="px-6 py-4 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            {trip.subject}
+          </p>
+        </div>
+
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Trip Overview */}
-          <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Trip Overview</h3>
-            <p className="text-gray-700">{trip.subject}</p>
-            
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center text-gray-700">
-                <Calendar className="w-5 h-5 mr-3 text-amber-600" />
-                <div>
-                  <span className="font-medium">Duration:</span>
-                  <div className="text-sm">{formatDateRange(trip.startDate, trip.endDate)}</div>
-                </div>
-              </div>
-              <div className="flex items-center text-gray-700">
-                <Clock className="w-5 h-5 mr-3 text-amber-600" />
-                <div>
-                  <span className="font-medium">Length:</span>
-                  <div className="text-sm">{trip.duration} days</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Companies */}
-          <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-orange-600" />
-              Companies Visiting
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {trip.client.map((company) => (
-                <div key={company.id} className="bg-white rounded-lg p-4 border border-orange-200">
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    {company.fantasyName || company.name}
-                  </h4>
-                  {company.name !== company.fantasyName && (
-                    <p className="text-sm text-gray-600 mb-2">{company.name}</p>
-                  )}
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <span className="font-medium w-16">Industry:</span>
-                      <span className="capitalize">{company.industry}</span>
-                    </div>
-                    {company.email && (
-                      <div className="flex items-center">
-                        <Mail className="w-4 h-4 mr-2" />
-                        <span>{company.email}</span>
-                      </div>
-                    )}
-                    {company.website && (
-                      <div className="flex items-center">
-                        <Globe className="w-4 h-4 mr-2" />
-                        <a 
-                          href={company.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {company.website}
-                        </a>
+          {/* Companies Visiting */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {trip.client.map((company) => {
+                const companyGuests = trip.guests.find(g => g.companyId === company.id)
+                return (
+                  <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                      {company.fantasyName || company.name}
+                    </h4>
+                    {companyGuests && (
+                      <div className="space-y-1">
+                        {companyGuests.names.map((name, index) => (
+                          <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                            {name}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
+                )
+              })}
           </div>
 
-          {/* Team & Resources */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Wolthers Staff */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-blue-600" />
-                Wolthers Staff ({trip.wolthersStaff.length})
-              </h3>
-              <div className="space-y-3">
-                {trip.wolthersStaff.map((staff) => (
-                  <div key={staff.id} className="bg-white rounded-lg p-3 border border-blue-200">
-                    <div className="font-medium text-gray-900">{staff.fullName}</div>
-                    <div className="text-sm text-gray-600">{staff.email}</div>
-                    <div className="text-xs text-gray-500 capitalize">{staff.role.replace('_', ' ')}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Vehicles & Drivers */}
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Car className="w-5 h-5 mr-2 text-green-600" />
-                Fleet & Drivers
-              </h3>
-              
-              {trip.vehicles.length > 0 ? (
-                <div className="space-y-3">
-                  {trip.vehicles.map((vehicle) => (
-                    <div key={vehicle.id} className="bg-white rounded-lg p-3 border border-green-200">
-                      <div className="font-medium text-gray-900">
-                        {vehicle.make} {vehicle.model} ({vehicle.year})
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {vehicle.color && `${vehicle.color} • `}
-                        {vehicle.licensePlate}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {vehicle.currentMileage.toLocaleString()} miles
-                      </div>
+          {/* Wolthers Staff & Fleet/Drivers */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Wolthers Staff Card */}
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                  Wolthers Staff
+                </h4>
+                <div className="space-y-1">
+                  {trip.wolthersStaff.map((staff) => (
+                    <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
+                      {staff.fullName}
                     </div>
                   ))}
-                  
-                  {trip.drivers.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Assigned Drivers</h4>
-                      <div className="space-y-2">
-                        {trip.drivers.map((driver) => (
-                          <div key={driver.id} className="bg-white rounded-lg p-3 border border-green-200">
-                            <div className="font-medium text-gray-900">{driver.fullName}</div>
-                            <div className="text-sm text-gray-600">{driver.email}</div>
+                </div>
+              </div>
+
+              {/* Fleet & Drivers Card */}
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                  Fleet & Drivers
+                </h4>
+                
+                {trip.vehicles.length === 0 && trip.drivers.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    No vehicles or drivers assigned
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Vehicles - Left Side */}
+                    <div>
+                      <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
+                        Vehicles
+                      </span>
+                      <div className="space-y-1">
+                        {trip.vehicles.length > 0 ? (
+                          trip.vehicles.map((vehicle) => (
+                            <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
+                              {vehicle.make} {vehicle.model}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No vehicles
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Vertical divider */}
+                    <div className="border-l border-gray-200 dark:border-[#2a2a2a] pl-4">
+                      <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
+                        Drivers
+                      </span>
+                      <div className="space-y-1">
+                        {trip.drivers.length > 0 ? (
+                          trip.drivers.map((driver) => (
+                            <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
+                              {driver.fullName}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No drivers
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+          </div>
+
+          {/* Divider Line */}
+          <div className="border-t border-gray-200 dark:border-[#2a2a2a] my-6"></div>
+
+          {/* Trip Overview Table */}
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-100 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#2a2a2a]">
+              <div className="col-span-1 text-xs font-semibold text-gray-700 dark:text-gray-300">Date</div>
+              <div className="col-span-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Location</div>
+              <div className="col-span-8 text-sm font-semibold text-gray-700 dark:text-gray-300">Companies/Visits</div>
+            </div>
+            
+            {/* Table Rows */}
+            <div className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+              {groupedDestinations.map((group, index) => {
+                const isOdd = index % 2 === 0
+                
+                return (
+                  <div 
+                    key={`${group.location}-${group.dateRange}-${index}`} 
+                    className={`grid grid-cols-12 gap-4 px-4 py-4 ${
+                      isOdd ? 'bg-white dark:bg-[#1a1a1a]' : 'bg-gray-50 dark:bg-[#111111]'
+                    }`}
+                  >
+                    {/* Date */}
+                    <div className="col-span-1 text-xs text-gray-500 dark:text-gray-400">
+                      {group.dateRange}
+                    </div>
+                    
+                    {/* Location */}
+                    <div className="col-span-3 text-sm">
+                      <span className="text-black dark:text-gray-200 font-medium">
+                        {group.location}
+                      </span>
+                    </div>
+                    
+                    {/* Companies/Visits */}
+                    <div className="col-span-8 text-sm">
+                      <div className="space-y-1">
+                        {group.companies.map((company, companyIndex) => (
+                          <div key={companyIndex} className="text-gray-900 dark:text-gray-200">
+                            <span className="font-medium">{company.company}</span>
+                            <span className="text-gray-600 dark:text-gray-400"> - {company.keyHosts}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
+                  </div>
+                )
+              })}
+            </div>
+            
+            {/* Summary Stats */}
+            <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
+                  {groupedDestinations.length}
                 </div>
-              ) : (
-                <div className="text-gray-500 text-center py-4">
-                  No vehicles assigned
+                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Locations
                 </div>
-              )}
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
+                  {groupedDestinations.reduce((total, group) => total + group.companies.length, 0)}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Companies
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
+                  {trip.duration}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Days
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
+                  {groupedDestinations.reduce((total, group) => 
+                    total + group.companies.reduce((companyTotal, company) => 
+                      companyTotal + company.keyHosts.split(',').length, 0), 0)}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Key Contacts
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Progress Indicator */}
-          {trip.progress !== undefined && trip.status === 'ongoing' && (
-            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Trip Progress</h3>
-              <div className="w-full bg-yellow-200 rounded-full h-3">
-                <div 
-                  className="bg-yellow-500 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${trip.progress}%` }}
-                ></div>
-              </div>
-              <div className="mt-2 text-sm text-gray-700 font-medium">
-                {trip.progress}% Complete
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex justify-end space-x-3 p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
           >
             Close
           </button>
           <button
             onClick={() => window.location.href = `/trips/${trip.id}`}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            className="px-4 py-2 bg-golden-500 dark:bg-[#123d32] text-white rounded-lg hover:bg-golden-600 dark:hover:bg-[#0E3D2F] transition-colors"
           >
             View Full Details
           </button>
