@@ -15,8 +15,7 @@ interface TripCardProps {
   isPast?: boolean
 }
 
-const ROTATION_RANGE = 32.5;
-const HALF_ROTATION_RANGE = 32.5 / 2;
+const ROTATION_RANGE = 15;
 
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
   const ref = useRef(null)
@@ -31,24 +30,24 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const x = useMotionValue(0)
   const y = useMotionValue(0)
 
-  const xSpring = useSpring(x)
-  const ySpring = useSpring(y)
+  const xSpring = useSpring(x, { stiffness: 300, damping: 30 })
+  const ySpring = useSpring(y, { stiffness: 300, damping: 30 })
 
   const transform = useMotionTemplate`rotateX(${xSpring}deg) rotateY(${ySpring}deg)`
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return [0, 0]
+    if (!ref.current) return
 
     const rect = (ref.current as HTMLElement).getBoundingClientRect()
 
     const width = rect.width
     const height = rect.height
 
-    const mouseX = (e.clientX - rect.left) * ROTATION_RANGE
-    const mouseY = (e.clientY - rect.top) * ROTATION_RANGE
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
 
-    const rX = (mouseY / height - HALF_ROTATION_RANGE) * -1
-    const rY = mouseX / width - HALF_ROTATION_RANGE
+    const rX = ((mouseY / height) - 0.5) * -ROTATION_RANGE
+    const rY = ((mouseX / width) - 0.5) * ROTATION_RANGE
 
     x.set(rX)
     y.set(rY)
