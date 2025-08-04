@@ -1,12 +1,13 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Mail, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
-export default function VerifyRequestPage() {
+function VerifyRequestContent() {
   const searchParams = useSearchParams()
   const provider = searchParams.get("provider")
   const type = searchParams.get("type")
@@ -64,5 +65,18 @@ export default function VerifyRequestPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function VerifyRequestPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>}>
+      <VerifyRequestContent />
+    </Suspense>
   )
 }
