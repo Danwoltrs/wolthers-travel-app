@@ -69,7 +69,7 @@ const getModalIcon = (type: ModalType) => {
   }
 }
 
-// Get button variant based on modal type
+// Get button variant based on modal type (kept for compatibility)
 const getButtonVariant = (type: ModalType, variant?: "default" | "destructive") => {
   if (variant === "destructive") return "destructive"
   
@@ -130,8 +130,7 @@ export function AlertModal({
         <DialogFooter className="sm:justify-center">
           <Button
             onClick={handleConfirm}
-            variant={getButtonVariant(type)}
-            className="min-w-[100px]"
+            className="min-w-[100px] bg-emerald-800 hover:bg-emerald-900 text-amber-400 hover:text-amber-300 font-semibold shadow-lg border-0"
             autoFocus
           >
             {confirmText}
@@ -196,15 +195,13 @@ export function ConfirmModal({
         <DialogFooter className="flex gap-3 sm:justify-center">
           <Button
             onClick={handleCancel}
-            variant="outline"
-            className="min-w-[100px]"
+            className="min-w-[100px] bg-red-800 hover:bg-red-900 text-white font-semibold shadow-lg border-0"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
-            variant={getButtonVariant(type, variant)}
-            className="min-w-[100px]"
+            className="min-w-[100px] bg-emerald-800 hover:bg-emerald-900 text-amber-400 hover:text-amber-300 font-semibold shadow-lg border-0"
             autoFocus
           >
             {confirmText}
@@ -289,15 +286,13 @@ export function InputModal({
         <DialogFooter className="flex gap-3 sm:justify-center">
           <Button
             onClick={handleCancel}
-            variant="outline"
-            className="min-w-[100px]"
+            className="min-w-[100px] bg-red-800 hover:bg-red-900 text-white font-semibold shadow-lg border-0"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
-            variant={getButtonVariant(type)}
-            className="min-w-[100px]"
+            className="min-w-[100px] bg-emerald-800 hover:bg-emerald-900 text-amber-400 hover:text-amber-300 font-semibold shadow-lg border-0"
             disabled={!value.trim()}
           >
             {confirmText}
