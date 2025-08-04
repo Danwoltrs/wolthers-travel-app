@@ -93,8 +93,8 @@ export default function LoginPage() {
     // Mock database of trip codes
     const mockTripCodes = [
       { code: 'GT-2024-001', status: 'ongoing' as TripStatus, tripId: '1' },
-      { code: 'ACTIVE123', status: 'upcoming' as TripStatus, tripId: '2' },
-      { code: 'UPCOMING456', status: 'upcoming' as TripStatus, tripId: '3' },
+      { code: 'ACTIVE123', status: 'confirmed' as TripStatus, tripId: '2' },
+      { code: 'UPCOMING456', status: 'confirmed' as TripStatus, tripId: '3' },
       { code: 'FINISHED789', status: 'completed' as TripStatus, tripId: '4' },
       { code: 'PAST123', status: 'completed' as TripStatus, tripId: '5' },
       { code: 'EXPIRED999', status: 'completed' as TripStatus, tripId: '6' },
@@ -137,7 +137,7 @@ export default function LoginPage() {
               router.push('/auth/register')
             }
           })
-        } else if (verification.status === 'upcoming' || verification.status === 'ongoing') {
+        } else if (verification.status === 'confirmed' || verification.status === 'ongoing') {
           // Valid active trip code - redirect to trip
           router.push(`/guest/trip/${inputValue}`)
         } else {

@@ -1,7 +1,13 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
+import {
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useSpring,
+} from "framer-motion"
 
 interface TripCardProps {
   trip: TripCardType
@@ -9,23 +15,74 @@ interface TripCardProps {
   isPast?: boolean
 }
 
+const ROTATION_RANGE = 32.5;
+const HALF_ROTATION_RANGE = 32.5 / 2;
+
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
+  const ref = useRef(null)
+  
   const progress = getTripProgress(trip.startDate, trip.endDate)
   const tripStatus = getTripStatus(trip.startDate, trip.endDate)
   const statusLabel = getTripStatusLabel(trip.startDate, trip.endDate)
   const progressColor = getTripProgressColor(trip.startDate, trip.endDate)
   const { dateRange, duration } = formatTripDates(trip.startDate, trip.endDate)
+
+  // Motion values for 3D tilt effect
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+
+  const xSpring = useSpring(x)
+  const ySpring = useSpring(y)
+
+  const transform = useMotionTemplate`rotateX(${xSpring}deg) rotateY(${ySpring}deg)`
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ref.current) return [0, 0]
+
+    const rect = (ref.current as HTMLElement).getBoundingClientRect()
+
+    const width = rect.width
+    const height = rect.height
+
+    const mouseX = (e.clientX - rect.left) * ROTATION_RANGE
+    const mouseY = (e.clientY - rect.top) * ROTATION_RANGE
+
+    const rX = (mouseY / height - HALF_ROTATION_RANGE) * -1
+    const rY = mouseX / width - HALF_ROTATION_RANGE
+
+    x.set(rX)
+    y.set(rY)
+  }
+
+  const handleMouseLeave = () => {
+    x.set(0)
+    y.set(0)
+  }
   
   return (
-    <div
+    <motion.div
+      ref={ref}
       onClick={onClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transformStyle: "preserve-3d",
+        transform,
+      }}
       className={cn(
-        'bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col w-full max-w-sm xl:max-w-none h-[420px] card-3d',
-        isPast ? 'opacity-80 hover:opacity-100 grayscale hover:grayscale-0' : 'hover:card-3d-hover'
+        'bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col w-full max-w-sm xl:max-w-none h-[420px] shadow-lg hover:shadow-2xl',
+        isPast ? 'opacity-80 hover:opacity-100 grayscale hover:grayscale-0' : ''
       )}
     >
-      {/* Zone 1: Header - Golden Background */}
-      <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-3 relative h-14 flex items-center">
+      <div 
+        style={{
+          transform: "translateZ(50px)",
+          transformStyle: "preserve-3d",
+        }}
+        className="h-full w-full"
+      >
+        {/* Zone 1: Header - Golden Background */}
+        <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-3 relative h-14 flex items-center">
         <h3 className="text-lg font-bold text-white dark:text-golden-400 leading-tight drop-shadow-sm" title={trip.title}>
           {trip.title}
         </h3>
@@ -191,6 +248,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           }
         </span>
       </div>
-    </div>
+      </div>
+    </motion.div>
   )
 }
