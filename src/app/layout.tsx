@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Header from '@/components/layout/Header'
+import ConditionalHeader from '@/components/layout/ConditionalHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { ModalProvider } from '@/hooks/use-modal'
 
 export const metadata: Metadata = {
   title: 'Wolthers Travel App',
@@ -14,14 +16,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
-        <ThemeProvider>
-          <Header />
-          <main className="min-h-screen">
-            {children}
-          </main>
-        </ThemeProvider>
+    <html lang="en" suppressHydrationWarning={true}>
+      <body suppressHydrationWarning={true}>
+        <AuthProvider>
+          <ThemeProvider>
+            <ModalProvider>
+              <ConditionalHeader />
+              <main className="min-h-screen">
+                {children}
+              </main>
+            </ModalProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   )

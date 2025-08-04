@@ -1,8 +1,11 @@
 export enum UserRole {
   GLOBAL_ADMIN = "global_admin",
   WOLTHERS_STAFF = "wolthers_staff",
+  WOLTHERS_FINANCE = "wolthers_finance",
   COMPANY_ADMIN = "company_admin",
-  CLIENT_USER = "client_user",
+  VISITOR = "visitor",
+  VISITOR_ADMIN = "visitor_admin",
+  HOST = "host",
   DRIVER = "driver",
   GUEST = "guest"
 }
@@ -25,6 +28,20 @@ export enum ExpenseStatus {
   PENDING = "pending",
   APPROVED = "approved",
   REIMBURSED = "reimbursed"
+}
+
+export enum AuthMethod {
+  EMAIL_OTP = "email_otp",
+  MICROSOFT = "microsoft",
+  PASSWORD = "password"
+}
+
+export enum AuthStatus {
+  UNAUTHENTICATED = "unauthenticated",
+  AUTHENTICATING = "authenticating",
+  AUTHENTICATED = "authenticated",
+  EXPIRED = "expired",
+  ERROR = "error"
 }
 
 /**
@@ -282,4 +299,125 @@ export interface Expense {
   expenseDate: Date
   status: ExpenseStatus
   createdAt: Date
+}
+
+/**
+ * NextAuth.js session extension
+ * Extends the default session to include additional user properties
+ */
+export interface AuthUser {
+  id: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  role?: UserRole
+  companyId?: string
+  permissions?: Record<string, boolean>
+  azure_id?: string
+  preferred_username?: string
+}
+
+/**
+ * Extended NextAuth session
+ */
+export interface AuthSession {
+  user: AuthUser
+  expires: string
+}
+
+/**
+ * User profile stored in database for NextAuth integration
+ */
+export interface UserProfile {
+  user_id: string
+  email: string
+  name?: string
+  role: UserRole
+  company_id?: string
+  permissions: Record<string, boolean>
+  azure_id?: string
+  preferred_username?: string
+  created_at: string
+  updated_at?: string
+}
+
+/**
+ * Auth provider information
+ */
+export interface AuthProvider {
+  id: string
+  name: string
+  type: 'oauth' | 'email'
+  signinUrl: string
+  callbackUrl: string
+}
+
+/**
+ * Authentication form interfaces for auth components
+ */
+
+/**
+ * Login form data
+ */
+export interface LoginFormData {
+  email: string
+  password?: string
+  rememberMe?: boolean
+  authMethod: AuthMethod
+}
+
+/**
+ * OTP verification data
+ */
+export interface OTPVerificationData {
+  email: string
+  otp: string
+  purpose: 'login' | 'password_reset' | '2fa'
+}
+
+/**
+ * Password reset request data
+ */
+export interface PasswordResetData {
+  email: string
+  token?: string
+  newPassword?: string
+}
+
+/**
+ * Authentication response from API
+ */
+export interface AuthResponse {
+  success: boolean
+  message?: string
+  token?: string
+  user?: AuthUser
+  requiresOTP?: boolean
+  otpSent?: boolean
+  expiresAt?: string
+}
+
+/**
+ * Authentication error
+ */
+export interface AuthError {
+  code: string
+  message: string
+  field?: string
+  details?: Record<string, any>
+}
+
+/**
+ * Authentication context state
+ */
+export interface AuthContextState {
+  user: AuthUser | null
+  status: AuthStatus
+  isLoading: boolean
+  error: AuthError | null
+  signIn: (credentials: LoginFormData) => Promise<AuthResponse>
+  signOut: () => Promise<void>
+  verifyOTP: (data: OTPVerificationData) => Promise<AuthResponse>
+  resetPassword: (data: PasswordResetData) => Promise<AuthResponse>
+  clearError: () => void
 }
