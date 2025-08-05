@@ -20,6 +20,7 @@ const ROTATION_RANGE = 15;
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
   const ref = useRef(null)
   
+  // Always calculate progress based on current date for real-time updates
   const progress = getTripProgress(trip.startDate, trip.endDate)
   const tripStatus = getTripStatus(trip.startDate, trip.endDate)
   const statusLabel = getTripStatusLabel(trip.startDate, trip.endDate)
@@ -145,12 +146,12 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       </div>
 
       {/* Zone 5: Team & Logistics - Very Light Golden Background */}
-      <div className="bg-golden-50 dark:bg-[#111111] px-6 py-3 flex-1 flex flex-col justify-start space-y-2">
-        {/* Team Section */}
+      <div className="bg-golden-50 dark:bg-[#111111] px-6 py-3 h-[140px] flex flex-col justify-between space-y-2">
+        {/* Wolthers Team Section */}
         <div>
           <div className="flex items-center mb-1">
             <Users className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
-            <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Team</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Wolthers Team Attending</span>
           </div>
           <div className="flex flex-wrap gap-x-2 min-h-[2rem]">
             {trip.wolthersStaff.slice(0, 3).map((staff, index) => (
@@ -227,14 +228,24 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       <div className="bg-white dark:bg-[#1a1a1a] px-6 py-2 rounded-b-lg h-10 flex items-center justify-between">
         {/* Key Visits Count - Left */}
         <span className="text-xs text-pearl-600 dark:text-gray-400">
-          {trip.client.length} visit{trip.client.length > 1 ? 's' : ''}
+          {trip.visitCount || 0} visit{trip.visitCount !== 1 ? 's' : ''}
         </span>
         
-        {/* Progress Indicator for Ongoing Trips - Center */}
+        {/* Status Indicator - Center */}
         <div className="flex-1 flex justify-center">
           {tripStatus === 'ongoing' && (
             <span className="text-xs text-pearl-600 dark:text-gray-400">
               {progress}% complete
+            </span>
+          )}
+          {tripStatus === 'upcoming' && (
+            <span className="text-xs text-pearl-600 dark:text-gray-400">
+              {statusLabel}
+            </span>
+          )}
+          {tripStatus === 'completed' && (
+            <span className="text-xs text-pearl-600 dark:text-gray-400">
+              Completed
             </span>
           )}
         </div>

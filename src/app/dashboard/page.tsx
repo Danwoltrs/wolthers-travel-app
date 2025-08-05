@@ -1,305 +1,23 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Loader2 } from 'lucide-react'
 import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
-import type { TripCard as TripCardType, Company, User, Vehicle } from '@/types'
-import { UserRole, VehicleStatus } from '@/types'
-import { getTripStatus, getTripProgress, calculateDuration, cn } from '@/lib/utils'
-
-// Mock data - will be replaced with API calls
-const mockCompanies: Company[] = [
-  {
-    id: '1',
-    name: 'Mitsui & Co Ltd',
-    fantasyName: 'Mitsui',
-    email: 'contact@mitsui.com',
-    industry: 'Coffee Trading',
-    totalTripCostsThisYear: 15000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '2',
-    name: 'Swiss Coffee Trading AG',
-    fantasyName: 'Swiss Coffee Trading',
-    email: 'info@swisscoffee.ch',
-    industry: 'Coffee Trading',
-    totalTripCostsThisYear: 25000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '3',
-    name: 'Guatemalan Highland Farms',
-    fantasyName: 'Highland Farms',
-    email: 'hello@highlandfarms.gt',
-    industry: 'Coffee Production',
-    totalTripCostsThisYear: 8500,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '4',
-    name: 'Colombian Coffee Exporters',
-    fantasyName: 'CCE',
-    email: 'exports@cce.co',
-    industry: 'Coffee Export',
-    totalTripCostsThisYear: 12000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '5',
-    name: 'Sucafina SA',
-    fantasyName: 'S&D',
-    email: 'info@sucafina.com',
-    industry: 'Coffee Trading',
-    totalTripCostsThisYear: 18000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-]
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'erik.wolthers@wolthers.com',
-    fullName: 'Erik Wolthers',
-    role: UserRole.WOLTHERS_STAFF,
-    permissions: {},
-    isActive: true,
-    createdAt: new Date()
-  },
-  {
-    id: '2',
-    email: 'maria.santos@wolthers.com',
-    fullName: 'Maria Santos',
-    role: UserRole.WOLTHERS_STAFF,
-    permissions: {},
-    isActive: true,
-    createdAt: new Date()
-  },
-  {
-    id: '3',
-    email: 'carlos.mendez@wolthers.com',
-    fullName: 'Carlos Mendez',
-    role: UserRole.DRIVER,
-    permissions: {},
-    isActive: true,
-    createdAt: new Date()
-  },
-  {
-    id: '4',
-    email: 'anna.larsen@wolthers.com',
-    fullName: 'Anna Larsen',
-    role: UserRole.WOLTHERS_STAFF,
-    permissions: {},
-    isActive: true,
-    createdAt: new Date()
-  }
-]
-
-const mockVehicles: Vehicle[] = [
-  {
-    id: '1',
-    make: 'Toyota',
-    model: 'Land Cruiser',
-    year: 2022,
-    color: 'White',
-    licensePlate: 'WOL-001',
-    currentMileage: 25000,
-    status: VehicleStatus.ACTIVE,
-    createdAt: new Date()
-  },
-  {
-    id: '2',
-    make: 'Mercedes-Benz',
-    model: 'Sprinter',
-    year: 2023,
-    color: 'Silver',
-    licensePlate: 'WOL-002',
-    currentMileage: 15000,
-    status: VehicleStatus.ACTIVE,
-    createdAt: new Date()
-  },
-  {
-    id: '3',
-    make: 'Ford',
-    model: 'Transit',
-    year: 2021,
-    color: 'Blue',
-    licensePlate: 'WOL-003',
-    currentMileage: 45000,
-    status: VehicleStatus.ACTIVE,
-    createdAt: new Date()
-  }
-]
-
-const mockTrips: TripCardType[] = [
-  // 2 ONGOING TRIPS with different progress levels
-  {
-    id: '1',
-    title: 'Brazil Coffee Farm Tour',
-    subject: 'Strategic visit to Minas Gerais coffee farms to establish direct trade relationships and assess quality standards for premium coffee sourcing',
-    client: [mockCompanies[0], mockCompanies[4]],
-    guests: [
-      { companyId: '1', names: ['Nakaya', 'Kurobe', 'Okada'] },
-      { companyId: '5', names: ['Ada', 'Martinez'] }
-    ],
-    wolthersStaff: [mockUsers[0], mockUsers[3]],
-    vehicles: [mockVehicles[0], mockVehicles[1]],
-    drivers: [mockUsers[2]],
-    startDate: new Date('2025-07-29'),
-    endDate: new Date('2025-08-04'),
-    duration: calculateDuration('2025-07-29', '2025-08-04'),
-    status: 'ongoing',
-    progress: 75,
-    notesCount: 8
-  },
-  {
-    id: '2',
-    title: 'European Coffee Summit',
-    subject: 'Multi-day European Coffee Summit in Copenhagen focusing on sustainability, innovation, and market trends in the Nordic coffee scene',
-    client: [mockCompanies[1], mockCompanies[3]],
-    guests: [
-      { companyId: '2', names: ['Mueller', 'Hansen'] },
-      { companyId: '4', names: ['Rodriguez', 'Silva'] }
-    ],
-    wolthersStaff: [mockUsers[0], mockUsers[1]],
-    vehicles: [],
-    drivers: [],
-    startDate: new Date('2025-07-30'),
-    endDate: new Date('2025-08-05'),
-    duration: calculateDuration('2025-07-30', '2025-08-05'),
-    status: 'ongoing',
-    progress: 35,
-    notesCount: 3
-  },
-  
-  // 3 UPCOMING TRIPS (closest dates first)
-  {
-    id: '3',
-    title: 'Colombia Coffee Expo',
-    subject: 'Colombian Coffee Expo and Trade Show in Bogotá featuring new processing techniques and sustainable farming practices',
-    client: [mockCompanies[3]],
-    guests: [
-      { companyId: '4', names: ['Garcia', 'Lopez', 'Morales'] }
-    ],
-    wolthersStaff: [mockUsers[1], mockUsers[3]],
-    vehicles: [mockVehicles[1]],
-    drivers: [mockUsers[2]],
-    startDate: new Date('2025-08-08'),
-    endDate: new Date('2025-08-12'),
-    duration: calculateDuration('2025-08-08', '2025-08-12'),
-    status: 'upcoming',
-    progress: 0,
-    notesCount: 12
-  },
-  {
-    id: '4',
-    title: 'Guatemala Highland Visit',
-    subject: 'Comprehensive assessment of highland coffee farms in Antigua region focusing on specialty grade arabica cultivation and processing methods',
-    client: [mockCompanies[2]],
-    guests: [
-      { companyId: '3', names: ['Hernandez', 'Castillo'] }
-    ],
-    wolthersStaff: [mockUsers[0], mockUsers[1], mockUsers[3]],
-    vehicles: [mockVehicles[0], mockVehicles[2]],
-    drivers: [mockUsers[2]],
-    startDate: new Date('2025-08-18'),
-    endDate: new Date('2025-08-22'),
-    duration: calculateDuration('2025-08-18', '2025-08-22'),
-    status: 'upcoming',
-    progress: 0,
-    notesCount: 0
-  },
-  {
-    id: '5',
-    title: 'NCA Convention 2025',
-    subject: 'Annual National Coffee Association Convention in New Orleans featuring keynote speakers and networking opportunities with leading coffee industry professionals',
-    client: [mockCompanies[0], mockCompanies[1]],
-    guests: [
-      { companyId: '1', names: ['Tanaka', 'Sato'] },
-      { companyId: '2', names: ['Weber'] }
-    ],
-    wolthersStaff: [mockUsers[0], mockUsers[1]],
-    vehicles: [mockVehicles[0]],
-    drivers: [mockUsers[2]],
-    startDate: new Date('2025-09-15'),
-    endDate: new Date('2025-09-20'),
-    duration: calculateDuration('2025-09-15', '2025-09-20'),
-    status: 'upcoming',
-    progress: 0,
-    notesCount: 2
-  },
-
-  // PAST TRIPS (completed - will go to Past Trips section)
-  {
-    id: '6',
-    title: 'Swiss Coffee Dinner 2025',
-    subject: 'Annual Swiss Coffee Association formal dinner and awards ceremony celebrating excellence in Swiss coffee culture and trading',
-    client: [mockCompanies[1]],
-    guests: [
-      { companyId: '2', names: ['Schmidt', 'Braun'] }
-    ],
-    wolthersStaff: [mockUsers[0]],
-    vehicles: [],
-    drivers: [],
-    startDate: new Date('2025-06-10'),
-    endDate: new Date('2025-06-12'),
-    duration: calculateDuration('2025-06-10', '2025-06-12'),
-    status: 'completed',
-    progress: 100
-  },
-  {
-    id: '7',
-    title: 'Kenya Coffee Origin Tour',
-    subject: 'Educational tour of Kenyan coffee cooperatives and processing stations to understand African coffee cultivation methods',
-    client: [mockCompanies[0], mockCompanies[2]],
-    guests: [
-      { companyId: '1', names: ['Yamamoto'] },
-      { companyId: '3', names: ['Mendez', 'Ramirez'] }
-    ],
-    wolthersStaff: [mockUsers[1], mockUsers[3]],
-    vehicles: [mockVehicles[1]],
-    drivers: [mockUsers[2]],
-    startDate: new Date('2025-05-05'),
-    endDate: new Date('2025-05-10'),
-    duration: calculateDuration('2025-05-05', '2025-05-10'),
-    status: 'completed',
-    progress: 100
-  },
-  {
-    id: '8',
-    title: 'Vietnam Coffee Industry Summit',
-    subject: 'Vietnamese coffee industry summit focusing on robusta quality improvement and sustainable farming practices',
-    client: [mockCompanies[3]],
-    guests: [
-      { companyId: '4', names: ['Nguyen', 'Tran'] }
-    ],
-    wolthersStaff: [mockUsers[0], mockUsers[1]],
-    vehicles: [],
-    drivers: [],
-    startDate: new Date('2025-04-20'),
-    endDate: new Date('2025-04-24'),
-    duration: calculateDuration('2025-04-20', '2025-04-24'),
-    status: 'completed',
-    progress: 100
-  }
-]
+import AuthDebug from '@/components/debug/AuthDebug'
+import type { TripCard as TripCardType } from '@/types'
+import { cn, getTripStatus } from '@/lib/utils'
+import { useTrips } from '@/hooks/useTrips'
+import { useRequireAuth } from '@/contexts/AuthContext'
 
 export default function Dashboard() {
+  const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
   const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  
+  const { trips, loading, error, isOffline } = useTrips()
+
   // Listen for menu state changes (this would need to be coordinated with Header component)
+  // This useEffect must be called unconditionally to maintain hooks order
   React.useEffect(() => {
     const handleMenuToggle = (event: CustomEvent) => {
       setIsMenuOpen(event.detail.isOpen)
@@ -308,16 +26,39 @@ export default function Dashboard() {
     window.addEventListener('menuToggle', handleMenuToggle as EventListener)
     return () => window.removeEventListener('menuToggle', handleMenuToggle as EventListener)
   }, [])
+
+  // Show loading while checking authentication
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-40 xl:pt-40 pb-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-golden-600 dark:text-golden-400" />
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
   
-  // Separate and sort trips by status
-  const ongoingTrips = mockTrips.filter(trip => trip.status === 'ongoing')
-  const upcomingTrips = mockTrips
-    .filter(trip => trip.status === 'upcoming')
+  // Separate and sort trips by calculated status (based on current date)
+  const ongoingTrips = trips.filter(trip => {
+    const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
+    return calculatedStatus === 'ongoing'
+  })
+  
+  const upcomingTrips = trips
+    .filter(trip => {
+      const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
+      return calculatedStatus === 'upcoming'
+    })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
   // Combine ongoing (first) and upcoming (sorted by date) trips
   const currentTrips = [...ongoingTrips, ...upcomingTrips]
-  const pastTrips = mockTrips.filter(trip => trip.status === 'completed')
+  
+  const pastTrips = trips.filter(trip => {
+    const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
+    return calculatedStatus === 'completed'
+  })
 
   const handleTripClick = (trip: TripCardType) => {
     // Open quick view modal first, then user can choose to view full details
@@ -330,6 +71,35 @@ export default function Dashboard() {
 
   const closeModal = () => {
     setSelectedTrip(null)
+  }
+
+  // Handle loading and error states within the main render to maintain hooks order
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-40 xl:pt-40 pb-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-golden-600 dark:text-golden-400" />
+          <p className="text-gray-600 dark:text-gray-400">Loading trips...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-40 xl:pt-40 pb-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 max-w-md text-center">
+          <p className="text-red-600 dark:text-red-400 font-medium">Error loading trips</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -359,6 +129,21 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0">
+        
+        {/* Debug info - temporary */}
+        <AuthDebug />
+        
+        {/* Offline indicator */}
+        {isOffline && (
+          <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                You're offline. Showing cached trips from your last sync.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Current & Upcoming Trips */}
         <div className="mb-12">

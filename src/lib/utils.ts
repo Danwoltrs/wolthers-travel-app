@@ -41,8 +41,7 @@ export function calculateDuration(startDate: Date | string, endDate: Date | stri
 }
 
 export function getTripStatus(startDate: Date | string, endDate: Date | string): 'upcoming' | 'ongoing' | 'completed' {
-  // Fixed date for demo purposes: August 1st, 2025
-  const now = new Date('2025-08-01')
+  const now = new Date()
   const start = new Date(startDate)
   const end = new Date(endDate)
   
@@ -52,8 +51,7 @@ export function getTripStatus(startDate: Date | string, endDate: Date | string):
 }
 
 export function getTripProgress(startDate: Date | string, endDate: Date | string): number {
-  // Fixed date for demo purposes: August 1st, 2025
-  const now = new Date('2025-08-01')
+  const now = new Date()
   const start = new Date(startDate)
   const end = new Date(endDate)
   
@@ -73,8 +71,7 @@ export function getTripProgress(startDate: Date | string, endDate: Date | string
 }
 
 export function getDaysUntilTrip(startDate: Date | string): string {
-  // Fixed date for demo purposes: August 1st, 2025
-  const now = new Date('2025-08-01')
+  const now = new Date()
   const start = new Date(startDate)
   
   // If trip has already started or passed, return empty string

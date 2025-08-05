@@ -129,9 +129,14 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
         <div className="bg-white dark:bg-white px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-gray-200">
           <div className="flex items-center justify-between w-full mr-4">
             <h2 className="text-xl font-bold text-black dark:text-black">{trip.title}</h2>
-            <span className="text-sm text-gray-600 dark:text-gray-600 font-medium">
-              {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
-            </span>
+            <div className="text-right">
+              <div className="text-sm text-gray-600 dark:text-gray-600 font-medium">
+                {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                {trip.visitCount || 0} visit{trip.visitCount !== 1 ? 's' : ''} planned
+              </div>
+            </div>
           </div>
           <button
             onClick={onClose}

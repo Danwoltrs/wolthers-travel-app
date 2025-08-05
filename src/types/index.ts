@@ -266,6 +266,8 @@ export interface TripCard {
   status: TripCardStatus
   progress?: number
   notesCount?: number
+  visitCount?: number
+  accessCode?: string
 }
 
 export interface MeetingNote {

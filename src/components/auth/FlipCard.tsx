@@ -89,11 +89,7 @@ export function FlipCard({
         </div>
       </div>
 
-      {/* Reduced animation overlay for better performance */}
-      {isAnimating && (
-        <div className="absolute inset-0 rounded-lg z-10 pointer-events-none opacity-30">
-        </div>
-      )}
+      {/* Remove animation overlay to prevent input interference */}
     </div>
   )
 }

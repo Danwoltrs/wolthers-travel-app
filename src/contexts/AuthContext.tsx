@@ -1,45 +1,244 @@
 "use client"
 
-import { createContext, useContext, ReactNode } from "react"
-import { SessionProvider, useSession, signIn, signOut } from "next-auth/react"
-import { Session } from "next-auth"
+import { createContext, useContext, ReactNode, useEffect, useState } from "react"
+import { Session, User, AuthError } from '@supabase/supabase-js'
+import { supabase, getCachedTrips, getCachedUserProfile, isOnline } from '@/lib/supabase-client'
 import { AuthUser, UserRole } from "@/types/index"
+import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   session: Session | null
   user: AuthUser | null
   isLoading: boolean
   isAuthenticated: boolean
-  signIn: typeof signIn
-  signOut: typeof signOut
+  isOnline: boolean
+  signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signInWithOtp: (email: string) => Promise<{ error: AuthError | null }>
+  signInWithAzure: () => Promise<{ error: AuthError | null }>
+  signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  verifyOtp: (email: string, token: string, type: 'email' | 'recovery') => Promise<{ error: AuthError | null }>
   hasRole: (role: UserRole) => boolean
   hasPermission: (permission: string) => boolean
   isCompanyUser: (companyId?: string) => boolean
+  refreshUserProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 interface AuthProviderProps {
   children: ReactNode
-  session?: Session | null
 }
 
-function AuthContextProvider({ children }: { children: ReactNode }) {
-  const { data: session, status } = useSession()
-  const isLoading = status === "loading"
-  const isAuthenticated = !!session?.user
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [onlineStatus, setOnlineStatus] = useState(true)
+  const router = useRouter()
 
-  const user: AuthUser | null = session?.user ? {
-    id: session.user.id,
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image,
-    role: session.user.role,
-    companyId: session.user.companyId,
-    permissions: session.user.permissions,
-    azure_id: session.user.azure_id,
-    preferred_username: session.user.preferred_username,
-  } : null
+  // Initialize auth state
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        loadUserProfile(session.user)
+      } else {
+        // Try to load cached user for offline access
+        loadCachedUserProfile()
+      }
+      setIsLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email)
+        
+        setSession(session)
+        
+        if (session?.user) {
+          await loadUserProfile(session.user)
+          // Redirect to dashboard after successful authentication
+          if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
+            const currentPath = window.location.pathname
+            if (currentPath.includes('/auth/')) {
+              window.location.href = '/dashboard'
+            }
+          }
+        } else {
+          setUser(null)
+          // Clear cached data on sign out
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('trip_cache')
+            localStorage.removeItem('user_profile_cache')
+          }
+        }
+        
+        setIsLoading(false)
+      }
+    )
+
+    // Listen for online/offline status
+    const handleOnline = () => setOnlineStatus(true)
+    const handleOffline = () => setOnlineStatus(false)
+    
+    if (typeof window !== 'undefined') {
+      setOnlineStatus(navigator.onLine)
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
+    }
+
+    return () => {
+      subscription.unsubscribe()
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleOnline)
+        window.removeEventListener('offline', handleOffline)
+      }
+    }
+  }, [])
+
+  const loadUserProfile = async (authUser: User) => {
+    try {
+      if (!isOnline()) {
+        // Load from cache when offline
+        const cachedProfile = getCachedUserProfile()
+        if (cachedProfile) {
+          mapUserProfile(cachedProfile, authUser)
+          return
+        }
+      }
+
+      // Fetch fresh profile from database
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+
+      if (error) {
+        console.warn('Failed to load user profile:', error)
+        // Create minimal user from auth data
+        setUser({
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email || '',
+          image: authUser.user_metadata?.avatar_url || undefined,
+          role: UserRole.GUEST,
+          companyId: undefined,
+          permissions: {},
+          azure_id: authUser.user_metadata?.azure_id || undefined,
+          preferred_username: authUser.user_metadata?.preferred_username || undefined,
+        })
+        return
+      }
+
+      mapUserProfile(profile, authUser)
+    } catch (error) {
+      console.error('Error loading user profile:', error)
+    }
+  }
+
+  const loadCachedUserProfile = () => {
+    const cachedProfile = getCachedUserProfile()
+    if (cachedProfile) {
+      mapUserProfile(cachedProfile, null)
+    }
+  }
+
+  const mapUserProfile = (profile: any, authUser: User | null) => {
+    // Map user_type to our role system
+    let role = UserRole.GUEST
+    if (profile.is_global_admin) {
+      role = UserRole.GLOBAL_ADMIN
+    } else if (profile.user_type === 'wolthers_staff') {
+      role = UserRole.WOLTHERS_STAFF
+    } else if (profile.user_type === 'admin') {
+      role = UserRole.COMPANY_ADMIN
+    } else if (profile.user_type === 'client') {
+      role = UserRole.VISITOR
+    } else if (profile.user_type === 'driver') {
+      role = UserRole.DRIVER
+    }
+
+    // Create permissions based on database flags
+    const permissions: Record<string, boolean> = {
+      view_all_trips: profile.can_view_all_trips || false,
+      view_company_trips: profile.can_view_company_trips || false,
+      manage_users: profile.is_global_admin || false,
+      manage_companies: profile.is_global_admin || false,
+    }
+
+    const mappedUser: AuthUser = {
+      id: profile.id,
+      email: profile.email,
+      name: profile.full_name || (authUser?.email || ''),
+      image: authUser?.user_metadata?.avatar_url || undefined,
+      role,
+      companyId: profile.company_id || undefined,
+      permissions,
+      azure_id: profile.microsoft_oauth_id || authUser?.user_metadata?.azure_id || undefined,
+      preferred_username: authUser?.user_metadata?.preferred_username || undefined,
+    }
+    
+    setUser(mappedUser)
+  }
+
+  const refreshUserProfile = async () => {
+    if (session?.user) {
+      await loadUserProfile(session.user)
+    }
+  }
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    return { error }
+  }
+
+  const signInWithOtp = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    return { error }
+  }
+
+  const signInWithAzure = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    return { error }
+  }
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`
+    })
+    return { error }
+  }
+
+  const verifyOtp = async (email: string, token: string, type: 'email' | 'recovery') => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type
+    })
+    return { error }
+  }
 
   const hasRole = (role: UserRole): boolean => {
     if (!user?.role) return false
@@ -74,28 +273,24 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     session,
     user,
     isLoading,
-    isAuthenticated,
-    signIn,
+    isAuthenticated: !!session,
+    isOnline: onlineStatus,
+    signInWithEmail,
+    signInWithOtp,
+    signInWithAzure,
     signOut,
+    resetPassword,
+    verifyOtp,
     hasRole,
     hasPermission,
     isCompanyUser,
+    refreshUserProfile,
   }
 
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
-  )
-}
-
-export function AuthProvider({ children, session }: AuthProviderProps) {
-  return (
-    <SessionProvider session={session}>
-      <AuthContextProvider>
-        {children}
-      </AuthContextProvider>
-    </SessionProvider>
   )
 }
 
@@ -108,12 +303,15 @@ export function useAuth() {
 }
 
 // Additional custom hooks for common auth patterns
-export function useRequireAuth(redirectUrl = "/auth/signin") {
+export function useRequireAuth(redirectUrl = "/") {
   const { isAuthenticated, isLoading } = useAuth()
+  const router = useRouter()
   
-  if (!isLoading && !isAuthenticated) {
-    signIn(undefined, { callbackUrl: window.location.href })
-  }
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push(redirectUrl)
+    }
+  }, [isAuthenticated, isLoading, router, redirectUrl])
   
   return { isAuthenticated, isLoading }
 }
@@ -138,5 +336,32 @@ export function useUserPermissions() {
     isCompanyAdmin: hasRole(UserRole.COMPANY_ADMIN),
     isClientUser: hasRole(UserRole.VISITOR),
     isDriver: hasRole(UserRole.DRIVER),
+  }
+}
+
+// Hook for offline-aware data access
+export function useOfflineData() {
+  const { isOnline } = useAuth()
+  
+  const getTrips = async () => {
+    if (!isOnline) {
+      return getCachedTrips() || []
+    }
+    
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      
+    if (error) {
+      console.warn('Failed to fetch trips, falling back to cache')
+      return getCachedTrips() || []
+    }
+    
+    return data || []
+  }
+  
+  return {
+    isOnline,
+    getTrips,
   }
 }

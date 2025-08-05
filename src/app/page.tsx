@@ -9,10 +9,138 @@ import { UserRole } from '@/types'
 import { useModal } from '@/hooks/use-modal'
 import { TripStatus } from '@/types'
 import { Eye, EyeOff } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+
+// Isolated Password Reset Modal Component
+const IsolatedPasswordResetModal = ({ 
+  isOpen, 
+  onClose, 
+  email, 
+  onSuccess 
+}: { 
+  isOpen: boolean
+  onClose: () => void
+  email: string
+  onSuccess: () => void
+}) => {
+  const [password, setPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [error, setError] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
+
+  if (!isOpen) return null
+
+  const handleSubmit = async () => {
+    if (!password || !confirmPassword) {
+      setError('Please fill in both fields')
+      return
+    }
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+    
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+    
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, newPassword: password })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        // Redirect to dashboard instead of showing alert
+        onSuccess()
+        setPassword('')
+        setConfirmPassword('')
+        setError('')
+      } else {
+        setError('Failed to reset password')
+      }
+    } catch {
+      setError('Failed to reset password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+        <div className="p-6">
+          <h2 className="text-xl font-bold mb-4" style={{ color: '#EAB306' }}>
+            Set New Password
+          </h2>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm rounded">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="New password (min 8 characters)"
+              className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:bg-gray-700 dark:text-white"
+            />
+            
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:bg-gray-700 dark:text-white"
+            />
+            
+            {/* Password Strength Tips */}
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              <p className="mb-2">Password must contain:</p>
+              <ul className="space-y-1 ml-4">
+                <li>• At least 8 characters</li>
+                <li>• One uppercase letter</li>
+                <li>• One lowercase letter</li>
+                <li>• One number</li>
+              </ul>
+            </div>
+            
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
+            >
+              {loading ? 'Updating...' : 'Update Password'}
+            </button>
+            
+            <button
+              onClick={onClose}
+              className="w-full py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const modal = useModal()
+  const { signInWithEmail, signInWithOtp, signInWithAzure, resetPassword, verifyOtp, isAuthenticated, isLoading: authLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,14 +148,30 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showDevAccounts, setShowDevAccounts] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
   const [rememberMe, setRememberMe] = useState(false)
   const [savedUsers, setSavedUsers] = useState<Array<{email: string, name?: string, lastUsed: Date}>>([])
   const [showSavedUsers, setShowSavedUsers] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [otp, setOtp] = useState('')
   
   const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [isAuthenticated, authLoading, router])
   
   // Load saved users on component mount
   useEffect(() => {
+    // Mark as client-side rendered
+    setIsClient(true)
+    
     const savedUsersData = localStorage.getItem('wolthers_saved_users')
     if (savedUsersData) {
       try {
@@ -50,6 +194,8 @@ export default function LoginPage() {
 
   // Save user credentials
   const saveUserCredentials = (email: string, name?: string) => {
+    if (typeof window === 'undefined') return
+    
     const existingUsers = savedUsers.filter(user => user.email !== email)
     const newUser = {
       email,
@@ -64,6 +210,8 @@ export default function LoginPage() {
 
   // Remove saved user
   const removeSavedUser = (emailToRemove: string) => {
+    if (typeof window === 'undefined') return
+    
     const updatedUsers = savedUsers.filter(user => user.email !== emailToRemove)
     setSavedUsers(updatedUsers)
     localStorage.setItem('wolthers_saved_users', JSON.stringify(updatedUsers))
@@ -71,6 +219,8 @@ export default function LoginPage() {
 
   // Clear all saved users
   const clearAllSavedUsers = () => {
+    if (typeof window === 'undefined') return
+    
     setSavedUsers([])
     localStorage.removeItem('wolthers_saved_users')
   }
@@ -80,10 +230,11 @@ export default function LoginPage() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
 
-  // Trip code check - typically 6-12 characters, alphanumeric
+  // Trip code check - typically 6-12 characters, alphanumeric with hyphens
   const isTripCode = (input: string) => {
-    return /^[A-Z0-9]{6,12}$/i.test(input.trim())
+    return /^[A-Z0-9\-]{6,12}$/i.test(input.trim())
   }
+
 
   // Mock trip code verification - simulate API call
   const verifyTripCode = async (code: string): Promise<{ exists: boolean; status?: TripStatus; tripId?: string }> => {
@@ -173,25 +324,43 @@ export default function LoginPage() {
     if (!isValidEmail(email) || !password.trim()) return
     
     setIsLoading(true)
-    // Simulate login
-    setTimeout(() => {
-      // Save user credentials if "Remember me" is checked
-      if (rememberMe) {
-        saveUserCredentials(email)
+    setPasswordError(null)
+    
+    try {
+      const { error } = await signInWithEmail(email, password)
+
+      if (error) {
+        setPasswordError(error.message || 'Invalid email or password')
+      } else {
+        // Save user credentials if "Remember me" is checked
+        if (rememberMe) {
+          saveUserCredentials(email)
+        }
+        // Success - AuthContext will handle redirect
       }
-      
+    } catch (error) {
+      console.error('Login error:', error)
+      setPasswordError('Login failed. Please try again.')
+    } finally {
       setIsLoading(false)
-      router.push('/dashboard')
-    }, 1000)
+    }
   }
 
-  const handleMicrosoftLogin = () => {
+  const handleMicrosoftLogin = async () => {
     setIsLoading(true)
-    setTimeout(() => {
+    try {
+      const { error } = await signInWithAzure()
+      if (error) {
+        setError('Failed to sign in with Microsoft. Please try again.')
+      }
       // Microsoft login doesn't need "Remember me" as it's handled by Microsoft
+      // Success - AuthContext will handle redirect
+    } catch (error) {
+      console.error('Microsoft login error:', error)
+      setError('Microsoft login failed. Please try again.')
+    } finally {
       setIsLoading(false)
-      router.push('/dashboard')
-    }, 1000)
+    }
   }
 
   const handleDevAccountSelect = (account: any) => {
@@ -209,12 +378,79 @@ export default function LoginPage() {
     }, 500)
   }
 
+  const handleForgotPassword = () => {
+    setShowForgotPassword(true)
+    setPasswordError(null)
+  }
+
+  const handleSendOTP = async () => {
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      console.log('=== MAIN PAGE SEND OTP ===');
+      console.log('Sending to:', email);
+      
+      const { error } = await resetPassword(email)
+
+      if (error) {
+        setError(error.message || 'Failed to send reset email. Please try again.')
+      } else {
+        setOtpSent(true)
+        setError(null)
+      }
+    } catch (err) {
+      console.error('Send OTP error:', err);
+      setError('Failed to send reset email. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleVerifyOTP = async () => {
+    if (otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP code')
+      return
+    }
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      console.log('=== VERIFY OTP ===');
+      console.log('Email:', email);
+      console.log('OTP:', otp);
+      
+      const { error } = await verifyOtp(email, otp, 'recovery')
+
+      if (error) {
+        setError(error.message || 'Invalid OTP code. Please try again.')
+      } else {
+        setError(null)
+        setShowPasswordReset(true)
+        setOtpSent(false)
+        setOtp('')
+      }
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      setError('Failed to verify OTP. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-pearl-50 via-amber-50/30 to-emerald-50/20 dark:from-[#212121] dark:via-[#1a1a1a] dark:to-[#0E3D2F]/10 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Signing in...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 dark:border-emerald-400 mx-auto mb-4"></div>
+          <p className="text-pearl-600 dark:text-pearl-300">Signing in...</p>
         </div>
       </div>
     )
@@ -276,7 +512,7 @@ export default function LoginPage() {
         )}
 
         {/* Email/Trip Code Form */}
-        <div className="mb-6 space-y-2">
+        <div className="mb-6 space-y-2 relative">
           <div className="relative">
             <input
               type="text"
@@ -291,10 +527,12 @@ export default function LoginPage() {
               autoComplete="email"
               disabled={isLoading}
               autoFocus
+              spellCheck={false}
+              data-ms-editor="true"
             />
             
             {/* Saved Users Dropdown Toggle */}
-            {savedUsers.length > 0 && (
+            {isClient && savedUsers.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowSavedUsers(!showSavedUsers)}
@@ -307,7 +545,7 @@ export default function LoginPage() {
           </div>
           
           {/* Saved Users Dropdown */}
-          {showSavedUsers && savedUsers.length > 0 && (
+          {isClient && showSavedUsers && savedUsers.length > 0 && (
             <div className="absolute z-10 w-full bg-white dark:bg-[#0E3D2F] border border-emerald-200/60 dark:border-emerald-800/40 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {savedUsers.map((user, index) => (
                 <button
@@ -354,14 +592,30 @@ export default function LoginPage() {
           )}
           
           {isValidEmail(email) && !isTripCode(email) && (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">
-              ✓ Valid email - Press Enter to continue
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                ✓ Valid email
+              </p>
+              <button
+                onClick={handleEmailSubmit}
+                className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-md transition-colors"
+              >
+                Continue →
+              </button>
+            </div>
           )}
           {isTripCode(email) && (
-            <p className="text-sm text-blue-600 dark:text-blue-400">
-              ✓ Trip code format - Press Enter to access trip
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                ✓ Trip code format
+              </p>
+              <button
+                onClick={handleEmailSubmit}
+                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md transition-colors"
+              >
+                Access Trip →
+              </button>
+            </div>
           )}
         </div>
 
@@ -371,8 +625,8 @@ export default function LoginPage() {
           disabled={isLoading}
           className={cn(
             "w-full mb-4 py-3 px-4 rounded-lg font-medium transition-all duration-200",
-            "bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900",
-            "border border-gray-300 dark:border-gray-800",
+            "bg-white dark:bg-[#072519] hover:bg-gray-50 dark:hover:bg-[#0a2e1e]",
+            "border border-gray-300 dark:border-[#072519]",
             "text-gray-700 dark:text-white",
             "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
             "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -473,13 +727,23 @@ export default function LoginPage() {
               ref={passwordRef}
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (passwordError) setPasswordError(null) // Clear error when typing
+              }}
               onKeyDown={handlePasswordKeyDown}
               placeholder="Enter your password and press Enter"
-              className="w-full px-4 py-3 pr-12 border border-emerald-200/60 dark:border-emerald-800/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/50 dark:bg-[#0E3D2F]/30 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              className={cn(
+                "w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 bg-white/50 dark:bg-[#0E3D2F]/30 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400",
+                passwordError 
+                  ? "border-red-500 dark:border-red-400 focus:ring-red-500 focus:border-red-500" 
+                  : "border-emerald-200/60 dark:border-emerald-800/40 focus:ring-emerald-500 focus:border-emerald-500"
+              )}
               autoComplete="current-password"
               disabled={isLoading}
               autoFocus
+              spellCheck={false}
+              data-ms-editor="true"
             />
             <button
               type="button"
@@ -495,6 +759,14 @@ export default function LoginPage() {
               )}
             </button>
           </div>
+          
+          {/* Password Error Display */}
+          {passwordError && (
+            <div className="mt-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+              <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>
+            </div>
+          )}
+          
           <div className="flex justify-between items-center">
             <button 
               onClick={() => setIsFlipped(false)}
@@ -546,18 +818,121 @@ export default function LoginPage() {
           )}
         </button>
 
-        {/* Forgot Password Link */}
-        <div className="text-center">
-          <button className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors duration-200 font-medium">
-            Forgot your password?
-          </button>
-        </div>
+        {/* Forgot Password Link - Show when password is wrong */}
+        {passwordError && (
+          <div className="text-center">
+            <button 
+              onClick={handleForgotPassword}
+              className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200 font-medium"
+            >
+              Forgot your password? Reset with OTP →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Subtle bottom glow */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent"></div>
     </div>
   )
+
+  // OTP Reset Password Modal
+  const OTPResetModal = () => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#0E3D2F]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-200/30 dark:border-emerald-800/40 w-full max-w-md">
+        <div className="p-6">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Reset Password
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {!otpSent 
+                ? `We'll send a verification code to ${email}`
+                : 'Enter the 6-digit code sent to your email'
+              }
+            </p>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          {!otpSent ? (
+            /* Send OTP Step */
+            <div className="space-y-4">
+              <button
+                onClick={handleSendOTP}
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Sending...' : 'Send Verification Code'}
+              </button>
+            </div>
+          ) : (
+            /* OTP Verification Step */
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Verification Code
+                </label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => {
+                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
+                    if (error) setError(null)
+                  }}
+                  placeholder="000000"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg tracking-widest"
+                  maxLength={6}
+                  autoFocus
+                />
+              </div>
+              
+              <button
+                onClick={handleVerifyOTP}
+                disabled={isLoading || otp.length !== 6}
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Verifying...' : 'Verify Code'}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setOtpSent(false)
+                  setOtp('')
+                  setError(null)
+                }}
+                className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                ← Back to send code
+              </button>
+            </div>
+          )}
+
+          {/* Close button */}
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => {
+                setShowForgotPassword(false)
+                setOtpSent(false)
+                setOtp('')
+                setError(null)
+              }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pearl-50 via-amber-50/30 to-emerald-50/20 dark:from-[#212121] dark:via-[#1a1a1a] dark:to-[#0E3D2F]/10 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -590,6 +965,21 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+      
+      {/* OTP Reset Password Modal */}
+      {showForgotPassword && <OTPResetModal />}
+      
+      {/* Password Reset Modal */}
+      <IsolatedPasswordResetModal 
+        isOpen={showPasswordReset}
+        onClose={() => setShowPasswordReset(false)}
+        email={email}
+        onSuccess={() => {
+          setShowPasswordReset(false)
+          setShowForgotPassword(false)
+          router.push('/dashboard')
+        }}
+      />
     </div>
   )
 }

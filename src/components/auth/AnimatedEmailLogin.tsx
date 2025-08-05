@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
 import { FlipCard } from './FlipCard'
 import { cn } from '@/lib/utils'
@@ -22,6 +22,14 @@ export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginPr
   
   // Simple email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  // Focus email field on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      emailRef.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleFlipComplete = (flipped: boolean) => {
     if (flipped) {
@@ -72,13 +80,14 @@ export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginPr
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         onKeyDown={handleEmailKeyDown}
-        placeholder="Enter your email address and press Enter"
-        className="w-full h-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
+        placeholder="daniel@wolthers.com"
+        className="w-full h-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
         autoComplete="email"
         disabled={isLoading}
+        autoFocus
       />
       {emailRegex.test(email) && !isFlipped && (
-        <div className="mt-1 text-xs text-green-600">
+        <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
           ✓ Valid email - Press Enter to continue
         </div>
       )}
@@ -96,14 +105,14 @@ export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginPr
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={handlePasswordKeyDown}
           placeholder="Enter your password and press Enter"
-          className="w-full h-16 px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
+          className="w-full h-16 px-4 py-3 pr-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
           autoComplete="current-password"
           disabled={isLoading}
         />
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-200 transition-colors duration-200"
           tabIndex={-1}
           disabled={isLoading}
         >

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { useAuth } from '@/contexts/AuthContext'
 import { Separator } from '@/components/ui/separator'
 import { MicrosoftSignInButton } from './MicrosoftSignInButton'
 import { AnimatedEmailLogin } from './AnimatedEmailLogin'
@@ -15,6 +15,7 @@ type AuthView = 'login' | 'forgot-password' | 'otp'
 
 export function LoginCard() {
   const router = useRouter()
+  const { signInWithEmail, signInWithOtp, signInWithAzure, resetPassword, verifyOtp } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [authView, setAuthView] = useState<AuthView>('login')
   const [email, setEmail] = useState('')
@@ -24,16 +25,12 @@ export function LoginCard() {
     setIsLoading(true)
     setError(null)
     try {
-      const result = await signIn('azure-ad', {
-        callbackUrl: '/dashboard',
-        redirect: false
-      })
+      const { error } = await signInWithAzure()
       
-      if (result?.error) {
+      if (error) {
         setError('Failed to sign in with Microsoft. Please try again.')
-      } else if (result?.url) {
-        router.push(result.url)
       }
+      // No need to handle success case - auth state change will redirect
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
     } finally {
@@ -44,27 +41,25 @@ export function LoginCard() {
   const handleEmailSignIn = async (email: string, password: string) => {
     setIsLoading(true)
     setError(null)
+    setEmail(email)
+    
     try {
-      // For now, simulate email/password authentication
-      // In production, this would use NextAuth credentials provider
       if (password.length > 0) {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        // Password login
+        const { error } = await signInWithEmail(email, password)
         
-        // In production, check credentials and redirect based on role
-        router.push('/dashboard')
+        if (error) {
+          setError(error.message || 'Failed to sign in. Please check your credentials.')
+        }
+        // Success will be handled by auth state change
       } else {
-        // Magic link flow
-        const result = await signIn('email', {
-          email,
-          callbackUrl: '/dashboard',
-          redirect: false
-        })
+        // Magic link / OTP flow
+        const { error } = await signInWithOtp(email)
         
-        if (result?.ok) {
-          setAuthView('otp')
+        if (error) {
+          setError(error.message || 'Failed to send verification email. Please try again.')
         } else {
-          setError('Failed to send verification email. Please try again.')
+          setAuthView('otp')
         }
       }
     } catch (err) {
@@ -78,9 +73,12 @@ export function LoginCard() {
     setIsLoading(true)
     setError(null)
     try {
-      // Simulate OTP verification
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      router.push('/dashboard')
+      const { error } = await verifyOtp(email, code, 'email')
+      
+      if (error) {
+        setError(error.message || 'Invalid verification code. Please try again.')
+      }
+      // Success will be handled by auth state change which redirects to dashboard
     } catch (err) {
       setError('Invalid verification code. Please try again.')
     } finally {
@@ -92,10 +90,15 @@ export function LoginCard() {
     setIsLoading(true)
     setError(null)
     try {
-      // Simulate password reset email
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      return { success: true, message: 'Password reset email sent!' }
+      const { error } = await resetPassword(email)
+      
+      if (error) {
+        return { success: false, message: error.message || 'Failed to send reset email. Please try again.' }
+      } else {
+        return { success: true, message: 'Password reset email sent! Check your inbox.' }
+      }
     } catch (err) {
+      console.error('Password reset error:', err);
       return { success: false, message: 'Failed to send reset email. Please try again.' }
     } finally {
       setIsLoading(false)
@@ -197,7 +200,10 @@ export function LoginCard() {
               <OTPInputWrapper
                 onComplete={handleOTPVerify}
                 onResend={async () => {
-                  await signIn('email', { email, redirect: false })
+                  const { error } = await signInWithOtp(email)
+                  if (error) {
+                    return { success: false, message: 'Failed to resend code.' }
+                  }
                   return { success: true, message: 'Code resent!' }
                 }}
                 isLoading={isLoading}
