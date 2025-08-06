@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 ### Development
@@ -102,6 +100,7 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Downgraded from Tailwind CSS v4 to v3.4.17 for stability
 - Implemented left-aligned card grid with add button outside grid
 - Enhanced responsive design for mobile to desktop
+- **Trip Page Layout**: Adjusted mobile spacing - TripHeader uses `mt-36` on mobile and `mt-6` on desktop for proper clearance from navigation bar
 
 ### Current Project Status
 
@@ -127,6 +126,13 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 10. API integrations (Hotels.com, Google Maps)
 
 ### Development Guidelines
+
+#### Code Restrictions 🚨
+- **Do not change the login and authentication** unless explicitly requested
+- **Do not change the dashboard trip layouts** unless explicitly requested  
+- **Do not change the trip quick view modal** unless explicitly requested
+
+#### Best Practices
 - Maintain Nordic minimalist aesthetic with strategic use of forest green and gold
 - Enforce uniform card height (420px) across all trip components
 - Apply consistent 16px padding and vertical alignment throughout

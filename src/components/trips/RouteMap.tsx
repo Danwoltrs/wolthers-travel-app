@@ -1,12 +1,15 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { MapPin, Navigation } from 'lucide-react'
+import { MapPin, Navigation, Calendar } from 'lucide-react'
 import type { ItineraryDay } from '@/types'
 
 interface RouteMapProps {
   itineraryDays: ItineraryDay[]
   tripTitle: string
+  activities?: any[]
+  tripStartDate?: Date
+  tripEndDate?: Date
 }
 
 declare global {
@@ -16,11 +19,75 @@ declare global {
   }
 }
 
-export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
+// Helper function to generate ICS calendar file
+const generateICSContent = (activities: any[], tripTitle: string) => {
+  const formatDate = (date: Date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+  }
+
+  const escapeText = (text: string) => {
+    return text.replace(/([\\;,\n])/g, '\\$1')
+  }
+
+  let icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Wolthers & Associates//Trip Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH'
+  ]
+
+  activities.forEach((activity, index) => {
+    const activityDate = new Date(activity.activity_date)
+    const startTime = activity.start_time || '09:00:00'
+    const endTime = activity.end_time || '10:00:00'
+    
+    const startDateTime = new Date(`${activity.activity_date}T${startTime}`)
+    const endDateTime = new Date(`${activity.activity_date}T${endTime}`)
+
+    icsContent.push(
+      'BEGIN:VEVENT',
+      `UID:${activity.id}@wolthers-travel.com`,
+      `DTSTAMP:${formatDate(new Date())}`,
+      `DTSTART:${formatDate(startDateTime)}`,
+      `DTEND:${formatDate(endDateTime)}`,
+      `SUMMARY:${escapeText(activity.title)}`,
+      `DESCRIPTION:${escapeText(activity.description || '')}`,
+      `LOCATION:${escapeText(activity.custom_location || '')}`,
+      `CATEGORIES:${tripTitle}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT'
+    )
+  })
+
+  icsContent.push('END:VCALENDAR')
+  return icsContent.join('\r\n')
+}
+
+const downloadICSFile = (content: string, filename: string) => {
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(link.href)
+}
+
+export default function RouteMap({ itineraryDays, tripTitle, activities = [], tripStartDate, tripEndDate }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const handleExportAllToCalendar = () => {
+    if (activities.length === 0) return
+    
+    const icsContent = generateICSContent(activities, tripTitle)
+    const filename = `${tripTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_full_itinerary.ics`
+    downloadICSFile(icsContent, filename)
+  }
 
   useEffect(() => {
     const loadGoogleMaps = () => {
@@ -189,11 +256,14 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-md p-6 mb-8 border border-[#D4C5B0] dark:border-[#2a2a2a]">
-        <div className="flex items-center justify-center h-64 bg-[#F9F6F0] dark:bg-[#111111] rounded-lg">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
+        <div className="p-6 pb-4 bg-[#2D5347] text-white">
+          <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
+        </div>
+        <div className="flex items-center justify-center h-64 bg-[#F9F6F0] dark:bg-[#111111]">
           <div className="text-center">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-600">{error}</p>
+            <p className="text-gray-600 dark:text-gray-300">{error}</p>
           </div>
         </div>
       </div>
@@ -201,34 +271,43 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-md p-6 mb-8 border border-[#D4C5B0] dark:border-[#2a2a2a]">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <Navigation className="w-5 h-5 mr-2 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">Route Map</h2>
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
+      <div className="flex items-center justify-between p-6 pb-4 bg-[#2D5347] text-white">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
+          <div className="flex items-center space-x-4 text-sm text-white/80">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
+              Start
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-amber-400 rounded-full mr-2"></div>
+              Stops
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-red-400 rounded-full mr-2"></div>
+              End
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-4 text-sm text-gray-600">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-emerald-500 rounded-full mr-2"></div>
-            Start
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-amber-500 rounded-full mr-2"></div>
-            Stops
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-            End
-          </div>
-        </div>
+        
+        {activities.length > 0 && (
+          <button
+            onClick={handleExportAllToCalendar}
+            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
+          >
+            <Calendar className="w-4 h-4" />
+            Export All to Calendar
+          </button>
+        )}
       </div>
       
-      <div className="relative h-96 bg-[#F9F6F0] dark:bg-[#111111] rounded-lg overflow-hidden">
+      <div className="relative h-96 bg-[#F9F6F0] dark:bg-[#111111] overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#F9F6F0] dark:bg-[#111111] z-10">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600">Loading map...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-300">Loading map...</p>
             </div>
           </div>
         )}

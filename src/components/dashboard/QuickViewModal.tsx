@@ -228,33 +228,32 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Companies Visiting */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {trip.client.map((company) => {
-                const companyGuests = trip.guests.find(g => g.companyId === company.id)
-                return (
-                  <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                      {company.fantasyName || company.name}
-                    </h4>
-                    {companyGuests && (
-                      <div className="space-y-1">
-                        {companyGuests.names.map((name, index) => (
-                          <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
-                            {name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
+          {/* Dynamic Card Layout - Companies and Staff */}
+          <div className="flex flex-wrap gap-4">
+            {/* Company Cards - Flexible sizing */}
+            {trip.client.map((company) => {
+              const companyGuests = trip.guests.find(g => g.companyId === company.id)
+              return (
+                <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                    {company.fantasyName || company.name}
+                  </h4>
+                  {companyGuests && (
+                    <div className="space-y-1">
+                      {companyGuests.names.map((name, index) => (
+                        <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
-          {/* Wolthers Staff & Fleet/Drivers */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Wolthers Staff Card */}
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
+            {/* Wolthers Staff Card - Only if there are staff members */}
+            {trip.wolthersStaff.length > 0 && (
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                   Wolthers Staff
                 </h4>
@@ -266,61 +265,58 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Fleet & Drivers Card */}
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a]">
+            {/* Fleet & Drivers Card - Only if there are vehicles or drivers */}
+            {(trip.vehicles.length > 0 || trip.drivers.length > 0) && (
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                   Fleet & Drivers
                 </h4>
                 
-                {trip.vehicles.length === 0 && trip.drivers.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                    No vehicles or drivers assigned
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Vehicles - Left Side */}
-                    <div>
-                      <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
-                        Vehicles
-                      </span>
-                      <div className="space-y-1">
-                        {trip.vehicles.length > 0 ? (
-                          trip.vehicles.map((vehicle) => (
-                            <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
-                              {vehicle.make} {vehicle.model}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                            No vehicles
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Vehicles - Left Side */}
+                  <div>
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
+                      Vehicles
+                    </span>
+                    <div className="space-y-1">
+                      {trip.vehicles.length > 0 ? (
+                        trip.vehicles.map((vehicle) => (
+                          <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
+                            {vehicle.make} {vehicle.model}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Vertical divider */}
-                    <div className="border-l border-gray-200 dark:border-[#2a2a2a] pl-4">
-                      <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
-                        Drivers
-                      </span>
-                      <div className="space-y-1">
-                        {trip.drivers.length > 0 ? (
-                          trip.drivers.map((driver) => (
-                            <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
-                              {driver.fullName}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                            No drivers
-                          </div>
-                        )}
-                      </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                          No vehicles
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+                  
+                  {/* Vertical divider */}
+                  <div className="border-l border-gray-200 dark:border-[#2a2a2a] pl-4">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
+                      Drivers
+                    </span>
+                    <div className="space-y-1">
+                      {trip.drivers.length > 0 ? (
+                        trip.drivers.map((driver) => (
+                          <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
+                            {driver.fullName}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                          No drivers
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
           </div>
 
           {/* Divider Line */}

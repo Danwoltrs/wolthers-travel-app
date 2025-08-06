@@ -15,6 +15,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const [showCopied, setShowCopied] = useState(false)
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   
+  
   // Always calculate progress based on current date for real-time updates
   const progress = getTripProgress(trip.startDate, trip.endDate)
   const tripStatus = getTripStatus(trip.startDate, trip.endDate)
