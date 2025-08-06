@@ -29,6 +29,21 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
         return
       }
 
+      // Check if script already exists
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
+      if (existingScript) {
+        // Script already exists, wait for it to load
+        const checkGoogle = () => {
+          if (window.google) {
+            initializeMap()
+          } else {
+            setTimeout(checkGoogle, 100)
+          }
+        }
+        checkGoogle()
+        return
+      }
+
       // Create the script tag
       const script = document.createElement('script')
       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAkTsr23yiFNyelupLP_NPEa3BuLIHTbKk'}&libraries=geometry`
@@ -51,7 +66,11 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
       document.head.appendChild(script)
 
       return () => {
-        document.head.removeChild(script)
+        // Only clean up if this component added the script
+        const scriptToRemove = document.querySelector('script[src*="maps.googleapis.com"]')
+        if (scriptToRemove) {
+          document.head.removeChild(scriptToRemove)
+        }
         window.initMap = undefined
       }
     }
@@ -170,8 +189,8 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-md p-6 mb-8 border border-[#D4C5B0] dark:border-[#2a2a2a]">
+        <div className="flex items-center justify-center h-64 bg-[#F9F6F0] dark:bg-[#111111] rounded-lg">
           <div className="text-center">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
             <p className="text-gray-600">{error}</p>
@@ -182,7 +201,7 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-md p-6 mb-8 border border-[#D4C5B0] dark:border-[#2a2a2a]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <Navigation className="w-5 h-5 mr-2 text-blue-600" />
@@ -204,9 +223,9 @@ export default function RouteMap({ itineraryDays, tripTitle }: RouteMapProps) {
         </div>
       </div>
       
-      <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden">
+      <div className="relative h-96 bg-[#F9F6F0] dark:bg-[#111111] rounded-lg overflow-hidden">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#F9F6F0] dark:bg-[#111111] z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
               <p className="text-gray-600">Loading map...</p>

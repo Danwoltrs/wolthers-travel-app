@@ -18,6 +18,7 @@ export const mockTripData = [
       tripCode: 'GT-2024-001',
       isConvention: false,
       metadata: {},
+      accessCode: 'GT2024A1B2C3',
       createdAt: new Date('2024-07-01')
     } as Trip,
     itineraryDays: [
@@ -283,5 +284,68 @@ export const mockTripData = [
         createdAt: new Date()
       }
     ] as ItineraryDay[]
+  },
+  {
+    id: '2',
+    trip: {
+      id: '2',
+      title: 'Copenhagen NESP Business Trip',
+      description: 'NESP conference and business meetings in Copenhagen',
+      subject: 'NESP Conference 2024',
+      startDate: new Date('2024-08-25'),
+      endDate: new Date('2024-08-27'),
+      status: 'ongoing' as TripStatus,
+      createdBy: 'daniel@wolthers.com',
+      estimatedBudget: 8000,
+      actualCost: 7200,
+      tripCode: 'CPH-NESP-001',
+      isConvention: true,
+      metadata: {},
+      accessCode: 'CPH_NESP_BT_0825',
+      createdAt: new Date('2024-08-01')
+    } as Trip,
+    itineraryDays: [] as ItineraryDay[]
+  },
+  {
+    id: '3',
+    trip: {
+      id: '3',
+      title: 'Amsterdam Coffee Expo 2024',
+      description: 'World Coffee Expo and supplier meetings in Amsterdam',
+      subject: 'Amsterdam Coffee Expo',
+      startDate: new Date('2024-09-15'),
+      endDate: new Date('2024-09-18'),
+      status: 'upcoming' as TripStatus,
+      createdBy: 'daniel@wolthers.com',
+      estimatedBudget: 12000,
+      actualCost: 0,
+      tripCode: 'AMS-EXPO-001',
+      isConvention: true,
+      metadata: {},
+      accessCode: 'AMS_EXPO_CE_0915',
+      createdAt: new Date('2024-08-15')
+    } as Trip,
+    itineraryDays: [] as ItineraryDay[]
+  },
+  {
+    id: '4',
+    trip: {
+      id: '4',
+      title: 'Brazil Origins Discovery',
+      description: 'Coffee farm visits and sourcing trip in Brazil',
+      subject: 'Brazil Coffee Sourcing',
+      startDate: new Date('2024-10-10'),
+      endDate: new Date('2024-10-15'),
+      status: 'upcoming' as TripStatus,
+      createdBy: 'daniel@wolthers.com',
+      estimatedBudget: 18000,
+      actualCost: 0,
+      tripCode: 'BRA-ORIG-001',
+      isConvention: false,
+      metadata: {},
+      accessCode: 'BRA_ORIG_CD_1010',
+      createdAt: new Date('2024-08-20')
+    } as Trip,
+    itineraryDays: [] as ItineraryDay[]
   }
 ]

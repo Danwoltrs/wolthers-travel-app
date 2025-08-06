@@ -155,6 +155,8 @@ export interface Trip {
   branchDate?: Date
   /** Additional metadata */
   metadata: Record<string, any>
+  /** Public access code for guest access */
+  accessCode?: string
   /** Trip creation timestamp */
   createdAt: Date
 }

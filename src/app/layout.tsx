@@ -17,6 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
+      <head>
+        <script src="/extension-protection.js" async></script>
+      </head>
       <body suppressHydrationWarning={true}>
         <AuthProvider>
           <ThemeProvider>

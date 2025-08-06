@@ -1,8 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Calendar, Users, Car, MapPin } from 'lucide-react'
-import { formatDateRange } from '@/lib/utils'
 import type { Trip } from '@/types'
 
 interface TripHeaderProps {
@@ -16,77 +14,68 @@ export default function TripHeader({ trip }: TripHeaderProps) {
     { companyId: '2', companyName: 'Bean & Beyond', names: ['Mike Wilson', 'Lisa Chen'] }
   ]
 
+  const mockWolthersStaff = ['Erik Wolthers', 'Anna Møller']
+
   const mockVehicles = [
     { id: '1', make: 'Toyota', model: 'Land Cruiser', licensePlate: 'ABC-123', driver: 'Carlos Rodriguez' },
     { id: '2', make: 'Ford', model: 'Transit', licensePlate: 'XYZ-789', driver: 'Maria Santos' }
   ]
 
+  // Flatten all guest names for compact display
+  const allGuestNames = mockGuests.flatMap(group => group.names)
+  const allVehicles = mockVehicles.map(vehicle => `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`)
+  const allDrivers = mockVehicles.map(vehicle => vehicle.driver)
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-      {/* Trip Title and Dates */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{trip.title}</h1>
-        <div className="flex items-center text-gray-600">
-          <Calendar className="w-5 h-5 mr-2" />
-          <span className="text-lg">
-            {formatDateRange(trip.startDate, trip.endDate)}
-          </span>
-        </div>
-        {trip.description && (
-          <p className="mt-3 text-gray-700 leading-relaxed">{trip.description}</p>
-        )}
-      </div>
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm p-4 mb-6 border border-[#D4C5B0] dark:border-[#2a2a2a]">
+      {/* Enhanced Description */}
+      {trip.description && (
+        <>
+          <p className="text-gray-800 dark:text-gray-200 text-base font-medium leading-relaxed mb-4">{trip.description}</p>
+          <hr className="border-[#D4C5B0] dark:border-gray-600 mb-4" />
+        </>
+      )}
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Side: Guest List */}
-        <div>
-          <div className="flex items-center mb-4">
-            <Users className="w-5 h-5 mr-2 text-emerald-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Participants</h2>
+      {/* Two Column Layout with Separator */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-sm relative">
+        {/* Left Side - People */}
+        <div className="space-y-2">
+          {/* Guests Row */}
+          <div className="flex items-start lg:items-center">
+            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Guests:</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {allGuestNames.join(', ')}
+            </span>
           </div>
-          
-          <div className="space-y-4">
-            {mockGuests.map((group) => (
-              <div key={group.companyId} className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-medium text-gray-900 mb-2">{group.companyName}</h3>
-                <div className="space-y-1">
-                  {group.names.map((name, index) => (
-                    <div key={index} className="flex items-center text-gray-700">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+
+          {/* Wolthers Staff Row */}
+          <div className="flex items-start lg:items-center">
+            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Wolthers Staff:</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {mockWolthersStaff.join(', ')}
+            </span>
           </div>
         </div>
 
-        {/* Right Side: Vehicles and Drivers */}
-        <div>
-          <div className="flex items-center mb-4">
-            <Car className="w-5 h-5 mr-2 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Fleet & Drivers</h2>
+        {/* Vertical Separator Line - Hidden on mobile */}
+        <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-[#D4C5B0] dark:bg-gray-600 transform -translate-x-1/2"></div>
+
+        {/* Right Side - Vehicles & Drivers */}
+        <div className="space-y-2">
+          {/* Vehicles Row */}
+          <div className="flex items-start lg:items-center">
+            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Vehicles:</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {allVehicles.join(', ')}
+            </span>
           </div>
-          
-          <div className="space-y-4">
-            {mockVehicles.map((vehicle) => (
-              <div key={vehicle.id} className="bg-blue-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">
-                    {vehicle.make} {vehicle.model}
-                  </h3>
-                  <span className="text-sm text-gray-600 font-mono">
-                    {vehicle.licensePlate}
-                  </span>
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <Users className="w-4 h-4 mr-2" />
-                  <span>Driver: {vehicle.driver}</span>
-                </div>
-              </div>
-            ))}
+
+          {/* Drivers Row */}
+          <div className="flex items-start lg:items-center">
+            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Drivers:</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {allDrivers.join(', ')}
+            </span>
           </div>
         </div>
       </div>

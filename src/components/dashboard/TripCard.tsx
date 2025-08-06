@@ -2,20 +2,13 @@ import React, { useRef, useState } from 'react'
 import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
-import {
-  motion,
-  useMotionTemplate,
-  useMotionValue,
-  useSpring,
-} from "framer-motion"
+// Removed framer-motion imports to fix tooltip interference
 
 interface TripCardProps {
   trip: TripCardType
   onClick?: () => void
   isPast?: boolean
 }
-
-const ROTATION_RANGE = 15;
 
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
   const ref = useRef(null)
@@ -29,40 +22,12 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const progressColor = getTripProgressColor(trip.startDate, trip.endDate)
   const { dateRange, duration } = formatTripDates(trip.startDate, trip.endDate)
 
-  // Motion values for 3D tilt effect
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
-
-  const xSpring = useSpring(x, { stiffness: 300, damping: 30 })
-  const ySpring = useSpring(y, { stiffness: 300, damping: 30 })
-
-  const transform = useMotionTemplate`rotateX(${xSpring}deg) rotateY(${ySpring}deg)`
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return
-
-    const rect = (ref.current as HTMLElement).getBoundingClientRect()
-
-    const width = rect.width
-    const height = rect.height
-
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-
-    const rX = ((mouseY / height) - 0.5) * -ROTATION_RANGE
-    const rY = ((mouseX / width) - 0.5) * ROTATION_RANGE
-
-    x.set(rX)
-    y.set(rY)
-  }
-
-  const handleMouseLeave = () => {
-    x.set(0)
-    y.set(0)
-  }
+  // Removed 3D tilt effect to fix tooltip interference
 
   const handleCopyAccessCode = async (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
+    
+    if (!trip.accessCode) return
     
     // Capture mouse position
     setCopiedPosition({ x: e.clientX, y: e.clientY })
@@ -78,7 +43,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       console.error('Failed to copy access code:', err)
       // Fallback for older browsers
       const textArea = document.createElement('textarea')
-      textArea.value = trip.accessCode
+      textArea.value = trip.accessCode || ''
       document.body.appendChild(textArea)
       textArea.select()
       document.execCommand('copy')
@@ -91,39 +56,30 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   }
   
   return (
-    <motion.div
+    <div
       ref={ref}
       onClick={onClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        transformStyle: "preserve-3d",
-        transform,
-      }}
       className={cn(
-        'bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col w-full max-w-sm xl:max-w-none h-[420px] shadow-lg hover:shadow-2xl',
+        'bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col w-full max-w-sm xl:max-w-none h-[420px]',
+        'shadow-lg hover:shadow-2xl dark:shadow-gray-900/20 dark:hover:shadow-gray-900/40',
+        'hover:-translate-y-1 hover:scale-[1.02]',
         isPast ? 'opacity-80 hover:opacity-100 grayscale hover:grayscale-0' : ''
       )}
     >
-      <div 
-        style={{
-          transform: "translateZ(50px)",
-          transformStyle: "preserve-3d",
-        }}
-        className="h-full w-full"
-      >
         {/* Zone 1: Header - Golden Background */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-4 py-3 relative h-14 flex items-center">
           <h3 className="text-lg font-bold text-white dark:text-golden-400 leading-tight drop-shadow-sm line-clamp-2 flex-1 pr-6" title={trip.title}>
             {trip.title}
           </h3>
-          <button
-            onClick={handleCopyAccessCode}
-            className="absolute right-2 text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10"
-            title="Copy trip key"
-          >
-            <Key className="w-4 h-4" />
-          </button>
+          {trip.accessCode && (
+            <button
+              onClick={handleCopyAccessCode}
+              className="absolute right-2 text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10"
+              title="Copy trip key"
+            >
+              <Key className="w-4 h-4" />
+            </button>
+          )}
         </div>
       
       {/* Zone 2: Progress Bar with Status Text */}
@@ -296,7 +252,6 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           }
         </span>
       </div>
-      </div>
 
       {/* Copy Notification Overlay */}
       {showCopied && (
@@ -313,6 +268,6 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }

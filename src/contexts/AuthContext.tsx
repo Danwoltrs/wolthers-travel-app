@@ -63,9 +63,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Redirect to dashboard after successful authentication
           if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
             const currentPath = window.location.pathname
+            // Only redirect if on auth pages, not on trip pages
             if (currentPath.includes('/auth/')) {
               window.location.href = '/dashboard'
             }
+            // If on a trip page, just stay there (the page will refresh to show authenticated content)
           }
         } else {
           setUser(null)

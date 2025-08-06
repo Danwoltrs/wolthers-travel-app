@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { X, Users, Car, Key } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
@@ -116,6 +116,8 @@ const groupDestinationsByLocation = (destinations: Array<{date: string, location
 }
 
 export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModalProps) {
+  const [showCopyTooltip, setShowCopyTooltip] = useState(false)
+  
   if (!isOpen) return null
 
   const progress = getTripProgress(trip.startDate, trip.endDate)
@@ -162,19 +164,22 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
   const sortedDates = Object.keys(groupedActivities).sort()
 
   const handleCopyAccessCode = async () => {
+    if (!trip.accessCode) return
     try {
       await navigator.clipboard.writeText(trip.accessCode)
-      // You could add a toast notification here
-      console.log('Access code copied:', trip.accessCode)
+      setShowCopyTooltip(true)
+      setTimeout(() => setShowCopyTooltip(false), 2000)
     } catch (err) {
       console.error('Failed to copy access code:', err)
       // Fallback for older browsers
       const textArea = document.createElement('textarea')
-      textArea.value = trip.accessCode
+      textArea.value = trip.accessCode || ''
       document.body.appendChild(textArea)
       textArea.select()
       document.execCommand('copy')
       document.body.removeChild(textArea)
+      setShowCopyTooltip(true)
+      setTimeout(() => setShowCopyTooltip(false), 2000)
     }
   }
 
@@ -457,14 +462,24 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
         {/* Footer */}
         <div className="flex justify-between items-center p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
           {/* Left side - Access Code */}
-          <button
-            onClick={handleCopyAccessCode}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
-            title={`Copy access code: ${trip.accessCode}`}
-          >
-            <Key className="w-4 h-4" />
-            <span className="text-sm font-mono">{trip.accessCode}</span>
-          </button>
+          {trip.accessCode && (
+            <div className="relative">
+              <button
+                onClick={handleCopyAccessCode}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
+                title={`Copy access code: ${trip.accessCode}`}
+              >
+                <Key className="w-4 h-4" />
+                <span className="text-sm font-mono">{trip.accessCode}</span>
+              </button>
+              {showCopyTooltip && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap z-10">
+                  Trip code copied!
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Right side - Action Buttons */}
           <div className="flex space-x-3">
@@ -475,10 +490,10 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
               Close
             </button>
             <button
-              onClick={() => window.location.href = `/trips/${trip.accessCode}`}
-              className="px-4 py-2 bg-golden-500 dark:bg-[#123d32] text-white dark:text-[#F3E8A6] rounded-lg hover:bg-golden-600 dark:hover:bg-[#0E3D2F] transition-colors"
+              onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+              className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
             >
-              View Full Details
+              View Trip
             </button>
           </div>
         </div>
