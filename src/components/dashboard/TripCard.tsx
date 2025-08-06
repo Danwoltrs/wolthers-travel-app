@@ -1,5 +1,5 @@
-import React, { useRef } from 'react'
-import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 import {
@@ -19,6 +19,8 @@ const ROTATION_RANGE = 15;
 
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
   const ref = useRef(null)
+  const [showCopied, setShowCopied] = useState(false)
+  const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   
   // Always calculate progress based on current date for real-time updates
   const progress = getTripProgress(trip.startDate, trip.endDate)
@@ -58,6 +60,35 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
     x.set(0)
     y.set(0)
   }
+
+  const handleCopyAccessCode = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    
+    // Capture mouse position
+    setCopiedPosition({ x: e.clientX, y: e.clientY })
+    
+    try {
+      await navigator.clipboard.writeText(trip.accessCode)
+      // Show copied notification
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 1200) // Hide after 1.2 seconds
+      
+      console.log('Access code copied:', trip.accessCode)
+    } catch (err) {
+      console.error('Failed to copy access code:', err)
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = trip.accessCode
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      // Show copied notification even for fallback
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 1200)
+    }
+  }
   
   return (
     <motion.div
@@ -82,11 +113,18 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         className="h-full w-full"
       >
         {/* Zone 1: Header - Golden Background */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-3 relative h-14 flex items-center">
-        <h3 className="text-lg font-bold text-white dark:text-golden-400 leading-tight drop-shadow-sm" title={trip.title}>
-          {trip.title}
-        </h3>
-      </div>
+        <div className="bg-golden-400 dark:bg-[#09261d] px-4 py-3 relative h-14 flex items-center">
+          <h3 className="text-lg font-bold text-white dark:text-golden-400 leading-tight drop-shadow-sm line-clamp-2 flex-1 pr-6" title={trip.title}>
+            {trip.title}
+          </h3>
+          <button
+            onClick={handleCopyAccessCode}
+            className="absolute right-2 text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10"
+            title="Copy trip key"
+          >
+            <Key className="w-4 h-4" />
+          </button>
+        </div>
       
       {/* Zone 2: Progress Bar with Status Text */}
       <div className="h-6 relative overflow-hidden bg-emerald-900 dark:bg-[#111111]">
@@ -259,6 +297,22 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         </span>
       </div>
       </div>
+
+      {/* Copy Notification Overlay */}
+      {showCopied && (
+        <div 
+          className="fixed z-50 pointer-events-none"
+          style={{
+            left: copiedPosition.x - 50,
+            top: copiedPosition.y - 40,
+          }}
+        >
+          <div className="bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+            <Check className="w-4 h-4" />
+            <span className="text-sm font-medium">Key copied</span>
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

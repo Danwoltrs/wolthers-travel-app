@@ -50,27 +50,26 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 ### Design System
 
 #### Color Palette
-- **Primary Green**: Emerald shades for header glassmorphism (`emerald-800`, `emerald-700`, `emerald-600`)
-- **Gold/Cream Accents**: `amber-50` for trip card titles, `amber-100/50` for company sections
-- **Neutral Grays**: Pearl shades (`pearl-100` to `pearl-900`) for text and borders
-- **Status Colors**: `amber-400` for progress bars
+- **Primary Green**: Deep forest green for headers and navigation (`#2D5347` range)
+- **Gold Accents**: Warm golden tones for card sections and highlights (`#FEF3C7`, `#F3E8A6`)
+- **Neutral Grays**: Clean gray scale from light backgrounds to charcoal text
+- **Supporting**: Cream backgrounds and sage green for status indicators
 
 #### Component Design
 
 ##### Header
-- Fixed position glassmorphic green pill design
-- Icon-only navigation with hover tooltips
-- Backdrop blur effect with semi-transparent background
-- Responsive rounded-full container with gradient overlay
+- Fixed glassmorphic green navigation bar
+- Icon-only design with rounded pill shape
+- Semi-transparent background with backdrop blur
 
-##### TripCard
-- Fixed height of 420px for uniformity
-- Three distinct sections:
-  1. Title section with gold/cream background (`bg-amber-50`)
-  2. Thin progress bar showing trip completion status
-  3. Company section with light brown background (`bg-amber-100/50`)
-- Consistent spacing and heights for all content sections
-- Date formatting shows day names without year (e.g., "Mon 15 Mar - Fri 20 Mar")
+##### TripCard  
+- Fixed 420px height with three-section layout
+- Gold-toned title sections for visual hierarchy
+- Consistent spacing and progress indicators
+- Clean typography with proper text truncation
+
+#### Design Philosophy
+Nordic minimalism meets corporate travel—professional, trustworthy, and visually clean. The forest green anchors the brand while gold accents add warmth and guide attention.
 
 #### Typography
 - Danish minimalist aesthetic with clean, readable fonts
@@ -128,10 +127,10 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 10. API integrations (Hotels.com, Google Maps)
 
 ### Development Guidelines
-- Maintain Danish minimalist aesthetic with strategic color use
-- Keep all cards at uniform height (420px)
-- Use consistent 16px padding throughout components
-- Ensure all text aligns at same vertical positions across cards
-- Follow TypeScript strict mode guidelines
-- Test responsiveness on multiple screen sizes
-- Use Lucide icons consistently throughout the app
+- Maintain Nordic minimalist aesthetic with strategic use of forest green and gold
+- Enforce uniform card height (420px) across all trip components
+- Apply consistent 16px padding and vertical alignment throughout
+- Follow TypeScript strict mode for type safety
+- Ensure responsive design across all screen sizes
+- Use Lucide icons exclusively for visual consistency
+- Keep glassmorphic effects subtle and professional

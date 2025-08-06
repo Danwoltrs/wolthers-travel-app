@@ -113,15 +113,15 @@ export function useTrips() {
           })
         }
 
-        // Use simple trips table with minimal fields to avoid RLS policy recursion
-        console.log('useTrips: Fetching trips with simplified query...')
+        // Use the trip_card_data view which has RLS applied and includes all participant data
+        console.log('useTrips: Fetching trips from trip_card_data view...')
         let data: any[] | null = null
         let fetchError: any = null
         
         try {
           const result = await supabase
-            .from('trips')
-            .select('id, title, description, start_date, end_date, status, progress_percentage, access_code')
+            .from('trip_card_data')
+            .select('*')
             .order('start_date', { ascending: false })
           
           data = result.data
@@ -214,79 +214,27 @@ export function useTrips() {
           }
         }
 
-        // Skip complex queries that might trigger RLS recursion for now
-        console.log('useTrips: Skipping visit/notes count queries to avoid RLS issues')
-        let visitCounts: any[] = []
-        let notesData: any[] = []
-        
-        // Try to get visit counts, but don't fail if it errors
-        try {
-          const { data: visitCountsData, error: visitError } = await supabase
-            .from('itinerary_items')
-            .select('trip_id')
-            .eq('activity_type', 'visit')
-          
-          if (!visitError && visitCountsData) {
-            visitCounts = visitCountsData
-          }
-        } catch (error) {
-          console.warn('useTrips: Failed to fetch visit counts, using defaults:', error)
-        }
-        
-        // Try to get notes counts, but don't fail if it errors
-        try {
-          const { data: notesCountData, error: notesError } = await supabase
-            .from('meeting_notes')
-            .select(`
-              itinerary_items!inner(
-                trip_id
-              )
-            `)
-          
-          if (!notesError && notesCountData) {
-            notesData = notesCountData
-          }
-        } catch (error) {
-          console.warn('useTrips: Failed to fetch notes counts, using defaults:', error)
-        }
-
-        // Create a map of trip_id to visit count
-        const visitCountMap = new Map<string, number>()
-        if (visitCounts && visitCounts.length > 0) {
-          visitCounts.forEach((item: { trip_id: string }) => {
-            const count = visitCountMap.get(item.trip_id) || 0
-            visitCountMap.set(item.trip_id, count + 1)
-          })
-        }
-
-        // Create a map of trip_id to notes count  
-        const notesCountMap = new Map<string, number>()
-        if (notesData && notesData.length > 0) {
-          notesData.forEach((item: any) => {
-            const tripId = item.itinerary_items.trip_id
-            const count = notesCountMap.get(tripId) || 0
-            notesCountMap.set(tripId, count + 1)
-          })
-        }
+        // No need for additional queries - trip_card_data view includes all counts and participant data
+        console.log('useTrips: Using complete trip data from view, including participants, vehicles, and counts')
 
         if (data && data.length > 0) {
-          // Transform the simplified data to match TripCard interface
+          // Transform the rich data from trip_card_data view to match TripCard interface
           const transformedTrips: TripCard[] = data.map((trip: any) => ({
             id: trip.id,
             title: trip.title,
-            subject: trip.description || '',
-            client: [], // Will be populated later when view is fixed
-            guests: [], // Will be populated later when view is fixed
-            wolthersStaff: [], // Will be populated later when view is fixed
-            vehicles: [], // Will be populated later when view is fixed
-            drivers: [], // Will be populated later when view is fixed
+            subject: trip.subject || '',
+            client: trip.client || [],
+            guests: trip.guests || [],
+            wolthersStaff: trip.wolthers_staff || [],
+            vehicles: trip.vehicles || [],
+            drivers: trip.drivers || [],
             startDate: new Date(trip.start_date),
             endDate: new Date(trip.end_date),
             duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
             status: trip.status,
-            progress: trip.progress_percentage || 0,
-            notesCount: notesCountMap.get(trip.id) || 0,
-            visitCount: visitCountMap.get(trip.id) || 0,
+            progress: trip.progress || 0,
+            notesCount: trip.notes_count || 0,
+            visitCount: trip.visit_count || 0,
             accessCode: trip.access_code
           }))
 
@@ -389,7 +337,7 @@ export function useTripDetails(tripId: string) {
         setLoading(true)
         setError(null)
 
-        // Fetch full trip details including itinerary items
+        // Fetch full trip details including itinerary items and meeting notes
         const { data: tripData, error: tripError } = await supabase
           .from('trips')
           .select(`
@@ -401,7 +349,8 @@ export function useTripDetails(tripId: string) {
             ),
             itinerary_items (
               *,
-              location:company_locations (*)
+              location:company_locations (*),
+              meeting_notes (*)
             ),
             trip_vehicles (
               *,
