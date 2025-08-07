@@ -17,12 +17,21 @@ function AuthCallbackContent() {
 
     const handleAuthCallback = async () => {
       try {
+        console.log('🔍 Starting auth callback processing...')
         const code = searchParams.get('code')
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
+        const state = searchParams.get('state')
+
+        console.log('📊 Callback params:', { 
+          hasCode: !!code, 
+          error, 
+          errorDescription,
+          state: state?.substring(0, 10) + '...' 
+        })
 
         if (error) {
-          console.error('Auth callback error:', error, errorDescription)
+          console.error('❌ Auth callback error:', error, errorDescription)
           router.push(`/?error=${encodeURIComponent(errorDescription || error)}`)
           return
         }
@@ -30,32 +39,44 @@ function AuthCallbackContent() {
         if (code) {
           // Check if this is a Microsoft OAuth callback
           const storedMsAuth = sessionStorage.getItem('microsoftAuthProvider')
+          console.log('🔐 Stored MS auth config:', storedMsAuth ? 'Found' : 'Not found')
           
           if (storedMsAuth) {
+            console.log('🔄 Processing Microsoft OAuth callback...')
             // Handle Microsoft OAuth callback
             const msConfig = JSON.parse(storedMsAuth)
             const msAuthProvider = new MicrosoftAuthProvider(msConfig)
             
+            console.log('📞 Calling Microsoft auth handler...')
             const result = await msAuthProvider.handleCallback(code)
+            console.log('📋 Microsoft auth result:', { 
+              success: result.success, 
+              hasUser: !!result.user,
+              hasToken: !!result.sessionToken,
+              error: result.error 
+            })
             
             if (result.success && result.user) {
-              console.log('Successfully authenticated Microsoft user:', result.user.email)
+              console.log('✅ Successfully authenticated Microsoft user:', result.user.email)
               
               // Store session token in localStorage for client-side access
               if (result.sessionToken) {
+                console.log('💾 Storing session token...')
                 localStorage.setItem('auth-token', result.sessionToken)
               }
               
               // Track the login event
+              console.log('📈 Tracking login event...')
               await trackLoginEvent(result.user.id, 'microsoft', result.user.email)
               
               // Clear stored config
               sessionStorage.removeItem('microsoftAuthProvider')
               
+              console.log('🚀 Redirecting to dashboard...')
               router.push('/dashboard')
               return
             } else {
-              console.error('Microsoft auth failed:', result.error)
+              console.error('❌ Microsoft auth failed:', result.error)
               sessionStorage.removeItem('microsoftAuthProvider')
               router.push(`/?error=${encodeURIComponent(result.error || 'Microsoft authentication failed')}`)
               return

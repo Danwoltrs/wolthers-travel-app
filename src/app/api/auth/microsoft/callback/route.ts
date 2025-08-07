@@ -17,9 +17,12 @@ async function createSessionToken(userId: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 Microsoft callback API: Request received')
     const { code, redirectUri } = await request.json()
+    console.log('📋 Request data:', { hasCode: !!code, redirectUri })
 
     if (!code || !redirectUri) {
+      console.error('❌ Missing required parameters')
       return NextResponse.json(
         { error: 'Code and redirect URI are required' },
         { status: 400 }
@@ -30,14 +33,22 @@ export async function POST(request: NextRequest) {
     const clientSecret = process.env.AZURE_AD_CLIENT_SECRET
     const tenantId = process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID
 
+    console.log('🔧 Environment check:', {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasTenantId: !!tenantId,
+      clientId: clientId?.substring(0, 8) + '...'
+    })
+
     if (!clientId || !clientSecret || !tenantId) {
-      console.error('Missing Azure AD configuration')
+      console.error('❌ Missing Azure AD configuration')
       return NextResponse.json(
         { error: 'Authentication configuration error' },
         { status: 500 }
       )
     }
 
+    console.log('🔄 Starting token exchange with Microsoft...')
     // Exchange authorization code for tokens
     const tokenResponse = await fetch(
       `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
@@ -57,9 +68,11 @@ export async function POST(request: NextRequest) {
       }
     )
 
+    console.log('🎫 Token response status:', tokenResponse.status, tokenResponse.statusText)
+
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json()
-      console.error('Token exchange failed:', errorData)
+      console.error('❌ Token exchange failed:', errorData)
       return NextResponse.json(
         { error: errorData.error_description || 'Token exchange failed' },
         { status: 401 }
@@ -67,6 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const tokens = await tokenResponse.json()
+    console.log('✅ Token exchange successful, got access token')
 
     // Get user information from Microsoft Graph
     const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
@@ -89,16 +103,26 @@ export async function POST(request: NextRequest) {
     const timezone = request.headers.get('x-timezone') || 'UTC'
     const userAgent = request.headers.get('user-agent') || undefined
 
+    console.log('💾 Creating/updating user in database...')
     // Create or update user in Supabase
     const supabase = createServerSupabaseClient()
 
+    console.log('🔍 Checking for existing user...')
     // Check if user exists by email or Microsoft OAuth ID
-    const { data: existingUsers } = await supabase
+    const { data: existingUsers, error: queryError } = await supabase
       .from('users')
       .select('*')
       .or(`email.eq.${msUser.mail || msUser.userPrincipalName},microsoft_oauth_id.eq.${msUser.id}`)
 
+    if (queryError) {
+      console.error('❌ Database query error:', queryError)
+    }
+
     const existingUser = existingUsers?.[0]
+    console.log('👤 User check result:', { 
+      foundExisting: !!existingUser,
+      userEmail: msUser.mail || msUser.userPrincipalName 
+    })
 
     const userData = {
       email: msUser.mail || msUser.userPrincipalName,

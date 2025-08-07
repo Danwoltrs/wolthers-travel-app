@@ -34,11 +34,14 @@ export class MicrosoftAuthProvider {
   }
 
   // Handle Microsoft OAuth callback
-  async handleCallback(code: string): Promise<{ success: boolean; user?: any; error?: string }> {
+  async handleCallback(code: string): Promise<{ success: boolean; user?: any; sessionToken?: string; error?: string }> {
     try {
+      console.log('🔗 Microsoft auth handler: Starting callback processing...')
       // Get user's timezone
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      console.log('🌍 User timezone:', timezone)
 
+      console.log('📤 Sending request to /api/auth/microsoft/callback...')
       // Use server-side endpoint to handle token exchange
       const response = await fetch('/api/auth/microsoft/callback', {
         method: 'POST',
@@ -52,15 +55,27 @@ export class MicrosoftAuthProvider {
         }),
       })
 
+      console.log('📥 Response status:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }))
+        console.error('❌ API error response:', errorData)
         return { success: false, error: errorData.error || 'Authentication failed' }
       }
 
       const result = await response.json()
-      return { success: result.success, user: result.user }
+      console.log('✅ API success response:', { 
+        success: result.success, 
+        hasUser: !!result.user,
+        hasSessionToken: !!result.sessionToken
+      })
+      return { 
+        success: result.success, 
+        user: result.user,
+        sessionToken: result.sessionToken 
+      }
     } catch (error) {
-      console.error('Microsoft auth callback error:', error)
+      console.error('❌ Microsoft auth callback error:', error)
       return { success: false, error: 'Authentication failed' }
     }
   }
