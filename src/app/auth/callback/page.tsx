@@ -46,12 +46,31 @@ function AuthCallbackContent() {
               
               // Clear stored config
               sessionStorage.removeItem('microsoftAuthProvider')
+
+              // Check if this is a popup callback
+              if (window.opener && !window.opener.closed) {
+                // Store result for popup to read
+                sessionStorage.setItem('microsoftAuthResult', JSON.stringify(result))
+                // Close popup
+                window.close()
+                return
+              }
               
               router.push('/dashboard')
               return
             } else {
               console.error('Microsoft auth failed:', result.error)
               sessionStorage.removeItem('microsoftAuthProvider')
+
+              // Check if this is a popup callback
+              if (window.opener && !window.opener.closed) {
+                // Store error for popup to read
+                sessionStorage.setItem('microsoftAuthResult', JSON.stringify(result))
+                // Close popup
+                window.close()
+                return
+              }
+
               router.push(`/?error=${encodeURIComponent(result.error || 'Microsoft authentication failed')}`)
               return
             }

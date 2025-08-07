@@ -217,19 +217,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const redirectUri = `${window.location.origin}/auth/callback`
       
       const authProvider = createMicrosoftAuthProvider(redirectUri)
-      const authUrl = authProvider.getAuthUrl()
-
-      // Store the provider instance for callback handling
-      sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
-        clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
-        tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
-        redirectUri,
-      }))
-
-      // Redirect to Microsoft OAuth
-      window.location.href = authUrl
       
-      return { error: null }
+      // Use popup authentication instead of redirect
+      const result = await authProvider.signInWithPopup()
+      
+      if (result.success) {
+        // Refresh the page to update auth state
+        window.location.reload()
+        return { error: null }
+      } else {
+        return { error: result.error }
+      }
     } catch (error) {
       console.error('Microsoft sign-in error:', error)
       return { error: 'Failed to initiate Microsoft sign-in' }

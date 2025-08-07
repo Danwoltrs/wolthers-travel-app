@@ -35,17 +35,17 @@ export function MicrosoftSignInButton({
         const redirectUri = `${currentUrl}/auth/callback`
         
         const authProvider = createMicrosoftAuthProvider(redirectUri)
-        const authUrl = authProvider.getAuthUrl()
-
-        // Store the provider instance for callback handling
-        sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
-          clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
-          tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
-          redirectUri,
-        }))
-
-        // Redirect to Microsoft OAuth
-        window.location.href = authUrl
+        
+        // Use popup authentication
+        const result = await authProvider.signInWithPopup()
+        
+        if (result.success) {
+          onSuccess?.(result.user)
+          // Refresh page to update auth state
+          window.location.reload()
+        } else {
+          onError?.(result.error || 'Authentication failed')
+        }
       }
     } catch (error) {
       console.error('Microsoft sign-in error:', error)
