@@ -15,7 +15,14 @@ export function useTrips() {
   useEffect(() => {
     // Don't fetch if not authenticated
     if (!isAuthenticated || !session || !user) {
-      console.log('useTrips: Skipping fetch - auth state:', { isAuthenticated, hasSession: !!session, hasUser: !!user })
+      console.log('useTrips: Skipping fetch - auth state:', { 
+        isAuthenticated, 
+        hasSession: !!session, 
+        hasUser: !!user,
+        userAgent: navigator.userAgent.includes('Edge') ? 'Edge detected' : 'Not Edge',
+        localStorage: typeof localStorage !== 'undefined' ? 'Available' : 'Not available',
+        authToken: localStorage.getItem('auth-token') ? 'Token found' : 'No token'
+      })
       setLoading(false)
       return
     }

@@ -49,6 +49,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         // Check for token-based authentication (Microsoft auth)
         const authToken = localStorage.getItem('auth-token')
+        console.log('🌐 Browser check:', {
+          userAgent: navigator.userAgent.includes('Edge') ? 'Microsoft Edge' : 'Other browser',
+          hasToken: !!authToken,
+          tokenLength: authToken?.length || 0
+        })
+        
         if (authToken) {
           try {
             await loadUserProfileFromToken(authToken)
@@ -58,6 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await loadCachedUserProfile()
           }
         } else {
+          console.log('🔍 No auth token found, trying cached profile...')
           // Try to load cached user for offline access
           await loadCachedUserProfile()
         }
