@@ -78,24 +78,94 @@ export function useTrips() {
         let fetchError: any = null
         
         try {
-          // Use simple trips table query instead of complex view
-          const result = await supabase
-            .from('trips')
-            .select(`
-              id,
-              title,
-              description,
-              start_date,
-              end_date,
-              status,
-              access_code,
-              total_cost,
-              trip_type,
-              created_at,
-              creator_id
-            `)
-            .order('start_date', { ascending: false })
-            .limit(20) // Limit results to improve performance
+          console.log('useTrips: User permissions:', {
+            role: user.role,
+            canViewAll: user.permissions?.view_all_trips,
+            canViewCompany: user.permissions?.view_company_trips,
+            userId: user.id,
+            companyId: user.companyId
+          })
+
+          let result: any
+          
+          // Wolthers staff can see all trips
+          if (user.role === 'WOLTHERS_STAFF' || user.permissions?.view_all_trips) {
+            console.log('useTrips: Fetching all trips (Wolthers staff)')
+            result = await supabase
+              .from('trips')
+              .select(`
+                id,
+                title,
+                description,
+                start_date,
+                end_date,
+                status,
+                access_code,
+                total_cost,
+                trip_type,
+                created_at,
+                creator_id
+              `)
+              .order('start_date', { ascending: false })
+              .limit(20)
+          
+          // Company admins can see trips for their company domain  
+          } else if (user.role === 'COMPANY_ADMIN' || user.permissions?.view_company_trips) {
+            console.log('useTrips: Fetching company trips for domain-based access')
+            
+            // Get user email domain to find company trips
+            const userDomain = user.email?.split('@')[1]
+            if (userDomain) {
+              // Find trips where participants have the same email domain
+              result = await supabase
+                .from('trips')
+                .select(`
+                  id,
+                  title,
+                  description,
+                  start_date,
+                  end_date,
+                  status,
+                  access_code,
+                  total_cost,
+                  trip_type,
+                  created_at,
+                  creator_id,
+                  trip_participants!inner(
+                    user_id,
+                    users!inner(email)
+                  )
+                `)
+                .filter('trip_participants.users.email', 'like', `%@${userDomain}`)
+                .order('start_date', { ascending: false })
+                .limit(20)
+            } else {
+              result = { data: [], error: null }
+            }
+          
+          // Regular clients can only see trips they're invited to
+          } else {
+            console.log('useTrips: Fetching invited trips only')
+            result = await supabase
+              .from('trips')
+              .select(`
+                id,
+                title,
+                description,
+                start_date,
+                end_date,
+                status,
+                access_code,
+                total_cost,
+                trip_type,
+                created_at,
+                creator_id,
+                trip_participants!inner(user_id)
+              `)
+              .eq('trip_participants.user_id', user.id)
+              .order('start_date', { ascending: false })
+              .limit(20)
+          }
           
           data = result.data
           fetchError = result.error

@@ -131,12 +131,36 @@ export async function POST(request: NextRequest) {
     })
 
     const userEmail = msUser.mail || msUser.userPrincipalName
-    const isWolthersUser = userEmail?.toLowerCase().endsWith('@wolthers.com')
+    const emailDomain = userEmail?.split('@')[1]?.toLowerCase()
+    const isWolthersUser = emailDomain === 'wolthers.com'
     
-    console.log('🏢 User domain check:', { 
+    // Check if this domain belongs to a company (for company admin detection)
+    let isCompanyAdmin = false
+    let companyId = null
+    
+    if (!isWolthersUser && emailDomain) {
+      console.log('🔍 Checking if user is a company admin for domain:', emailDomain)
+      // Check if there are existing users with this domain who might be company participants
+      const { data: existingDomainUsers } = await supabase
+        .from('users')
+        .select('id, company_id')
+        .like('email', `%@${emailDomain}`)
+        .not('company_id', 'is', null)
+        .limit(1)
+      
+      if (existingDomainUsers && existingDomainUsers.length > 0) {
+        companyId = existingDomainUsers[0].company_id
+        isCompanyAdmin = true // First user from domain becomes admin
+        console.log('✅ User detected as company admin for existing company:', companyId)
+      }
+    }
+    
+    console.log('🏢 User domain analysis:', { 
       email: userEmail, 
+      domain: emailDomain,
       isWolthersUser,
-      domain: userEmail?.split('@')[1] 
+      isCompanyAdmin,
+      companyId
     })
 
     // Ensure full_name is never null (database constraint)
@@ -154,6 +178,7 @@ export async function POST(request: NextRequest) {
       email: userEmail,
       full_name: fullName,
       microsoft_oauth_id: msUser.id,
+      company_id: companyId, // Link to company if detected
       last_login_at: new Date().toISOString(),
       last_login_timezone: timezone,
       last_login_provider: 'microsoft',
@@ -183,13 +208,27 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('🆕 Creating new user...')
       
-      // Determine user type and permissions based on email domain
+      // Determine user type and permissions based on role
+      let userType = 'client' // Default
+      let canViewAllTrips = false
+      let canViewCompanyTrips = false
+      
+      if (isWolthersUser) {
+        userType = 'wolthers_staff'
+        canViewAllTrips = true
+        canViewCompanyTrips = true
+      } else if (isCompanyAdmin) {
+        userType = 'admin' // Company admin
+        canViewAllTrips = false
+        canViewCompanyTrips = true // Can view trips from their company domain
+      }
+      
       const newUserData = {
         ...userData,
-        user_type: isWolthersUser ? 'wolthers_staff' : 'client', // Use correct enum values
+        user_type: userType,
         is_global_admin: false,
-        can_view_all_trips: isWolthersUser, // Wolthers staff can view all trips
-        can_view_company_trips: isWolthersUser,
+        can_view_all_trips: canViewAllTrips,
+        can_view_company_trips: canViewCompanyTrips,
         created_at: new Date().toISOString(),
       }
       
