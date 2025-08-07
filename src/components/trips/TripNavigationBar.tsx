@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { Trip } from '@/types'
+import { TripStatus } from '@/types'
 
 interface TripNavigationBarProps {
   currentTripId: string
@@ -63,8 +64,8 @@ export default function TripNavigationBar({
   const otherTrips = userTrips.filter(trip => 
     trip.accessCode !== currentTripId && trip.id !== currentTripId
   )
-  const ongoingTrips = otherTrips.filter(trip => trip.status === 'ongoing')
-  const futureTrips = otherTrips.filter(trip => trip.status === 'upcoming')
+  const ongoingTrips = otherTrips.filter(trip => trip.status === TripStatus.ONGOING)
+  const futureTrips = otherTrips.filter(trip => trip.status === TripStatus.PLANNING || trip.status === TripStatus.CONFIRMED)
   
   // Sort by start date
   const sortedOngoing = ongoingTrips.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
@@ -120,8 +121,8 @@ export default function TripNavigationBar({
           {showTripTabs && otherTripsToShow.length > 0 && (
             <div className="hidden md:flex items-center overflow-x-auto scrollbar-hide">
               {otherTripsToShow.map((trip, index) => {
-                const isOngoing = trip.status === 'ongoing'
-                const isFuture = trip.status === 'upcoming'
+                const isOngoing = trip.status === TripStatus.ONGOING
+                const isFuture = trip.status === TripStatus.PLANNING || trip.status === TripStatus.CONFIRMED
                 
                 return (
                   <React.Fragment key={trip.id}>
