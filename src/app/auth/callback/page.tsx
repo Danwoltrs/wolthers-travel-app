@@ -3,6 +3,7 @@
 import { useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import { MicrosoftAuthProvider, trackLoginEvent } from '@/lib/microsoft-auth'
 
 function AuthCallbackContent() {
   const router = useRouter()
@@ -27,7 +28,36 @@ function AuthCallbackContent() {
         }
 
         if (code) {
-          // Exchange code for session
+          // Check if this is a Microsoft OAuth callback
+          const storedMsAuth = sessionStorage.getItem('microsoftAuthProvider')
+          
+          if (storedMsAuth) {
+            // Handle Microsoft OAuth callback
+            const msConfig = JSON.parse(storedMsAuth)
+            const msAuthProvider = new MicrosoftAuthProvider(msConfig)
+            
+            const result = await msAuthProvider.handleCallback(code)
+            
+            if (result.success && result.user) {
+              console.log('Successfully authenticated Microsoft user:', result.user.email)
+              
+              // Track the login event
+              await trackLoginEvent(result.user.id, 'microsoft', result.user.email)
+              
+              // Clear stored config
+              sessionStorage.removeItem('microsoftAuthProvider')
+              
+              router.push('/dashboard')
+              return
+            } else {
+              console.error('Microsoft auth failed:', result.error)
+              sessionStorage.removeItem('microsoftAuthProvider')
+              router.push(`/?error=${encodeURIComponent(result.error || 'Microsoft authentication failed')}`)
+              return
+            }
+          }
+
+          // Handle regular Supabase OAuth callback
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
           
           if (error) {
@@ -38,6 +68,10 @@ function AuthCallbackContent() {
 
           if (data.session) {
             console.log('Successfully authenticated user:', data.session.user.email)
+            
+            // Track the login event for regular auth
+            await trackLoginEvent(data.session.user.id, 'email', data.session.user.email || '')
+            
             router.push('/dashboard')
             return
           }

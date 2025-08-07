@@ -41,7 +41,7 @@ export async function executeSQL(query: string, params: any[] = []) {
 }
 
 // Password verification function
-export async function verifyUserPassword(email: string, password: string) {
+export async function verifyUserPassword(email: string, password: string, userAgent?: string) {
   try {
     const supabase = createServerSupabaseClient()
     
@@ -56,14 +56,55 @@ export async function verifyUserPassword(email: string, password: string) {
     }
 
     const result = data?.[0]
+    
+    if (result?.is_valid) {
+      // Track successful login event
+      await trackServerLoginEvent(result.id, 'email', email, userAgent)
+    }
+    
     return {
       isValid: result?.is_valid || false,
-      user: result ? { id: result.id, email: result.email } : null,
+      user: result ? { id: result.id, email: result.email, full_name: result.full_name } : null,
       error: null
     }
   } catch (err) {
     console.error('Password verification exception:', err)
     return { isValid: false, user: null, error: err }
+  }
+}
+
+// Server-side login tracking function
+export async function trackServerLoginEvent(userId: string, provider: 'email' | 'microsoft', userEmail: string, userAgent?: string) {
+  try {
+    const supabase = createServerSupabaseClient()
+    const now = new Date()
+
+    // Update user's last login info
+    await supabase
+      .from('users')
+      .update({
+        last_login_at: now.toISOString(),
+        last_login_provider: provider,
+        updated_at: now.toISOString(),
+      })
+      .eq('id', userId)
+
+    // Log the login event for audit trail
+    await supabase
+      .from('login_events')
+      .insert({
+        user_id: userId,
+        user_email: userEmail,
+        login_provider: provider,
+        login_timezone: 'UTC', // Server timezone, client will provide actual timezone
+        login_timestamp: now.toISOString(),
+        user_agent: userAgent,
+        ip_address: null, // Would need request context for real IP
+      })
+
+    console.log(`Server: Login tracked for ${userEmail} via ${provider} at ${now.toISOString()}`)
+  } catch (error) {
+    console.error('Failed to track server login event:', error)
   }
 }
 

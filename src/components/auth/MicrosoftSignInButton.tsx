@@ -2,16 +2,21 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { createMicrosoftAuthProvider } from '@/lib/microsoft-auth'
 
 interface MicrosoftSignInButtonProps {
   className?: string
   onSignIn?: () => void
+  onSuccess?: (user: any) => void
+  onError?: (error: string) => void
   disabled?: boolean
 }
 
 export function MicrosoftSignInButton({ 
   className, 
-  onSignIn, 
+  onSignIn,
+  onSuccess,
+  onError,
   disabled = false 
 }: MicrosoftSignInButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
@@ -21,8 +26,30 @@ export function MicrosoftSignInButton({
     
     setIsLoading(true)
     try {
-      await onSignIn?.()
-    } finally {
+      // Use the custom onSignIn if provided, otherwise use Microsoft auth
+      if (onSignIn) {
+        await onSignIn()
+      } else {
+        // Create Microsoft auth provider with dynamic redirect URI
+        const currentUrl = window.location.origin
+        const redirectUri = `${currentUrl}/auth/callback`
+        
+        const authProvider = createMicrosoftAuthProvider(redirectUri)
+        const authUrl = authProvider.getAuthUrl()
+
+        // Store the provider instance for callback handling
+        sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
+          clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
+          tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
+          redirectUri,
+        }))
+
+        // Redirect to Microsoft OAuth
+        window.location.href = authUrl
+      }
+    } catch (error) {
+      console.error('Microsoft sign-in error:', error)
+      onError?.('Failed to initiate Microsoft sign-in')
       setIsLoading(false)
     }
   }

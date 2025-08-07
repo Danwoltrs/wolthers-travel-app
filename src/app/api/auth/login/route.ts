@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
       // Verify password using Supabase client
       console.log('Verifying password for:', email);
       
-      const result = await verifyUserPassword(email, password);
+      // Get user agent from request headers
+      const userAgent = request.headers.get('user-agent') || undefined;
+      
+      const result = await verifyUserPassword(email, password, userAgent);
       
       if (result.error || !result.isValid) {
         console.log('Password verification failed:', result.error);

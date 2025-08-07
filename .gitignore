@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Nested project folder (appears to be duplicate)
 wolthers-travel-app/
+
+# Sensitive configuration files with credentials
+AZURE_SETUP.md
