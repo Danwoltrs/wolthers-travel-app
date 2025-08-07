@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, getCachedTrips, cacheTrips, isOnline } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
-import type { TripCard } from '@/types'
+import type { TripCard, Company } from '@/types'
 import { UserRole } from '@/types'
 
 export function useTrips() {
@@ -252,9 +252,9 @@ export function useTrips() {
             const companies = tripParticipants
               .filter(p => p.companies && (p.role === 'client_representative' || p.role === 'participant'))
               .map(p => ({
-                id: p.companies.id,
-                name: p.companies.name,
-                fantasyName: p.companies.fantasy_name
+                id: p.companies?.id,
+                name: p.companies?.name,
+                fantasyName: p.companies?.fantasy_name
               }))
             
             // Remove duplicates by company id
@@ -266,16 +266,16 @@ export function useTrips() {
               companyId: company.id,
               names: tripParticipants
                 .filter(p => p.company_id === company.id && p.users && (p.role === 'client_representative' || p.role === 'participant'))
-                .map(p => p.users.full_name)
+                .map(p => p.users?.full_name)
                 .filter(Boolean)
             }))
 
             const wolthersStaff = tripParticipants
               .filter(p => (p.role === 'trip_lead' || p.role === 'coordinator') && p.users)
               .map(p => ({
-                id: p.users.id,
-                fullName: p.users.full_name,
-                email: p.users.email
+                id: p.users?.id,
+                fullName: p.users?.full_name,
+                email: p.users?.email
               }))
 
             // Get vehicles and drivers for this trip
@@ -284,24 +284,24 @@ export function useTrips() {
               .filter(v => v.vehicles)
               .map(v => {
                 // Split the model into make and model (e.g., "BMW X5" -> make: "BMW", model: "X5")
-                const modelParts = v.vehicles.model.split(' ')
+                const modelParts = v.vehicles?.model?.split(' ') || []
                 const make = modelParts[0] || ''
-                const model = modelParts.slice(1).join(' ') || v.vehicles.model
+                const model = modelParts.slice(1).join(' ') || v.vehicles?.model || ''
                 
                 return {
-                  id: v.vehicles.id,
+                  id: v.vehicles?.id,
                   make,
                   model,
-                  licensePlate: v.vehicles.license_plate
+                  licensePlate: v.vehicles?.license_plate
                 }
               })
 
             const drivers = tripVehicles
               .filter(v => v.users && v.driver_id)
               .map(v => ({
-                id: v.users.id,
-                fullName: v.users.full_name,
-                email: v.users.email
+                id: v.users?.id,
+                fullName: v.users?.full_name,
+                email: v.users?.email
               }))
 
             // Calculate stats for this trip
@@ -315,7 +315,7 @@ export function useTrips() {
               id: trip.id,
               title: trip.title,
               subject: trip.description || '',
-              client: uniqueCompanies,
+              client: uniqueCompanies as Company[],
               guests,
               wolthersStaff,
               vehicles,
