@@ -212,13 +212,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const signInWithAzure = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    })
-    return { error }
+    try {
+      const { createMicrosoftAuthProvider } = await import('@/lib/microsoft-auth')
+      const redirectUri = `${window.location.origin}/auth/callback`
+      
+      const authProvider = createMicrosoftAuthProvider(redirectUri)
+      const authUrl = authProvider.getAuthUrl()
+
+      // Store the provider instance for callback handling
+      sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
+        clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
+        tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
+        redirectUri,
+      }))
+
+      // Redirect to Microsoft OAuth
+      window.location.href = authUrl
+      
+      return { error: null }
+    } catch (error) {
+      console.error('Microsoft sign-in error:', error)
+      return { error: 'Failed to initiate Microsoft sign-in' }
+    }
   }
 
   const signOut = async () => {
