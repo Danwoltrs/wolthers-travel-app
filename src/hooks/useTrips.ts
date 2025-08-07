@@ -258,12 +258,15 @@ export function useTrips() {
         }
 
         if (data && data.length > 0) {
+          console.log('useTrips: Processing trip data...', { count: data.length })
           // Get trip IDs for batch loading additional data
           const tripIds = data.map(trip => trip.id)
+          console.log('useTrips: Trip IDs:', tripIds)
           
           // Load participants data for all trips at once (with error handling)
           let participantsData = null
           try {
+            console.log('useTrips: Loading participants data...')
             const result = await supabase
               .from('trip_participants')
               .select(`
@@ -276,13 +279,16 @@ export function useTrips() {
               `)
               .in('trip_id', tripIds)
             participantsData = result.data
+            console.log('useTrips: Participants loaded:', participantsData?.length || 0)
           } catch (error) {
             console.warn('Failed to load participants data:', error)
+            participantsData = [] // Ensure it's an array
           }
 
           // Load vehicle assignments for all trips at once (with error handling)
           let vehiclesData = null
           try {
+            console.log('useTrips: Loading vehicles data...')
             const result = await supabase
               .from('trip_vehicles')
               .select(`
@@ -294,8 +300,10 @@ export function useTrips() {
               `)
               .in('trip_id', tripIds)
             vehiclesData = result.data
+            console.log('useTrips: Vehicles loaded:', vehiclesData?.length || 0)
           } catch (error) {
             console.warn('Failed to load vehicles data:', error)
+            vehiclesData = [] // Ensure it's an array
           }
 
           // Load visit and note counts for all trips at once (with error handling)
@@ -321,7 +329,13 @@ export function useTrips() {
           }
 
           // Transform the data to match TripCard interface
-          const transformedTrips: TripCard[] = data.map((trip: any) => {
+          console.log('useTrips: Starting trip transformation...')
+          const transformedTrips: TripCard[] = data.map((trip: any, index: number) => {
+            console.log(`useTrips: Transforming trip ${index + 1}:`, { 
+              id: trip.id, 
+              title: trip.title,
+              status: trip.status 
+            })
             // Get participants for this trip
             const tripParticipants = participantsData?.filter(p => p.trip_id === trip.id) || []
             
@@ -408,10 +422,17 @@ export function useTrips() {
             }
           })
 
+          console.log('useTrips: Trip transformation completed:', { 
+            original: data.length, 
+            transformed: transformedTrips.length 
+          })
+
           // Cache the trips for offline access
           cacheTrips(data)
           setTrips(transformedTrips)
+          console.log('useTrips: Trips set in state successfully')
         } else {
+          console.log('useTrips: No trip data found or empty array')
           // If no enhanced data available, create basic trip cards
           const basicTrips: TripCard[] = data?.map((trip: any) => ({
             id: trip.id,
