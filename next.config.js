@@ -8,6 +8,17 @@ const nextConfig = {
     // This is set to true to handle enum comparison issues during deployment
     ignoreBuildErrors: true,
   },
+  // Allow cross-origin requests from local network devices for mobile testing
+  async rewrites() {
+    return []
+  },
+  // Configure allowed development origins for mobile testing
+  allowedDevOrigins: [
+    // Allow local network access for mobile testing
+    '192.168.0.0/16',    // Common router ranges: 192.168.x.x
+    '10.0.0.0/8',        // Private network range: 10.x.x.x
+    '172.16.0.0/12',     // Private network range: 172.16.x.x - 172.31.x.x
+  ],
 }
 
 module.exports = nextConfig
