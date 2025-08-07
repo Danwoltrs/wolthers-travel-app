@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { UserCircle, Sun, Moon, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -53,28 +54,57 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           {/* Left side - Logo */}
           <div className="flex items-center">
-            {/* Light mode logo */}
-            <Image
-              src="/images/logos/wolthers-logo-off-white.svg"
-              alt="Wolthers & Associates"
-              width={isScrolled ? 140 : 180}
-              height={isScrolled ? 38 : 48}
-              priority
-              className={`transition-all duration-300 dark:hidden ${
-                isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
-              } w-auto`}
-            />
-            {/* Dark mode logo */}
-            <Image
-              src="/images/logos/wolthers-logo-off-white.svg"
-              alt="Wolthers & Associates"
-              width={isScrolled ? 140 : 180}
-              height={isScrolled ? 38 : 48}
-              priority
-              className={`transition-all duration-300 hidden dark:block ${
-                isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
-              } w-auto`}
-            />
+            {isAuthenticated ? (
+              <Link href="/dashboard" className="cursor-pointer">
+                {/* Light mode logo */}
+                <Image
+                  src="/images/logos/wolthers-logo-off-white.svg"
+                  alt="Wolthers & Associates"
+                  width={isScrolled ? 140 : 180}
+                  height={isScrolled ? 38 : 48}
+                  priority
+                  className={`transition-all duration-300 dark:hidden ${
+                    isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
+                  } w-auto`}
+                />
+                {/* Dark mode logo */}
+                <Image
+                  src="/images/logos/wolthers-logo-off-white.svg"
+                  alt="Wolthers & Associates"
+                  width={isScrolled ? 140 : 180}
+                  height={isScrolled ? 38 : 48}
+                  priority
+                  className={`transition-all duration-300 hidden dark:block ${
+                    isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
+                  } w-auto`}
+                />
+              </Link>
+            ) : (
+              <>
+                {/* Light mode logo - Not clickable for guests */}
+                <Image
+                  src="/images/logos/wolthers-logo-off-white.svg"
+                  alt="Wolthers & Associates"
+                  width={isScrolled ? 140 : 180}
+                  height={isScrolled ? 38 : 48}
+                  priority
+                  className={`transition-all duration-300 dark:hidden ${
+                    isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
+                  } w-auto`}
+                />
+                {/* Dark mode logo - Not clickable for guests */}
+                <Image
+                  src="/images/logos/wolthers-logo-off-white.svg"
+                  alt="Wolthers & Associates"
+                  width={isScrolled ? 140 : 180}
+                  height={isScrolled ? 38 : 48}
+                  priority
+                  className={`transition-all duration-300 hidden dark:block ${
+                    isScrolled ? 'h-8 sm:h-10' : 'h-12 sm:h-12'
+                  } w-auto`}
+                />
+              </>
+            )}
           </div>
           
           {/* Center content - Trip Itinerary (Hidden on mobile) */}

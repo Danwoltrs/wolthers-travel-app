@@ -101,6 +101,12 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
 
   // Process itinerary items from the database
   const activities = tripDetails?.itinerary_items || []
+  
+  // Check if there are any locations to show on map
+  const hasLocations = activities.some(activity => 
+    (activity.company_locations && activity.company_locations.latitude && activity.company_locations.longitude) ||
+    activity.custom_location
+  )
 
   const handleNewTrip = async () => {
     const shouldNavigate = await confirm(
@@ -182,16 +188,18 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           <TripHeader trip={trip} />
         </div>
 
-        {/* Map Section */}
-        <div className="mb-6">
-          <RouteMap 
-            itineraryDays={[]}
-            tripTitle={trip.title}
-            activities={activities}
-            tripStartDate={trip.startDate}
-            tripEndDate={trip.endDate}
-          />
-        </div>
+        {/* Map Section - Only show if there are locations */}
+        {hasLocations && (
+          <div className="mb-6">
+            <RouteMap 
+              itineraryDays={[]}
+              tripTitle={trip.title}
+              activities={activities}
+              tripStartDate={trip.startDate}
+              tripEndDate={trip.endDate}
+            />
+          </div>
+        )}
 
         {/* Activities Section */}
         <div className="mb-12">

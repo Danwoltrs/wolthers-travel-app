@@ -41,6 +41,11 @@ function AuthCallbackContent() {
             if (result.success && result.user) {
               console.log('Successfully authenticated Microsoft user:', result.user.email)
               
+              // Store session token in localStorage for client-side access
+              if (result.sessionToken) {
+                localStorage.setItem('auth-token', result.sessionToken)
+              }
+              
               // Track the login event
               await trackLoginEvent(result.user.id, 'microsoft', result.user.email)
               

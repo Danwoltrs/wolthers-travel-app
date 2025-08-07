@@ -22,6 +22,7 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 - **Database**: Supabase (PostgreSQL with realtime capabilities)
 - **Authentication**: Azure MSAL for Microsoft auth integration, NextAuth
 - **AI Integration**: Anthropic SDK and OpenAI SDK
+- **Maps**: Google Maps API with geocoding and directions services
 - **Email**: Nodemailer for email notifications
 - **Icons**: Lucide React for consistent iconography
 - **Utilities**: clsx and tailwind-merge for className management
@@ -41,6 +42,7 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 ### Key Features
 - Travel itinerary management system for Wolthers & Associates
 - Integration with Microsoft authentication via Azure MSAL
+- Interactive Google Maps with real-time geocoding and route planning
 - AI-powered features using Anthropic Claude and OpenAI
 - Real-time database capabilities with Supabase
 - Email notification system
@@ -80,6 +82,15 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - ES2016 target with DOM libraries
 - Module resolution set to Node
 
+### Google Maps Integration
+- **Real Location Data**: Integrates with Supabase to fetch actual trip locations and activities
+- **Geocoding Service**: Automatically converts address strings to coordinates using Google Maps Geocoding API
+- **Route Planning**: Displays driving directions between multiple trip locations with custom markers
+- **Calendar Export**: Generates ICS files for individual days or entire trips
+- **Error Handling**: Graceful fallback to mock coordinates when geocoding fails
+- **Rate Limiting**: Built-in retry logic and exponential backoff for API limits
+- **Responsive Design**: Map component adapts to different screen sizes with proper controls
+
 ### UI/UX Principles
 1. **Consistency**: All cards maintain the same height (420px) for visual uniformity
 2. **Visual Hierarchy**: Color-coded sections guide the eye through important information
@@ -101,6 +112,8 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Implemented left-aligned card grid with add button outside grid
 - Enhanced responsive design for mobile to desktop
 - **Trip Page Layout**: Adjusted mobile spacing - TripHeader uses `mt-36` on mobile and `mt-6` on desktop for proper clearance from navigation bar
+- **Google Maps API Integration**: Complete implementation with geocoding, route planning, and calendar export functionality
+- **Fixed Nested Button Hydration Error**: Resolved HTML validation issues in activity components
 
 ### Current Project Status
 
@@ -112,18 +125,20 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 5. Danish minimalist design implementation
 6. Responsive grid layout
 7. Date formatting with day names
+8. **Google Maps Integration** - Interactive maps with real location data, geocoding, and route planning
+9. **Supabase Integration** - Real-time trip data with activities and location information
+10. **Trip URL Structure** - Access trips via unique codes (e.g., AMS_DCI_QA_0825) not UUIDs
 
 #### Pending Features 🚧
-1. Database integration with Supabase
-2. Authentication system (Microsoft OAuth, email OTP)
-3. Company management pages
-4. User management interface
-5. Fleet management system
-6. Expense tracking features
-7. Itinerary detail editor
-8. Meeting confirmation system
-9. Real-time updates and notifications
-10. API integrations (Hotels.com, Google Maps)
+1. Authentication system (Microsoft OAuth, email OTP)
+2. Company management pages
+3. User management interface
+4. Fleet management system
+5. Expense tracking features
+6. Itinerary detail editor
+7. Meeting confirmation system
+8. Real-time updates and notifications
+9. API integrations (Hotels.com booking)
 
 ### Development Guidelines
 
@@ -131,6 +146,7 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - **Do not change the login and authentication** unless explicitly requested
 - **Do not change the dashboard trip layouts** unless explicitly requested  
 - **Do not change the trip quick view modal** unless explicitly requested
+- **NEVER change trip URLs from trip codes to trip IDs** - Always use the unique trip access code (e.g., AMS_DCI_QA_0825) for URLs, not UUIDs
 
 #### Best Practices
 - Maintain Nordic minimalist aesthetic with strategic use of forest green and gold

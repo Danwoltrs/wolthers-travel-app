@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, trackServerLoginEvent } from '@/lib/supabase-server'
+import { sign } from 'jsonwebtoken'
+
+// Helper function to create a session token
+async function createSessionToken(userId: string): Promise<string> {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+  
+  const payload = {
+    userId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+  }
+  
+  return sign(payload, secret)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -145,7 +159,10 @@ export async function POST(request: NextRequest) {
     // Track the login event
     await trackServerLoginEvent(user.id, 'microsoft', user.email, userAgent)
 
-    return NextResponse.json({
+    // Create a session token for the client
+    const sessionToken = await createSessionToken(user.id)
+
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -153,7 +170,18 @@ export async function POST(request: NextRequest) {
         full_name: user.full_name,
         microsoft_oauth_id: user.microsoft_oauth_id,
       },
+      sessionToken,
     })
+
+    // Set the session as an HTTP-only cookie
+    response.cookies.set('auth-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    })
+
+    return response
 
   } catch (error) {
     console.error('Microsoft auth callback error:', error)

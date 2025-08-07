@@ -303,17 +303,17 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation()
                       handleExportDayToCalendar(date, dayActivities, dayIndex)
                     }}
-                    className="flex items-center gap-1 px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-colors cursor-pointer"
                     title="Add day to calendar"
                   >
                     <Calendar className="w-3 h-3" />
                     Add Day to Calendar
-                  </button>
+                  </div>
                   {dayStatus === 'current' && (
                     <div className="text-xs font-medium text-amber-200 bg-amber-800/50 px-2 py-1 rounded-full">
                       Today

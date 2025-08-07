@@ -486,12 +486,21 @@ export function useTripDetails(tripId: string) {
         const realTripId = tripData.id
         setActualTripId(realTripId)
 
-        // Load itinerary items separately with a simpler query
+        // Load itinerary items with location data
         const { data: itineraryData, error: itineraryError } = await supabase
           .from('itinerary_items')
           .select(`
             *,
-            meeting_notes (*)
+            meeting_notes (*),
+            company_locations (
+              id,
+              name,
+              latitude,
+              longitude,
+              city,
+              country,
+              address_line1
+            )
           `)
           .eq('trip_id', realTripId)
           .order('activity_date, start_time')

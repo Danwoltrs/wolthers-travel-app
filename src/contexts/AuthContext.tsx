@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react"
 import { Session, User, AuthError } from '@supabase/supabase-js'
-import { supabase, getCachedTrips, getCachedUserProfile, isOnline } from '@/lib/supabase-client'
+import { supabase, getCachedTrips, getCachedUserProfile, cacheUserProfile, isOnline } from '@/lib/supabase-client'
 import { AuthUser, UserRole } from "@/types/index"
 import { useRouter } from 'next/navigation'
 
@@ -39,17 +39,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Initialize auth state
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    const initializeAuth = async () => {
+      // First check for existing Supabase session
+      const { data: { session } } = await supabase.auth.getSession()
+      
       if (session?.user) {
-        loadUserProfile(session.user)
+        setSession(session)
+        await loadUserProfile(session.user)
       } else {
-        // Try to load cached user for offline access
-        loadCachedUserProfile()
+        // Check for token-based authentication (Microsoft auth)
+        const authToken = localStorage.getItem('auth-token')
+        if (authToken) {
+          try {
+            await loadUserProfileFromToken(authToken)
+          } catch (error) {
+            console.error('Failed to load user from token:', error)
+            localStorage.removeItem('auth-token') // Clear invalid token
+            await loadCachedUserProfile()
+          }
+        } else {
+          // Try to load cached user for offline access
+          await loadCachedUserProfile()
+        }
       }
       setIsLoading(false)
-    })
+    }
+
+    initializeAuth()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -149,6 +165,84 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  const loadUserProfileFromToken = async (token: string) => {
+    // First try to verify online
+    try {
+      const response = await fetch('/api/auth/verify-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Invalid token')
+      }
+
+      const { user } = await response.json()
+      
+      // Cache user profile for offline access
+      cacheUserProfile(user)
+      
+      // Create session-like object for consistency
+      setSession({
+        access_token: token,
+        refresh_token: '',
+        expires_in: 30 * 24 * 60 * 60,
+        token_type: 'Bearer',
+        user: {
+          id: user.id,
+          email: user.email,
+          user_metadata: {},
+          app_metadata: {},
+          aud: '',
+          created_at: '',
+          last_sign_in_at: '',
+          confirmed_at: '',
+          email_confirmed_at: '',
+          phone: '',
+          role: ''
+        }
+      } as any)
+
+      // Map the user profile
+      mapUserProfile(user, null)
+    } catch (error) {
+      // If online verification fails, try to use cached profile for offline access
+      console.log('Online verification failed, checking cached profile for offline access')
+      const cachedProfile = getCachedUserProfile()
+      if (cachedProfile) {
+        // Create session-like object for consistency
+        setSession({
+          access_token: token,
+          refresh_token: '',
+          expires_in: 30 * 24 * 60 * 60,
+          token_type: 'Bearer',
+          user: {
+            id: cachedProfile.id,
+            email: cachedProfile.email,
+            user_metadata: {},
+            app_metadata: {},
+            aud: '',
+            created_at: '',
+            last_sign_in_at: '',
+            confirmed_at: '',
+            email_confirmed_at: '',
+            phone: '',
+            role: ''
+          }
+        } as any)
+
+        // Map the cached user profile
+        mapUserProfile(cachedProfile, null)
+        console.log('Using cached profile for offline access:', cachedProfile.email)
+      } else {
+        throw error // Re-throw if no cached profile available
+      }
+    }
+  }
+
   const mapUserProfile = (profile: any, authUser: User | null) => {
     // Map user_type to our role system
     let role = UserRole.GUEST
@@ -237,7 +331,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const signOut = async () => {
+    // Clear both Supabase session and our custom token
     await supabase.auth.signOut()
+    localStorage.removeItem('auth-token')
+    
+    // Clear auth state
+    setSession(null)
+    setUser(null)
+    
     router.push('/')
   }
 

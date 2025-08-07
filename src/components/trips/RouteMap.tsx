@@ -111,9 +111,17 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
         return
       }
 
+      // Check if API key is available
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+      if (!apiKey) {
+        setError('Google Maps API key not configured')
+        setIsLoading(false)
+        return
+      }
+
       // Create the script tag
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAkTsr23yiFNyelupLP_NPEa3BuLIHTbKk'}&libraries=geometry`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
       script.async = true
       script.defer = true
       
@@ -142,12 +150,12 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       }
     }
 
-    const initializeMap = () => {
+    const initializeMap = async () => {
       if (!mapRef.current) return
 
       try {
-        // Extract locations from activities
-        const locations = extractLocations()
+        // Extract locations from activities (now async)
+        const locations = await extractLocations()
         
         if (locations.length === 0) {
           setError('No locations found in itinerary')
@@ -180,9 +188,9 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
         const markers: any[] = []
         locations.forEach((location, index) => {
           const marker = new window.google.maps.Marker({
-            position: location,
+            position: { lat: location.lat, lng: location.lng },
             map: map,
-            title: `Stop ${index + 1}`,
+            title: location.title || `Stop ${index + 1}`,
             icon: {
               path: window.google.maps.SymbolPath.CIRCLE,
               scale: 8,
@@ -192,44 +200,95 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
               strokeWeight: 2
             }
           })
+
+          // Add info window with location details
+          const infoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div class="p-2">
+                <h3 class="font-semibold text-sm mb-1">${location.title || `Stop ${index + 1}`}</h3>
+                <p class="text-xs text-gray-600">${location.address || 'Location details'}</p>
+              </div>
+            `
+          })
+
+          marker.addListener('click', () => {
+            // Close any open info windows
+            markers.forEach(m => m.infoWindow?.close())
+            infoWindow.open(map, marker)
+          })
+
+          marker.infoWindow = infoWindow
           markers.push(marker)
         })
 
         // Create route if we have multiple locations
         if (locations.length > 1) {
-          const directionsService = new window.google.maps.DirectionsService()
-          const directionsRenderer = new window.google.maps.DirectionsRenderer({
-            suppressMarkers: true, // Use our custom markers
-            polylineOptions: {
-              strokeColor: '#10b981',
-              strokeWeight: 4
-            }
-          })
-          directionsRenderer.setMap(map)
+          try {
+            const directionsService = new window.google.maps.DirectionsService()
+            const directionsRenderer = new window.google.maps.DirectionsRenderer({
+              suppressMarkers: true, // Use our custom markers
+              polylineOptions: {
+                strokeColor: '#10b981',
+                strokeWeight: 4
+              }
+            })
+            directionsRenderer.setMap(map)
 
-          // Create waypoints for middle locations
-          const waypoints = locations.slice(1, -1).map(location => ({
-            location: location,
-            stopover: true
-          }))
+            // Create waypoints for middle locations
+            const waypoints = locations.slice(1, -1).map(location => ({
+              location: { lat: location.lat, lng: location.lng },
+              stopover: true
+            }))
 
-          directionsService.route({
-            origin: locations[0],
-            destination: locations[locations.length - 1],
-            waypoints: waypoints,
-            travelMode: window.google.maps.TravelMode.DRIVING
-          }, (result: any, status: any) => {
-            if (status === 'OK') {
-              directionsRenderer.setDirections(result)
-            } else {
-              console.warn('Directions request failed:', status)
-            }
-          })
+            directionsService.route({
+              origin: { lat: locations[0].lat, lng: locations[0].lng },
+              destination: { lat: locations[locations.length - 1].lat, lng: locations[locations.length - 1].lng },
+              waypoints: waypoints,
+              travelMode: window.google.maps.TravelMode.DRIVING
+            }, (result: any, status: any) => {
+              if (status === 'OK') {
+                directionsRenderer.setDirections(result)
+                console.log('Directions loaded successfully')
+              } else {
+                console.warn('Directions request failed:', status)
+                // Still show map with markers - directions are optional
+                if (status === 'REQUEST_DENIED') {
+                  console.error('Directions API: REQUEST_DENIED - Check API key billing and restrictions')
+                } else if (status === 'OVER_QUERY_LIMIT') {
+                  console.error('Directions API: OVER_QUERY_LIMIT - API quota exceeded')
+                } else if (status === 'ZERO_RESULTS') {
+                  console.warn('Directions API: ZERO_RESULTS - No route found between locations')
+                }
+                
+                // Draw simple connecting lines as fallback
+                const path = new window.google.maps.Polyline({
+                  path: locations.map(loc => ({ lat: loc.lat, lng: loc.lng })),
+                  geodesic: true,
+                  strokeColor: '#94a3b8',
+                  strokeOpacity: 0.6,
+                  strokeWeight: 2,
+                  icons: [{
+                    icon: {
+                      path: 'M 0,-1 0,1',
+                      strokeOpacity: 1,
+                      scale: 3
+                    },
+                    offset: '0',
+                    repeat: '20px'
+                  }]
+                })
+                path.setMap(map)
+              }
+            })
+          } catch (error) {
+            console.error('Failed to initialize directions:', error)
+            // Map will still work with just markers
+          }
         }
 
         // Fit map to show all markers
         const bounds = new window.google.maps.LatLngBounds()
-        locations.forEach(location => bounds.extend(location))
+        locations.forEach(location => bounds.extend({ lat: location.lat, lng: location.lng }))
         map.fitBounds(bounds)
 
         setIsLoading(false)
@@ -240,19 +299,120 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       }
     }
 
-    const extractLocations = () => {
-      // Mock locations for demonstration
-      // In real implementation, extract from itinerary activities
-      return [
-        { lat: 14.6349, lng: -90.5069 }, // Guatemala City
-        { lat: 14.7167, lng: -91.1833 }, // Quetzaltenango
-        { lat: 15.3333, lng: -90.4000 }, // Cobán
-        { lat: 14.8333, lng: -89.9167 }  // Antigua Guatemala
-      ]
+    const extractLocations = async () => {
+      if (!activities || activities.length === 0) {
+        console.warn('No activities provided to extract locations from')
+        return []
+      }
+
+      const locations: Array<{ lat: number; lng: number; title: string; address: string }> = []
+      
+      // Helper function to geocode address using Google Maps API with retry logic
+      const geocodeLocation = (address: string, retryCount = 0): Promise<{ lat: number; lng: number } | null> => {
+        return new Promise((resolve) => {
+          if (!window.google || !window.google.maps) {
+            console.warn('Google Maps API not available for geocoding')
+            resolve(null)
+            return
+          }
+
+          const geocoder = new window.google.maps.Geocoder()
+          
+          // Add a small delay to avoid hitting rate limits
+          const delay = retryCount * 100 // 0ms, 100ms, 200ms delays for retries
+          setTimeout(() => {
+            geocoder.geocode({ address }, (results: any[], status: string) => {
+              if (status === 'OK' && results && results.length > 0) {
+                const location = results[0].geometry.location
+                resolve({
+                  lat: location.lat(),
+                  lng: location.lng()
+                })
+              } else if (status === 'OVER_QUERY_LIMIT' && retryCount < 2) {
+                // Retry with exponential backoff for rate limits
+                console.warn(`Geocoding rate limit hit for "${address}", retrying...`)
+                setTimeout(() => {
+                  geocodeLocation(address, retryCount + 1).then(resolve)
+                }, Math.pow(2, retryCount) * 1000) // 1s, 2s delays
+              } else {
+                console.warn(`Geocoding failed for "${address}": ${status}`)
+                resolve(null)
+              }
+            })
+          }, delay)
+        })
+      }
+
+      // Process activities to extract unique locations
+      const uniqueLocations = new Map<string, any>()
+      let geocodedCount = 0
+      let failedCount = 0
+      
+      for (const activity of activities) {
+        let locationKey = ''
+        let address = ''
+
+        if (activity.company_locations && activity.company_locations.latitude && activity.company_locations.longitude) {
+          // Use database coordinates from joined company_locations table
+          const location = activity.company_locations
+          locationKey = `${location.name}_${location.latitude}_${location.longitude}`
+          if (!uniqueLocations.has(locationKey)) {
+            uniqueLocations.set(locationKey, {
+              lat: parseFloat(location.latitude),
+              lng: parseFloat(location.longitude),
+              title: location.name,
+              address: `${location.address_line1 || ''}, ${location.city || ''}, ${location.country || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',')
+            })
+          }
+        } else if (activity.custom_location) {
+          // Use custom location string for geocoding
+          address = activity.custom_location
+          locationKey = address
+          
+          if (!uniqueLocations.has(locationKey)) {
+            try {
+              // Try to geocode the custom location
+              const coordinates = await geocodeLocation(address)
+              if (coordinates) {
+                uniqueLocations.set(locationKey, {
+                  ...coordinates,
+                  title: activity.title,
+                  address: address
+                })
+                geocodedCount++
+              } else {
+                console.warn(`Could not geocode location: ${address}`)
+                failedCount++
+              }
+            } catch (error) {
+              console.error(`Error geocoding location "${address}":`, error)
+              failedCount++
+            }
+          }
+        }
+      }
+
+      // Convert map values to array
+      const locationArray = Array.from(uniqueLocations.values())
+      
+      console.log(`Geocoding results: ${geocodedCount} successful, ${failedCount} failed`)
+      
+      // If no locations were geocoded successfully, provide fallback Amsterdam coordinates
+      if (locationArray.length === 0) {
+        console.warn('No valid locations found, using fallback Amsterdam coordinates')
+        return [
+          { lat: 52.3676, lng: 4.9041, title: 'Amsterdam Center', address: 'Amsterdam, Netherlands' },
+          { lat: 52.3105, lng: 4.7683, title: 'Schiphol Airport', address: 'Amsterdam Airport Schiphol' },
+          { lat: 52.2434, lng: 4.8467, title: 'Westpoort Industrial Park', address: 'Westpoort Industrial Park, Amsterdam' }
+        ]
+      }
+
+      console.log(`Extracted ${locationArray.length} unique locations from activities`)
+      return locationArray
     }
 
     loadGoogleMaps()
-  }, [itineraryDays])
+  }, [itineraryDays, activities])
 
   if (error) {
     return (
