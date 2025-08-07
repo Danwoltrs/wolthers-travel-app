@@ -429,68 +429,43 @@ export function useTripDetails(tripId: string) {
         setLoading(true)
         setError(null)
 
-        // Determine if tripId is a UUID or an access code
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tripId)
-        
-        let tripQuery;
-        if (isUUID) {
-          // Query by ID
-          tripQuery = supabase
-            .from('trips')
-            .select('*')
-            .eq('id', tripId)
-            .single()
-        } else {
-          // Query by access code
-          tripQuery = supabase
-            .from('trips')
-            .select('*')
-            .eq('access_code', tripId)
-            .single()
+        // Use authenticated API endpoint instead of direct Supabase calls
+        const authToken = localStorage.getItem('auth-token')
+        if (!authToken) {
+          throw new Error('No authentication token found')
         }
 
-        const { data: tripData, error: tripError } = await tripQuery
+        console.log('useTripDetails: Fetching trip details via authenticated API...')
+        const response = await fetch(`/api/trips/${tripId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
 
-        if (tripError) {
-          console.error('Trip query error:', tripError)
-          throw new Error(`Failed to fetch trip details - ${tripError.message}`)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
         }
+
+        const result = await response.json()
+        const tripData = result.trip
 
         if (!tripData) {
           throw new Error('Trip not found')
         }
 
-        // Store the actual trip ID for itinerary queries
-        const realTripId = tripData.id
-        setActualTripId(realTripId)
-
-        // Load itinerary items with location data
-        const { data: itineraryData, error: itineraryError } = await supabase
-          .from('itinerary_items')
-          .select(`
-            *,
-            meeting_notes (*),
-            company_locations (
-              id,
-              name,
-              latitude,
-              longitude,
-              city,
-              country,
-              address_line1
-            )
-          `)
-          .eq('trip_id', realTripId)
-          .order('activity_date, start_time')
-
-        if (itineraryError) {
-          console.warn('Error loading itinerary items:', itineraryError)
-        }
-
-        // Combine the data
-        tripData.itinerary_items = itineraryData || []
-
+        // Store the actual trip ID for any future operations
+        setActualTripId(tripData.id)
         setTrip(tripData)
+        
+        console.log('useTripDetails: Trip details loaded successfully:', {
+          tripId: tripData.id,
+          title: tripData.title,
+          itineraryItems: tripData.itinerary_items?.length || 0
+        })
+
       } catch (err) {
         console.error('Error fetching trip details:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch trip details')
