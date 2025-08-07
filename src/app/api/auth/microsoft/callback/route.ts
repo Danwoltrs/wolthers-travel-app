@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
     const tokens = await tokenResponse.json()
     console.log('✅ Token exchange successful, got access token')
 
+    console.log('👤 Getting user information from Microsoft Graph...')
     // Get user information from Microsoft Graph
     const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
       headers: {
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!userResponse.ok) {
-      console.error('Failed to get user info from Microsoft Graph')
+      console.error('❌ Failed to get user info from Microsoft Graph')
       return NextResponse.json(
         { error: 'Failed to get user info' },
         { status: 401 }
@@ -98,6 +99,11 @@ export async function POST(request: NextRequest) {
     }
 
     const msUser = await userResponse.json()
+    console.log('✅ Got user info:', { 
+      email: msUser.mail || msUser.userPrincipalName,
+      name: msUser.displayName,
+      id: msUser.id 
+    })
     
     // Get timezone from request or default
     const timezone = request.headers.get('x-timezone') || 'UTC'
@@ -124,9 +130,29 @@ export async function POST(request: NextRequest) {
       userEmail: msUser.mail || msUser.userPrincipalName 
     })
 
+    const userEmail = msUser.mail || msUser.userPrincipalName
+    const isWolthersUser = userEmail?.toLowerCase().endsWith('@wolthers.com')
+    
+    console.log('🏢 User domain check:', { 
+      email: userEmail, 
+      isWolthersUser,
+      domain: userEmail?.split('@')[1] 
+    })
+
+    // Ensure full_name is never null (database constraint)
+    const fullName = msUser.displayName || 
+                     userEmail?.split('@')[0] || 
+                     'User'
+
+    console.log('👤 User data preparation:', {
+      email: userEmail,
+      full_name: fullName,
+      isWolthersUser
+    })
+
     const userData = {
-      email: msUser.mail || msUser.userPrincipalName,
-      full_name: msUser.displayName,
+      email: userEmail,
+      full_name: fullName,
       microsoft_oauth_id: msUser.id,
       last_login_at: new Date().toISOString(),
       last_login_timezone: timezone,
@@ -155,28 +181,50 @@ export async function POST(request: NextRequest) {
 
       user = data
     } else {
+      console.log('🆕 Creating new user...')
+      
+      // Determine user type and permissions based on email domain
+      const newUserData = {
+        ...userData,
+        user_type: isWolthersUser ? 'wolthers_staff' : 'client', // Use correct enum values
+        is_global_admin: false,
+        can_view_all_trips: isWolthersUser, // Wolthers staff can view all trips
+        can_view_company_trips: isWolthersUser,
+        created_at: new Date().toISOString(),
+      }
+      
+      console.log('👤 New user data:', { 
+        email: newUserData.email,
+        user_type: newUserData.user_type,
+        can_view_all_trips: newUserData.can_view_all_trips 
+      })
+      
       // Create new user
       const { data, error } = await supabase
         .from('users')
-        .insert({
-          ...userData,
-          user_type: 'client_user',
-          is_global_admin: false,
-          can_view_all_trips: false,
-          can_view_company_trips: false,
-          created_at: new Date().toISOString(),
-        })
+        .insert(newUserData)
         .select()
         .single()
 
       if (error) {
-        console.error('User creation error:', error)
+        console.error('❌ User creation error:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        
         return NextResponse.json(
-          { error: 'Failed to create user' },
+          { 
+            error: `Failed to create user: ${error.message}`,
+            details: error.details || 'Database constraint violation'
+          },
           { status: 500 }
         )
       }
 
+      console.log('✅ User created successfully:', data.id)
       user = data
     }
 
