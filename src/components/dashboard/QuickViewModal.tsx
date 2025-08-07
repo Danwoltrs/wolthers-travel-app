@@ -184,10 +184,10 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
         {/* Header with Title */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
+        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full mr-4">
             <h2 className="text-xl font-bold text-white dark:text-golden-400">{trip.title}</h2>
             <div className="text-right">
@@ -220,109 +220,166 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
         )}
 
         {/* Trip Description */}
-        <div className="px-6 py-4 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
+        <div className="px-3 md:px-6 py-4 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             {trip.subject}
           </p>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Dynamic Card Layout - Companies and Staff */}
-          <div className="flex flex-wrap gap-4">
-            {/* Company Cards - Flexible sizing */}
-            {trip.client.map((company) => {
-              const companyGuests = trip.guests.find(g => g.companyId === company.id)
-              return (
-                <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                    {company.fantasyName || company.name}
-                  </h4>
-                  {companyGuests && (
-                    <div className="space-y-1">
-                      {companyGuests.names.map((name, index) => (
-                        <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
-                          {name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-
-            {/* Wolthers Staff Card - Only if there are staff members */}
-            {trip.wolthersStaff.length > 0 && (
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                  Wolthers Staff
-                </h4>
-                <div className="space-y-1">
-                  {trip.wolthersStaff.map((staff) => (
-                    <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
-                      {staff.fullName}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Fleet & Drivers Card - Only if there are vehicles or drivers */}
-            {(trip.vehicles.length > 0 || trip.drivers.length > 0) && (
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[240px]">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                  Fleet & Drivers
-                </h4>
+        <div className="p-3 md:p-6 space-y-6">
+          {/* Dynamic Layout - Companies and Staff */}
+          <div className="space-y-4">
+            {/* Mobile: Simple text layout */}
+            <div className="md:hidden">
+              <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                {/* Guest Companies */}
+                {trip.client.length > 0 && (
+                  <span>
+                    <span className="font-medium text-gray-900 dark:text-gray-200">
+                      {trip.client.map(company => company.fantasyName || company.name).join(', ')}:
+                    </span>
+                    {' '}
+                    {trip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
+                  </span>
+                )}
                 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Vehicles - Left Side */}
-                  <div>
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
-                      Vehicles
+                {/* Wolthers Staff */}
+                {trip.wolthersStaff.length > 0 && (
+                  <>
+                    {trip.client.length > 0 && ' | '}
+                    <span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
+                      {' '}
+                      {trip.wolthersStaff.map(staff => staff.fullName).join(', ')}
                     </span>
-                    <div className="space-y-1">
-                      {trip.vehicles.length > 0 ? (
-                        trip.vehicles.map((vehicle) => (
-                          <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
-                            {vehicle.make} {vehicle.model}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No vehicles
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Vertical divider */}
-                  <div className="border-l border-gray-200 dark:border-[#2a2a2a] pl-4">
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-2 block">
-                      Drivers
+                  </>
+                )}
+                
+                {/* Vehicles */}
+                {trip.vehicles.length > 0 && (
+                  <>
+                    {(trip.client.length > 0 || trip.wolthersStaff.length > 0) && ' | '}
+                    <span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
+                      {' '}
+                      {trip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
                     </span>
-                    <div className="space-y-1">
-                      {trip.drivers.length > 0 ? (
-                        trip.drivers.map((driver) => (
-                          <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
-                            {driver.fullName}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No drivers
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
+                
+                {/* Drivers */}
+                {trip.drivers.length > 0 && (
+                  <>
+                    {(trip.client.length > 0 || trip.wolthersStaff.length > 0 || trip.vehicles.length > 0) && ' | '}
+                    <span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
+                      {' '}
+                      {trip.drivers.map(driver => driver.fullName).join(', ')}
+                    </span>
+                  </>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Desktop: Flexible Card Layout */}
+            <div className="hidden md:block">
+              <div className="flex flex-wrap gap-4">
+                {/* Company Cards - Flexible sizing */}
+                {trip.client.map((company) => {
+                  const companyGuests = trip.guests.find(g => g.companyId === company.id)
+                  return (
+                    <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                        {company.fantasyName || company.name}
+                      </h4>
+                      {companyGuests && (
+                        <div className="space-y-1">
+                          {companyGuests.names.map((name, index) => (
+                            <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                              {name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
+                {(trip.wolthersStaff.length > 0 || trip.vehicles.length > 0 || trip.drivers.length > 0) && (
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
+                    <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
+                      {/* Wolthers Staff */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                          Wolthers Staff
+                        </h4>
+                        {trip.wolthersStaff.length > 0 ? (
+                          <div className="space-y-1">
+                            {trip.wolthersStaff.map((staff) => (
+                              <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                {staff.fullName}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No staff
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Vehicles */}
+                      <div className="pl-6">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                          Vehicles
+                        </h4>
+                        {trip.vehicles.length > 0 ? (
+                          <div className="space-y-1">
+                            {trip.vehicles.map((vehicle) => (
+                              <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                {vehicle.make} {vehicle.model}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No vehicles
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Drivers */}
+                      <div className="pl-6">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                          Drivers
+                        </h4>
+                        {trip.drivers.length > 0 ? (
+                          <div className="space-y-1">
+                            {trip.drivers.map((driver) => (
+                              <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                {driver.fullName}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            No drivers
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Separator Line */}
+            <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
           </div>
 
-          {/* Divider Line */}
-          <div className="border-t border-gray-200 dark:border-[#2a2a2a] my-6"></div>
-
-          {/* Meetings & Visits Table */}
+          {/* Meetings & Visits */}
           {tripLoading ? (
             <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
               <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
@@ -331,77 +388,118 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
             <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
               <div className="text-sm text-red-500">Error loading meeting details</div>
             </div>
+          ) : sortedDates.length === 0 ? (
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
+              <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
+            </div>
           ) : (
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
-              {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-100 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#2a2a2a]">
-                <div className="col-span-2 text-xs font-semibold text-gray-700 dark:text-gray-300">Date</div>
-                <div className="col-span-10 text-sm font-semibold text-gray-700 dark:text-gray-300">Daily Activities</div>
+            <>
+              {/* Small screens: Full width list layout */}
+              <div className="block sm:hidden space-y-3">
+                {sortedDates.map((date, dayIndex) => {
+                  const dayActivities = groupedActivities[date]
+                  const dayDate = new Date(date)
+                  
+                  return (
+                    <div key={date}>
+                      {/* Day Header - Full Width */}
+                      <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-3 py-3 -mx-3">
+                        <h3 className="font-medium text-sm">
+                          Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
+                            weekday: 'short',
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </h3>
+                      </div>
+                      
+                      {/* Activities - Full Width */}
+                      <div className="-mx-3">
+                        {dayActivities.map((item: any, itemIndex: number) => {
+                          const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
+                          const isEven = itemIndex % 2 === 0
+                          
+                          return (
+                            <div 
+                              key={item.id} 
+                              className={`px-3 py-3 ${
+                                isEven 
+                                  ? 'bg-gray-50 dark:bg-[#1a1a1a]' 
+                                  : 'bg-gray-100 dark:bg-[#242424]'
+                              }`}
+                            >
+                              <div className="flex gap-3">
+                                <span className="text-gray-500 dark:text-gray-400 font-mono text-xs min-w-[2.5rem]">
+                                  {startTime}
+                                </span>
+                                <span className="text-gray-400 text-xs">-</span>
+                                <div className="flex-1">
+                                  <p className="text-gray-900 dark:text-gray-200 text-sm font-medium leading-tight">
+                                    {item.title}
+                                  </p>
+                                  {item.host && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Host: {item.host}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              
-              {/* Table Rows - One per Day */}
-              <div className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
-                {sortedDates.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                    No activities scheduled yet
-                  </div>
-                ) : (
-                  sortedDates.map((date, dayIndex) => {
-                    const isOdd = dayIndex % 2 === 0
+
+              {/* Desktop: Table layout */}
+              <div className="hidden sm:block bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+                <div className="space-y-0">
+                  {sortedDates.map((date, dayIndex) => {
                     const dayActivities = groupedActivities[date]
                     const dayDate = new Date(date)
-                    const formattedDate = dayDate.toLocaleDateString('en-US', { 
-                      weekday: 'short',
-                      month: 'short', 
-                      day: 'numeric' 
-                    })
                     
                     return (
-                      <div 
-                        key={date}
-                        className={`grid grid-cols-12 gap-4 px-4 py-4 ${
-                          isOdd ? 'bg-white dark:bg-[#1a1a1a]' : 'bg-gray-50 dark:bg-[#111111]'
-                        }`}
-                      >
-                        {/* Date */}
-                        <div className="col-span-2 text-sm text-gray-900 dark:text-gray-200 font-medium">
-                          <div>{dayDate.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <div key={date} className="border-b border-gray-200 dark:border-[#2a2a2a] last:border-b-0">
+                        {/* Day Header - Centered */}
+                        <div className="px-4 py-2 bg-emerald-800 dark:bg-emerald-900 text-center">
+                          <div className="text-sm font-medium text-golden-400">
+                            Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
+                              weekday: 'short',
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
                           </div>
                         </div>
                         
                         {/* Activities for the Day */}
-                        <div className="col-span-10 space-y-2">
+                        <div className="px-4 py-4 space-y-3">
                           {dayActivities.map((item: any, itemIndex: number) => {
                             const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
                             const endTime = item.end_time ? item.end_time.slice(0, 5) : ''
                             const timeRange = startTime && endTime ? `${startTime}-${endTime}` : startTime
                             
                             return (
-                              <div key={item.id} className="flex items-start gap-4 text-sm">
+                              <div key={item.id} className="grid grid-cols-12 gap-4 items-start text-sm">
                                 {/* Time */}
-                                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono w-20 flex-shrink-0">
+                                <div className="col-span-2 text-gray-500 dark:text-gray-400 font-mono text-xs">
                                   {timeRange}
                                 </div>
                                 
                                 {/* Activity */}
-                                <div className="flex-1">
+                                <div className="col-span-10">
                                   <div className="flex items-center gap-2">
                                     {item.is_confirmed && (
                                       <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                                     )}
-                                    <span className="uppercase font-medium text-gray-900 dark:text-gray-200 text-xs tracking-wide">
-                                      {item.activity_type}
-                                    </span>
-                                    <span className="text-gray-400">-</span>
-                                    <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="text-gray-900 dark:text-gray-200 font-medium">
                                       {item.title}
                                     </span>
                                   </div>
-                                  {item.custom_location && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-4">
-                                      {item.custom_location}
+                                  {item.host && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Host: {item.host}
                                     </div>
                                   )}
                                 </div>
@@ -411,52 +509,90 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
                         </div>
                       </div>
                     )
-                  })
-                )}
+                  })}
+                </div>
+                
+                {/* Summary Stats */}
+                <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
+                      {visits.length}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Visits
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
+                      {meetings.length}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Meetings
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
+                      {trip.duration}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Days
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
+                      {trip.notesCount || 0}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Notes
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              {/* Summary Stats */}
-              <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
-                    {visits.length}
+
+              {/* Small screens: Summary Stats */}
+              <div className="block sm:hidden bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] mt-4 p-4">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
+                      {visits.length}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Visits
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Visits
+                  <div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
+                      {meetings.length}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Meetings
+                    </div>
                   </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
-                    {meetings.length}
+                  <div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
+                      {trip.duration}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Days
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Meetings
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
-                    {trip.duration}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Days
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-200">
-                    {trip.notesCount || 0}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Notes
+                  <div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
+                      {trip.notesCount || 0}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Notes
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
+        <div className="flex justify-between items-center p-3 md:p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
           {/* Left side - Access Code */}
           {trip.accessCode && (
             <div className="relative">
