@@ -198,75 +198,10 @@ export function useTrips() {
         }
 
         if (data && data.length > 0) {
-          console.log('useTrips: Processing trip data...', { count: data.length })
-          // Get trip IDs for batch loading additional data
-          const tripIds = data.map(trip => trip.id)
-          console.log('useTrips: Trip IDs:', tripIds)
+          console.log('useTrips: Processing enriched trip data from API...', { count: data.length })
           
-          // Load participants data for all trips at once (with error handling)
-          let participantsData = null
-          try {
-            console.log('useTrips: Loading participants data...')
-            const result = await supabase
-              .from('trip_participants')
-              .select(`
-                trip_id,
-                user_id,
-                company_id,
-                role,
-                users (id, full_name, email),
-                companies (id, name, fantasy_name)
-              `)
-              .in('trip_id', tripIds)
-            participantsData = result.data
-            console.log('useTrips: Participants loaded:', participantsData?.length || 0)
-          } catch (error) {
-            console.warn('Failed to load participants data:', error)
-            participantsData = [] // Ensure it's an array
-          }
-
-          // Load vehicle assignments for all trips at once (with error handling)
-          let vehiclesData = null
-          try {
-            console.log('useTrips: Loading vehicles data...')
-            const result = await supabase
-              .from('trip_vehicles')
-              .select(`
-                trip_id,
-                vehicle_id,
-                driver_id,
-                vehicles (id, model, license_plate),
-                users!trip_vehicles_driver_id_fkey (id, full_name, email)
-              `)
-              .in('trip_id', tripIds)
-            vehiclesData = result.data
-            console.log('useTrips: Vehicles loaded:', vehiclesData?.length || 0)
-          } catch (error) {
-            console.warn('Failed to load vehicles data:', error)
-            vehiclesData = [] // Ensure it's an array
-          }
-
-          // Load visit and note counts for all trips at once (with error handling)
-          let statsData = null
-          let notesData = null
-          try {
-            const statsResult = await supabase
-              .from('itinerary_items')
-              .select('trip_id, activity_type, id')
-              .in('trip_id', tripIds)
-            statsData = statsResult.data
-
-            // Load meeting notes counts
-            if (statsData && statsData.length > 0) {
-              const notesResult = await supabase
-                .from('meeting_notes')
-                .select('id, itinerary_item_id')
-                .in('itinerary_item_id', statsData.map(item => item.id))
-              notesData = notesResult.data
-            }
-          } catch (error) {
-            console.warn('Failed to load stats/notes data:', error)
-          }
+          // Data is already enriched from API with participants, vehicles, and itinerary items
+          // No need for additional database queries
 
           // Transform the data to match TripCard interface
           console.log('useTrips: Starting trip transformation...')
@@ -274,10 +209,14 @@ export function useTrips() {
             console.log(`useTrips: Transforming trip ${index + 1}:`, { 
               id: trip.id, 
               title: trip.title,
-              status: trip.status 
+              status: trip.status,
+              hasParticipants: !!trip.trip_participants?.length,
+              hasVehicles: !!trip.trip_vehicles?.length,
+              hasItinerary: !!trip.itinerary_items?.length
             })
-            // Get participants for this trip
-            const tripParticipants = participantsData?.filter(p => p.trip_id === trip.id) || []
+            
+            // Get participants for this trip (already nested from API)
+            const tripParticipants = trip.trip_participants || []
             
             // Separate companies and Wolthers staff based on actual database roles
             const companies = tripParticipants
@@ -309,8 +248,8 @@ export function useTrips() {
                 email: p.users?.email
               }))
 
-            // Get vehicles and drivers for this trip
-            const tripVehicles = vehiclesData?.filter(v => v.trip_id === trip.id) || []
+            // Get vehicles and drivers for this trip (already nested from API)
+            const tripVehicles = trip.trip_vehicles || []
             const vehicles = tripVehicles
               .filter(v => v.vehicles)
               .map(v => {
@@ -335,11 +274,12 @@ export function useTrips() {
                 email: v.users?.email
               }))
 
-            // Calculate stats for this trip
-            const tripStats = statsData?.filter(s => s.trip_id === trip.id) || []
-            const visitCount = tripStats.filter(s => s.activity_type === 'visit').length
-            const tripItemIds = tripStats.map(s => s.id)
-            const notesCount = notesData?.filter(n => tripItemIds.includes(n.itinerary_item_id)).length || 0
+            // Calculate stats for this trip (already nested from API)
+            const tripItems = trip.itinerary_items || []
+            const visitCount = tripItems.filter(item => item.activity_type === 'visit').length
+            const notesCount = tripItems.reduce((total, item) => {
+              return total + (item.meeting_notes?.length || 0)
+            }, 0)
 
 
             return {

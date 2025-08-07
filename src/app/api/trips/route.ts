@@ -61,7 +61,27 @@ export async function GET(request: NextRequest) {
         total_cost,
         trip_type,
         created_at,
-        creator_id
+        creator_id,
+        trip_participants (
+          trip_id,
+          user_id,
+          company_id,
+          role,
+          users (id, full_name, email),
+          companies (id, name, fantasy_name)
+        ),
+        trip_vehicles (
+          trip_id,
+          vehicle_id,
+          driver_id,
+          vehicles (id, model, license_plate),
+          users!trip_vehicles_driver_id_fkey (id, full_name, email)
+        ),
+        itinerary_items (
+          id,
+          activity_type,
+          meeting_notes (id)
+        )
       `)
       .order('start_date', { ascending: false })
       .limit(20)
