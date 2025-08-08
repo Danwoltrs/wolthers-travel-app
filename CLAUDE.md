@@ -215,3 +215,4 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Ensure responsive design across all screen sizes
 - Use Lucide icons exclusively for visual consistency
 - Keep glassmorphic effects subtle and professional
+- "Authentication methos fully implemented with oauth and e-mail"

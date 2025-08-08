@@ -283,6 +283,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       permissions,
       azure_id: profile.microsoft_oauth_id || authUser?.user_metadata?.azure_id || undefined,
       preferred_username: authUser?.user_metadata?.preferred_username || undefined,
+      // Include all database fields for profile management
+      full_name: profile.full_name,
+      phone: profile.phone,
+      whatsapp: profile.whatsapp,
+      timezone: profile.timezone,
+      last_login_at: profile.last_login_at,
+      last_login_timezone: profile.last_login_timezone,
+      last_login_provider: profile.last_login_provider,
+      user_type: profile.user_type,
+      is_global_admin: profile.is_global_admin,
+      can_view_all_trips: profile.can_view_all_trips,
+      can_view_company_trips: profile.can_view_company_trips,
+      microsoft_oauth_id: profile.microsoft_oauth_id,
+      company_name: profile.company_name,
+      notification_preferences: profile.notification_preferences,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
     }
     
     setUser(mappedUser)

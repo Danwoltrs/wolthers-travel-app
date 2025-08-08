@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
-  Home, Building, Users, Settings, UserCircle, Sun, Moon, Menu, X
+  Home, Building, Users, Settings, Sun, Moon, Menu, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -84,15 +84,7 @@ export default function Header() {
                 </Link>
               ))}
               
-              {/* User Profile Icon */}
-              <button
-                title="User Profile"
-                className="p-3 rounded-full text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 hover:scale-110"
-              >
-                <UserCircle className="w-5 h-5" />
-              </button>
-              
-              {/* Theme Toggle Switch to the right of user icon */}
+              {/* Theme Toggle Switch */}
               <button
                 onClick={toggleTheme}
                 title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
@@ -189,14 +181,6 @@ export default function Header() {
                   </Link>
                 ))}
                 
-                {/* User Profile Link */}
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center space-x-3 p-3 rounded-xl text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 w-full text-left"
-                >
-                  <UserCircle className="w-5 h-5" />
-                  <span className="font-medium">Profile</span>
-                </button>
               </nav>
             </div>
           </div>
