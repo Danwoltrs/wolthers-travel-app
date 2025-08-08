@@ -41,9 +41,9 @@ export class MicrosoftAuthProvider {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
       console.log('🌍 User timezone:', timezone)
 
-      console.log('📤 Sending request to /api/auth/microsoft/callback...')
+      console.log('📤 Sending request to /api/auth/callback/microsoft...')
       // Use server-side endpoint to handle token exchange
-      const response = await fetch('/api/auth/microsoft/callback', {
+      const response = await fetch('/api/auth/callback/microsoft', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
