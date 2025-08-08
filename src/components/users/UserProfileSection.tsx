@@ -91,7 +91,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-4">
           {/* Avatar */}

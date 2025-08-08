@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
+import UserManagementModal from '@/components/users/UserManagementModal'
 import Image from 'next/image'
 
 // Custom Car icon component using the asset SVG
@@ -27,7 +28,6 @@ const navItems: NavItem[] = [
   { icon: <Home className="w-5 h-5" />, label: 'Home', href: '/' },
   { icon: <CarIcon className="w-5 h-5" />, label: 'Fleet', href: '/fleet' },
   { icon: <Building className="w-5 h-5" />, label: 'Companies', href: '/companies' },
-  { icon: <Users className="w-5 h-5" />, label: 'Users', href: '/users' },
   { icon: <Settings className="w-5 h-5" />, label: 'Settings', href: '/settings' },
 ]
 
@@ -35,6 +35,7 @@ export default function Header() {
   const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
+  const [showUserModal, setShowUserModal] = React.useState(false)
   
   const toggleMenu = () => {
     const newState = !isMenuOpen
@@ -83,6 +84,20 @@ export default function Header() {
                   {item.icon}
                 </Link>
               ))}
+              
+              {/* Users Modal Trigger */}
+              <button
+                onClick={() => setShowUserModal(true)}
+                title="User Management"
+                className={cn(
+                  'p-3 rounded-full transition-all duration-200 hover:scale-110',
+                  showUserModal
+                    ? 'bg-white/20 dark:bg-emerald-500/20 text-white shadow-lg'
+                    : 'text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15'
+                )}
+              >
+                <Users className="w-5 h-5" />
+              </button>
               
               {/* Theme Toggle Switch */}
               <button
@@ -181,11 +196,32 @@ export default function Header() {
                   </Link>
                 ))}
                 
+                {/* Users Modal Trigger for Mobile */}
+                <button
+                  onClick={() => {
+                    setShowUserModal(true)
+                    setIsMenuOpen(false)
+                    window.dispatchEvent(new CustomEvent('menuToggle', {
+                      detail: { isOpen: false }
+                    }))
+                  }}
+                  className="flex items-center space-x-3 p-3 rounded-xl text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 w-full text-left"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="font-medium">User Management</span>
+                </button>
+                
               </nav>
             </div>
           </div>
         )}
       </div>
+
+      {/* User Management Modal */}
+      <UserManagementModal 
+        isOpen={showUserModal} 
+        onClose={() => setShowUserModal(false)} 
+      />
     </header>
   )
 }
