@@ -218,14 +218,14 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 5. Nordic business minimalist design implementation
 6. Responsive grid layout
 7. Date formatting with day names
+8. **User Management Interface** - Complete user management system with search, filtering, role management, online status, and invite functionality
 9. **Supabase Integration** - Real-time trip data with activities and location information
 10. **Trip URL Structure** - Access trips via unique codes (e.g., AMS_DCI_QA_0825) not UUIDs
 
 #### Pending Features 🚧
 1. Trip creation wizard (UI complete)
 2. Company management pages
-3. User management interface
-4. Fleet management system
+3. Fleet management system
 5. Expense tracking features
 6. Itinerary detail editor
 7. Meeting confirmation system

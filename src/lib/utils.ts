@@ -147,7 +147,7 @@ export function formatTripDates(startDate: Date | string, endDate: Date | string
 }
 
 /**
- * Masks an email address by showing only beginning part (e.g., "daniel@w...")
+ * Masks an email address by showing only beginning part (e.g., "tom@w...")
  */
 export function maskEmail(email: string): string {
   if (!email || !email.includes('@')) return email
@@ -155,7 +155,10 @@ export function maskEmail(email: string): string {
   const [localPart, domain] = email.split('@')
   const domainStart = domain.charAt(0)
   
-  return `${localPart}@${domainStart}...`
+  // Truncate local part to maximum 3 characters for consistency
+  const truncatedLocal = localPart.length > 3 ? localPart.substring(0, 3) : localPart
+  
+  return `${truncatedLocal}@${domainStart}...`
 }
 
 /**
@@ -231,4 +234,21 @@ export function formatNumber(num: number): string {
     return `${(num / 1000).toFixed(1)}k`
   }
   return num.toString()
+}
+
+/**
+ * Truncates phone number for consistent display
+ */
+export function truncatePhone(phone: string): string {
+  if (!phone) return phone
+  
+  // Remove all non-digits except + at the start
+  const cleaned = phone.replace(/[^\d+]/g, '')
+  
+  // Truncate to maximum 12 characters for consistency
+  if (cleaned.length > 12) {
+    return cleaned.substring(0, 12) + '...'
+  }
+  
+  return phone
 }

@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { UserPermissions, filterUsersForViewer } from '@/lib/permissions'
-import { maskEmail, formatLastLogin, copyToClipboard, formatNumber } from '@/lib/utils'
+import { maskEmail, formatLastLogin, copyToClipboard, formatNumber, truncatePhone } from '@/lib/utils'
 import UserEditModal from './UserEditModal'
 import InviteUserModal from './InviteUserModal'
 
@@ -45,7 +45,7 @@ interface UserWithStats extends any {
   }
 }
 
-type SortField = 'full_name' | 'email' | 'user_type' | 'company_name' | 'last_login_at' | 'created_at' | 'total_trips' | 'trips_this_year' | 'upcoming_trips'
+type SortField = 'full_name' | 'email' | 'phone' | 'user_type' | 'company_name' | 'last_login_at' | 'created_at' | 'total_trips' | 'trips_this_year' | 'upcoming_trips'
 type SortDirection = 'asc' | 'desc'
 
 export default function TeamManagementSection({ currentUser, permissions }: TeamManagementSectionProps) {
@@ -242,6 +242,10 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
           aValue = a.email || ''
           bValue = b.email || ''
           break
+        case 'phone':
+          aValue = a.phone || ''
+          bValue = b.phone || ''
+          break
         case 'user_type':
           aValue = a.user_type || ''
           bValue = b.user_type || ''
@@ -323,6 +327,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     }
   }
 
+  const [copiedPhones, setCopiedPhones] = useState<Set<string>>(new Set())
+
   const handleCopyEmail = async (email: string) => {
     const success = await copyToClipboard(email)
     if (success) {
@@ -338,6 +344,25 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       }, 2000)
     } else {
       showToast('Failed to copy email', 'error')
+    }
+  }
+
+  const handleCopyPhone = async (phone: string) => {
+    const sanitizedPhone = phone.replace(/[^\d+]/g, '')
+    const success = await copyToClipboard(sanitizedPhone)
+    if (success) {
+      setCopiedPhones(prev => new Set(prev.add(phone)))
+      showToast('Phone number copied to clipboard', 'success')
+      
+      setTimeout(() => {
+        setCopiedPhones(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(phone)
+          return newSet
+        })
+      }, 2000)
+    } else {
+      showToast('Failed to copy phone number', 'error')
     }
   }
 
@@ -397,6 +422,22 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     }
   }
 
+  const isUserOnline = (user: any) => {
+    // If this is the current user viewing the page, they're definitely online
+    if (currentUser && user.id === currentUser.id) {
+      return true
+    }
+    
+    if (!user.last_login_at) return false
+    
+    const lastLogin = new Date(user.last_login_at)
+    const now = new Date()
+    const minutesDiff = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60))
+    
+    // Consider user online if last login was within 30 minutes
+    return minutesDiff <= 30
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 text-center">
@@ -412,22 +453,31 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     <>
       <div className="px-0 pt-6">
         <div className="flex flex-col sm:flex-row gap-4 mb-6 px-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="relative w-80">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-emerald-600 dark:text-golden-400" />
             <input
               type="text"
               placeholder="Search users by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+              style={{ paddingLeft: '36px' }}
+              className="w-full pr-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white"
             />
           </div>
 
+          <div className="flex-1"></div>
+
           <div className="flex gap-2">
+            <div className="hidden sm:flex items-center text-xs text-gray-500 dark:text-gray-400">
+              <Users className="w-4 h-4 mr-2" />
+              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+              {searchTerm || filterRole !== 'all' ? ` (filtered)` : ''}
+            </div>
+
             <div className="relative">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                className="inline-flex items-center px-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg text-sm font-medium text-emerald-800 dark:text-golden-400 bg-white dark:bg-[#1a1a1a] hover:bg-emerald-50 dark:hover:bg-emerald-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-golden-400"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 Filter
@@ -435,47 +485,41 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               </button>
               
               {showFilterMenu && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-[#1a1a1a] ring-1 ring-pearl-200 dark:ring-gray-700 z-10">
                   <div className="py-1">
                     <button
                       onClick={() => { setFilterRole('all'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'all' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'all' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
                     >
                       All Roles
                     </button>
                     <button
                       onClick={() => { setFilterRole('wolthers_staff'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'wolthers_staff' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'wolthers_staff' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
                     >
                       Wolthers Staff
                     </button>
                     <button
                       onClick={() => { setFilterRole('admin'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'admin' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'admin' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
                     >
                       Company Admins
                     </button>
                     <button
                       onClick={() => { setFilterRole('client'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'client' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'client' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
                     >
                       Clients
                     </button>
                     <button
                       onClick={() => { setFilterRole('driver'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'driver' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'driver' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
                     >
                       Drivers
                     </button>
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="hidden sm:flex items-center px-3 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg border border-gray-200">
-              <Users className="w-4 h-4 mr-2" />
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
-              {searchTerm || filterRole !== 'all' ? ` (filtered)` : ''}
             </div>
 
             {permissions.canInviteUsers && (
@@ -529,9 +573,10 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
         <div className="overflow-x-auto w-full">
           <table className="w-full divide-y divide-pearl-200 dark:divide-gray-700">
             <thead className="bg-gradient-to-r from-emerald-800 to-emerald-900 dark:from-emerald-900 dark:to-emerald-950">
+              {/* First row - grouped headers */}
               <tr>
                 {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
-                  <th className="px-4 py-4 text-left">
+                  <th className="px-4 py-6 text-left">
                     <input
                       type="checkbox"
                       checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
@@ -541,7 +586,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                   </th>
                 )}
                 
-                <th className="px-4 py-4 text-left">
+                <th className="px-2 py-6 text-left w-48 max-w-48">
                   <button 
                     onClick={() => handleSort('full_name')}
                     className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
@@ -551,17 +596,17 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                   </button>
                 </th>
                 
-                <th className="px-1 py-4 text-left" style={{width: '28px'}}>
+                <th className="px-2 py-6 text-left w-36 max-w-36">
                   <button 
                     onClick={() => handleSort('email')}
                     className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
-                    <span>Email</span>
+                    <span>Contact</span>
                     {getSortIcon('email')}
                   </button>
                 </th>
                 
-                <th className="px-4 py-4 text-left hidden md:table-cell">
+                <th className="px-6 py-6 text-left hidden md:table-cell">
                   <button 
                     onClick={() => handleSort('company_name')}
                     className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
@@ -571,7 +616,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                   </button>
                 </th>
                 
-                <th className="px-4 py-4 text-left hidden lg:table-cell">
+                <th className="px-4 py-6 text-left hidden lg:table-cell w-28 max-w-28">
                   <button 
                     onClick={() => handleSort('user_type')}
                     className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
@@ -581,7 +626,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                   </button>
                 </th>
                 
-                <th className="px-4 py-4 text-left hidden md:table-cell">
+                <th className="px-2 py-6 text-left hidden md:table-cell">
                   <button 
                     onClick={() => handleSort('last_login_at')}
                     className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
@@ -591,44 +636,25 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                   </button>
                 </th>
                 
-                <th className="px-4 py-4 text-left hidden lg:table-cell">
-                  <button 
-                    onClick={() => handleSort('total_trips')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
-                  >
-                    <span>Total Trips</span>
-                    {getSortIcon('total_trips')}
-                  </button>
+                {/* Grouped trips header */}
+                <th colSpan={3} className="px-2 py-6 text-center hidden lg:table-cell relative">
+                  <div className="flex flex-col h-full">
+                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">TRIPS</span>
+                    <div className="absolute bottom-1 left-0 right-0 flex text-[10px] text-white/60 normal-case">
+                      <span className="flex-1 text-center">Total</span>
+                      <span className="flex-1 text-center">YTD</span>
+                      <span className="flex-1 text-center">Upcoming</span>
+                    </div>
+                  </div>
                 </th>
-                
-                <th className="px-4 py-4 text-left hidden lg:table-cell">
-                  <button 
-                    onClick={() => handleSort('trips_this_year')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
-                  >
-                    <span>This Year</span>
-                    {getSortIcon('trips_this_year')}
-                  </button>
-                </th>
-                
-                <th className="px-4 py-4 text-left hidden lg:table-cell">
-                  <button 
-                    onClick={() => handleSort('upcoming_trips')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
-                  >
-                    <span>Upcoming</span>
-                    {getSortIcon('upcoming_trips')}
-                  </button>
-                </th>
-                
-                </tr>
+              </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-pearl-200 dark:divide-gray-700">
               {filteredUsers.map((user, index) => {
                 return (
                   <tr 
                     key={user.id} 
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors h-20 ${
                       index % 2 === 0 
                         ? 'bg-white dark:bg-[#1A1A1A]' 
                         : 'bg-gray-100 dark:bg-[#242424]'
@@ -645,7 +671,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                       </td>
                     )}
                     
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-2 py-4 whitespace-nowrap w-48 max-w-48">
                       <button 
                         onClick={() => handleEditUser(user)}
                         className="text-left w-full group relative flex items-center"
@@ -661,62 +687,93 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                       </button>
                     </td>
                     
-                    <td className="px-0 py-4 whitespace-nowrap" style={{width: '28px'}}>
-                      <div className="flex items-center space-x-0.5">
-                        <span className="text-sm text-gray-700 dark:text-gray-300 font-mono truncate" title={user.email} style={{maxWidth: '20px'}}>
-                          {maskEmail(user.email)}
-                        </span>
-                        <button
-                          onClick={() => handleCopyEmail(user.email)}
-                          className="inline-flex items-center justify-center w-3 h-3 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
-                          title="Copy full email"
-                        >
-                          {copiedEmails.has(user.email) ? (
-                            <Check className="w-2 h-2 text-green-600" />
-                          ) : (
-                            <Copy className="w-2 h-2 text-gray-400 hover:text-gray-600" />
-                          )}
-                        </button>
+                    <td className="px-2 py-4 whitespace-nowrap w-36 max-w-36">
+                      <div className="flex flex-col space-y-0.5">
+                        <div className="flex items-center space-x-1 max-w-full">
+                          <button
+                            onClick={() => handleCopyEmail(user.email)}
+                            className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
+                            title="Copy full email"
+                          >
+                            {copiedEmails.has(user.email) ? (
+                              <Check className="w-3 h-3 text-green-600" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                            )}
+                          </button>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.email}>
+                            {user.email}
+                          </span>
+                        </div>
+                        {user.phone && (
+                          <div className="flex items-center space-x-1 max-w-full">
+                            <button
+                              onClick={() => handleCopyPhone(user.phone)}
+                              className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
+                              title="Copy phone number"
+                            >
+                              {copiedPhones.has(user.phone) ? (
+                                <Check className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <Copy className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                              )}
+                            </button>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[calc(100%-2rem)]" title={user.phone}>
+                              {truncatePhone(user.phone)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
                     
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
                       <span className="truncate">
                         {user.company_name ? user.company_name.split(' ')[0] : 'Wolthers'}
                       </span>
                     </td>
                     
-                    <td className="px-4 py-4 whitespace-nowrap hidden lg:table-cell">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-4 hidden lg:table-cell w-28 max-w-28">
+                      <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
                         {getUserTypeLabel(user.user_type)}
                       </span>
                     </td>
 
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
                       <div className="flex flex-col">
-                        <span className="font-medium">{formatLastLogin(user.last_login_at)}</span>
-                        {user.last_login_at && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500">
-                            {new Date(user.last_login_at).toLocaleDateString()}
-                          </span>
+                        {isUserOnline(user) ? (
+                          <>
+                            <span className="text-xs font-medium text-green-500 dark:text-green-300">Online</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                              {new Date(user.last_login_at).toLocaleDateString()}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-medium">{formatLastLogin(user.last_login_at)}</span>
+                            {user.last_login_at && (
+                              <span className="text-xs text-gray-400 dark:text-gray-500">
+                                {new Date(user.last_login_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
                     
-                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="px-2 py-4 whitespace-nowrap text-center hidden lg:table-cell w-16 max-w-16">
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
                         {formatNumber(user.trip_stats?.total_trips || 0)}
                       </span>
                     </td>
                     
-                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="px-2 py-4 whitespace-nowrap text-center hidden lg:table-cell w-16 max-w-16">
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
                         {user.trip_stats?.trips_this_year || 0}
                       </span>
                     </td>
                     
-                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="px-2 py-4 whitespace-nowrap text-center hidden lg:table-cell w-16 max-w-16">
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
                         {user.trip_stats?.upcoming_trips || 0}
                       </span>
                     </td>

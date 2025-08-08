@@ -19,6 +19,7 @@ import {
   Plane
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
+import TravelHeatmap from './TravelHeatmap'
 
 interface UserProfileSectionProps {
   user: any
@@ -173,14 +174,14 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
 
   const getUserTypeBadgeColor = (userType: string) => {
     const colors: Record<string, string> = {
-      'global_admin': 'bg-red-100 text-red-800 border-red-200',
-      'wolthers_staff': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      'admin': 'bg-blue-100 text-blue-800 border-blue-200',
-      'client': 'bg-gray-100 text-gray-800 border-gray-200',
-      'driver': 'bg-amber-100 text-amber-800 border-amber-200',
-      'guest': 'bg-gray-50 text-gray-600 border-gray-200'
+      'global_admin': 'bg-red-100 text-red-800 border-red-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
+      'wolthers_staff': 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
+      'admin': 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
+      'client': 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
+      'driver': 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
+      'guest': 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
     }
-    return colors[userType] || 'bg-gray-100 text-gray-800 border-gray-200'
+    return colors[userType] || 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
   }
 
   return (
@@ -254,7 +255,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 {getUserTypeLabel(user?.user_type)}
               </span>
               {user?.microsoft_oauth_id && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
                   Microsoft Account
                 </span>
               )}
@@ -393,6 +394,11 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Travel Heatmap - Medium screens and up */}
+      <div className="hidden md:block mt-6 pt-6 border-t border-gray-200 dark:border-[#2a2a2a]">
+        <TravelHeatmap userId={user?.id} year={new Date().getFullYear()} />
       </div>
 
       {/* Notification Preferences */}

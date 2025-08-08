@@ -41,20 +41,20 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
           <div className="flex items-center justify-between w-full">
             <div className="flex-1">
               <h2 className="text-xl font-bold text-white dark:text-golden-400">User Management</h2>
-              <p className="text-sm text-gray-200 dark:text-gray-300 mt-1">
+              <p className="text-sm text-white dark:text-gray-300 mt-1">
                 Manage your profile and {showTeamTab ? 'team members' : 'account settings'}
               </p>
             </div>
             
             {/* Tab Buttons in Header */}
             {showTeamTab && (
-              <div className="flex space-x-1 bg-white/20 dark:bg-black/20 p-1 rounded-lg mx-4">
+              <div className="flex space-x-1 bg-yellow-200 dark:bg-black/20 p-1 rounded-lg mx-4">
                 <button
                   onClick={() => setActiveTab('profile')}
-                  className={`px-4 md:px-6 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                  className={`px-4 md:px-6 py-1.5 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
                     activeTab === 'profile'
-                      ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
-                      : 'text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-golden-400'
+                      ? 'bg-emerald-600 text-white rounded-md shadow-sm dark:bg-emerald-800/80 dark:text-golden-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-emerald-800 dark:hover:text-golden-400'
                   }`}
                 >
                   <User className="w-4 h-4" />
@@ -62,10 +62,10 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
                 </button>
                 <button
                   onClick={() => setActiveTab('team')}
-                  className={`px-4 md:px-6 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                  className={`px-4 md:px-6 py-1.5 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
                     activeTab === 'team'
-                      ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
-                      : 'text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-golden-400'
+                      ? 'bg-emerald-600 text-white rounded-md shadow-sm dark:bg-emerald-800/80 dark:text-golden-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-emerald-800 dark:hover:text-golden-400'
                   }`}
                 >
                   <UsersIcon className="w-4 h-4" />
