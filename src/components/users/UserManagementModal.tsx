@@ -34,62 +34,64 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
   const showTeamTab = permissions.canViewCompanyUsers || permissions.canViewAllUsers
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 dark:bg-[#041611]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-200/30 dark:border-[#041611]/60 w-full max-w-6xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-emerald-200/30 dark:border-[#041611]/60 bg-gradient-to-r from-amber-50/80 to-white/80 dark:from-[#041611]/80 dark:to-[#041611]/60">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-latte-800 dark:text-green-50">User Management</h2>
-              <p className="text-sm text-pearl-600 dark:text-pearl-300 mt-1">
+        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-white dark:text-golden-400">User Management</h2>
+              <p className="text-sm text-gray-200 dark:text-gray-300 mt-1">
                 Manage your profile and {showTeamTab ? 'team members' : 'account settings'}
               </p>
             </div>
+            
+            {/* Tab Buttons in Header */}
+            {showTeamTab && (
+              <div className="flex space-x-1 bg-white/20 dark:bg-black/20 p-1 rounded-lg mx-4">
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`px-4 md:px-6 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                    activeTab === 'profile'
+                      ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
+                      : 'text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-golden-400'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  My Profile
+                </button>
+                <button
+                  onClick={() => setActiveTab('team')}
+                  className={`px-4 md:px-6 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                    activeTab === 'team'
+                      ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
+                      : 'text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-golden-400'
+                  }`}
+                >
+                  <UsersIcon className="w-4 h-4" />
+                  {permissions.canViewAllUsers ? 'All Users' : 'Team Members'}
+                </button>
+              </div>
+            )}
+            
             <button
               onClick={onClose}
-              className="p-2 rounded-full text-pearl-500 dark:text-pearl-400 hover:text-latte-800 dark:hover:text-green-50 hover:bg-white/20 dark:hover:bg-emerald-500/20 transition-all duration-200"
+              className="text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors p-2"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Tabs */}
-          {showTeamTab && (
-            <div className="mt-4 flex space-x-1 bg-white/40 dark:bg-[#041611]/60 p-1 rounded-lg">
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === 'profile'
-                    ? 'bg-white dark:bg-[#0E3D2F]/80 text-latte-800 dark:text-green-50 shadow-sm'
-                    : 'text-pearl-600 dark:text-pearl-300 hover:text-latte-800 dark:hover:text-green-50'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                My Profile
-              </button>
-              <button
-                onClick={() => setActiveTab('team')}
-                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === 'team'
-                    ? 'bg-white dark:bg-[#0E3D2F]/80 text-latte-800 dark:text-green-50 shadow-sm'
-                    : 'text-pearl-600 dark:text-pearl-300 hover:text-latte-800 dark:hover:text-green-50'
-                }`}
-              >
-                <UsersIcon className="w-4 h-4" />
-                {permissions.canViewAllUsers ? 'All Users' : 'Team Members'}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+        <div className="p-3 md:p-6 space-y-6">
           {activeTab === 'profile' ? (
-            <div className="bg-white/90 dark:bg-[#041611]/40">
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
               <UserProfileSection user={user} isOwnProfile={true} />
             </div>
           ) : (
-            <div className="bg-white/90 dark:bg-[#041611]/40">
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
               <TeamManagementSection 
                 currentUser={user} 
                 permissions={permissions} 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { 
   User, 
   Mail, 
@@ -14,7 +14,9 @@ import {
   X,
   Bell,
   MessageSquare,
-  Globe
+  Upload,
+  Camera,
+  Plane
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 
@@ -27,18 +29,109 @@ interface UserProfileSectionProps {
 export default function UserProfileSection({ user, isOwnProfile, onUpdate }: UserProfileSectionProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [tripStats, setTripStats] = useState({ tripsThisYear: 0, upcomingTrips: 0 })
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || '',
     phone: user?.phone || '',
     whatsapp: user?.whatsapp || '',
-    timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    profile_picture_url: user?.profile_picture_url || '',
     notification_preferences: user?.notification_preferences || {
       email: true,
       whatsapp: false,
       in_app: true
     }
   })
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Check file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Please select an image smaller than 2MB')
+        return
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file')
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setFormData({ ...formData, profile_picture_url: result })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemovePhoto = () => {
+    setFormData({ ...formData, profile_picture_url: '' })
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const getInitials = () => {
+    const name = user?.full_name || 'U'
+    return name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase()
+  }
+
+  const fetchTripStats = async () => {
+    if (!user?.id) return
+
+    try {
+      const currentYear = new Date().getFullYear()
+      const now = new Date().toISOString().split('T')[0]
+
+      // Get all trips for this user through trip_participants
+      const { data: userTrips, error: tripsError } = await supabase
+        .from('trip_participants')
+        .select(`
+          trips (
+            id,
+            start_date
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (tripsError) {
+        console.error('Trip stats error:', tripsError)
+        return
+      }
+
+      if (userTrips) {
+        // Filter trips this year
+        const tripsThisYear = userTrips.filter(tp => {
+          const trip = tp.trips
+          if (!trip || !trip.start_date) return false
+          const tripYear = new Date(trip.start_date).getFullYear()
+          return tripYear === currentYear
+        })
+
+        // Filter upcoming trips
+        const upcomingTrips = userTrips.filter(tp => {
+          const trip = tp.trips
+          if (!trip || !trip.start_date) return false
+          return trip.start_date >= now
+        })
+
+        setTripStats({
+          tripsThisYear: tripsThisYear.length,
+          upcomingTrips: upcomingTrips.length
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching trip stats:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchTripStats()
+  }, [user?.id])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -49,7 +142,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
           full_name: formData.full_name,
           phone: formData.phone,
           whatsapp: formData.whatsapp,
-          timezone: formData.timezone,
+          profile_picture_url: formData.profile_picture_url,
           notification_preferences: formData.notification_preferences,
           updated_at: new Date().toISOString()
         })
@@ -91,12 +184,55 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="">
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-4">
           {/* Avatar */}
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-2xl font-semibold shadow-lg">
-            {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+          <div className="relative">
+            {formData.profile_picture_url ? (
+              <img
+                src={formData.profile_picture_url}
+                alt="Profile"
+                className="w-20 h-20 rounded-full object-cover shadow-lg"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-2xl font-semibold shadow-lg">
+                {getInitials()}
+              </div>
+            )}
+            
+            {/* Upload button overlay when editing */}
+            {isEditing && isOwnProfile && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-white hover:text-emerald-300 transition-colors"
+                  title="Upload photo"
+                >
+                  <Camera className="w-6 h-6" />
+                </button>
+                {formData.profile_picture_url && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-white hover:text-red-300 transition-colors ml-2"
+                    title="Remove photo"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
           </div>
           
           {/* Basic Info */}
@@ -109,7 +245,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 className="text-xl font-semibold text-gray-900 border-b-2 border-emerald-500 focus:outline-none px-1"
               />
             ) : (
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-300">{user?.full_name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name}</h3>
             )}
             <p className="text-gray-600">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2">
@@ -150,7 +286,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:bg-emerald-600 dark:text-yellow-400 dark:border-emerald-600 dark:hover:bg-emerald-700"
               >
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit Profile
@@ -164,14 +300,14 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Contact Information */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Contact Information</h4>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-amber-300 uppercase tracking-wider">Contact Information</h4>
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <Mail className="w-4 h-4 text-gray-400" />
               <div className="flex-1">
                 <p className="text-xs text-gray-500">Email</p>
-                <p className="text-sm text-gray-900">{user?.email}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{user?.email}</p>
               </div>
             </div>
 
@@ -188,7 +324,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     className="text-sm text-gray-900 border-b border-gray-300 focus:border-emerald-500 focus:outline-none w-full"
                   />
                 ) : (
-                  <p className="text-sm text-gray-900">{user?.phone || 'Not provided'}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{user?.phone || 'Not provided'}</p>
                 )}
               </div>
             </div>
@@ -206,7 +342,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     className="text-sm text-gray-900 border-b border-gray-300 focus:border-emerald-500 focus:outline-none w-full"
                   />
                 ) : (
-                  <p className="text-sm text-gray-900">{user?.whatsapp || 'Not provided'}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{user?.whatsapp || 'Not provided'}</p>
                 )}
               </div>
             </div>
@@ -215,46 +351,23 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
 
         {/* Organization & Settings */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Organization & Settings</h4>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-amber-300 uppercase tracking-wider">Organization & Settings</h4>
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <Building2 className="w-4 h-4 text-gray-400" />
               <div className="flex-1">
                 <p className="text-xs text-gray-500">Company</p>
-                <p className="text-sm text-gray-900">{user?.company_name || 'Wolthers & Associates'}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{user?.company_name || 'Wolthers & Associates'}</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <Globe className="w-4 h-4 text-gray-400" />
-              <div className="flex-1">
-                <p className="text-xs text-gray-500">Timezone</p>
-                {isEditing ? (
-                  <select
-                    value={formData.timezone}
-                    onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                    className="text-sm text-gray-900 border-b border-gray-300 focus:border-emerald-500 focus:outline-none w-full"
-                  >
-                    <option value="America/New_York">Eastern Time</option>
-                    <option value="America/Chicago">Central Time</option>
-                    <option value="America/Denver">Mountain Time</option>
-                    <option value="America/Los_Angeles">Pacific Time</option>
-                    <option value="Europe/London">London</option>
-                    <option value="Europe/Paris">Paris</option>
-                    <option value="Asia/Tokyo">Tokyo</option>
-                  </select>
-                ) : (
-                  <p className="text-sm text-gray-900">{user?.timezone || 'Not set'}</p>
-                )}
-              </div>
-            </div>
 
             <div className="flex items-center space-x-3">
               <Calendar className="w-4 h-4 text-gray-400" />
               <div className="flex-1">
                 <p className="text-xs text-gray-500">Last Login</p>
-                <p className="text-sm text-gray-900">
+                <p className="text-sm text-gray-900 dark:text-white">
                   {user?.last_login_at 
                     ? new Date(user.last_login_at).toLocaleDateString('en-US', { 
                         month: 'short', 
@@ -267,14 +380,25 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 </p>
               </div>
             </div>
+
+            {/* Trip Statistics */}
+            <div className="flex items-center space-x-3">
+              <Plane className="w-4 h-4 text-gray-400" />
+              <div className="flex-1">
+                <p className="text-xs text-gray-500">Trip Statistics</p>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {tripStats.tripsThisYear} trips this year | {tripStats.upcomingTrips} upcoming trips
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Notification Preferences */}
       {isOwnProfile && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-yellow-200 uppercase tracking-wider mb-4">
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-[#2a2a2a]">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-amber-300 uppercase tracking-wider mb-4">
             <Bell className="inline w-4 h-4 mr-2" />
             Notification Preferences
           </h4>
@@ -291,9 +415,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   }
                 })}
                 disabled={!isEditing}
-                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]"
               />
-              <span className="text-sm text-gray-700">Email Notifications</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Email Notifications</span>
             </label>
             <label className="flex items-center space-x-3 cursor-pointer">
               <input
@@ -307,9 +431,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   }
                 })}
                 disabled={!isEditing}
-                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]"
               />
-              <span className="text-sm text-gray-700">WhatsApp Notifications</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">WhatsApp Notifications</span>
             </label>
             <label className="flex items-center space-x-3 cursor-pointer">
               <input
@@ -323,9 +447,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   }
                 })}
                 disabled={!isEditing}
-                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]"
               />
-              <span className="text-sm text-gray-700">In-App Notifications</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">In-App Notifications</span>
             </label>
           </div>
         </div>

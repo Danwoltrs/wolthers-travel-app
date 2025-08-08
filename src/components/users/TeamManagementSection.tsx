@@ -6,8 +6,6 @@ import {
   Filter, 
   UserPlus, 
   MoreVertical,
-  Grid3X3,
-  List,
   Download,
   Mail,
   Shield,
@@ -17,10 +15,19 @@ import {
   User,
   Users,
   CheckSquare,
-  X
+  X,
+  Copy,
+  Check,
+  Edit,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  MapPin,
+  Plane
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { UserPermissions, filterUsersForViewer } from '@/lib/permissions'
+import { maskEmail, formatLastLogin, copyToClipboard, formatNumber } from '@/lib/utils'
 import UserEditModal from './UserEditModal'
 import InviteUserModal from './InviteUserModal'
 
@@ -29,11 +36,22 @@ interface TeamManagementSectionProps {
   permissions: UserPermissions
 }
 
+interface UserWithStats extends any {
+  trip_stats?: {
+    total_trips: number
+    trips_this_year: number
+    upcoming_trips: number
+    most_visited_destination?: string
+  }
+}
+
+type SortField = 'full_name' | 'email' | 'user_type' | 'company_name' | 'last_login_at' | 'created_at' | 'total_trips' | 'trips_this_year' | 'upcoming_trips'
+type SortDirection = 'asc' | 'desc'
+
 export default function TeamManagementSection({ currentUser, permissions }: TeamManagementSectionProps) {
-  const [users, setUsers] = useState<any[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([])
+  const [users, setUsers] = useState<UserWithStats[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<UserWithStats[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
@@ -41,6 +59,10 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [copiedEmails, setCopiedEmails] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     fetchUsers()
@@ -48,30 +70,144 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
 
   useEffect(() => {
     applyFilters()
-  }, [users, searchTerm, filterRole])
+  }, [users, searchTerm, filterRole, sortField, sortDirection])
 
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
-      let query = supabase.from('users').select('*')
+      let query = supabase.from('users').select(`
+        *,
+        companies!users_company_id_fkey(name)
+      `)
 
       // Apply permission-based filtering at query level if possible
       if (!permissions.canViewAllUsers && currentUser?.company_id) {
         query = query.eq('company_id', currentUser.company_id)
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false })
+      const { data: usersData, error: usersError } = await query.order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (usersError) throw usersError
+
+      // Fetch trip statistics and login location for each user
+      const usersWithStats: UserWithStats[] = await Promise.all(
+        (usersData || []).map(async (user) => {
+          const stats = await fetchUserTripStats(user.id)
+          const lastLoginLocation = await getLastLoginLocation(user.id, user.last_login_at)
+          return {
+            ...user,
+            company_name: user.companies?.name || 'Wolthers & Associates',
+            trip_stats: stats,
+            last_login_location: lastLoginLocation
+          }
+        })
+      )
 
       // Apply additional permission filtering
-      const filteredData = filterUsersForViewer(data || [], currentUser)
+      const filteredData = filterUsersForViewer(usersWithStats, currentUser)
       setUsers(filteredData)
       setFilteredUsers(filteredData)
     } catch (error) {
       console.error('Error fetching users:', error)
+      showToast('Failed to load users', 'error')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchUserTripStats = async (userId: string) => {
+    try {
+      const currentYear = new Date().getFullYear()
+      const now = new Date().toISOString()
+
+      // Get total trips count
+      const { count: totalTrips } = await supabase
+        .from('trip_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      // Get trips this year count
+      const { count: tripsThisYear } = await supabase
+        .from('trip_participants')
+        .select('trips!inner(*)', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('trips.start_date', `${currentYear}-01-01`)
+        .lte('trips.start_date', `${currentYear}-12-31`)
+
+      // Get upcoming trips count
+      const { count: upcomingTrips } = await supabase
+        .from('trip_participants')
+        .select('trips!inner(*)', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gt('trips.start_date', now)
+
+      return {
+        total_trips: totalTrips || 0,
+        trips_this_year: tripsThisYear || 0,
+        upcoming_trips: upcomingTrips || 0,
+        most_visited_destination: undefined
+      }
+    } catch (error) {
+      console.error('Error fetching trip stats for user:', userId, error)
+      return {
+        total_trips: 0,
+        trips_this_year: 0,
+        upcoming_trips: 0,
+        most_visited_destination: undefined
+      }
+    }
+  }
+
+  const getLastLoginLocation = async (userId: string, lastLoginAt: string | null) => {
+    try {
+      if (!lastLoginAt) return null
+      
+      // Check if we have a user sessions table or auth logs
+      const { data: sessionData } = await supabase
+        .from('user_sessions')
+        .select('location, ip_address, country, city')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (sessionData?.city && sessionData?.country) {
+        return `${sessionData.city}, ${sessionData.country}`
+      }
+      
+      // Fallback: try to get location based on timezone or other data
+      const { data: userData } = await supabase
+        .from('users')
+        .select('last_login_timezone, timezone')
+        .eq('id', userId)
+        .single()
+      
+      if (userData?.last_login_timezone || userData?.timezone) {
+        const tz = userData.last_login_timezone || userData.timezone
+        // Simple timezone to location mapping
+        const timezoneLocations: Record<string, string> = {
+          'Europe/Copenhagen': 'Copenhagen, DK',
+          'Europe/Amsterdam': 'Amsterdam, NL', 
+          'Europe/Berlin': 'Berlin, DE',
+          'Europe/London': 'London, UK',
+          'America/New_York': 'New York, US',
+          'America/Los_Angeles': 'Los Angeles, US',
+          'America/Sao_Paulo': 'São Paulo, BR',
+          'America/Mexico_City': 'Mexico City, MX',
+          'America/Chicago': 'Chicago, US',
+          'Asia/Tokyo': 'Tokyo, JP',
+          'Asia/Shanghai': 'Shanghai, CN',
+          'Australia/Sydney': 'Sydney, AU',
+          'UTC': null
+        }
+        return timezoneLocations[tz] || null
+      }
+      
+      return null
+      
+    } catch (error) {
+      console.error('Error fetching login location for user:', userId, error)
+      return null
     }
   }
 
@@ -82,7 +218,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     if (searchTerm) {
       filtered = filtered.filter(user => 
         user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -90,6 +227,64 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     if (filterRole !== 'all') {
       filtered = filtered.filter(user => user.user_type === filterRole)
     }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortField) {
+        case 'full_name':
+          aValue = a.full_name || ''
+          bValue = b.full_name || ''
+          break
+        case 'email':
+          aValue = a.email || ''
+          bValue = b.email || ''
+          break
+        case 'user_type':
+          aValue = a.user_type || ''
+          bValue = b.user_type || ''
+          break
+        case 'company_name':
+          aValue = a.company_name || ''
+          bValue = b.company_name || ''
+          break
+        case 'last_login_at':
+          aValue = a.last_login_at ? new Date(a.last_login_at).getTime() : 0
+          bValue = b.last_login_at ? new Date(b.last_login_at).getTime() : 0
+          break
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+          break
+        case 'total_trips':
+          aValue = a.trip_stats?.total_trips || 0
+          bValue = b.trip_stats?.total_trips || 0
+          break
+        case 'trips_this_year':
+          aValue = a.trip_stats?.trips_this_year || 0
+          bValue = b.trip_stats?.trips_this_year || 0
+          break
+        case 'upcoming_trips':
+          aValue = a.trip_stats?.upcoming_trips || 0
+          bValue = b.trip_stats?.upcoming_trips || 0
+          break
+        default:
+          aValue = a[sortField]
+          bValue = b[sortField]
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      } else {
+        return sortDirection === 'asc' 
+          ? (aValue > bValue ? 1 : -1)
+          : (aValue < bValue ? 1 : -1)
+      }
+    })
 
     setFilteredUsers(filtered)
   }
@@ -116,8 +311,48 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
   }
 
   const handleBulkAction = async (action: string) => {
-    // Implement bulk actions like deactivate, export, etc.
     console.log('Bulk action:', action, selectedUsers)
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const handleCopyEmail = async (email: string) => {
+    const success = await copyToClipboard(email)
+    if (success) {
+      setCopiedEmails(prev => new Set(prev.add(email)))
+      showToast('Email copied to clipboard', 'success')
+      
+      setTimeout(() => {
+        setCopiedEmails(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(email)
+          return newSet
+        })
+      }, 2000)
+    } else {
+      showToast('Failed to copy email', 'error')
+    }
+  }
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-50" />
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4" />
+      : <ArrowDown className="w-4 h-4" />
   }
 
   const getUserTypeLabel = (userType: string) => {
@@ -144,6 +379,24 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     return colors[userType] || 'bg-gray-100 text-gray-800'
   }
 
+  const getAccountStatus = (lastLoginAt: string | null) => {
+    if (!lastLoginAt) {
+      return { status: 'inactive', label: 'Inactive', color: 'bg-gray-100 text-gray-800' }
+    }
+    
+    const lastLogin = new Date(lastLoginAt)
+    const now = new Date()
+    const daysDiff = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (daysDiff <= 7) {
+      return { status: 'active', label: 'Active', color: 'bg-green-100 text-green-800' }
+    } else if (daysDiff <= 30) {
+      return { status: 'recent', label: 'Recent', color: 'bg-yellow-100 text-yellow-800' }
+    } else {
+      return { status: 'inactive', label: 'Inactive', color: 'bg-gray-100 text-gray-800' }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 text-center">
@@ -157,10 +410,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
 
   return (
     <>
-      <div className="p-6">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Search */}
+      <div className="px-0 pt-6">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 px-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -172,9 +423,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2">
-            {/* Filter */}
             <div className="relative">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -223,23 +472,12 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               )}
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="inline-flex rounded-lg border border-gray-300">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+            <div className="hidden sm:flex items-center px-3 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg border border-gray-200">
+              <Users className="w-4 h-4 mr-2" />
+              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+              {searchTerm || filterRole !== 'all' ? ` (filtered)` : ''}
             </div>
 
-            {/* Add User Button */}
             {permissions.canInviteUsers && (
               <button
                 onClick={() => setShowInviteModal(true)}
@@ -252,24 +490,23 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
           </div>
         </div>
 
-        {/* Bulk Actions Bar */}
         {selectedUsers.length > 0 && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <div className="mb-4 p-3 bg-gradient-to-r from-emerald-50 to-amber-50 dark:from-emerald-900 dark:to-amber-900 border border-emerald-200 dark:border-emerald-700 flex items-center justify-between opacity-80 px-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleSelectAll}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-emerald-700 dark:text-amber-400 hover:text-emerald-800 dark:hover:text-amber-300 font-medium"
               >
                 {selectedUsers.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
               </button>
-              <span className="text-sm text-blue-800">
+              <span className="text-sm text-emerald-800 dark:text-amber-400">
                 {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
               </span>
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleBulkAction('export')}
-                className="inline-flex items-center px-3 py-1 border border-blue-300 rounded text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
+                className="inline-flex items-center px-3 py-1 border border-emerald-300 dark:border-emerald-700 rounded text-sm font-medium text-emerald-700 dark:text-amber-400 bg-white dark:bg-gray-900 hover:bg-emerald-50 dark:hover:bg-gray-800"
               >
                 <Download className="w-4 h-4 mr-1" />
                 Export
@@ -277,7 +514,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               {permissions.canDeleteUsers && (
                 <button
                   onClick={() => handleBulkAction('deactivate')}
-                  className="inline-flex items-center px-3 py-1 border border-red-300 rounded text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+                  className="inline-flex items-center px-3 py-1 border border-red-300 dark:border-red-700 rounded text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-900 hover:bg-red-50 dark:hover:bg-red-900"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Deactivate
@@ -286,196 +523,251 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
             </div>
           </div>
         )}
-
-        {/* Users Display */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredUsers.map(user => (
-              <div
-                key={user.id}
-                className="relative bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                {/* Selection Checkbox */}
-                {permissions.canEditCompanyUsers || permissions.canEditAllUsers ? (
-                  <div className="absolute top-4 right-4">
+      </div>
+      
+      <div className="bg-white dark:bg-gray-900 w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full divide-y divide-pearl-200 dark:divide-gray-700">
+            <thead className="bg-gradient-to-r from-emerald-800 to-emerald-900 dark:from-emerald-900 dark:to-emerald-950">
+              <tr>
+                {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
+                  <th className="px-4 py-4 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={() => handleSelectUser(user.id)}
+                      checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                      onChange={handleSelectAll}
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                     />
-                  </div>
-                ) : null}
-
-                {/* User Info */}
-                <div className="flex items-start space-x-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white font-semibold">
-                    {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-gray-900 truncate">
-                      {user.full_name || 'Unnamed User'}
-                    </h4>
-                    <p className="text-xs text-gray-600 truncate">{user.email}</p>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getUserTypeBadgeColor(user.user_type)}`}>
-                        {getUserTypeLabel(user.user_type)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* User Details */}
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                  {user.company_name && (
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Building2 className="w-3 h-3 mr-1" />
-                      {user.company_name}
-                    </div>
-                  )}
-                  <div className="flex items-center text-xs text-gray-500">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    Joined {new Date(user.created_at).toLocaleDateString()}
-                  </div>
-                  {user.last_login_at && (
-                    <div className="flex items-center text-xs text-gray-500">
-                      <User className="w-3 h-3 mr-1" />
-                      Last active {new Date(user.last_login_at).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between">
-                    <button
-                      onClick={() => handleEditUser(user)}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button className="text-sm text-gray-600 hover:text-gray-700">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
+                  </th>
                 )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-hidden border border-gray-200 rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
-                    <th className="px-6 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
-                        onChange={handleSelectAll}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                    </th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Company
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Active
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                
+                <th className="px-4 py-4 text-left">
+                  <button 
+                    onClick={() => handleSort('full_name')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Name</span>
+                    {getSortIcon('full_name')}
+                  </button>
+                </th>
+                
+                <th className="px-1 py-4 text-left" style={{width: '28px'}}>
+                  <button 
+                    onClick={() => handleSort('email')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Email</span>
+                    {getSortIcon('email')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden md:table-cell">
+                  <button 
+                    onClick={() => handleSort('company_name')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Company</span>
+                    {getSortIcon('company_name')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden lg:table-cell">
+                  <button 
+                    onClick={() => handleSort('user_type')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Role</span>
+                    {getSortIcon('user_type')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden md:table-cell">
+                  <button 
+                    onClick={() => handleSort('last_login_at')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Last Login</span>
+                    {getSortIcon('last_login_at')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden lg:table-cell">
+                  <button 
+                    onClick={() => handleSort('total_trips')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Total Trips</span>
+                    {getSortIcon('total_trips')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden lg:table-cell">
+                  <button 
+                    onClick={() => handleSort('trips_this_year')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>This Year</span>
+                    {getSortIcon('trips_this_year')}
+                  </button>
+                </th>
+                
+                <th className="px-4 py-4 text-left hidden lg:table-cell">
+                  <button 
+                    onClick={() => handleSort('upcoming_trips')}
+                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                  >
+                    <span>Upcoming</span>
+                    {getSortIcon('upcoming_trips')}
+                  </button>
+                </th>
+                
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-pearl-200 dark:divide-gray-700">
+              {filteredUsers.map((user, index) => {
+                return (
+                  <tr 
+                    key={user.id} 
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                      index % 2 === 0 
+                        ? 'bg-white dark:bg-[#1A1A1A]' 
+                        : 'bg-gray-100 dark:bg-[#242424]'
+                    }`}
+                  >
                     {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <input
                           type="checkbox"
                           checked={selectedUsers.includes(user.id)}
                           onChange={() => handleSelectUser(user.id)}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          className="rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-800"
                         />
                       </td>
                     )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white font-semibold">
-                          {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                    
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="text-left w-full group relative flex items-center"
+                        aria-label={`Edit user ${user.full_name}`}
+                      >
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {user.full_name || 'Unnamed User'}
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.full_name || 'Unnamed User'}
-                          </div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                        <Edit className="ml-2 w-4 h-4 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="text-xs text-gray-500 dark:text-gray-400 lg:hidden">
+                          {getUserTypeLabel(user.user_type)}
                         </div>
+                      </button>
+                    </td>
+                    
+                    <td className="px-0 py-4 whitespace-nowrap" style={{width: '28px'}}>
+                      <div className="flex items-center space-x-0.5">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 font-mono truncate" title={user.email} style={{maxWidth: '20px'}}>
+                          {maskEmail(user.email)}
+                        </span>
+                        <button
+                          onClick={() => handleCopyEmail(user.email)}
+                          className="inline-flex items-center justify-center w-3 h-3 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+                          title="Copy full email"
+                        >
+                          {copiedEmails.has(user.email) ? (
+                            <Check className="w-2 h-2 text-green-600" />
+                          ) : (
+                            <Copy className="w-2 h-2 text-gray-400 hover:text-gray-600" />
+                          )}
+                        </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUserTypeBadgeColor(user.user_type)}`}>
+                    
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                      <span className="truncate">
+                        {user.company_name ? user.company_name.split(' ')[0] : 'Wolthers'}
+                      </span>
+                    </td>
+                    
+                    <td className="px-4 py-4 whitespace-nowrap hidden lg:table-cell">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
                         {getUserTypeLabel(user.user_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.company_name || 'Wolthers & Associates'}
+
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{formatLastLogin(user.last_login_at)}</span>
+                        {user.last_login_at && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            {new Date(user.last_login_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.last_login_at
-                        ? new Date(user.last_login_at).toLocaleDateString()
-                        : 'Never'}
+                    
+                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {formatNumber(user.trip_stats?.total_trips || 0)}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="text-emerald-600 hover:text-emerald-900"
-                        >
-                          Edit
-                        </button>
-                      )}
+                    
+                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {user.trip_stats?.trips_this_year || 0}
+                      </span>
+                    </td>
+                    
+                    <td className="px-4 py-4 whitespace-nowrap text-center hidden lg:table-cell">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {user.trip_stats?.upcoming_trips || 0}
+                      </span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterRole !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Get started by inviting team members'}
-            </p>
-            {permissions.canInviteUsers && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowInviteModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Invite User
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modals */}
+      {filteredUsers.length === 0 && (
+        <div className="bg-white dark:bg-gray-900 border border-pearl-200 dark:border-gray-700 rounded-lg text-center py-12">
+          <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No users found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {searchTerm || filterRole !== 'all'
+              ? 'Try adjusting your filters'
+              : 'Get started by inviting team members'}
+          </p>
+          {permissions.canInviteUsers && (
+            <div className="mt-6">
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Invite User
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
+            toast.type === 'success' 
+              ? 'bg-green-600 text-white' 
+              : 'bg-red-600 text-white'
+          }`}>
+            {toast.type === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <X className="w-4 h-4" />
+            )}
+            <span className="text-sm font-medium">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {showEditModal && editingUser && (
         <UserEditModal
           user={editingUser}

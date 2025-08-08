@@ -92,6 +92,29 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Get profile picture from Microsoft Graph
+    let profilePictureUrl = null
+    try {
+      const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+        },
+      })
+      
+      if (photoResponse.ok) {
+        // Convert the image to a data URL for storage
+        const photoBlob = await photoResponse.blob()
+        const photoBuffer = await photoBlob.arrayBuffer()
+        const base64String = Buffer.from(photoBuffer).toString('base64')
+        profilePictureUrl = `data:${photoBlob.type};base64,${base64String}`
+        console.log('✅ Got Microsoft profile picture')
+      } else {
+        console.log('ℹ️ No Microsoft profile picture available')
+      }
+    } catch (error) {
+      console.log('ℹ️ Could not fetch Microsoft profile picture:', error.message)
+    }
+
     if (!userResponse.ok) {
       console.error('❌ Failed to get user info from Microsoft Graph')
       return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('Failed to get user info')}`)
@@ -178,6 +201,7 @@ export async function GET(request: NextRequest) {
       full_name: fullName,
       microsoft_oauth_id: msUser.id,
       company_id: companyId, // Link to company if detected
+      profile_picture_url: profilePictureUrl, // Include Microsoft profile picture
       last_login_at: new Date().toISOString(),
       last_login_timezone: timezone,
       last_login_provider: 'microsoft',

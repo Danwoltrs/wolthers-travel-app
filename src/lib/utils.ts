@@ -145,3 +145,90 @@ export function formatTripDates(startDate: Date | string, endDate: Date | string
   
   return { dateRange, duration: durationText }
 }
+
+/**
+ * Masks an email address by showing only beginning part (e.g., "daniel@w...")
+ */
+export function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return email
+  
+  const [localPart, domain] = email.split('@')
+  const domainStart = domain.charAt(0)
+  
+  return `${localPart}@${domainStart}...`
+}
+
+/**
+ * Formats a date with timezone awareness and relative time
+ */
+export function formatLastLogin(date: string | Date | null): string {
+  if (!date) return 'Never'
+  
+  const loginDate = new Date(date)
+  const now = new Date()
+  const diffTime = now.getTime() - loginDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+  const diffMinutes = Math.floor(diffTime / (1000 * 60))
+  
+  if (diffMinutes < 60) {
+    return diffMinutes <= 1 ? 'Just now' : `${diffMinutes}m ago`
+  } else if (diffHours < 24) {
+    return `${diffHours}h ago`
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  } else {
+    return loginDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+}
+
+/**
+ * Copies text to clipboard and shows a temporary success state
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch (err) {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    
+    let success = false
+    try {
+      success = document.execCommand('copy')
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+    }
+    
+    document.body.removeChild(textArea)
+    return success
+  }
+}
+
+/**
+ * Formats a number with appropriate suffix (k, M, etc.)
+ */
+export function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}k`
+  }
+  return num.toString()
+}

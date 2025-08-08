@@ -109,6 +109,39 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 
 ### Design System
 
+#### Modal Design Standards
+All modals throughout the application must follow the QuickView modal design system to ensure visual consistency:
+
+**Modal Container:**
+- Background: `bg-white dark:bg-[#1a1a1a]`
+- Border: `border border-pearl-200 dark:border-[#2a2a2a]`
+- Shadow: `shadow-xl`
+- Border radius: `rounded-lg`
+- Max width: `max-w-5xl`
+- Responsive padding: `p-2 md:p-4` (outer), `p-3 md:p-6` (inner content)
+
+**Modal Header:**
+- Background: `bg-golden-400 dark:bg-[#09261d]`
+- Text colors: `text-white dark:text-golden-400`
+- Border: `border-b border-pearl-200 dark:border-[#0a2e21]`
+- Layout: Flex with space-between for title and close button
+
+**Modal Content:**
+- Background: `bg-white dark:bg-[#1a1a1a]`
+- Cards within content: `border border-pearl-200 dark:border-[#2a2a2a]`
+- Section headers: `text-gray-900 dark:text-golden-400`
+- Body text: `text-gray-700 dark:text-gray-300`
+- Subtle text: `text-gray-500 dark:text-gray-400`
+
+**Interactive Elements:**
+- Tabs active: `bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400`
+- Tabs inactive: `text-white/70 dark:text-golden-400/70`
+- Close button: `text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300`
+
+**Form Elements:**
+- Checkboxes: `dark:bg-[#1a1a1a] dark:border-[#2a2a2a]`
+- Borders: `dark:border-[#2a2a2a]` for separators
+
 #### Color Palette
 - **Primary Green**: Deep forest green for headers and navigation (`#2D5347` range)
 - **Gold Accents**: Warm golden tones for card sections and highlights (`#FEF3C7`, `#F3E8A6`)
