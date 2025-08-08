@@ -147,7 +147,7 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
               <>
                 {/* Single User Invite */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-4">User Information</h3>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">User Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -197,7 +197,7 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
               <>
                 {/* Bulk Invite */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">Bulk Email Addresses</h3>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Bulk Email Addresses</h3>
                   <p className="text-sm text-gray-500 mb-4">
                     Enter multiple email addresses separated by commas, semicolons, or new lines
                   </p>
@@ -220,7 +220,7 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
 
             {/* Role & Permissions */}
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
                 <Shield className="inline w-4 h-4 mr-1" />
                 Role & Access
               </h3>

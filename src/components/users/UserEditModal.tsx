@@ -79,7 +79,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
           <div className="space-y-6">
             {/* Basic Information */}
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Basic Information</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -108,7 +108,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
 
             {/* Contact Information */}
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Contact Information</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Contact Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -142,7 +142,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
             {/* Role & Permissions - Only show if user has permission to assign roles */}
             {permissions.canAssignRoles && (
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
                   <Shield className="inline w-4 h-4 mr-1" />
                   Role & Permissions
                 </h3>
@@ -203,7 +203,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
 
             {/* Account Information - Read Only */}
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Account Information</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Account Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">User ID</p>

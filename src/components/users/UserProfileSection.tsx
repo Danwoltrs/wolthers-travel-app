@@ -109,7 +109,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 className="text-xl font-semibold text-gray-900 border-b-2 border-emerald-500 focus:outline-none px-1"
               />
             ) : (
-              <h3 className="text-xl font-semibold text-gray-900">{user?.full_name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-300">{user?.full_name}</h3>
             )}
             <p className="text-gray-600">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2">
@@ -164,7 +164,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Contact Information */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Contact Information</h4>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Contact Information</h4>
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
@@ -215,7 +215,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
 
         {/* Organization & Settings */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Organization & Settings</h4>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Organization & Settings</h4>
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
@@ -274,7 +274,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       {/* Notification Preferences */}
       {isOwnProfile && (
         <div className="mt-6 pt-6 border-t border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-yellow-200 uppercase tracking-wider mb-4">
             <Bell className="inline w-4 h-4 mr-2" />
             Notification Preferences
           </h4>
