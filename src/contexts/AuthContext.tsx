@@ -315,7 +315,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithAzure = async () => {
     try {
       const { createMicrosoftAuthProvider } = await import('@/lib/microsoft-auth')
-      const redirectUri = `${window.location.origin}/auth/callback`
+      // Use different redirect URIs for localhost vs production
+      const isLocalhost = window.location.hostname === 'localhost'
+      const redirectUri = isLocalhost 
+        ? `${window.location.origin}/auth/callback`
+        : `${window.location.origin}/api/auth/callback/microsoft`
       
       const authProvider = createMicrosoftAuthProvider(redirectUri)
       const authUrl = authProvider.getAuthUrl()
