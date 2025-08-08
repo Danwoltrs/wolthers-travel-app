@@ -15,19 +15,27 @@ async function createSessionToken(userId: string): Promise<string> {
   return sign(payload, secret)
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🚀 Microsoft callback API: Request received')
-    const { code, redirectUri } = await request.json()
-    console.log('📋 Request data:', { hasCode: !!code, redirectUri })
-
-    if (!code || !redirectUri) {
-      console.error('❌ Missing required parameters')
-      return NextResponse.json(
-        { error: 'Code and redirect URI are required' },
-        { status: 400 }
-      )
+    console.log('🚀 Microsoft callback API (GET): Request received')
+    const { searchParams } = new URL(request.url)
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
+    
+    console.log('📋 Request data:', { hasCode: !!code, error, errorDescription })
+    
+    if (error) {
+      console.error('❌ OAuth error:', error, errorDescription)
+      return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent(errorDescription || error)}`)
     }
+    
+    if (!code) {
+      console.error('❌ No authorization code received')
+      return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('No authorization code received')}`)
+    }
+    
+    const redirectUri = `${request.nextUrl.origin}/api/auth/callback/microsoft`
 
     const clientId = process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID
     const clientSecret = process.env.AZURE_AD_CLIENT_SECRET
@@ -42,10 +50,7 @@ export async function POST(request: NextRequest) {
 
     if (!clientId || !clientSecret || !tenantId) {
       console.error('❌ Missing Azure AD configuration')
-      return NextResponse.json(
-        { error: 'Authentication configuration error' },
-        { status: 500 }
-      )
+      return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('Authentication configuration error')}`)
     }
 
     console.log('🔄 Starting token exchange with Microsoft...')
@@ -73,10 +78,7 @@ export async function POST(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json()
       console.error('❌ Token exchange failed:', errorData)
-      return NextResponse.json(
-        { error: errorData.error_description || 'Token exchange failed' },
-        { status: 401 }
-      )
+      return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent(errorData.error_description || 'Token exchange failed')}`)
     }
 
     const tokens = await tokenResponse.json()
@@ -92,10 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error('❌ Failed to get user info from Microsoft Graph')
-      return NextResponse.json(
-        { error: 'Failed to get user info' },
-        { status: 401 }
-      )
+      return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('Failed to get user info')}`)
     }
 
     const msUser = await userResponse.json()
@@ -198,10 +197,7 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         console.error('User update error:', error)
-        return NextResponse.json(
-          { error: 'Failed to update user' },
-          { status: 500 }
-        )
+        return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('Failed to update user')}`)
       }
 
       user = data
@@ -254,13 +250,7 @@ export async function POST(request: NextRequest) {
           hint: error.hint
         })
         
-        return NextResponse.json(
-          { 
-            error: `Failed to create user: ${error.message}`,
-            details: error.details || 'Database constraint violation'
-          },
-          { status: 500 }
-        )
+        return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent(`Failed to create user: ${error.message}`)}`)
       }
 
       console.log('✅ User created successfully:', data.id)
@@ -273,16 +263,8 @@ export async function POST(request: NextRequest) {
     // Create a session token for the client
     const sessionToken = await createSessionToken(user.id)
 
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        microsoft_oauth_id: user.microsoft_oauth_id,
-      },
-      sessionToken,
-    })
+    // Redirect to dashboard with auth token in cookie
+    const response = NextResponse.redirect(`${request.nextUrl.origin}/dashboard`)
 
     // Set the session as an HTTP-only cookie
     response.cookies.set('auth-token', sessionToken, {
@@ -296,9 +278,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Microsoft auth callback error:', error)
-    return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 500 }
-    )
+    return NextResponse.redirect(`${request.nextUrl.origin}/?error=${encodeURIComponent('Authentication failed')}`)
   }
 }
