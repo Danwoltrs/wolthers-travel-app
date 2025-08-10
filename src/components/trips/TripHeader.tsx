@@ -5,26 +5,79 @@ import type { Trip } from '@/types'
 
 interface TripHeaderProps {
   trip: Trip
+  tripData?: any
 }
 
-export default function TripHeader({ trip }: TripHeaderProps) {
-  // Mock data for guests and vehicles - replace with actual data
-  const mockGuests = [
-    { companyId: '1', companyName: 'Acme Coffee Co.', names: ['John Smith', 'Sarah Johnson'] },
-    { companyId: '2', companyName: 'Bean & Beyond', names: ['Mike Wilson', 'Lisa Chen'] }
-  ]
-
-  const mockWolthersStaff = ['Erik Wolthers', 'Anna Møller']
-
-  const mockVehicles = [
-    { id: '1', make: 'Toyota', model: 'Land Cruiser', licensePlate: 'ABC-123', driver: 'Carlos Rodriguez' },
-    { id: '2', make: 'Ford', model: 'Transit', licensePlate: 'XYZ-789', driver: 'Maria Santos' }
-  ]
-
+export default function TripHeader({ trip, tripData }: TripHeaderProps) {
+  // Extract real data from tripData or fall back to trip data
+  const participants = tripData?.trip_participants || []
+  const vehicles = tripData?.trip_vehicles || []
+  
+  // Process participants to get guests and Wolthers staff
+  const guestParticipants = participants.filter((p: any) => 
+    p.role === 'client_representative' || 
+    p.role === 'participant' || 
+    p.role === 'guest'
+  )
+  
+  const wolthersStaff = participants.filter((p: any) => 
+    p.role === 'trip_lead' || 
+    p.role === 'coordinator' ||
+    p.role === 'business_development' ||
+    p.role === 'account_manager'
+  )
+  
+  // Extract guest names grouped by company
+  const guestsByCompany = guestParticipants.reduce((acc: any, p: any) => {
+    const companyName = p.companies?.name || p.companies?.fantasy_name || 'Unknown Company'
+    const userName = p.users?.full_name || 'Unknown Guest'
+    
+    if (!acc[companyName]) {
+      acc[companyName] = []
+    }
+    acc[companyName].push(userName)
+    return acc
+  }, {})
+  
+  // Format guest display
+  const guestGroups = Object.entries(guestsByCompany).map(([company, names]) => ({
+    companyName: company,
+    names: names as string[]
+  }))
+  
+  // Extract Wolthers staff names
+  const wolthersStaffNames = wolthersStaff.map((p: any) => p.users?.full_name || 'Unknown Staff')
+  
+  // Extract vehicle and driver information
+  const vehicleInfo = vehicles.map((v: any) => {
+    const vehicleModel = v.vehicles?.model || 'Unknown Vehicle'
+    const licensePlate = v.vehicles?.license_plate || ''
+    const driverName = v.users?.full_name || 'Unknown Driver'
+    
+    // Split model into make and model if possible
+    const modelParts = vehicleModel.split(' ')
+    const make = modelParts[0] || ''
+    const model = modelParts.slice(1).join(' ') || vehicleModel
+    
+    return {
+      make,
+      model,
+      licensePlate,
+      driver: driverName,
+      display: licensePlate ? `${vehicleModel} (${licensePlate})` : vehicleModel
+    }
+  })
+  
   // Flatten all guest names for compact display
-  const allGuestNames = mockGuests.flatMap(group => group.names)
-  const allVehicles = mockVehicles.map(vehicle => `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`)
-  const allDrivers = mockVehicles.map(vehicle => vehicle.driver)
+  const allGuestNames = guestGroups.flatMap(group => group.names)
+  const allVehicles = vehicleInfo.map(v => v.display)
+  const allDrivers = vehicleInfo.map(v => v.driver)
+  
+  // Fallback to mock data if no real data available
+  const displayGuestNames = allGuestNames.length > 0 ? allGuestNames : ['No guests assigned']
+  const displayWolthersStaff = wolthersStaffNames.length > 0 ? wolthersStaffNames : ['No staff assigned']
+  const displayVehicles = allVehicles.length > 0 ? allVehicles : ['No vehicles assigned']
+  const displayDrivers = allDrivers.length > 0 ? allDrivers : ['No drivers assigned']
 
   return (
     <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-sm p-4 mb-6 border border-[#D4C5B0] dark:border-[#2a2a2a]">
@@ -44,7 +97,7 @@ export default function TripHeader({ trip }: TripHeaderProps) {
           <div className="flex items-start lg:items-center">
             <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Guests:</span>
             <span className="text-gray-700 dark:text-gray-300">
-              {allGuestNames.join(', ')}
+              {displayGuestNames.join(', ')}
             </span>
           </div>
 
@@ -52,7 +105,7 @@ export default function TripHeader({ trip }: TripHeaderProps) {
           <div className="flex items-start lg:items-center">
             <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Wolthers Staff:</span>
             <span className="text-gray-700 dark:text-gray-300">
-              {mockWolthersStaff.join(', ')}
+              {displayWolthersStaff.join(', ')}
             </span>
           </div>
         </div>
@@ -66,7 +119,7 @@ export default function TripHeader({ trip }: TripHeaderProps) {
           <div className="flex items-start lg:items-center">
             <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Vehicles:</span>
             <span className="text-gray-700 dark:text-gray-300">
-              {allVehicles.join(', ')}
+              {displayVehicles.join(', ')}
             </span>
           </div>
 
@@ -74,7 +127,7 @@ export default function TripHeader({ trip }: TripHeaderProps) {
           <div className="flex items-start lg:items-center">
             <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Drivers:</span>
             <span className="text-gray-700 dark:text-gray-300">
-              {allDrivers.join(', ')}
+              {displayDrivers.join(', ')}
             </span>
           </div>
         </div>

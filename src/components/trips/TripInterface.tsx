@@ -185,7 +185,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       )}>
         {/* Trip Header */}
         <div className="mt-36 md:mt-6">
-          <TripHeader trip={trip} />
+          <TripHeader trip={trip} tripData={tripDetails} />
         </div>
 
         {/* Map Section - Only show if there are locations */}
