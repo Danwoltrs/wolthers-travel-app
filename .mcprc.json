@@ -1,26 +1,34 @@
 {
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "supabase-access-token",
+      "description": "Supabase personal access token",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "supabase-db-password",
+      "description": "Supabase database password",
+      "password": true
+    }
+  ],
   "mcpServers": {
+    "supabase": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@supabase/mcp-server-supabase@latest", "--read-only", "--project-ref=ojyonxplpmhvcgaycznc"],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${input:supabase-access-token}"
+      }
+    },
     "supabase-postgres": {
       "command": "npx",
       "args": [
         "@modelcontextprotocol/server-postgres",
-        "postgresql://postgres.ojyonxplpmhvcgaycznc:${SUPABASE_DB_PASSWORD}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
+        "postgresql://postgres.ojyonxplpmhvcgaycznc:${input:supabase-db-password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
       ],
       "env": {
-        "POSTGRES_CONNECTION_STRING": "postgresql://postgres.ojyonxplpmhvcgaycznc:${SUPABASE_DB_PASSWORD}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
-      }
-    },
-    "supabase-api": {
-      "command": "node",
-      "args": [
-        "-e",
-        "const { createClient } = require('@supabase/supabase-js'); const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY); console.log('Supabase MCP Server Ready');"
-      ],
-      "env": {
-        "SUPABASE_URL": "https://ojyonxplpmhvcgaycznc.supabase.co",
-        "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY}",
-        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
-        "SUPABASE_PROJECT_ID": "ojyonxplpmhvcgaycznc"
+        "POSTGRES_CONNECTION_STRING": "postgresql://postgres.ojyonxplpmhvcgaycznc:${input:supabase-db-password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
       }
     }
   }

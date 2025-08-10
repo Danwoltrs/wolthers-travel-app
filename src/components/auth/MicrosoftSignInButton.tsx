@@ -30,20 +30,19 @@ export function MicrosoftSignInButton({
       if (onSignIn) {
         await onSignIn()
       } else {
-        // Create Microsoft auth provider with dynamic redirect URI
+        // Clear any old session storage first
+        sessionStorage.removeItem('microsoftAuthProvider')
+        localStorage.removeItem('auth-token')
+        
+        // Always use the server-side API endpoint for Microsoft OAuth
         const currentUrl = window.location.origin
-        const redirectUri = `${currentUrl}/auth/callback`
+        const redirectUri = `${currentUrl}/api/auth/callback/microsoft`
         
         const authProvider = createMicrosoftAuthProvider(redirectUri)
         const authUrl = authProvider.getAuthUrl()
 
-        // Store the provider instance for callback handling
-        sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
-          clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
-          tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
-          redirectUri,
-        }))
-
+        console.log('🔗 Redirecting to Microsoft OAuth:', { redirectUri })
+        
         // Redirect to Microsoft OAuth
         window.location.href = authUrl
       }

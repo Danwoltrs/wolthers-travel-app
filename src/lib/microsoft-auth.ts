@@ -100,7 +100,7 @@ export function createMicrosoftAuthProvider(redirectUri?: string): MicrosoftAuth
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const defaultRedirectUri = `${baseUrl}/auth/callback`
+  const defaultRedirectUri = `${baseUrl}/api/auth/callback/microsoft`
 
   return new MicrosoftAuthProvider({
     clientId,

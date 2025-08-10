@@ -22,12 +22,16 @@ function AuthCallbackContent() {
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
         const state = searchParams.get('state')
+        const success = searchParams.get('success')
+        const provider = searchParams.get('provider')
 
         console.log('📊 Callback params:', { 
           hasCode: !!code, 
           error, 
           errorDescription,
-          state: state?.substring(0, 10) + '...' 
+          state: state?.substring(0, 10) + '...', 
+          success,
+          provider
         })
 
         if (error) {
@@ -36,64 +40,39 @@ function AuthCallbackContent() {
           return
         }
 
+        // Handle successful Microsoft authentication (redirected from API route)
+        if (success === 'true' && provider === 'microsoft') {
+          console.log('✅ Microsoft authentication successful, redirecting to dashboard...')
+          // Clear any old session storage
+          sessionStorage.removeItem('microsoftAuthProvider')
+          router.push('/dashboard')
+          return
+        }
+
         if (code) {
-          // Check if this is a Microsoft OAuth callback
-          const storedMsAuth = sessionStorage.getItem('microsoftAuthProvider')
-          console.log('🔐 Stored MS auth config:', storedMsAuth ? 'Found' : 'Not found')
+          console.log('🔄 Received OAuth code, checking for Microsoft callback...')
           
+          // Check if this could be a Microsoft OAuth callback that somehow ended up here
+          // instead of going directly to /api/auth/callback/microsoft
+          const storedMsAuth = sessionStorage.getItem('microsoftAuthProvider')
           if (storedMsAuth) {
-            console.log('🔄 Processing Microsoft OAuth callback...')
-            // Handle Microsoft OAuth callback
-            const msConfig = JSON.parse(storedMsAuth)
-            const msAuthProvider = new MicrosoftAuthProvider(msConfig)
-            
-            console.log('📞 Calling Microsoft auth handler...')
-            const result = await msAuthProvider.handleCallback(code)
-            console.log('📋 Microsoft auth result:', { 
-              success: result.success, 
-              hasUser: !!result.user,
-              hasToken: !!result.sessionToken,
-              error: result.error 
-            })
-            
-            if (result.success && result.user) {
-              console.log('✅ Successfully authenticated Microsoft user:', result.user.email)
-              
-              // Store session token in localStorage for client-side access
-              if (result.sessionToken) {
-                console.log('💾 Storing session token...')
-                localStorage.setItem('auth-token', result.sessionToken)
-              }
-              
-              // Track the login event
-              console.log('📈 Tracking login event...')
-              await trackLoginEvent(result.user.id, 'microsoft', result.user.email)
-              
-              // Clear stored config
-              sessionStorage.removeItem('microsoftAuthProvider')
-              
-              console.log('🚀 Redirecting to dashboard...')
-              router.push('/dashboard')
-              return
-            } else {
-              console.error('❌ Microsoft auth failed:', result.error)
-              sessionStorage.removeItem('microsoftAuthProvider')
-              router.push(`/?error=${encodeURIComponent(result.error || 'Microsoft authentication failed')}`)
-              return
-            }
+            console.log('🔄 Microsoft OAuth detected, redirecting to server-side handler...')
+            window.location.href = `/api/auth/callback/microsoft?code=${code}&state=${state || ''}`
+            return
           }
 
           // Handle regular Supabase OAuth callback
+          console.log('🔄 Processing Supabase OAuth callback...')
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
           
           if (error) {
-            console.error('Error exchanging code for session:', error)
+            console.error('❌ Error exchanging code for session:', error)
             router.push(`/?error=${encodeURIComponent(error.message)}`)
             return
           }
 
           if (data.session) {
-            console.log('Successfully authenticated user:', data.session.user.email)
+            console.log('✅ Successfully authenticated user:', data.session.user.email)
             
             // Track the login event for regular auth
             await trackLoginEvent(data.session.user.id, 'email', data.session.user.email || '')

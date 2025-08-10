@@ -40,36 +40,98 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
+      console.log('🚀 Starting auth initialization...')
+      
       // First check for existing Supabase session
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('📊 Supabase session check:', { hasSession: !!session?.user })
       
       if (session?.user) {
+        console.log('✅ Found Supabase session for:', session.user.email)
         setSession(session)
         await loadUserProfile(session.user)
       } else {
-        // Check for token-based authentication (Microsoft auth)
-        const authToken = localStorage.getItem('auth-token')
-        console.log('🌐 Browser check:', {
-          userAgent: navigator.userAgent.includes('Edge') ? 'Microsoft Edge' : 'Other browser',
-          hasToken: !!authToken,
-          tokenLength: authToken?.length || 0
-        })
-        
-        if (authToken) {
-          try {
-            await loadUserProfileFromToken(authToken)
-          } catch (error) {
-            console.error('Failed to load user from token:', error)
-            localStorage.removeItem('auth-token') // Clear invalid token
-            await loadCachedUserProfile()
+        // Check for session via httpOnly cookie (Microsoft auth flow)
+        try {
+          console.log('🔍 Checking session via httpOnly cookie...')
+          const response = await fetch('/api/auth/session', {
+            method: 'GET',
+            credentials: 'include', // Important: include cookies
+          })
+          
+          if (response.ok) {
+            const sessionData = await response.json()
+            console.log('📊 Session API response:', { 
+              authenticated: sessionData.authenticated,
+              hasUser: !!sessionData.user 
+            })
+            
+            if (sessionData.authenticated && sessionData.user) {
+              console.log('✅ Found valid session for:', sessionData.user.email)
+              
+              // Create a session-like object for compatibility
+              const mockSession = {
+                access_token: sessionData.sessionToken,
+                refresh_token: '',
+                expires_in: 30 * 24 * 60 * 60,
+                token_type: 'Bearer',
+                user: {
+                  id: sessionData.user.id,
+                  email: sessionData.user.email,
+                  user_metadata: {},
+                  app_metadata: {},
+                  aud: '',
+                  created_at: '',
+                  last_sign_in_at: '',
+                  confirmed_at: '',
+                  email_confirmed_at: '',
+                  phone: '',
+                  role: ''
+                }
+              }
+              
+              setSession(mockSession as any)
+              mapUserProfile(sessionData.user, null)
+              
+              // Cache the user profile for offline access
+              cacheUserProfile(sessionData.user)
+              
+              // Also store token in localStorage for compatibility with existing code
+              localStorage.setItem('auth-token', sessionData.sessionToken)
+            } else {
+              console.log('❌ No valid session found')
+              await handleNoSession()
+            }
+          } else {
+            console.log('❌ Session check failed, status:', response.status)
+            await handleNoSession()
           }
-        } else {
-          console.log('🔍 No auth token found, trying cached profile...')
-          // Try to load cached user for offline access
-          await loadCachedUserProfile()
+        } catch (error) {
+          console.error('❌ Session check error:', error)
+          await handleNoSession()
         }
       }
       setIsLoading(false)
+    }
+
+    const handleNoSession = async () => {
+      // Check localStorage as fallback for existing tokens
+      const authToken = localStorage.getItem('auth-token')
+      console.log('🔍 Fallback: checking localStorage token...', { hasToken: !!authToken })
+      
+      if (authToken) {
+        try {
+          await loadUserProfileFromToken(authToken)
+        } catch (error) {
+          console.error('Failed to load user from localStorage token:', error)
+          localStorage.removeItem('auth-token') // Clear invalid token
+          await loadCachedUserProfile()
+        }
+      } else {
+        console.log('🔍 No auth token found, trying cached profile...')
+        // Try to load cached user for offline access
+        await loadCachedUserProfile()
+      }
     }
 
     initializeAuth()
@@ -332,21 +394,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithAzure = async () => {
     try {
       const { createMicrosoftAuthProvider } = await import('@/lib/microsoft-auth')
-      // Use different redirect URIs for localhost vs production
-      const isLocalhost = window.location.hostname === 'localhost'
-      const redirectUri = isLocalhost 
-        ? `${window.location.origin}/auth/callback`
-        : `${window.location.origin}/api/auth/callback/microsoft`
+      
+      // Always use the server-side API endpoint for consistency
+      const redirectUri = `${window.location.origin}/api/auth/callback/microsoft`
       
       const authProvider = createMicrosoftAuthProvider(redirectUri)
       const authUrl = authProvider.getAuthUrl()
 
-      // Store the provider instance for callback handling
-      sessionStorage.setItem('microsoftAuthProvider', JSON.stringify({
-        clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID,
-        tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
-        redirectUri,
-      }))
+      console.log('🔗 Azure sign-in redirecting to:', { redirectUri })
 
       // Redirect to Microsoft OAuth
       window.location.href = authUrl
@@ -359,15 +414,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const signOut = async () => {
-    // Clear both Supabase session and our custom token
-    await supabase.auth.signOut()
-    localStorage.removeItem('auth-token')
-    
-    // Clear auth state
-    setSession(null)
-    setUser(null)
-    
-    router.push('/')
+    try {
+      // Clear both Supabase session and our custom token
+      await supabase.auth.signOut()
+      localStorage.removeItem('auth-token')
+      
+      // Clear the httpOnly cookie by calling logout endpoint
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {
+        // Ignore errors, we're logging out anyway
+      })
+      
+      // Clear auth state
+      setSession(null)
+      setUser(null)
+      
+      // Clear cached data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('trip_cache')
+        localStorage.removeItem('user_profile_cache')
+      }
+      
+      router.push('/')
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Still clear local state even if server request fails
+      setSession(null)
+      setUser(null)
+      router.push('/')
+    }
   }
 
   const resetPassword = async (email: string) => {
