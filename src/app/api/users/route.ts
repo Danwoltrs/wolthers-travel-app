@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verify } from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 // Admin client with service role key to bypass RLS
 const supabaseAdmin = createClient(
@@ -15,37 +17,71 @@ const supabaseAdmin = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json({ error: 'No authorization token' }, { status: 401 })
-    }
-
-    // Verify the current user has permission to view users
-    // First, get the current user from the token or session
-    let currentUser = null
+    let currentUser: any = null
     
-    // Try to verify via our auth API
-    try {
-      const response = await fetch(`${request.nextUrl.origin}/api/auth/session`, {
-        headers: {
-          'Cookie': request.headers.get('Cookie') || '',
-          'Authorization': authHeader || '',
-        },
-      })
-      
-      if (response.ok) {
-        const sessionData = await response.json()
-        currentUser = sessionData.user
+    // Try JWT token authentication first (Microsoft OAuth)
+    const authHeader = request.headers.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        // Get user from database with service role (bypasses RLS)
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          currentUser = userData
+          console.log('🔑 JWT Auth: Successfully authenticated user:', currentUser.email)
+        }
+      } catch (jwtError) {
+        console.log('🔑 JWT verification failed, trying Supabase session...')
       }
-    } catch (error) {
-      console.error('Failed to verify session:', error)
     }
 
+    // If JWT failed, try Supabase session authentication (Email/Password)
     if (!currentUser) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+      try {
+        const supabaseClient = createSupabaseServiceClient()
+        
+        // Try to get session from Supabase auth header
+        let authToken = null
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          authToken = authHeader.substring(7)
+        }
+        
+        // Check if this might be a Supabase session token
+        if (authToken && authToken.includes('.')) {
+          // This looks like a Supabase JWT token, try to verify with Supabase
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(authToken)
+          
+          if (!sessionError && supabaseUser) {
+            // Get full user profile from database
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              currentUser = userData
+              console.log('🔑 Supabase Auth: Successfully authenticated user:', currentUser.email)
+            }
+          }
+        }
+      } catch (supabaseError) {
+        console.log('🔑 Supabase authentication also failed:', supabaseError)
+      }
+    }
+    
+    // If both methods failed, return unauthorized
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     // Check if user has permission to view users
