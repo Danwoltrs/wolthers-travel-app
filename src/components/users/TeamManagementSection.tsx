@@ -325,9 +325,13 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       : <ArrowDown className="w-4 h-4" />
   }
 
-  const getUserTypeLabel = (userType: string) => {
+  const getUserTypeLabel = (userType: string, isGlobalAdmin?: boolean) => {
+    // If user is a global admin, always show that first
+    if (isGlobalAdmin) {
+      return 'Global Admin'
+    }
+    
     const labels: Record<string, string> = {
-      'global_admin': 'Global Admin',
       'wolthers_staff': 'Wolthers Staff',
       'admin': 'Company Admin',
       'client': 'Client',
@@ -337,9 +341,13 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     return labels[userType] || userType
   }
 
-  const getUserTypeBadgeColor = (userType: string) => {
+  const getUserTypeBadgeColor = (userType: string, isGlobalAdmin?: boolean) => {
+    // If user is a global admin, always use red styling
+    if (isGlobalAdmin) {
+      return 'bg-red-100 text-red-800'
+    }
+    
     const colors: Record<string, string> = {
-      'global_admin': 'bg-red-100 text-red-800',
       'wolthers_staff': 'bg-emerald-100 text-emerald-800',
       'admin': 'bg-blue-100 text-blue-800',
       'client': 'bg-gray-100 text-gray-800',
@@ -627,7 +635,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                         </div>
                         <Edit className="ml-2 w-4 h-4 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="text-xs text-gray-500 dark:text-gray-400 lg:hidden">
-                          {getUserTypeLabel(user.user_type)}
+                          {getUserTypeLabel(user.user_type, user.is_global_admin)}
                         </div>
                       </button>
                     </td>
@@ -679,7 +687,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                     
                     <td className="px-4 py-4 hidden lg:table-cell w-28 max-w-28">
                       <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
-                        {getUserTypeLabel(user.user_type)}
+                        {getUserTypeLabel(user.user_type, user.is_global_admin)}
                       </span>
                     </td>
 

@@ -160,19 +160,24 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
         throw new Error('Please enter a valid WhatsApp number')
       }
 
-      // Get auth token
+      // Get auth token (optional for Microsoft OAuth users)
       const authToken = localStorage.getItem('auth-token')
-      if (!authToken) {
-        throw new Error('Authentication required')
+      
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Add Authorization header if token is available
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`
       }
 
       // Call API endpoint to update profile
       const response = await fetch('/api/users', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
+        credentials: 'include', // Include cookies for Microsoft OAuth
         body: JSON.stringify({
           userId: user.id,
           updates: {
@@ -245,9 +250,13 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
     }
   }
 
-  const getUserTypeLabel = (userType: string) => {
+  const getUserTypeLabel = (userType: string, isGlobalAdmin?: boolean) => {
+    // If user is a global admin, always show that first
+    if (isGlobalAdmin) {
+      return 'Global Administrator'
+    }
+    
     const labels: Record<string, string> = {
-      'global_admin': 'Global Administrator',
       'wolthers_staff': 'Wolthers Staff',
       'admin': 'Company Administrator',
       'client': 'Client',
@@ -257,9 +266,13 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
     return labels[userType] || userType
   }
 
-  const getUserTypeBadgeColor = (userType: string) => {
+  const getUserTypeBadgeColor = (userType: string, isGlobalAdmin?: boolean) => {
+    // If user is a global admin, always use red styling
+    if (isGlobalAdmin) {
+      return 'bg-red-100 text-red-800 border-red-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
+    }
+    
     const colors: Record<string, string> = {
-      'global_admin': 'bg-red-100 text-red-800 border-red-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
       'wolthers_staff': 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
       'admin': 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
       'client': 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
@@ -336,9 +349,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
             )}
             <p className="text-gray-600">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUserTypeBadgeColor(user?.user_type)}`}>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUserTypeBadgeColor(user?.user_type, user?.is_global_admin)}`}>
                 <Shield className="w-3 h-3 mr-1" />
-                {getUserTypeLabel(user?.user_type)}
+                {getUserTypeLabel(user?.user_type, user?.is_global_admin)}
               </span>
               {user?.microsoft_oauth_id && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">

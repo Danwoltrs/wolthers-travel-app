@@ -80,29 +80,44 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
   const fetchTravelData = async () => {
     setIsLoading(true)
     try {
-      // Use authenticated API endpoint instead of direct Supabase calls
+      // Get auth token from localStorage (Microsoft OAuth or Supabase session)
       const authToken = localStorage.getItem('auth-token')
-      if (!authToken) {
-        console.error('No authentication token found for travel heatmap')
-        // Set empty state instead of staying in loading
-        setHasAnyTrips(false)
-        setYearlyHeatmapData([])
-        setIsLoading(false)
-        return
+      
+      console.log('TravelHeatmap: Fetching travel data via authenticated API...', {
+        hasAuthToken: !!authToken,
+        tokenType: authToken ? (authToken.includes('eyJ') ? 'JWT' : 'Supabase') : 'none',
+        endpoint: '/api/user/stats'
+      })
+      
+      // Prepare request headers - always include credentials for httpOnly cookies
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
       }
-
-      console.log('TravelHeatmap: Fetching travel data via authenticated API...')
+      
+      // Add Authorization header if token is available
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`
+      }
+      
       const response = await fetch('/api/user/stats', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+        headers,
+        credentials: 'include' // Always include cookies for Microsoft OAuth sessions
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
-        console.error('Travel heatmap API error:', errorData)
+        console.error('TravelHeatmap: API error:', {
+          status: response.status,
+          error: errorData,
+          hasAuthToken: !!authToken,
+          endpoint: '/api/user/stats'
+        })
+        
+        if (response.status === 401) {
+          console.log('TravelHeatmap: Authentication failed - user may need to re-authenticate')
+        }
+        
         // Set empty state for error cases
         setHasAnyTrips(false)
         setYearlyHeatmapData([])
@@ -157,7 +172,11 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
 
       setYearlyHeatmapData(yearlyHeatmapArray)
     } catch (error) {
-      console.error('Error fetching travel data:', error)
+      console.error('TravelHeatmap: Error fetching travel data:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        userId
+      })
       // Set empty state for error cases
       setHasAnyTrips(false)
       setYearlyHeatmapData([])

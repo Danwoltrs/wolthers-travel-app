@@ -161,9 +161,6 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
                       <option value="driver">Driver</option>
                       <option value="admin">Company Administrator</option>
                       <option value="wolthers_staff">Wolthers Staff</option>
-                      {permissions.canEditAllUsers && (
-                        <option value="global_admin">Global Administrator</option>
-                      )}
                     </select>
                   </div>
 
