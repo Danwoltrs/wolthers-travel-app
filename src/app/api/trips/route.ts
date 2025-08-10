@@ -1,43 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify JWT token
+    let user: any = null
+    
+    // Try JWT token authentication first (Microsoft OAuth)
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Missing or invalid authorization header' },
-        { status: 401 }
-      )
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        // Get user from database with service role (bypasses RLS)
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+          console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
+        }
+      } catch (jwtError) {
+        console.log('🔑 JWT verification failed, trying Supabase session...')
+      }
     }
 
-    const token = authHeader.substring(7)
-    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    // If JWT failed, try Supabase session authentication (Email/Password)
+    if (!user) {
+      try {
+        const supabaseClient = createSupabaseServiceClient()
+        
+        // Try to get session from Supabase auth header
+        let authToken = null
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          authToken = authHeader.substring(7)
+        }
+        
+        // Check if this might be a Supabase session token
+        if (authToken && authToken.includes('.')) {
+          // This looks like a Supabase JWT token, try to verify with Supabase
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(authToken)
+          
+          if (!sessionError && supabaseUser) {
+            // Get full user profile from database
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
 
-    let decoded: any
-    try {
-      decoded = verify(token, secret)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      )
+            if (!userError && userData) {
+              user = userData
+              console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
+            }
+          }
+        }
+      } catch (supabaseError) {
+        console.log('🔑 Supabase authentication also failed:', supabaseError)
+      }
     }
-
-    // Get user from database with service role (bypasses RLS)
-    const supabase = createServerSupabaseClient()
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', decoded.userId)
-      .single()
-
-    if (userError || !user) {
+    
+    // If both methods failed, return unauthorized
+    if (!user) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
@@ -48,6 +81,8 @@ export async function GET(request: NextRequest) {
       can_view_company_trips: user.can_view_company_trips
     })
 
+    // Use service client for database queries to bypass RLS
+    const supabase = createServerSupabaseClient()
     let tripsQuery = supabase
       .from('trips')
       .select(`

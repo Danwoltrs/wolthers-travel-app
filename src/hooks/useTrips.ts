@@ -87,7 +87,15 @@ export function useTrips() {
           })
 
           // Use server-side API for authenticated requests to bypass RLS issues
-          const authToken = localStorage.getItem('auth-token')
+          // Try to get auth token from multiple sources
+          let authToken = localStorage.getItem('auth-token') // JWT from Microsoft OAuth
+          
+          // If no JWT token, try to get Supabase session token
+          if (!authToken && session?.access_token) {
+            authToken = session.access_token // Supabase session token
+            console.log('useTrips: Using Supabase session token for API calls')
+          }
+          
           if (!authToken) {
             throw new Error('No authentication token found')
           }
@@ -420,6 +428,8 @@ export function useTripDetails(tripId: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actualTripId, setActualTripId] = useState<string | null>(null)
+  
+  const { session } = useAuth()
 
   useEffect(() => {
     if (!tripId) return
@@ -430,7 +440,15 @@ export function useTripDetails(tripId: string) {
         setError(null)
 
         // Use authenticated API endpoint instead of direct Supabase calls
-        const authToken = localStorage.getItem('auth-token')
+        // Try to get auth token from multiple sources
+        let authToken = localStorage.getItem('auth-token') // JWT from Microsoft OAuth
+        
+        // If no JWT token, try to get Supabase session token
+        if (!authToken && session?.access_token) {
+          authToken = session.access_token // Supabase session token
+          console.log('useTripDetails: Using Supabase session token for API calls')
+        }
+        
         if (!authToken) {
           throw new Error('No authentication token found')
         }

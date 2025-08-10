@@ -145,6 +145,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         if (session?.user) {
           await loadUserProfile(session.user)
+          
+          // Store Supabase session token for API compatibility
+          if (session.access_token && typeof window !== 'undefined') {
+            // Only store if it's not already a custom JWT (Microsoft OAuth)
+            const existingToken = localStorage.getItem('auth-token')
+            if (!existingToken || !existingToken.includes('eyJ')) {
+              localStorage.setItem('auth-token', session.access_token)
+              console.log('🗺️ Stored Supabase session token for API calls')
+            }
+          }
+          
           // Redirect to dashboard after successful authentication
           if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
             const currentPath = window.location.pathname
@@ -160,6 +171,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (typeof window !== 'undefined') {
             localStorage.removeItem('trip_cache')
             localStorage.removeItem('user_profile_cache')
+            // Only clear auth-token if it's a Supabase token (not JWT from Microsoft OAuth)
+            const existingToken = localStorage.getItem('auth-token')
+            if (existingToken && !existingToken.includes('eyJ')) {
+              localStorage.removeItem('auth-token')
+              console.log('🗺️ Cleared Supabase session token')
+            }
           }
         }
         
