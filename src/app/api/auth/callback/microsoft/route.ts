@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, trackServerLoginEvent } from '@/lib/supabase-server'
-import { sign } from 'jsonwebtoken'
-
-// Helper function to create a session token
-async function createSessionToken(userId: string): Promise<string> {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
-  
-  const payload = {
-    userId,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
-  }
-  
-  return sign(payload, secret)
-}
+import { createSessionToken } from '@/lib/jwt-utils'
 
 // Handle OAuth redirect from Microsoft (GET)
 export async function GET(request: NextRequest) {
@@ -113,7 +100,7 @@ export async function GET(request: NextRequest) {
         console.log('ℹ️ No Microsoft profile picture available')
       }
     } catch (error) {
-      console.log('ℹ️ Could not fetch Microsoft profile picture:', error.message)
+      console.log('ℹ️ Could not fetch Microsoft profile picture:', error instanceof Error ? error.message : 'Unknown error')
     }
 
     if (!userResponse.ok) {
@@ -286,7 +273,7 @@ export async function GET(request: NextRequest) {
     await trackServerLoginEvent(user.id, 'microsoft', user.email, userAgent)
 
     // Create a session token for the client
-    const sessionToken = await createSessionToken(user.id)
+    const sessionToken = createSessionToken(user.id)
 
     // Redirect to auth callback page to complete the client-side authentication
     const response = NextResponse.redirect(`${request.nextUrl.origin}/auth/callback?success=true&provider=microsoft`)
@@ -403,7 +390,7 @@ export async function POST(request: NextRequest) {
         console.log('ℹ️ No Microsoft profile picture available (POST)')
       }
     } catch (error) {
-      console.log('ℹ️ Could not fetch Microsoft profile picture (POST):', error.message)
+      console.log('ℹ️ Could not fetch Microsoft profile picture (POST):', error instanceof Error ? error.message : 'Unknown error')
     }
 
     if (!userResponse.ok) {
@@ -579,7 +566,7 @@ export async function POST(request: NextRequest) {
     await trackServerLoginEvent(user.id, 'microsoft', user.email, userAgent)
 
     // Create a session token for the client
-    const sessionToken = await createSessionToken(user.id)
+    const sessionToken = createSessionToken(user.id)
 
     console.log('✅ Authentication successful (POST), returning user data and session')
 

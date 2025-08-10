@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyUserPassword } from '@/lib/supabase-server';
+import { createSessionToken } from '@/lib/jwt-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,11 +36,26 @@ export async function POST(request: NextRequest) {
 
       console.log('Login successful for:', email);
 
-      return NextResponse.json({
+      // Create a JWT session token for consistent authentication
+      const sessionToken = createSessionToken(result.user!.id);
+
+      // Create response with session token
+      const response = NextResponse.json({
         success: true,
         message: 'Login successful',
-        user: result.user
+        user: result.user!,
+        sessionToken
       });
+
+      // Set the session as an HTTP-only cookie (same as Microsoft OAuth)
+      response.cookies.set('auth-token', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      });
+
+      return response;
 
     } catch (dbError) {
       console.error('Database error during login:', dbError);

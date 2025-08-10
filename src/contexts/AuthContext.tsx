@@ -148,9 +148,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           // Store Supabase session token for API compatibility
           if (session.access_token && typeof window !== 'undefined') {
-            // Only store if it's not already a custom JWT (Microsoft OAuth)
+            // For Supabase sessions, store the access token
+            // JWT sessions from email/password or Microsoft OAuth are already stored
             const existingToken = localStorage.getItem('auth-token')
-            if (!existingToken || !existingToken.includes('eyJ')) {
+            if (!existingToken) {
               localStorage.setItem('auth-token', session.access_token)
               console.log('🗺️ Stored Supabase session token for API calls')
             }
@@ -171,12 +172,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (typeof window !== 'undefined') {
             localStorage.removeItem('trip_cache')
             localStorage.removeItem('user_profile_cache')
-            // Only clear auth-token if it's a Supabase token (not JWT from Microsoft OAuth)
-            const existingToken = localStorage.getItem('auth-token')
-            if (existingToken && !existingToken.includes('eyJ')) {
-              localStorage.removeItem('auth-token')
-              console.log('🗺️ Cleared Supabase session token')
-            }
+            localStorage.removeItem('auth-token')
+            console.log('🗺️ Cleared all authentication tokens')
           }
         }
         
@@ -362,8 +359,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       permissions,
       azure_id: profile.microsoft_oauth_id || authUser?.user_metadata?.azure_id || undefined,
       preferred_username: authUser?.user_metadata?.preferred_username || undefined,
-      // Include all database fields for profile management
-      full_name: profile.full_name,
+      // Include all database fields for profile management (already included in name field above)
+      // full_name: profile.full_name, // This is already mapped to name field
       phone: profile.phone,
       whatsapp: profile.whatsapp,
       timezone: profile.timezone,
@@ -391,11 +388,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      // Use our custom login API that creates JWT tokens
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for httpOnly token
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        return { error: { message: data.error || 'Login failed' } as any }
+      }
+
+      // Store token for API calls
+      if (data.sessionToken) {
+        localStorage.setItem('auth-token', data.sessionToken)
+        console.log('🗺️ Stored JWT session token for API calls')
+      }
+
+      // Create session-like object for compatibility
+      const mockSession = {
+        access_token: data.sessionToken,
+        refresh_token: '',
+        expires_in: 30 * 24 * 60 * 60,
+        token_type: 'Bearer',
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          user_metadata: {},
+          app_metadata: {},
+          aud: '',
+          created_at: '',
+          last_sign_in_at: '',
+          confirmed_at: '',
+          email_confirmed_at: '',
+          phone: '',
+          role: ''
+        }
+      }
+      
+      setSession(mockSession as any)
+      mapUserProfile(data.user, null)
+      
+      // Cache the user profile for offline access
+      cacheUserProfile(data.user)
+
+      return { error: null as any }
+    } catch (error) {
+      console.error('Email sign-in error:', error)
+      return { error: { message: 'Network error during login' } as any }
+    }
   }
 
   const signInWithOtp = async (email: string) => {

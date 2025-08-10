@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { verifySessionToken, extractBearerToken } from '@/lib/jwt-utils'
 
 export async function GET(
   request: NextRequest,
@@ -9,45 +9,68 @@ export async function GET(
   try {
     const tripId = params.id
 
-    // Verify JWT token
+    let user: any = null
+    
+    // Try JWT token authentication first (Microsoft OAuth and Email/Password)
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Missing or invalid authorization header' },
-        { status: 401 }
-      )
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = extractBearerToken(authHeader)
+      if (token) {
+        // Try custom JWT token first
+        const decoded = verifySessionToken(token)
+        if (decoded) {
+          // Get user from database with service role (bypasses RLS)
+          const supabase = createServerSupabaseClient()
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', decoded.userId)
+            .single()
+
+          if (!userError && userData) {
+            user = userData
+            console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
+          }
+        } else {
+          // If JWT verification fails, try Supabase session token
+          console.log('🔑 JWT verification failed, trying Supabase session...')
+          try {
+            const supabaseClient = createSupabaseServiceClient()
+            const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+            
+            if (!sessionError && supabaseUser) {
+              // Get full user profile from database
+              const { data: userData, error: userError } = await supabaseClient
+                .from('users')
+                .select('*')
+                .eq('id', supabaseUser.id)
+                .single()
+
+              if (!userError && userData) {
+                user = userData
+                console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
+              }
+            }
+          } catch (supabaseError) {
+            console.log('🔑 Supabase authentication also failed:', supabaseError)
+          }
+        }
+      }
     }
-
-    const token = authHeader.substring(7)
-    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
-
-    let decoded: any
-    try {
-      decoded = verify(token, secret)
-    } catch (error) {
+    
+    // If both methods failed, return unauthorized
+    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid token' },
+        { error: 'Authentication required' },
         { status: 401 }
-      )
-    }
-
-    // Get user from database with service role (bypasses RLS)
-    const supabase = createServerSupabaseClient()
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', decoded.userId)
-      .single()
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       )
     }
 
     console.log('🔍 API: Trip details request for:', { tripId, userEmail: user.email })
 
+    // Use service client for database queries to bypass RLS
+    const supabase = createServerSupabaseClient()
+    
     // Determine if tripId is a UUID or an access code
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tripId)
     

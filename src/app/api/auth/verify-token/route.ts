@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { verifySessionToken, extractBearerToken } from '@/lib/jwt-utils'
 
+/**
+ * Verifies a JWT session token and returns user data
+ * Used by AuthContext to validate tokens on page load
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Get token from Authorization header
     const authHeader = request.headers.get('authorization')
+    const token = extractBearerToken(authHeader)
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Missing or invalid authorization header' },
-        { status: 401 }
-      )
+    if (!token) {
+      return NextResponse.json({ valid: false, error: 'No token provided' }, { status: 400 })
     }
 
-    const token = authHeader.substring(7)
-    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
-
     // Verify the JWT token
-    let decoded: any
-    try {
-      decoded = verify(token, secret)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      )
+    const decoded = verifySessionToken(token)
+    if (!decoded) {
+      return NextResponse.json({ valid: false, error: 'Invalid token' }, { status: 401 })
     }
 
     // Get user from database
@@ -36,12 +31,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ valid: false, error: 'User not found' }, { status: 404 })
     }
 
+    // Return user data
     return NextResponse.json({
       valid: true,
       user: {
@@ -54,14 +47,22 @@ export async function POST(request: NextRequest) {
         can_view_company_trips: user.can_view_company_trips,
         company_id: user.company_id,
         microsoft_oauth_id: user.microsoft_oauth_id,
-      },
+        phone: user.phone,
+        whatsapp: user.whatsapp,
+        timezone: user.timezone,
+        last_login_at: user.last_login_at,
+        last_login_timezone: user.last_login_timezone,
+        last_login_provider: user.last_login_provider,
+        company_name: user.company_name,
+        notification_preferences: user.notification_preferences,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        profile_picture_url: user.profile_picture_url,
+      }
     })
 
   } catch (error) {
     console.error('Token verification error:', error)
-    return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ valid: false, error: 'Internal server error' }, { status: 500 })
   }
 }
