@@ -73,14 +73,18 @@ export async function GET(request: NextRequest) {
 
     const currentYear = new Date().getFullYear()
     const now = new Date().toISOString().split('T')[0]
+    // Calculate the range of years to include (up to 5 years back)
+    const yearsToInclude = 5
+    const oldestYear = currentYear - (yearsToInclude - 1)
 
     console.log('🔍 API: Fetching trip statistics for user:', {
       email: user.email,
       userId: user.id,
-      year: currentYear
+      yearRange: `${oldestYear}-${currentYear}`
     })
 
     // Get all trips for this user through trip_participants using service role
+    const supabase = createSupabaseServiceClient()
     const { data: userTrips, error: tripsError } = await supabase
       .from('trip_participants')
       .select(`
@@ -133,9 +137,9 @@ export async function GET(request: NextRequest) {
         today: now
       })
 
-      // Group trips by week for heatmap (for the specified year)
-      const weeklyData: Record<number, number> = {}
-      let maxTrips = 0
+      // Group trips by year and week for multi-year heatmap
+      const yearlyData: Record<number, { weeklyData: Record<number, number>; tripCount: number; maxTripsPerWeek: number }> = {}
+      let globalMaxTrips = 0
 
       const getWeekOfYear = (date: Date): number => {
         const start = new Date(date.getFullYear(), 0, 1)
@@ -144,25 +148,60 @@ export async function GET(request: NextRequest) {
         return Math.ceil(dayOfYear / 7)
       }
 
+      // Initialize yearly data for all potential years
+      for (let year = oldestYear; year <= currentYear; year++) {
+        yearlyData[year] = {
+          weeklyData: {},
+          tripCount: 0,
+          maxTripsPerWeek: 0
+        }
+      }
+
+      // Process all trips and group by year and week
       userTrips.forEach(tp => {
         const trip = tp.trips
         if (trip && trip.start_date) {
           const startDate = new Date(trip.start_date)
-          if (startDate.getFullYear() === currentYear) {
+          const tripYear = startDate.getFullYear()
+          
+          // Only include trips within our year range
+          if (tripYear >= oldestYear && tripYear <= currentYear) {
             const weekOfYear = getWeekOfYear(startDate)
-            weeklyData[weekOfYear] = (weeklyData[weekOfYear] || 0) + 1
-            maxTrips = Math.max(maxTrips, weeklyData[weekOfYear])
+            const yearData = yearlyData[tripYear]
+            
+            yearData.weeklyData[weekOfYear] = (yearData.weeklyData[weekOfYear] || 0) + 1
+            yearData.tripCount++
+            yearData.maxTripsPerWeek = Math.max(yearData.maxTripsPerWeek, yearData.weeklyData[weekOfYear])
+            globalMaxTrips = Math.max(globalMaxTrips, yearData.weeklyData[weekOfYear])
           }
         }
+      })
+
+      // Filter out years with no trips (smart year filtering)
+      const yearsWithTrips = Object.keys(yearlyData)
+        .map(year => parseInt(year))
+        .filter(year => yearlyData[year].tripCount > 0)
+        .sort((a, b) => b - a) // Sort descending (newest first)
+
+      console.log('📊 API: Multi-year heatmap data:', {
+        yearsWithTrips,
+        totalYearsWithData: yearsWithTrips.length,
+        globalMaxTrips
       })
 
       return NextResponse.json({
         tripsThisYear: tripsThisYear.length,
         upcomingTrips: upcomingTrips.length,
         totalTrips: userTrips.length,
-        weeklyData,
-        maxTripsPerWeek: maxTrips,
-        year: currentYear
+        // Legacy single-year data for backward compatibility
+        weeklyData: yearlyData[currentYear]?.weeklyData || {},
+        maxTripsPerWeek: yearlyData[currentYear]?.maxTripsPerWeek || 0,
+        year: currentYear,
+        // New multi-year data
+        yearlyData,
+        yearsWithTrips,
+        globalMaxTrips,
+        hasAnyTrips: yearsWithTrips.length > 0
       })
     } else {
       return NextResponse.json({
@@ -171,7 +210,11 @@ export async function GET(request: NextRequest) {
         totalTrips: 0,
         weeklyData: {},
         maxTripsPerWeek: 0,
-        year: currentYear
+        year: currentYear,
+        yearlyData: {},
+        yearsWithTrips: [],
+        globalMaxTrips: 0,
+        hasAnyTrips: false
       })
     }
 

@@ -387,7 +387,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
 
       {/* Travel Heatmap - Medium screens and up */}
       <div className="hidden md:block mt-6 pt-6 border-t border-gray-200 dark:border-[#2a2a2a]">
-        <TravelHeatmap userId={user?.id} year={new Date().getFullYear()} />
+        <TravelHeatmap userId={user?.id} />
       </div>
 
       {/* Notification Preferences */}
