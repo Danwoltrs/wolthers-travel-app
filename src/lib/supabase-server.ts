@@ -72,11 +72,41 @@ export async function verifyUserPassword(email: string, password: string, userAg
     if (result?.is_valid) {
       // Track successful login event
       await trackServerLoginEvent(result.id, 'email', email, userAgent)
+      
+      // Return complete user profile data (matching Microsoft OAuth flow)
+      const fullUser = {
+        id: result.id,
+        email: result.email,
+        full_name: result.full_name,
+        user_type: result.user_type,
+        company_id: result.company_id,
+        is_global_admin: result.is_global_admin,
+        can_view_all_trips: result.can_view_all_trips,
+        can_view_company_trips: result.can_view_company_trips,
+        microsoft_oauth_id: result.microsoft_oauth_id,
+        phone: result.phone,
+        whatsapp: result.whatsapp,
+        timezone: result.timezone,
+        last_login_at: result.last_login_at,
+        last_login_timezone: result.last_login_timezone,
+        last_login_provider: result.last_login_provider,
+        company_name: result.company_name,
+        notification_preferences: result.notification_preferences,
+        profile_picture_url: result.profile_picture_url,
+        created_at: result.created_at,
+        updated_at: result.updated_at,
+      }
+      
+      return {
+        isValid: true,
+        user: fullUser,
+        error: null
+      }
     }
     
     return {
-      isValid: result?.is_valid || false,
-      user: result ? { id: result.id, email: result.email, full_name: result.full_name } : null,
+      isValid: false,
+      user: null,
       error: null
     }
   } catch (err) {
