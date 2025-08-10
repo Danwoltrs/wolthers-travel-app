@@ -85,46 +85,35 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
     if (!user?.id) return
 
     try {
-      const currentYear = new Date().getFullYear()
-      const now = new Date().toISOString().split('T')[0]
-
-      // Get all trips for this user through trip_participants
-      const { data: userTrips, error: tripsError } = await supabase
-        .from('trip_participants')
-        .select(`
-          trips (
-            id,
-            start_date
-          )
-        `)
-        .eq('user_id', user.id)
-
-      if (tripsError) {
-        console.error('Trip stats error:', tripsError)
+      // Use authenticated API endpoint instead of direct Supabase calls
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        console.error('No authentication token found for trip stats')
         return
       }
 
-      if (userTrips) {
-        // Filter trips this year
-        const tripsThisYear = userTrips.filter(tp => {
-          const trip = tp.trips
-          if (!trip || !trip.start_date) return false
-          const tripYear = new Date(trip.start_date).getFullYear()
-          return tripYear === currentYear
-        })
+      console.log('UserProfile: Fetching trip statistics via authenticated API...')
+      const response = await fetch('/api/user/stats', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
 
-        // Filter upcoming trips
-        const upcomingTrips = userTrips.filter(tp => {
-          const trip = tp.trips
-          if (!trip || !trip.start_date) return false
-          return trip.start_date >= now
-        })
-
-        setTripStats({
-          tripsThisYear: tripsThisYear.length,
-          upcomingTrips: upcomingTrips.length
-        })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
+        console.error('Trip stats API error:', errorData)
+        return
       }
+
+      const stats = await response.json()
+      console.log('UserProfile: Received trip statistics:', stats)
+
+      setTripStats({
+        tripsThisYear: stats.tripsThisYear,
+        upcomingTrips: stats.upcomingTrips
+      })
     } catch (error) {
       console.error('Error fetching trip stats:', error)
     }

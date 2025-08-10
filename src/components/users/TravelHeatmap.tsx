@@ -72,38 +72,35 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
   const fetchTravelData = async () => {
     setIsLoading(true)
     try {
-      // Get all trips for this user in the specified year
-      const { data: userTrips, error } = await supabase
-        .from('trip_participants')
-        .select(`
-          trips!inner(
-            id,
-            start_date,
-            end_date
-          )
-        `)
-        .eq('user_id', userId)
-        .gte('trips.start_date', `${year}-01-01`)
-        .lte('trips.start_date', `${year}-12-31`)
-
-      if (error) {
-        console.error('Error fetching travel data:', error)
+      // Use authenticated API endpoint instead of direct Supabase calls
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        console.error('No authentication token found for travel heatmap')
+        setIsLoading(false)
         return
       }
 
-      // Group trips by week
-      const weeklyData: Record<number, number> = {}
-      let maxTrips = 0
-
-      userTrips?.forEach(tp => {
-        const trip = tp.trips
-        if (trip && trip.start_date) {
-          const startDate = new Date(trip.start_date)
-          const weekOfYear = getWeekOfYear(startDate)
-          weeklyData[weekOfYear] = (weeklyData[weekOfYear] || 0) + 1
-          maxTrips = Math.max(maxTrips, weeklyData[weekOfYear])
+      console.log('TravelHeatmap: Fetching travel data via authenticated API...')
+      const response = await fetch('/api/user/stats', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
         }
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
+        console.error('Travel heatmap API error:', errorData)
+        setIsLoading(false)
+        return
+      }
+
+      const stats = await response.json()
+      console.log('TravelHeatmap: Received travel statistics:', stats)
+
+      const weeklyData = stats.weeklyData || {}
+      const maxTrips = stats.maxTripsPerWeek || 0
 
       setMaxTripCount(maxTrips)
 
