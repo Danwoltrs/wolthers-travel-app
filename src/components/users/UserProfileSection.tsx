@@ -32,6 +32,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [tripStats, setTripStats] = useState({ tripsThisYear: 0, upcomingTrips: 0 })
+  const [lastSaveTime, setLastSaveTime] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || '',
@@ -44,6 +45,24 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       in_app: true
     }
   })
+
+  const handleCancel = () => {
+    // Reset form data to original user data
+    setFormData({
+      full_name: user?.full_name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      whatsapp: user?.whatsapp || '',
+      profile_picture_url: user?.profile_picture_url || '',
+      notification_preferences: user?.notification_preferences || {
+        email: true,
+        whatsapp: false,
+        in_app: true
+      }
+    })
+    setIsEditing(false)
+    setLastSaveTime(null) // Clear any "just saved" indicator
+  }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -126,24 +145,101 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          whatsapp: formData.whatsapp,
-          profile_picture_url: formData.profile_picture_url,
-          notification_preferences: formData.notification_preferences,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
+      // Basic validation
+      if (!formData.full_name.trim()) {
+        throw new Error('Full name is required')
+      }
+      
+      // Validate phone number format if provided
+      if (formData.phone && !/^[+]?[0-9\s\-\(\)]{7,}$/.test(formData.phone)) {
+        throw new Error('Please enter a valid phone number')
+      }
+      
+      // Validate WhatsApp number format if provided
+      if (formData.whatsapp && !/^[+]?[0-9\s\-\(\)]{7,}$/.test(formData.whatsapp)) {
+        throw new Error('Please enter a valid WhatsApp number')
+      }
 
-      if (error) throw error
+      // Get auth token
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        throw new Error('Authentication required')
+      }
+
+      // Call API endpoint to update profile
+      const response = await fetch('/api/users', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          updates: {
+            full_name: formData.full_name,
+            phone: formData.phone,
+            whatsapp: formData.whatsapp,
+            profile_picture_url: formData.profile_picture_url,
+            notification_preferences: formData.notification_preferences
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to update profile')
+      }
+
+      const result = await response.json()
+      console.log('Profile updated successfully:', result)
+
+      // Update the last save time
+      setLastSaveTime(result.updated_at)
+      
+      // Clear the "Just saved" indicator after 5 seconds
+      setTimeout(() => {
+        setLastSaveTime(null)
+      }, 5000)
+      
+      // Update the form data with any server-side changes
+      if (result.user) {
+        setFormData({
+          full_name: result.user.full_name || '',
+          email: result.user.email || '',
+          phone: result.user.phone || '',
+          whatsapp: result.user.whatsapp || '',
+          profile_picture_url: result.user.profile_picture_url || '',
+          notification_preferences: result.user.notification_preferences || {
+            email: true,
+            whatsapp: false,
+            in_app: true
+          }
+        })
+      }
 
       setIsEditing(false)
       if (onUpdate) onUpdate()
+      
+      // Show success message
+      const successMessage = document.createElement('div')
+      successMessage.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-green-600 text-white flex items-center space-x-2'
+      successMessage.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-sm font-medium">Profile updated successfully!</span>'
+      document.body.appendChild(successMessage)
+      setTimeout(() => {
+        document.body.removeChild(successMessage)
+      }, 3000)
+      
     } catch (error) {
       console.error('Error updating profile:', error)
+      const errorMessage = document.createElement('div')
+      errorMessage.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-red-600 text-white flex items-center space-x-2'
+      errorMessage.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="6 18L18 6M6 6l12 12"></path></svg><span class="text-sm font-medium">Error: ${error.message}</span>`
+      document.body.appendChild(errorMessage)
+      setTimeout(() => {
+        if (document.body.contains(errorMessage)) {
+          document.body.removeChild(errorMessage)
+        }
+      }, 5000)
     } finally {
       setIsSaving(false)
     }
@@ -232,7 +328,8 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 type="text"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="text-xl font-semibold text-gray-900 border-b-2 border-emerald-500 focus:outline-none px-1"
+                className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-xl font-semibold text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
+                placeholder="Enter full name"
               />
             ) : (
               <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name}</h3>
@@ -266,8 +363,8 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
                 <button
-                  onClick={() => setIsEditing(false)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  onClick={handleCancel}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -311,7 +408,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="Add phone number"
-                    className="text-sm text-gray-900 border-b border-gray-300 focus:border-emerald-500 focus:outline-none w-full"
+                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
                   />
                 ) : (
                   <p className="text-sm text-gray-900 dark:text-white">{user?.phone || 'Not provided'}</p>
@@ -329,7 +426,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
                     placeholder="Add WhatsApp number"
-                    className="text-sm text-gray-900 border-b border-gray-300 focus:border-emerald-500 focus:outline-none w-full"
+                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
                   />
                 ) : (
                   <p className="text-sm text-gray-900 dark:text-white">{user?.whatsapp || 'Not provided'}</p>
@@ -378,6 +475,48 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 <p className="text-xs text-gray-500">Trip Statistics</p>
                 <p className="text-sm text-gray-900 dark:text-white">
                   {tripStats.tripsThisYear} trips this year | {tripStats.upcomingTrips} upcoming trips
+                </p>
+              </div>
+            </div>
+
+            {/* Profile Update History */}
+            <div className="flex items-center space-x-3">
+              <Edit2 className="w-4 h-4 text-gray-400" />
+              <div className="flex-1">
+                <p className="text-xs text-gray-500">Profile Last Updated</p>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {lastSaveTime 
+                    ? (
+                        <span className="flex items-center space-x-1">
+                          <span>{new Date(lastSaveTime).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 ml-2">
+                            Just saved
+                          </span>
+                        </span>
+                      )
+                    : user?.last_profile_update 
+                      ? new Date(user.last_profile_update).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : user?.updated_at
+                        ? new Date(user.updated_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'Never updated'}
                 </p>
               </div>
             </div>
