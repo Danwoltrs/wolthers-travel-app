@@ -142,6 +142,24 @@ All modals throughout the application must follow the QuickView modal design sys
 - Checkboxes: `dark:bg-[#1a1a1a] dark:border-[#2a2a2a]`
 - Borders: `dark:border-[#2a2a2a]` for separators
 
+#### User Management Module Color Scheme
+**Background Colors:**
+- Main modal background: `bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3]`
+- Search/controls section: `bg-gradient-to-r from-emerald-800 to-emerald-900` (green gradient with white text)
+- Table header: `bg-[#1E293B]` (dark blue with gold column titles)
+- Search input: `!bg-[#F5F1E8]` (light crème)
+
+**Table Row Colors:**
+- Even rows: `bg-[#FFFDF9]` - Very subtle warm off-white
+- Odd rows: `bg-[#FCFAF4]` - Slightly warmer very light crème
+
+**Design Pattern:**
+- Yellow modal header remains unchanged for branding
+- Green gradient for search/controls section (emerald with white text)
+- Dark blue table header with gold column titles (`text-amber-400`)
+- Light crème gradient for content areas
+- Subtle alternating table rows for better readability
+
 #### Color Palette
 - **Primary Green**: Deep forest green for headers and navigation (`#2D5347` range)
 - **Gold Accents**: Warm golden tones for card sections and highlights (`#FEF3C7`, `#F3E8A6`)

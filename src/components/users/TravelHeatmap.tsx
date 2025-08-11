@@ -6,6 +6,14 @@ import { supabase } from '@/lib/supabase-client'
 interface TravelHeatmapProps {
   userId: string
   year?: number
+  compact?: boolean
+}
+
+interface TripInfo {
+  id: string
+  title: string
+  company: string
+  start_date: string
 }
 
 interface HeatmapData {
@@ -16,6 +24,7 @@ interface HeatmapData {
   color: string
   weekOfYear: number
   dateRange: string
+  trips: TripInfo[]
 }
 
 interface YearData {
@@ -25,7 +34,7 @@ interface YearData {
   maxTripsPerWeek: number
 }
 
-export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProps) {
+export default function TravelHeatmap({ userId, year = 2025, compact = false }: TravelHeatmapProps) {
   const [yearlyHeatmapData, setYearlyHeatmapData] = useState<YearData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [globalMaxTripCount, setGlobalMaxTripCount] = useState(0)
@@ -147,6 +156,7 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
         const heatmapArray: HeatmapData[] = []
         for (let week = 1; week <= 52; week++) {
           const tripCount = weeklyData[week] || 0
+          const weeklyTrips = yearData?.weeklyTrips?.[week] || []
           const sampleDate = new Date(yearNum, 0, 1)
           sampleDate.setDate(sampleDate.getDate() + (week - 1) * 7)
           const monthIndex = sampleDate.getMonth()
@@ -158,7 +168,8 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
             tripCount,
             color: getIntensityColor(tripCount, globalMaxTrips), // Use global max for consistent coloring
             weekOfYear: week,
-            dateRange: getDateRangeForWeek(yearNum, week)
+            dateRange: getDateRangeForWeek(yearNum, week),
+            trips: weeklyTrips
           })
         }
 
@@ -194,9 +205,6 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-amber-300 uppercase tracking-wider">
-          Travel Activity
-        </h4>
         <div className="flex items-center justify-center py-8">
           <div className="w-5 h-5 border-2 border-gray-300 border-t-emerald-600 rounded-full animate-spin"></div>
         </div>
@@ -246,11 +254,8 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-amber-300 uppercase tracking-wider">
-          Travel Activity
-        </h4>
+    <div className={`${compact ? 'space-y-4 w-full overflow-hidden' : 'space-y-6'}`}>
+      <div className={`flex items-center justify-center ${compact ? 'mb-2' : 'mb-4'}`}>
         <div className="text-xs text-gray-600 dark:text-gray-400">
           {yearlyHeatmapData.reduce((sum, yearData) => sum + yearData.tripCount, 0)} total trips
           {globalMaxTripCount > 0 && ` • Busiest week: ${globalMaxTripCount} trips`}
@@ -263,10 +268,10 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
           const monthHeaders = generateMonthHeaders(yearData.weeklyData)
           
           return (
-            <div key={yearData.year} className="space-y-1">
-              <div className="flex">
+            <div key={yearData.year} className="space-y-1 w-full">
+              <div className="flex w-full">
                 {/* Left side labels */}
-                <div className="flex flex-col justify-start space-y-1 mr-6 text-xs text-gray-500 dark:text-gray-400">
+                <div className={`flex flex-col justify-start space-y-1 ${compact ? 'mr-3 min-w-[60px]' : 'mr-6'} text-xs text-gray-500 dark:text-gray-400`}>
                   <div className="h-3 flex items-center">{yearIndex === 0 ? 'Month' : ''}</div>
                   <div className="h-3 flex items-center font-medium text-gray-700 dark:text-amber-400">
                     {yearData.year} ({yearData.tripCount})
@@ -275,15 +280,15 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
                 </div>
 
                 {/* Heatmap grid */}
-                <div className="space-y-1 flex-1">
+                <div className={`space-y-1 flex-1 ${compact ? 'min-w-0' : ''}`}>
                   {/* Month headers - only show for first year */}
                   {yearIndex === 0 && (
                     <div className="flex justify-between">
                       {monthHeaders.map((header, index) => (
                         <div 
                           key={index} 
-                          className="text-xs text-gray-500 dark:text-gray-400 text-center flex-1"
-                          style={{ maxWidth: `${header.weeksInMonth * 20}px` }}
+                          className={`text-xs text-gray-500 dark:text-gray-400 text-center flex-1 ${compact ? 'px-1' : ''}`}
+                          style={{ maxWidth: `${header.weeksInMonth * (compact ? 15 : 20)}px` }}
                         >
                           {header.month}
                         </div>
@@ -292,13 +297,13 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
                   )}
 
                   {/* Heatmap squares */}
-                  <div className="flex justify-between">
+                  <div className={`flex justify-between ${compact ? 'gap-[2px]' : ''}`}>
                     {yearData.weeklyData.map((data) => (
-                      <div key={`${yearData.year}-${data.week}`} className="flex flex-col items-center gap-1 flex-1 max-w-[20px]">
+                      <div key={`${yearData.year}-${data.week}`} className={`flex flex-col items-center ${compact ? 'flex-1 max-w-[12px]' : 'gap-1 flex-1 max-w-[20px]'}`}>
                         <div
-                          className={`w-3 h-3 rounded-none border transition-all duration-200 hover:scale-125 hover:z-50 relative cursor-pointer ${data.color} mx-auto`}
-                          title={`${yearData.year} Week ${data.weekOfYear} (${data.dateRange}): ${data.tripCount} ${data.tripCount === 1 ? 'trip' : 'trips'}`}
-                          style={{ borderRadius: '2px' }}
+                          className={`${compact ? 'w-2 h-2' : 'w-3 h-3'} rounded-none border transition-all duration-200 hover:scale-125 hover:z-50 relative cursor-pointer ${data.color} ${compact ? '' : 'mx-auto'}`}
+                          title={`${yearData.year} Week ${data.weekOfYear} (${data.dateRange}): ${data.tripCount} ${data.tripCount === 1 ? 'trip' : 'trips'}${data.trips.length > 0 ? '\n' + data.trips.map(trip => `• ${trip.title} (${trip.company})`).join('\n') : ''}`}
+                          style={{ borderRadius: compact ? '1px' : '2px' }}
                         />
                       </div>
                     ))}
@@ -308,9 +313,9 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
                   {yearIndex === yearlyHeatmapData.length - 1 && (
                     <div className="flex justify-between">
                       {yearData.weeklyData.map((data) => (
-                        <div key={`week-${data.week}`} className="flex flex-col items-center gap-1 flex-1 max-w-[20px]">
+                        <div key={`week-${data.week}`} className={`flex flex-col items-center ${compact ? 'flex-1 max-w-[12px]' : 'gap-1 flex-1 max-w-[20px]'}`}>
                           <div
-                            className="w-3 h-3 text-[8px] text-gray-400 dark:text-gray-500 flex items-center justify-center mx-auto"
+                            className={`${compact ? 'w-2 h-2 text-[6px]' : 'w-3 h-3 text-[8px]'} text-gray-400 dark:text-gray-500 flex items-center justify-center ${compact ? '' : 'mx-auto'}`}
                             title={`Week ${data.weekOfYear}: ${data.dateRange}`}
                           >
                             {data.week % 4 === 1 ? data.week : ''}

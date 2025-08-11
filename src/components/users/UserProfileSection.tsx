@@ -281,9 +281,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   }
 
   const getUserTypeBadgeColor = (userType: string, isGlobalAdmin?: boolean) => {
-    // If user is a global admin, always use red styling
+    // If user is a global admin, use light blue styling like Microsoft Account
     if (isGlobalAdmin) {
-      return 'bg-red-100 text-red-800 border-red-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
+      return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
     }
     
     const colors: Record<string, string> = {
@@ -297,7 +297,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   }
 
   return (
-    <div className="">
+    <div className="p-6">
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-4">
           {/* Avatar */}
@@ -355,7 +355,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 type="text"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-xl font-semibold text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
+                className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-xl font-semibold text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
                 placeholder="Enter full name"
               />
             ) : (
@@ -391,7 +391,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-[#F3EDE2] hover:bg-[#EDE4D3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -409,7 +409,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   })
                   setIsEditing(true)
                 }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:bg-emerald-600 dark:text-yellow-400 dark:border-emerald-600 dark:hover:bg-emerald-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
               >
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit Profile
@@ -444,7 +444,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="Add phone number"
-                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
+                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
                   />
                 ) : (
                   <p className="text-sm text-gray-900 dark:text-white">{user?.phone || 'Not provided'}</p>
@@ -469,7 +469,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                       }
                     }}
                     placeholder="Add WhatsApp number (e.g., +55 13 98123 9867)"
-                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
+                    className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
                   />
                 ) : (
                   <p className="text-sm text-gray-900 dark:text-white">{user?.whatsapp || 'Not provided'}</p>

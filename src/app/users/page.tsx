@@ -38,7 +38,7 @@ export default function UsersPage() {
   const showTeamSection = permissions.canViewCompanyUsers || permissions.canViewAllUsers
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-pearl-50 dark:from-[#0E3D2F] dark:via-[#1A4B3A] dark:to-[#0E3D2F]">
+    <div className="min-h-screen bg-[#F3EDE2] dark:from-[#0E3D2F] dark:via-[#1A4B3A] dark:to-[#0E3D2F] dark:bg-gradient-to-br">
       <div className="w-full px-0 mt-36 sm:mt-28">
         {/* Page Header */}
         <div className="mb-8 px-6">
@@ -49,8 +49,8 @@ export default function UsersPage() {
         </div>
 
         {/* User's Own Profile Section */}
-        <div className="bg-white/90 dark:bg-emerald-900/20 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-200/30 dark:border-emerald-800/40 mb-8 mx-6">
-          <div className="px-6 py-4 border-b border-emerald-200/30 dark:border-emerald-800/40 bg-gradient-to-r from-amber-50/80 to-white/80 dark:from-amber-900/20 dark:to-emerald-900/10">
+        <div className="bg-[#F3EDE2]/90 dark:bg-emerald-900/20 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-200/30 dark:border-emerald-800/40 mb-8 mx-6">
+          <div className="px-6 py-4 border-b border-emerald-200/30 dark:border-emerald-800/40 bg-gradient-to-r from-amber-50/80 to-[#F3EDE2]/80 dark:from-amber-900/20 dark:to-emerald-900/10">
             <h2 className="text-lg font-semibold text-latte-800 dark:text-green-50">My Profile</h2>
             <p className="text-sm text-pearl-600 dark:text-pearl-300 mt-1">Manage your personal information and preferences</p>
           </div>
@@ -72,8 +72,8 @@ export default function UsersPage() {
             </div>
 
             {/* Team Management Section */}
-            <div className="bg-white/90 dark:bg-emerald-900/20 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-200/30 dark:border-emerald-800/40 mx-6">
-              <div className="px-6 py-4 border-b border-emerald-200/30 dark:border-emerald-800/40 bg-gradient-to-r from-amber-50/80 to-white/80 dark:from-amber-900/20 dark:to-emerald-900/10">
+            <div className="bg-[#F3EDE2]/90 dark:bg-emerald-900/20 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-200/30 dark:border-emerald-800/40 mx-6">
+              <div className="px-6 py-4 border-b border-emerald-200/30 dark:border-emerald-800/40 bg-gradient-to-r from-amber-50/80 to-[#F3EDE2]/80 dark:from-amber-900/20 dark:to-emerald-900/10">
                 <h2 className="text-lg font-semibold text-latte-800 dark:text-green-50">
                   {permissions.canViewAllUsers ? 'All Users' : 'Team Members'}
                 </h2>

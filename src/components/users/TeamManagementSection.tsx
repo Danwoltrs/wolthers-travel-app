@@ -23,7 +23,8 @@ import {
   ArrowUp,
   ArrowDown,
   MapPin,
-  Plane
+  Plane,
+  Phone
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { UserPermissions, filterUsersForViewer } from '@/lib/permissions'
@@ -72,8 +73,11 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     applyFilters()
   }, [users, searchTerm, filterRole, sortField, sortDirection])
 
-  const fetchUsers = async () => {
+
+  const fetchUsers = async (retryCount = 0) => {
+    const maxRetries = 2
     setIsLoading(true)
+    
     try {
       console.log('🔍 Fetching users via API endpoint...')
       
@@ -81,7 +85,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       const authToken = localStorage.getItem('auth-token')
       if (!authToken) {
         console.error('❌ No auth token found for user API request')
-        throw new Error('Authentication required')
+        throw new Error('Authentication required - please log in again')
       }
 
       // Call our API endpoint that bypasses RLS issues
@@ -92,26 +96,48 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
           'Content-Type': 'application/json',
         },
         credentials: 'include',
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('❌ Users API error:', response.status, errorData)
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+        
+        // If unauthorized, clear token and ask user to re-login
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          throw new Error('Session expired - please log in again')
+        }
+        
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch users`)
       }
 
       const { users: usersData } = await response.json()
       console.log('✅ Fetched users from API:', usersData.length, 'users')
 
-      // Fetch trip statistics and login location for each user
+      // Fetch trip statistics and login location for each user (with error handling)
       const usersWithStats: UserWithStats[] = await Promise.all(
         (usersData || []).map(async (user) => {
-          const stats = await fetchUserTripStats(user.id)
-          const lastLoginLocation = await getLastLoginLocation(user.id, user.last_login_at)
-          return {
-            ...user,
-            trip_stats: stats,
-            last_login_location: lastLoginLocation
+          try {
+            const stats = await fetchUserTripStats(user.id)
+            const lastLoginLocation = await getLastLoginLocation(user.id, user.last_login_at)
+            return {
+              ...user,
+              trip_stats: stats,
+              last_login_location: lastLoginLocation
+            }
+          } catch (statError) {
+            console.warn('⚠️ Failed to fetch stats for user:', user.id, statError)
+            return {
+              ...user,
+              trip_stats: {
+                total_trips: 0,
+                trips_this_year: 0,
+                upcoming_trips: 0,
+                most_visited_destination: undefined
+              },
+              last_login_location: null
+            }
           }
         })
       )
@@ -119,11 +145,22 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       // Apply additional permission filtering (as a safety measure)
       const filteredData = filterUsersForViewer(usersWithStats, currentUser)
       console.log('✅ Final filtered users count:', filteredData.length)
+      
       setUsers(filteredData)
       setFilteredUsers(filteredData)
+      
     } catch (error) {
       console.error('❌ Error fetching users:', error)
-      showToast(`Failed to load users: ${error.message || error}`, 'error')
+      
+      // Retry on network errors (not auth errors)
+      if (retryCount < maxRetries && !error.message.includes('Authentication') && !error.message.includes('Session')) {
+        console.log(`🔄 Retrying fetch users (${retryCount + 1}/${maxRetries})...`)
+        setTimeout(() => fetchUsers(retryCount + 1), 1000 * (retryCount + 1)) // Exponential backoff
+        return
+      }
+      
+      const errorMessage = error.message || error.toString()
+      showToast(`Failed to load users: ${errorMessage}`, 'error')
     } finally {
       setIsLoading(false)
     }
@@ -260,7 +297,113 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
   }
 
   const handleBulkAction = async (action: string) => {
-    console.log('Bulk action:', action, selectedUsers)
+    console.log('🔄 Executing bulk action:', action, 'for', selectedUsers.length, 'users')
+    
+    if (selectedUsers.length === 0) {
+      showToast('No users selected for bulk operation', 'error')
+      return
+    }
+
+    try {
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        showToast('Authentication required for bulk operations', 'error')
+        return
+      }
+
+      let requestBody: any = {
+        operation: action,
+        userIds: selectedUsers
+      }
+
+      // Add operation-specific data
+      if (action === 'bulk_update') {
+        // For now, we could add a modal to collect update data
+        // This is a placeholder for demonstration
+        requestBody.updates = {
+          // Example: update last_modified timestamp
+          updated_at: new Date().toISOString()
+        }
+      }
+
+      const response = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(requestBody)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Bulk operation completed:', result)
+
+      if (action === 'export') {
+        // Handle export results
+        if (result.data && result.data.length > 0) {
+          // Convert to CSV and trigger download
+          const csvContent = convertToCSV(result.data)
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+          const link = document.createElement('a')
+          const url = URL.createObjectURL(blob)
+          link.setAttribute('href', url)
+          link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
+          link.style.visibility = 'hidden'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          
+          showToast(`Exported ${result.exported_count} users successfully`, 'success')
+        } else {
+          showToast('No data to export', 'error')
+        }
+      } else if (result.results) {
+        // Handle bulk update results
+        const { success_count, error_count, total_processed } = result.results
+        if (error_count > 0) {
+          showToast(`Bulk operation completed with issues: ${success_count}/${total_processed} successful`, 'error')
+        } else {
+          showToast(`Bulk operation completed successfully: ${success_count} users updated`, 'success')
+        }
+        
+        // Refresh user data after bulk update
+        fetchUsers()
+      }
+      
+      // Clear selection after successful operation
+      setSelectedUsers([])
+      
+    } catch (error) {
+      console.error('❌ Bulk operation failed:', error)
+      showToast(`Bulk operation failed: ${error.message}`, 'error')
+    }
+  }
+
+  const convertToCSV = (data: any[]) => {
+    if (!data || data.length === 0) return ''
+    
+    const headers = ['Full Name', 'Email', 'Phone', 'WhatsApp', 'User Type', 'Company', 'Created At', 'Last Login']
+    const csvRows = [
+      headers.join(','),
+      ...data.map(user => [
+        `"${user.full_name || ''}"`,
+        `"${user.email || ''}"`,
+        `"${user.phone || ''}"`,
+        `"${user.whatsapp || ''}"`,
+        `"${user.user_type || ''}"`,
+        `"${user.company_name || 'Wolthers & Associates'}"`,
+        `"${user.created_at ? new Date(user.created_at).toLocaleDateString() : ''}"`,
+        `"${user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never'}"`
+      ].join(','))
+    ]
+    
+    return csvRows.join('\n')
   }
 
   const handleSort = (field: SortField) => {
@@ -292,12 +435,13 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
     }
   }
 
-  const handleCopyPhone = async (phone: string) => {
+  const handleCopyPhone = async (phone: string, type: 'phone' | 'whatsapp' = 'phone') => {
     const sanitizedPhone = phone.replace(/[^\d+]/g, '')
     const success = await copyToClipboard(sanitizedPhone)
     if (success) {
       setCopiedPhones(prev => new Set(prev.add(phone)))
-      showToast('Phone number copied to clipboard', 'success')
+      const message = type === 'whatsapp' ? 'WhatsApp number copied to clipboard' : 'Phone number copied to clipboard'
+      showToast(message, 'success')
       
       setTimeout(() => {
         setCopiedPhones(prev => {
@@ -307,7 +451,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
         })
       }, 2000)
     } else {
-      showToast('Failed to copy phone number', 'error')
+      const message = type === 'whatsapp' ? 'Failed to copy WhatsApp number' : 'Failed to copy phone number'
+      showToast(message, 'error')
     }
   }
 
@@ -404,8 +549,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
 
   return (
     <>
-      <div className="px-0 pt-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 px-6">
+      <div className="px-0 pt-6 bg-gradient-to-r from-emerald-800 to-emerald-900">
+        <div className="flex flex-col sm:flex-row gap-4 px-6 py-4 bg-gradient-to-r from-emerald-800 to-emerald-900 mx-6">
           <div className="relative w-80">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-emerald-600 dark:text-golden-400" />
             <input
@@ -414,23 +559,26 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '36px' }}
-              className="w-full pr-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white"
+              className="w-full pr-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-gray-700 dark:text-white !bg-[#F5F1E8] dark:bg-[#1a1a1a]"
             />
           </div>
 
           <div className="flex-1"></div>
 
           <div className="flex gap-2">
-            <div className="hidden sm:flex items-center text-xs text-gray-500 dark:text-gray-400">
-              <Users className="w-4 h-4 mr-2" />
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
-              {searchTerm || filterRole !== 'all' ? ` (filtered)` : ''}
+            <div className="hidden sm:flex items-center text-xs text-white space-x-4">
+              <div className="flex items-center">
+                <Users className="w-4 h-4 mr-2" />
+                {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+                {searchTerm || filterRole !== 'all' ? ` (filtered)` : ''}
+              </div>
             </div>
+
 
             <div className="relative">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
-                className="inline-flex items-center px-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg text-sm font-medium text-emerald-800 dark:text-golden-400 bg-white dark:bg-[#1a1a1a] hover:bg-emerald-50 dark:hover:bg-emerald-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-golden-400"
+                className="inline-flex items-center px-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-golden-400 bg-[#F5F1E8] dark:bg-[#1a1a1a] hover:bg-[#F0EBE0] dark:hover:bg-emerald-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-golden-400"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 Filter
@@ -438,35 +586,35 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               </button>
               
               {showFilterMenu && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-[#1a1a1a] ring-1 ring-pearl-200 dark:ring-gray-700 z-10">
+                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-[#F3EDE2] dark:bg-[#1a1a1a] ring-1 ring-pearl-200 dark:ring-gray-700 z-10">
                   <div className="py-1">
                     <button
                       onClick={() => { setFilterRole('all'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'all' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'all' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-[#EDE4D3] dark:hover:bg-emerald-900/50'}`}
                     >
                       All Roles
                     </button>
                     <button
                       onClick={() => { setFilterRole('wolthers_staff'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'wolthers_staff' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'wolthers_staff' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-[#EDE4D3] dark:hover:bg-emerald-900/50'}`}
                     >
                       Wolthers Staff
                     </button>
                     <button
                       onClick={() => { setFilterRole('admin'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'admin' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'admin' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-[#EDE4D3] dark:hover:bg-emerald-900/50'}`}
                     >
                       Company Admins
                     </button>
                     <button
                       onClick={() => { setFilterRole('client'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'client' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'client' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-[#EDE4D3] dark:hover:bg-emerald-900/50'}`}
                     >
                       Clients
                     </button>
                     <button
                       onClick={() => { setFilterRole('driver'); setShowFilterMenu(false) }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'driver' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/50'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${filterRole === 'driver' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-800 dark:text-golden-400' : 'text-emerald-800 dark:text-golden-400 hover:bg-[#EDE4D3] dark:hover:bg-emerald-900/50'}`}
                     >
                       Drivers
                     </button>
@@ -503,7 +651,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleBulkAction('export')}
-                className="inline-flex items-center px-3 py-1 border border-emerald-300 dark:border-emerald-700 rounded text-sm font-medium text-emerald-700 dark:text-amber-400 bg-white dark:bg-gray-900 hover:bg-emerald-50 dark:hover:bg-gray-800"
+                className="inline-flex items-center px-3 py-1 border border-emerald-300 dark:border-emerald-700 rounded text-sm font-medium text-emerald-700 dark:text-amber-400 bg-[#F3EDE2] dark:bg-gray-900 hover:bg-[#EDE4D3] dark:hover:bg-gray-800"
               >
                 <Download className="w-4 h-4 mr-1" />
                 Export
@@ -511,7 +659,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               {permissions.canDeleteUsers && (
                 <button
                   onClick={() => handleBulkAction('deactivate')}
-                  className="inline-flex items-center px-3 py-1 border border-red-300 dark:border-red-700 rounded text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-900 hover:bg-red-50 dark:hover:bg-red-900"
+                  className="inline-flex items-center px-3 py-1 border border-red-300 dark:border-red-700 rounded text-sm font-medium text-red-700 dark:text-red-400 bg-[#F3EDE2] dark:bg-gray-900 hover:bg-[#EDE4D3] dark:hover:bg-red-900"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Deactivate
@@ -522,10 +670,10 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
         )}
       </div>
       
-      <div className="bg-white dark:bg-gray-900 w-full">
+      <div className="bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3] dark:bg-gray-900 w-full">
         <div className="overflow-x-auto w-full">
           <table className="w-full divide-y divide-pearl-200 dark:divide-gray-700">
-            <thead className="bg-gradient-to-r from-emerald-800 to-emerald-900 dark:from-emerald-900 dark:to-emerald-950">
+            <thead className="bg-[#1E293B] dark:from-emerald-900 dark:to-emerald-950">
               {/* First row - grouped headers */}
               <tr>
                 {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
@@ -542,7 +690,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 <th className="px-2 py-6 text-left w-48 max-w-48">
                   <button 
                     onClick={() => handleSort('full_name')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                    className="group flex items-center space-x-1 text-xs font-semibold text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
                     <span>Name</span>
                     {getSortIcon('full_name')}
@@ -552,7 +700,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 <th className="px-2 py-6 text-left w-36 max-w-36">
                   <button 
                     onClick={() => handleSort('email')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                    className="group flex items-center space-x-1 text-xs font-semibold text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
                     <span>Contact</span>
                     {getSortIcon('email')}
@@ -562,7 +710,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 <th className="px-6 py-6 text-left hidden md:table-cell">
                   <button 
                     onClick={() => handleSort('company_name')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                    className="group flex items-center space-x-1 text-xs font-semibold text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
                     <span>Company</span>
                     {getSortIcon('company_name')}
@@ -572,7 +720,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 <th className="px-4 py-6 text-left hidden lg:table-cell w-28 max-w-28">
                   <button 
                     onClick={() => handleSort('user_type')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                    className="group flex items-center space-x-1 text-xs font-semibold text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
                     <span>Role</span>
                     {getSortIcon('user_type')}
@@ -582,7 +730,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 <th className="px-2 py-6 text-left hidden md:table-cell">
                   <button 
                     onClick={() => handleSort('last_login_at')}
-                    className="group flex items-center space-x-1 text-xs font-semibold text-white dark:text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
+                    className="group flex items-center space-x-1 text-xs font-semibold text-amber-400 uppercase tracking-wider hover:text-amber-200 dark:hover:text-amber-300"
                   >
                     <span>Last Login</span>
                     {getSortIcon('last_login_at')}
@@ -602,15 +750,15 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-pearl-200 dark:divide-gray-700">
+            <tbody className="bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3] dark:bg-gray-900 divide-y divide-pearl-200 dark:divide-gray-700">
               {filteredUsers.map((user, index) => {
                 return (
                   <tr 
                     key={user.id} 
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors h-20 ${
+                    className={`hover:bg-stone-200 dark:hover:bg-gray-800 transition-colors h-20 ${
                       index % 2 === 0 
-                        ? 'bg-white dark:bg-[#1A1A1A]' 
-                        : 'bg-gray-100 dark:bg-[#242424]'
+                        ? 'bg-[#FFFDF9] dark:bg-[#1A1A1A]' 
+                        : 'bg-[#FCFAF4] dark:bg-[#242424]'
                     }`}
                   >
                     {(permissions.canEditCompanyUsers || permissions.canEditAllUsers) && (
@@ -642,26 +790,49 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                     
                     <td className="px-2 py-4 whitespace-nowrap w-36 max-w-36">
                       <div className="flex flex-col space-y-0.5">
-                        <div className="flex items-center space-x-1 max-w-full">
-                          <button
-                            onClick={() => handleCopyEmail(user.email)}
-                            className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
-                            title="Copy full email"
-                          >
-                            {copiedEmails.has(user.email) ? (
-                              <Check className="w-3 h-3 text-green-600" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-gray-400 hover:text-gray-600" />
-                            )}
-                          </button>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.email}>
-                            {user.email}
-                          </span>
-                        </div>
-                        {user.phone && (
+                        {/* WhatsApp number (prioritized if available) */}
+                        {user.whatsapp ? (
                           <div className="flex items-center space-x-1 max-w-full">
                             <button
-                              onClick={() => handleCopyPhone(user.phone)}
+                              onClick={() => handleCopyPhone(user.whatsapp, 'whatsapp')}
+                              className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
+                              title="Copy WhatsApp number"
+                            >
+                              {copiedPhones.has(user.whatsapp) ? (
+                                <Check className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <Phone className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                              )}
+                            </button>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.whatsapp}>
+                              {truncatePhone(user.whatsapp)}
+                            </span>
+                          </div>
+                        ) : (
+                          /* Email as fallback */
+                          <div className="flex items-center space-x-1 max-w-full">
+                            <button
+                              onClick={() => handleCopyEmail(user.email)}
+                              className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
+                              title="Copy email"
+                            >
+                              {copiedEmails.has(user.email) ? (
+                                <Check className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <Mail className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                              )}
+                            </button>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.email}>
+                              {user.email}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Show additional contact info if different from primary */}
+                        {user.whatsapp && user.phone && user.phone !== user.whatsapp && (
+                          <div className="flex items-center space-x-1 max-w-full">
+                            <button
+                              onClick={() => handleCopyPhone(user.phone, 'phone')}
                               className="inline-flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-1"
                               title="Copy phone number"
                             >
@@ -739,7 +910,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       </div>
 
       {filteredUsers.length === 0 && (
-        <div className="bg-white dark:bg-gray-900 border border-pearl-200 dark:border-gray-700 rounded-lg text-center py-12">
+        <div className="bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3] dark:bg-gray-900 border border-pearl-200 dark:border-gray-700 rounded-lg text-center py-12">
           <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No users found</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

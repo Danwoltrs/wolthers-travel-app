@@ -90,9 +90,15 @@ export async function GET(request: NextRequest) {
       .select(`
         trips!inner (
           id,
+          title,
           start_date,
           end_date,
           status
+        ),
+        companies (
+          id,
+          name,
+          fantasy_name
         )
       `)
       .eq('user_id', user.id)
@@ -109,8 +115,10 @@ export async function GET(request: NextRequest) {
       totalTrips: userTrips?.length || 0,
       trips: userTrips?.map(tp => ({
         id: tp.trips?.id,
+        title: tp.trips?.title,
         start_date: tp.trips?.start_date,
-        status: tp.trips?.status
+        status: tp.trips?.status,
+        company: tp.companies?.fantasy_name || tp.companies?.name
       }))
     })
 
@@ -138,7 +146,17 @@ export async function GET(request: NextRequest) {
       })
 
       // Group trips by year and week for multi-year heatmap
-      const yearlyData: Record<number, { weeklyData: Record<number, number>; tripCount: number; maxTripsPerWeek: number }> = {}
+      const yearlyData: Record<number, { 
+        weeklyData: Record<number, number>; 
+        tripCount: number; 
+        maxTripsPerWeek: number;
+        weeklyTrips: Record<number, Array<{
+          id: string;
+          title: string;
+          company: string;
+          start_date: string;
+        }>>;
+      }> = {}
       let globalMaxTrips = 0
 
       const getWeekOfYear = (date: Date): number => {
@@ -153,13 +171,15 @@ export async function GET(request: NextRequest) {
         yearlyData[year] = {
           weeklyData: {},
           tripCount: 0,
-          maxTripsPerWeek: 0
+          maxTripsPerWeek: 0,
+          weeklyTrips: {}
         }
       }
 
       // Process all trips and group by year and week
       userTrips.forEach(tp => {
         const trip = tp.trips
+        const company = tp.companies
         if (trip && trip.start_date) {
           const startDate = new Date(trip.start_date)
           const tripYear = startDate.getFullYear()
@@ -168,6 +188,19 @@ export async function GET(request: NextRequest) {
           if (tripYear >= oldestYear && tripYear <= currentYear) {
             const weekOfYear = getWeekOfYear(startDate)
             const yearData = yearlyData[tripYear]
+            
+            // Initialize weekly trips array if not exists
+            if (!yearData.weeklyTrips[weekOfYear]) {
+              yearData.weeklyTrips[weekOfYear] = []
+            }
+            
+            // Add trip details to weekly trips
+            yearData.weeklyTrips[weekOfYear].push({
+              id: trip.id,
+              title: trip.title || 'Untitled Trip',
+              company: company?.fantasy_name || company?.name || 'Unknown Company',
+              start_date: trip.start_date
+            })
             
             yearData.weeklyData[weekOfYear] = (yearData.weeklyData[weekOfYear] || 0) + 1
             yearData.tripCount++
