@@ -4,10 +4,11 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
-  Home, Building, Users, Settings, Sun, Moon, Menu, X
+  Home, Building, Users, Settings, Sun, Moon, Menu, X, User, LogOut
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useAuth } from '@/contexts/AuthContext'
 import UserManagementModal from '@/components/users/UserManagementModal'
 import Image from 'next/image'
 
@@ -34,8 +35,10 @@ const navItems: NavItem[] = [
 export default function Header() {
   const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
+  const { user, signOut, isLoading } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const [showUserModal, setShowUserModal] = React.useState(false)
+  const [showUserDropdown, setShowUserDropdown] = React.useState(false)
   
   const toggleMenu = () => {
     const newState = !isMenuOpen
@@ -85,72 +88,115 @@ export default function Header() {
                 </Link>
               ))}
               
-              {/* Users Modal Trigger */}
-              <button
-                onClick={() => setShowUserModal(true)}
-                title="User Management"
-                className={cn(
-                  'p-3 rounded-full transition-all duration-200 hover:scale-110',
-                  showUserModal
-                    ? 'bg-white/20 dark:bg-emerald-500/20 text-white shadow-lg'
-                    : 'text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15'
-                )}
-              >
-                <Users className="w-5 h-5" />
-              </button>
-              
-              {/* Theme Toggle Switch */}
+              {/* Theme Toggle Switch - Smaller */}
               <button
                 onClick={toggleTheme}
                 title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
                 className="relative ml-4"
               >
                 <div className={cn(
-                  "w-12 h-6 rounded-full transition-all duration-300 ease-in-out",
+                  "w-8 h-4 rounded-full transition-all duration-300 ease-in-out",
                   theme === 'dark' 
                     ? "bg-[#0E3D2F]" 
                     : "bg-white/30"
                 )}>
                   <div className={cn(
-                    "absolute top-0.5 w-5 h-5 rounded-full transition-all duration-300 ease-in-out transform flex items-center justify-center",
+                    "absolute top-0.5 w-3 h-3 rounded-full transition-all duration-300 ease-in-out transform flex items-center justify-center",
                     theme === 'dark'
-                      ? "translate-x-6 bg-white"
+                      ? "translate-x-4 bg-white"
                       : "translate-x-0.5 bg-white"
                   )}>
                     {theme === 'dark' ? (
-                      <Moon className="w-3 h-3 text-[#0E3D2F]" />
+                      <Moon className="w-2 h-2 text-[#0E3D2F]" />
                     ) : (
-                      <Sun className="w-3 h-3 text-amber-600" />
+                      <Sun className="w-2 h-2 text-amber-600" />
                     )}
                   </div>
                 </div>
               </button>
+
+              {/* User Profile Dropdown */}
+              {user && !isLoading && (
+                <div 
+                  className="relative ml-4"
+                  onMouseEnter={() => setShowUserDropdown(true)}
+                  onMouseLeave={() => setShowUserDropdown(false)}
+                >
+                  <div className="flex items-center space-x-2 p-2 rounded-full text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 cursor-pointer">
+                    {user.image ? (
+                      <Image
+                        src={user.image}
+                        alt={user.name || user.email}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <User className="w-5 h-5" />
+                    )}
+                    <div className="hidden md:block">
+                      <div className="text-sm font-medium">{user.name || user.email}</div>
+                      <div className="text-xs text-emerald-200 dark:text-green-400">{user.email}</div>
+                    </div>
+                  </div>
+
+                  {/* Dropdown Menu */}
+                  {showUserDropdown && (
+                    <div className="absolute right-0 top-full pt-1 z-50">
+                      <div className="w-48 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-emerald-200 dark:border-emerald-900/60">
+                        <div className="py-2">
+                          <button
+                            onClick={() => {
+                              setShowUserDropdown(false)
+                              setShowUserModal(true)
+                            }}
+                            className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-emerald-800/30 transition-colors duration-200 text-left"
+                          >
+                            <User className="w-4 h-4" />
+                            <span>User Profile</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowUserDropdown(false)
+                              signOut()
+                            }}
+                            className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-emerald-800/30 transition-colors duration-200 text-left"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Logout</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
             
             {/* Mobile Hamburger Menu */}
             <div className="lg:hidden flex items-center space-x-4">
-              {/* Theme Toggle for Mobile */}
+              {/* Theme Toggle for Mobile - Smaller */}
               <button
                 onClick={toggleTheme}
                 title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
                 className="relative"
               >
                 <div className={cn(
-                  "w-12 h-6 rounded-full transition-all duration-300 ease-in-out",
+                  "w-8 h-4 rounded-full transition-all duration-300 ease-in-out",
                   theme === 'dark' 
                     ? "bg-[#0E3D2F]" 
                     : "bg-white/30"
                 )}>
                   <div className={cn(
-                    "absolute top-0.5 w-5 h-5 rounded-full transition-all duration-300 ease-in-out transform flex items-center justify-center",
+                    "absolute top-0.5 w-3 h-3 rounded-full transition-all duration-300 ease-in-out transform flex items-center justify-center",
                     theme === 'dark'
-                      ? "translate-x-6 bg-white"
+                      ? "translate-x-4 bg-white"
                       : "translate-x-0.5 bg-white"
                   )}>
                     {theme === 'dark' ? (
-                      <Moon className="w-3 h-3 text-[#0E3D2F]" />
+                      <Moon className="w-2 h-2 text-[#0E3D2F]" />
                     ) : (
-                      <Sun className="w-3 h-3 text-amber-600" />
+                      <Sun className="w-2 h-2 text-amber-600" />
                     )}
                   </div>
                 </div>
@@ -195,21 +241,6 @@ export default function Header() {
                     <span className="font-medium">{item.label}</span>
                   </Link>
                 ))}
-                
-                {/* Users Modal Trigger for Mobile */}
-                <button
-                  onClick={() => {
-                    setShowUserModal(true)
-                    setIsMenuOpen(false)
-                    window.dispatchEvent(new CustomEvent('menuToggle', {
-                      detail: { isOpen: false }
-                    }))
-                  }}
-                  className="flex items-center space-x-3 p-3 rounded-xl text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 w-full text-left"
-                >
-                  <Users className="w-5 h-5" />
-                  <span className="font-medium">User Management</span>
-                </button>
                 
               </nav>
             </div>
