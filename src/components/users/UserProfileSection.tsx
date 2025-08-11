@@ -46,6 +46,24 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
     }
   })
 
+  // Update form data when user prop changes (after refresh)
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        full_name: user.full_name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        whatsapp: user.whatsapp || '',
+        profile_picture_url: user.profile_picture_url || '',
+        notification_preferences: user.notification_preferences || {
+          email: true,
+          whatsapp: false,
+          in_app: true
+        }
+      })
+    }
+  }, [user])
+
   const handleCancel = () => {
     // Reset form data to original user data
     setFormData({
@@ -232,7 +250,13 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       }
 
       setIsEditing(false)
-      if (onUpdate) onUpdate()
+      
+      // Refresh the user profile data from the server
+      if (onUpdate) {
+        console.log('🔄 Triggering user profile refresh...')
+        await onUpdate()
+        console.log('✅ User profile refreshed successfully')
+      }
       
       // Show success message
       const successMessage = document.createElement('div')
@@ -359,7 +383,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 placeholder="Enter full name"
               />
             ) : (
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name || user?.name || 'No name provided'}</h3>
             )}
             <p className="text-gray-600">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2">

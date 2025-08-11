@@ -382,8 +382,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const refreshUserProfile = async () => {
+    console.log('🔄 Refreshing user profile...', { hasSession: !!session?.user, userId: session?.user?.id })
+    
     if (session?.user) {
       await loadUserProfile(session.user)
+    } else {
+      // For users authenticated via Microsoft OAuth or JWT tokens
+      const authToken = localStorage.getItem('auth-token')
+      if (authToken) {
+        try {
+          await loadUserProfileFromToken(authToken)
+        } catch (error) {
+          console.error('Failed to refresh profile from token:', error)
+        }
+      }
     }
   }
 
