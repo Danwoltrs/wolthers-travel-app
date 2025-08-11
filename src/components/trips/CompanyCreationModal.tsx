@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, Building2, Mail, Phone, Globe, MapPin } from 'lucide-react'
-import type { Company, ClientType } from '@/types'
+import { ClientType } from '@/types'
+import type { Company } from '@/types'
 
 interface CompanyCreationModalProps {
   isOpen: boolean

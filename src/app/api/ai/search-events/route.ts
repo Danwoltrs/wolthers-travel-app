@@ -6,9 +6,14 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key is not configured')
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 interface EventSearchResult {
   name: string
@@ -130,6 +135,7 @@ Only return the JSON array, no other text.`
     // Try OpenAI if Anthropic failed or key not available
     if (!aiResponse && process.env.OPENAI_API_KEY) {
       try {
+        const openai = getOpenAIClient()
         const openaiResponse = await openai.chat.completions.create({
           model: "gpt-3.5-turbo",
           messages: [
