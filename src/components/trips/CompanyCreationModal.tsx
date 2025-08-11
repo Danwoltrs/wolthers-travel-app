@@ -195,10 +195,10 @@ export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated
                     onChange={(e) => updateFormData({ clientType: e.target.value as ClientType })}
                     className="block w-full rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2"
                   >
-                    <option value={ClientType.ROASTERS}>Roasters (Sweden, Denmark, USA, etc.)</option>
-                    <option value={ClientType.DEALERS_IMPORTERS}>Dealers/Importers (Global)</option>
-                    <option value={ClientType.EXPORTERS_COOPS}>Exporters/Coops (Brazil/LATAM)</option>
-                    <option value={ClientType.SERVICE_PROVIDERS}>Service Providers (Milling, Warehouses, Brokers, QC Labs)</option>
+                    <option value={ClientType.ROASTERS}>Roasters</option>
+                    <option value={ClientType.DEALERS_IMPORTERS}>Dealers/Importers</option>
+                    <option value={ClientType.EXPORTERS_COOPS}>Exporters/Coops</option>
+                    <option value={ClientType.SERVICE_PROVIDERS}>Service Providers</option>
                   </select>
                 </div>
 
