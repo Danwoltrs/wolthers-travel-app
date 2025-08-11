@@ -155,9 +155,17 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
         throw new Error('Please enter a valid phone number')
       }
       
-      // Validate WhatsApp number format if provided
-      if (formData.whatsapp && !/^[+]?[0-9\s\-\(\)]{7,}$/.test(formData.whatsapp)) {
-        throw new Error('Please enter a valid WhatsApp number')
+      // Validate WhatsApp number format if provided - must include country code
+      if (formData.whatsapp) {
+        // Check if it starts with + followed by country code
+        if (!/^\+\d{1,4}\s?\d{2,}\s?\d[\d\s\-\(\)]*$/.test(formData.whatsapp)) {
+          throw new Error('WhatsApp number must include country code (e.g., +55 13 98123 9867)')
+        }
+        // Check minimum length including country code
+        const digitsOnly = formData.whatsapp.replace(/[^\d]/g, '')
+        if (digitsOnly.length < 8) {
+          throw new Error('WhatsApp number too short - must include country code')
+        }
       }
 
       // Get auth token (optional for Microsoft OAuth users)
@@ -196,7 +204,8 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       }
 
       const result = await response.json()
-      console.log('Profile updated successfully:', result)
+      console.log('✅ Profile updated successfully:', result)
+      console.log('✅ Updated fields:', Object.keys(formData).filter(key => formData[key] !== user?.[key]))
 
       // Update the last save time
       setLastSaveTime(result.updated_at)
@@ -235,10 +244,15 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       }, 3000)
       
     } catch (error) {
-      console.error('Error updating profile:', error)
+      console.error('❌ Error updating profile:', error)
+      console.error('❌ Failed update data:', {
+        userId: user?.id,
+        updates: formData,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      })
       const errorMessage = document.createElement('div')
       errorMessage.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-red-600 text-white flex items-center space-x-2'
-      errorMessage.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="6 18L18 6M6 6l12 12"></path></svg><span class="text-sm font-medium">Error: ${error.message}</span>`
+      errorMessage.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg><span class="text-sm font-medium">Error: ${error instanceof Error ? error.message : 'Unknown error'}</span>`
       document.body.appendChild(errorMessage)
       setTimeout(() => {
         if (document.body.contains(errorMessage)) {
@@ -385,7 +399,16 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
               </div>
             ) : (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  console.log('📝 Starting profile edit mode for:', user?.email)
+                  console.log('📝 Current profile data:', {
+                    full_name: user?.full_name,
+                    phone: user?.phone,
+                    whatsapp: user?.whatsapp,
+                    notification_preferences: user?.notification_preferences
+                  })
+                  setIsEditing(true)
+                }}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:bg-emerald-600 dark:text-yellow-400 dark:border-emerald-600 dark:hover:bg-emerald-700"
               >
                 <Edit2 className="w-4 h-4 mr-2" />
@@ -437,8 +460,15 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                   <input
                     type="tel"
                     value={formData.whatsapp}
-                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    placeholder="Add WhatsApp number"
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData({ ...formData, whatsapp: value })
+                      // Provide real-time validation feedback
+                      if (value && !value.startsWith('+')) {
+                        console.log('⚠️ WhatsApp number should start with country code (+)')
+                      }
+                    }}
+                    placeholder="Add WhatsApp number (e.g., +55 13 98123 9867)"
                     className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-white dark:bg-[#1a1a1a]"
                   />
                 ) : (

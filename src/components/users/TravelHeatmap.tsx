@@ -296,7 +296,7 @@ export default function TravelHeatmap({ userId, year = 2025 }: TravelHeatmapProp
                     {yearData.weeklyData.map((data) => (
                       <div key={`${yearData.year}-${data.week}`} className="flex flex-col items-center gap-1 flex-1 max-w-[20px]">
                         <div
-                          className={`w-3 h-3 rounded-none border transition-all duration-200 hover:scale-125 hover:z-10 relative cursor-pointer ${data.color} mx-auto`}
+                          className={`w-3 h-3 rounded-none border transition-all duration-200 hover:scale-125 hover:z-50 relative cursor-pointer ${data.color} mx-auto`}
                           title={`${yearData.year} Week ${data.weekOfYear} (${data.dateRange}): ${data.tripCount} ${data.tripCount === 1 ? 'trip' : 'trips'}`}
                           style={{ borderRadius: '2px' }}
                         />
