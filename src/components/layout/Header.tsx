@@ -242,6 +242,23 @@ export default function Header() {
                   </Link>
                 ))}
                 
+                {/* User Profile for Mobile */}
+                {user && !isLoading && (
+                  <button
+                    onClick={() => {
+                      setShowUserModal(true)
+                      setIsMenuOpen(false)
+                      window.dispatchEvent(new CustomEvent('menuToggle', {
+                        detail: { isOpen: false }
+                      }))
+                    }}
+                    className="flex items-center space-x-3 p-3 rounded-xl text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 w-full text-left"
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="font-medium">User Profile</span>
+                  </button>
+                )}
+                
               </nav>
             </div>
           </div>
