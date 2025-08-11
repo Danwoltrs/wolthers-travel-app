@@ -790,8 +790,8 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                     
                     <td className="px-2 py-4 whitespace-nowrap w-36 max-w-36">
                       <div className="flex flex-col space-y-0.5">
-                        {/* WhatsApp number (prioritized if available) */}
-                        {user.whatsapp ? (
+                        {/* WhatsApp number (show if available) */}
+                        {user.whatsapp && (
                           <div className="flex items-center space-x-1 max-w-full">
                             <button
                               onClick={() => handleCopyPhone(user.whatsapp, 'whatsapp')}
@@ -808,8 +808,10 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                               {truncatePhone(user.whatsapp)}
                             </span>
                           </div>
-                        ) : (
-                          /* Email as fallback */
+                        )}
+                        
+                        {/* Email (show if available) */}
+                        {user.email && (
                           <div className="flex items-center space-x-1 max-w-full">
                             <button
                               onClick={() => handleCopyEmail(user.email)}
@@ -826,6 +828,11 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                               {user.email}
                             </span>
                           </div>
+                        )}
+                        
+                        {/* Show fallback if no WhatsApp or email */}
+                        {!user.whatsapp && !user.email && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 italic">No contact info</span>
                         )}
                         
                         {/* Show additional contact info if different from primary */}
