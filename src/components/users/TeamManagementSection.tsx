@@ -24,7 +24,8 @@ import {
   ArrowDown,
   MapPin,
   Plane,
-  Phone
+  Phone,
+  MessageSquare
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { UserPermissions, filterUsersForViewer } from '@/lib/permissions'
@@ -801,7 +802,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                               {copiedPhones.has(user.whatsapp) ? (
                                 <Check className="w-3 h-3 text-green-600" />
                               ) : (
-                                <Phone className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                                <MessageSquare className="w-3 h-3 text-gray-400 hover:text-gray-600" />
                               )}
                             </button>
                             <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.whatsapp}>
