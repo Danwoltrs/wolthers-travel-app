@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
+import TripCreationModal from '@/components/trips/TripCreationModal'
 import AuthDebug from '@/components/debug/AuthDebug'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
   const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [showTripCreationModal, setShowTripCreationModal] = useState(false)
   const { trips, loading, error, isOffline } = useTrips()
 
   // Listen for menu state changes (this would need to be coordinated with Header component)
@@ -66,7 +68,13 @@ export default function Dashboard() {
   }
 
   const handleCreateTrip = () => {
-    window.location.href = '/trips/new'
+    setShowTripCreationModal(true)
+  }
+
+  const handleTripCreated = (trip: any) => {
+    // Optionally refresh trips data here
+    console.log('Trip created:', trip)
+    // You might want to call a refresh function from useTrips hook
   }
 
   const closeModal = () => {
@@ -209,6 +217,13 @@ export default function Dashboard() {
             onClose={closeModal}
           />
         )}
+
+        {/* Trip Creation Modal */}
+        <TripCreationModal
+          isOpen={showTripCreationModal}
+          onClose={() => setShowTripCreationModal(false)}
+          onTripCreated={handleTripCreated}
+        />
       </div>
     </div>
   )

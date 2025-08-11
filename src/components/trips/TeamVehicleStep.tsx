@@ -1,5 +1,5 @@
 import React from 'react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 import { Users, Car, UserCheck } from 'lucide-react'
 import type { User, Vehicle } from '@/types'
 import { UserRole, VehicleStatus } from '@/types'

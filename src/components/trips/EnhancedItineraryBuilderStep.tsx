@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 import { Plus, Calendar, Clock, MapPin, Upload, Wand2, Loader2, FileText, AlertCircle } from 'lucide-react'
 import type { Company, Activity, ItineraryDay } from '@/types'
 

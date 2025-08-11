@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Calendar, MapPin, Globe, Plus, Check, Loader2, ExternalLink } from 'lucide-react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 
 interface Convention {
   id: string

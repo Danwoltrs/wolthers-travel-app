@@ -1,5 +1,5 @@
 import React from 'react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 import { Plus, Calendar, Clock, MapPin } from 'lucide-react'
 
 interface ItineraryBuilderStepProps {

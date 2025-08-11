@@ -1,5 +1,5 @@
 import React from 'react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 import { Calendar, Users, Car, Building, DollarSign } from 'lucide-react'
 import { formatDateRange } from '@/lib/utils'
 

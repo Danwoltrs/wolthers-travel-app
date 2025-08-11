@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Plus, X, Calendar, Users } from 'lucide-react'
-import { TripFormData } from '@/app/trips/new/page'
+import { TripFormData } from './TripCreationModal'
 import type { Company, User } from '@/types'
 import CompanyCreationModal from './CompanyCreationModal'
 import UserCreationModal from './UserCreationModal'
