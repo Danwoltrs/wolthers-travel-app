@@ -108,7 +108,13 @@ export default function TravelHeatmap({ userId, year = 2025, compact = false }: 
         headers['Authorization'] = `Bearer ${authToken}`
       }
       
-      const response = await fetch('/api/user/stats', {
+      // Create URL with userId parameter if provided
+      const apiUrl = new URL('/api/user/stats', window.location.origin)
+      if (userId) {
+        apiUrl.searchParams.set('userId', userId)
+      }
+
+      const response = await fetch(apiUrl.toString(), {
         method: 'GET',
         headers,
         credentials: 'include' // Always include cookies for Microsoft OAuth sessions

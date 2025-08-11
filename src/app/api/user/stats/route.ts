@@ -4,7 +4,7 @@ import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/s
 
 export async function GET(request: NextRequest) {
   try {
-    let user: any = null
+    let authenticatedUser: any = null
     
     // Try JWT token authentication first (Microsoft OAuth)
     const authHeader = request.headers.get('authorization')
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
           .single()
 
         if (!userError && userData) {
-          user = userData
-          console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
+          authenticatedUser = userData
+          console.log('🔑 JWT Auth: Successfully authenticated user:', authenticatedUser.email)
         }
       } catch (jwtError) {
         console.log('🔑 JWT verification failed, trying Supabase session...')
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If JWT failed, try Supabase session authentication (Email/Password)
-    if (!user) {
+    if (!authenticatedUser) {
       try {
         const supabaseClient = createSupabaseServiceClient()
         
@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
               .single()
 
             if (!userError && userData) {
-              user = userData
-              console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
+              authenticatedUser = userData
+              console.log('🔑 Supabase Auth: Successfully authenticated user:', authenticatedUser.email)
             }
           }
         }
@@ -67,8 +67,26 @@ export async function GET(request: NextRequest) {
     }
     
     // If both methods failed, return unauthorized
-    if (!user) {
+    if (!authenticatedUser) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Get the target userId from query params (defaults to authenticated user)
+    const { searchParams } = new URL(request.url)
+    const targetUserId = searchParams.get('userId') || authenticatedUser.id
+
+    // If requesting stats for a different user, verify permissions
+    if (targetUserId !== authenticatedUser.id) {
+      // Check if authenticated user has permission to view other users' stats
+      const canViewOtherUsers = authenticatedUser.is_global_admin || 
+                               authenticatedUser.can_view_all_trips ||
+                               authenticatedUser.user_type === 'wolthers_staff'
+      
+      if (!canViewOtherUsers) {
+        return NextResponse.json({ 
+          error: 'Insufficient permissions to view other users travel statistics' 
+        }, { status: 403 })
+      }
     }
 
     const currentYear = new Date().getFullYear()
@@ -78,12 +96,13 @@ export async function GET(request: NextRequest) {
     const oldestYear = currentYear - (yearsToInclude - 1)
 
     console.log('🔍 API: Fetching trip statistics for user:', {
-      email: user.email,
-      userId: user.id,
-      yearRange: `${oldestYear}-${currentYear}`
+      targetUserId,
+      authenticatedUser: authenticatedUser.email,
+      yearRange: `${oldestYear}-${currentYear}`,
+      isViewingOwnStats: targetUserId === authenticatedUser.id
     })
 
-    // Get all trips for this user through trip_participants using service role
+    // Get all trips for the target user through trip_participants using service role
     const supabase = createSupabaseServiceClient()
     const { data: userTrips, error: tripsError } = await supabase
       .from('trip_participants')
@@ -101,7 +120,7 @@ export async function GET(request: NextRequest) {
           fantasy_name
         )
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
 
     if (tripsError) {
       console.error('❌ API: Trip stats error:', tripsError)
