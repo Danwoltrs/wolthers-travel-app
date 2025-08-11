@@ -12,6 +12,8 @@ interface Convention {
   description?: string
   search_keywords?: string[]
   is_predefined?: boolean
+  registration_url?: string
+  confidence?: number
 }
 
 interface ConventionEvent {
@@ -119,7 +121,9 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
           date_pattern: event.dates || 'To be determined',
           description: event.description || `Event related to ${searchQuery}`,
           search_keywords: [searchQuery],
-          is_predefined: false
+          is_predefined: false,
+          registration_url: event.registrationUrl,
+          confidence: event.confidence || 0.5
         }))
 
         // Filter out duplicates and add to existing results
@@ -314,7 +318,13 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
                       {convention.date_pattern && (
                         <div className="flex items-center space-x-1">
                           <Calendar className="w-3 h-3" />
-                          <span>{convention.date_pattern}</span>
+                          <span className={`${
+                            convention.date_pattern.includes('2025') || convention.date_pattern.match(/\b\w+ \d{1,2}-?\d*,? 2025\b/) 
+                              ? 'text-emerald-600 dark:text-emerald-400 font-medium' 
+                              : ''
+                          }`}>
+                            {convention.date_pattern}
+                          </span>
                         </div>
                       )}
                       {convention.website && (
@@ -329,6 +339,26 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
                           >
                             Website
                           </a>
+                        </div>
+                      )}
+                      {convention.registration_url && (
+                        <div className="flex items-center space-x-1">
+                          <Plus className="w-3 h-3" />
+                          <a 
+                            href={convention.registration_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Register
+                          </a>
+                        </div>
+                      )}
+                      {convention.confidence && convention.confidence >= 0.8 && (
+                        <div className="flex items-center space-x-1">
+                          <Check className="w-3 h-3 text-green-500" />
+                          <span className="text-green-600 dark:text-green-400 text-xs">Verified</span>
                         </div>
                       )}
                     </div>

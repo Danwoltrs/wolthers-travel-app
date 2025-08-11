@@ -33,46 +33,60 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const prompt = `You are an expert event researcher specializing in finding professional conferences, conventions, and industry events. 
+    const prompt = `You are an expert event researcher with access to current web information. Search for events related to: "${searchQuery}"
 
-Search for events related to: "${searchQuery}"
+Your task is to find REAL, CURRENT events with ACTUAL dates and details. Focus on:
 
-Please analyze this search query and provide information about relevant events, conferences, or conventions. Focus on:
-1. Professional industry events (conferences, conventions, trade shows)
-2. Annual recurring events that businesses typically attend
-3. Events in the coffee, agriculture, or related industries if applicable
-4. International business events and forums
+1. **Current Year Events (2025)**: Find events happening in 2025 with specific dates
+2. **Professional Events**: Conferences, conventions, trade shows, forums
+3. **Real Websites & Registration**: Include actual registration URLs when found
+4. **Specific Venues**: Real venues, not just cities
+5. **Accurate Dates**: Specific dates like "March 15-17, 2025", not vague timing
 
-For each event you find or can reasonably infer exists, provide:
-- Event name (with intelligent naming like "NCA Convention 2025" or "Swiss Coffee Forum 2025")
+Search Strategy:
+- Look for official event websites
+- Check event organizer websites and announcements
+- Find registration pages with actual dates
+- Look for recent press releases or announcements
+- Check industry association calendars
+
+For each REAL event you find, provide:
+- Event name with year (e.g., "Swiss Coffee Dinner 2025")
 - Organizing body/association
-- Typical location or recent locations
-- Usual timing (month, season, or specific dates if known)
-- Brief description of the event's purpose/focus
-- Official website if known
-- Confidence level (0.1 to 1.0) based on how certain you are this event exists
+- SPECIFIC dates (e.g., "November 14-15, 2025" not "Usually November")
+- Exact venue name and location
+- Official website URL (must be real and current)
+- Registration URL if available
+- Brief description of what the event covers
+- Confidence level (0.8-1.0 for confirmed events with specific dates)
 
-Format your response as a JSON array of events. If you cannot find specific events, provide educated suggestions based on the industry or search terms.
+IMPORTANT: 
+- Only include events you can verify with specific information
+- If you find actual dates, include them precisely
+- If registration is open, include registration URLs
+- Prioritize events with confirmed 2025 dates
+- If no current events found, suggest likely upcoming ones but mark confidence lower
 
-Example format:
+Return as JSON array. Example:
 [
   {
-    "name": "International Coffee Convention 2025",
-    "organization": "World Coffee Association",
-    "website": "https://worldcoffee.org/convention",
-    "location": "Various international locations",
-    "dates": "Usually October-November",
-    "description": "Premier global coffee industry gathering for professionals worldwide",
-    "confidence": 0.8
+    "name": "Swiss Coffee Forum 2025",
+    "organization": "Swiss Coffee Trade Association",
+    "website": "https://www.sc-ta.ch/events/forum-2025/",
+    "location": "Congress Center Basel, Switzerland",
+    "dates": "November 14-15, 2025",
+    "description": "Annual gathering of Swiss coffee industry professionals",
+    "registrationUrl": "https://www.sc-ta.ch/register/",
+    "confidence": 0.95
   }
 ]
 
 Only return the JSON array, no other text.`
 
     const message = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 2000,
-      temperature: 0.3,
+      model: "claude-3-sonnet-20240229",
+      max_tokens: 3000,
+      temperature: 0.1,
       messages: [
         {
           role: "user",
