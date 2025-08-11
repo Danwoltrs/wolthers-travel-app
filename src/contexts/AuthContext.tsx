@@ -359,14 +359,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       permissions,
       azure_id: profile.microsoft_oauth_id || authUser?.user_metadata?.azure_id || undefined,
       preferred_username: authUser?.user_metadata?.preferred_username || undefined,
-      // Include all database fields for profile management (already included in name field above)
-      // full_name: profile.full_name, // This is already mapped to name field
+      // Include all database fields for profile management - maintain both name AND full_name for consistency
+      full_name: profile.full_name, // Keep this for UserProfileSection compatibility
       phone: profile.phone,
       whatsapp: profile.whatsapp,
       timezone: profile.timezone,
       last_login_at: profile.last_login_at,
       last_login_timezone: profile.last_login_timezone,
       last_login_provider: profile.last_login_provider,
+      last_profile_update: profile.last_profile_update,
       user_type: profile.user_type,
       is_global_admin: profile.is_global_admin,
       can_view_all_trips: profile.can_view_all_trips,
@@ -378,24 +379,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       updated_at: profile.updated_at,
     }
     
+    console.log('🔄 AuthContext: Mapped user profile with full_name:', mappedUser.full_name)
     setUser(mappedUser)
   }
 
   const refreshUserProfile = async () => {
-    console.log('🔄 Refreshing user profile...', { hasSession: !!session?.user, userId: session?.user?.id })
+    console.log('🔄 Refreshing user profile...', { hasSession: !!session?.user, userId: session?.user?.id, currentUserEmail: user?.email })
     
-    if (session?.user) {
-      await loadUserProfile(session.user)
-    } else {
-      // For users authenticated via Microsoft OAuth or JWT tokens
-      const authToken = localStorage.getItem('auth-token')
-      if (authToken) {
-        try {
+    try {
+      if (session?.user) {
+        console.log('🔄 Refreshing via Supabase session...')
+        await loadUserProfile(session.user)
+      } else {
+        // For users authenticated via Microsoft OAuth or JWT tokens
+        const authToken = localStorage.getItem('auth-token')
+        if (authToken) {
+          console.log('🔄 Refreshing via stored auth token...')
           await loadUserProfileFromToken(authToken)
-        } catch (error) {
-          console.error('Failed to refresh profile from token:', error)
+        } else {
+          console.warn('🔄 No session or auth token available for refresh')
         }
       }
+      console.log('✅ Profile refresh completed successfully')
+    } catch (error) {
+      console.error('❌ Profile refresh failed:', error)
     }
   }
 

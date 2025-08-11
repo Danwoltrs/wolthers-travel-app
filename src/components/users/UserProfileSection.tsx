@@ -34,7 +34,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   const [tripStats, setTripStats] = useState({ tripsThisYear: 0, upcomingTrips: 0 })
   const [lastSaveTime, setLastSaveTime] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    full_name: user?.full_name || '',
+    full_name: user?.full_name || user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
     whatsapp: user?.whatsapp || '',
@@ -49,8 +49,16 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   // Update form data when user prop changes (after refresh)
   useEffect(() => {
     if (user) {
+      console.log('📄 UserProfile: Updating form data from user prop:', {
+        full_name: user.full_name,
+        name: user.name,
+        phone: user.phone,
+        whatsapp: user.whatsapp,
+        email: user.email
+      })
+      
       setFormData({
-        full_name: user.full_name || '',
+        full_name: user.full_name || user.name || '',
         email: user.email || '',
         phone: user.phone || '',
         whatsapp: user.whatsapp || '',
@@ -67,7 +75,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   const handleCancel = () => {
     // Reset form data to original user data
     setFormData({
-      full_name: user?.full_name || '',
+      full_name: user?.full_name || user?.name || '',
       email: user?.email || '',
       phone: user?.phone || '',
       whatsapp: user?.whatsapp || '',
@@ -114,7 +122,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
   }
 
   const getInitials = () => {
-    const name = user?.full_name || 'U'
+    const name = user?.full_name || user?.name || user?.email || 'U'
     return name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase()
   }
 
@@ -165,7 +173,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
     try {
       // Basic validation
       if (!formData.full_name.trim()) {
-        throw new Error('Full name is required')
+        throw new Error('need to add a full name')
       }
       
       // Validate phone number format if provided
@@ -235,6 +243,12 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
       
       // Update the form data with any server-side changes
       if (result.user) {
+        console.log('✅ UserProfile: Updating form data with server response:', {
+          full_name: result.user.full_name,
+          phone: result.user.phone,
+          whatsapp: result.user.whatsapp
+        })
+        
         setFormData({
           full_name: result.user.full_name || '',
           email: result.user.email || '',
@@ -256,6 +270,16 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
         console.log('🔄 Triggering user profile refresh...')
         await onUpdate()
         console.log('✅ User profile refreshed successfully')
+        
+        // Small delay to ensure context update is complete before showing success
+        setTimeout(() => {
+          console.log('🔄 Post-refresh user state:', {
+            full_name: user?.full_name,
+            name: user?.name,
+            phone: user?.phone,
+            whatsapp: user?.whatsapp
+          })
+        }, 100)
       }
       
       // Show success message
@@ -383,7 +407,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 placeholder={formData.full_name ? "" : "Enter full name"}
               />
             ) : (
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name || user?.name || 'No name provided'}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">
+                {user?.full_name || user?.name || user?.email || 'No name provided'}
+              </h3>
             )}
             <p className="text-gray-600">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2">

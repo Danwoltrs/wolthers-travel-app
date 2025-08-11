@@ -312,6 +312,7 @@ export interface Expense {
 export interface AuthUser {
   id: string
   name?: string | null
+  full_name?: string | null
   email?: string | null
   image?: string | null
   role?: UserRole
@@ -319,6 +320,27 @@ export interface AuthUser {
   permissions?: Record<string, boolean>
   azure_id?: string
   preferred_username?: string
+  phone?: string | null
+  whatsapp?: string | null
+  timezone?: string | null
+  last_login_at?: string | null
+  last_login_timezone?: string | null
+  last_login_provider?: string | null
+  last_profile_update?: string | null
+  user_type?: string
+  is_global_admin?: boolean
+  can_view_all_trips?: boolean
+  can_view_company_trips?: boolean
+  microsoft_oauth_id?: string | null
+  company_name?: string | null
+  notification_preferences?: {
+    email?: boolean
+    whatsapp?: boolean
+    in_app?: boolean
+  }
+  profile_picture_url?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 /**

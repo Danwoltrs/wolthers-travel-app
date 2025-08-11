@@ -15,6 +15,13 @@ interface UserManagementModalProps {
 export default function UserManagementModal({ isOpen, onClose }: UserManagementModalProps) {
   const { user, isAuthenticated, refreshUserProfile } = useAuth()
   const [activeTab, setActiveTab] = useState<'profile' | 'team'>('profile')
+  
+  // Enhanced refresh function that includes logging
+  const handleProfileUpdate = async () => {
+    console.log('🔄 UserManagementModal: Profile update triggered')
+    await refreshUserProfile()
+    console.log('✅ UserManagementModal: Profile update completed')
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -88,7 +95,7 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
         <div className="p-3 md:p-6 space-y-6">
           {activeTab === 'profile' ? (
             <div className="bg-[#F5F1E8] dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
-              <UserProfileSection user={user} isOwnProfile={true} onUpdate={refreshUserProfile} />
+              <UserProfileSection user={user} isOwnProfile={true} onUpdate={handleProfileUpdate} />
             </div>
           ) : (
             <div className="bg-[#F5F1E8] dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">

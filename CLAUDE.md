@@ -267,3 +267,4 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Use Lucide icons exclusively for visual consistency
 - Keep glassmorphic effects subtle and professional
 - "Authentication methos fully implemented with oauth and e-mail"
+- any editing from supabase has to load the current information pre-populated from supabase if it has data, otherwise use a placeholder text
