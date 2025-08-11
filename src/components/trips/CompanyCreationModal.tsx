@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { X, Building2, Mail, Phone, Globe, MapPin } from 'lucide-react'
-import type { Company } from '@/types'
+import type { Company, ClientType } from '@/types'
 
 interface CompanyCreationModalProps {
   isOpen: boolean
   onClose: () => void
   onCompanyCreated: (company: Company) => void
+  searchTerm?: string
 }
 
 interface CompanyFormData {
@@ -14,7 +15,7 @@ interface CompanyFormData {
   email: string
   phone: string
   website: string
-  industry: string
+  clientType: ClientType
   notes: string
   // Location fields
   addressLine1: string
@@ -31,7 +32,7 @@ const initialFormData: CompanyFormData = {
   email: '',
   phone: '',
   website: '',
-  industry: 'coffee',
+  clientType: ClientType.ROASTERS,
   notes: '',
   addressLine1: '',
   addressLine2: '',
@@ -41,8 +42,11 @@ const initialFormData: CompanyFormData = {
   country: 'Brazil'
 }
 
-export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated }: CompanyCreationModalProps) {
-  const [formData, setFormData] = useState<CompanyFormData>(initialFormData)
+export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated, searchTerm }: CompanyCreationModalProps) {
+  const [formData, setFormData] = useState<CompanyFormData>({
+    ...initialFormData,
+    fantasyName: searchTerm || ''
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(1) // 1: Basic Info, 2: Contact & Location
 
@@ -65,7 +69,7 @@ export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         website: formData.website || undefined,
-        industry: formData.industry,
+        clientType: formData.clientType,
         totalTripCostsThisYear: 0,
         staffCount: undefined,
         notes: formData.notes || undefined,
@@ -85,7 +89,10 @@ export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated
   }
 
   const handleClose = () => {
-    setFormData(initialFormData)
+    setFormData({
+      ...initialFormData,
+      fantasyName: searchTerm || ''
+    })
     setCurrentStep(1)
     onClose()
   }
@@ -179,21 +186,19 @@ export default function CompanyCreationModal({ isOpen, onClose, onCompanyCreated
                 </div>
 
                 <div>
-                  <label htmlFor="industry" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Industry
+                  <label htmlFor="clientType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client Type
                   </label>
                   <select
-                    id="industry"
-                    value={formData.industry}
-                    onChange={(e) => updateFormData({ industry: e.target.value })}
+                    id="clientType"
+                    value={formData.clientType}
+                    onChange={(e) => updateFormData({ clientType: e.target.value as ClientType })}
                     className="block w-full rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2"
                   >
-                    <option value="coffee">Coffee</option>
-                    <option value="agriculture">Agriculture</option>
-                    <option value="logistics">Logistics</option>
-                    <option value="manufacturing">Manufacturing</option>
-                    <option value="trading">Trading</option>
-                    <option value="other">Other</option>
+                    <option value={ClientType.ROASTERS}>Roasters (Sweden, Denmark, USA, etc.)</option>
+                    <option value={ClientType.DEALERS_IMPORTERS}>Dealers/Importers (Global)</option>
+                    <option value={ClientType.EXPORTERS_COOPS}>Exporters/Coops (Brazil/LATAM)</option>
+                    <option value={ClientType.SERVICE_PROVIDERS}>Service Providers (Milling, Warehouses, Brokers, QC Labs)</option>
                   </select>
                 </div>
 

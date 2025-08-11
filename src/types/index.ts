@@ -44,6 +44,13 @@ export enum AuthStatus {
   ERROR = "error"
 }
 
+export enum ClientType {
+  ROASTERS = "roasters",
+  DEALERS_IMPORTERS = "dealers_importers",
+  EXPORTERS_COOPS = "exporters_coops",
+  SERVICE_PROVIDERS = "service_providers"
+}
+
 /**
  * Trip card display status - simplified view for dashboard
  */
@@ -89,8 +96,8 @@ export interface Company {
   phone?: string
   /** Company website URL */
   website?: string
-  /** Industry category for the company */
-  industry: string
+  /** Client type category for the company */
+  clientType: ClientType
   /** Total travel costs incurred this year */
   totalTripCostsThisYear: number
   /** Number of employees/staff */

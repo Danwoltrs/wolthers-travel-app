@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, X, Calendar, Users } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
-import type { Company, User } from '@/types'
+import type { Company, User, ClientType } from '@/types'
 import CompanyCreationModal from './CompanyCreationModal'
 import UserCreationModal from './UserCreationModal'
 
@@ -17,7 +17,7 @@ const availableCompanies: Company[] = [
     name: 'Cooxupe Coffee Cooperative',
     fantasyName: 'Cooxupe',
     email: 'contact@cooxupe.com.br',
-    industry: 'coffee',
+    clientType: ClientType.EXPORTERS_COOPS,
     totalTripCostsThisYear: 15000,
     isActive: true,
     createdAt: new Date(),
@@ -28,7 +28,7 @@ const availableCompanies: Company[] = [
     name: 'Swiss Coffee Trading AG',
     fantasyName: 'Swiss Coffee',
     email: 'info@swisscoffee.ch',
-    industry: 'coffee',
+    clientType: ClientType.EXPORTERS_COOPS,
     totalTripCostsThisYear: 25000,
     isActive: true,
     createdAt: new Date(),
@@ -39,7 +39,7 @@ const availableCompanies: Company[] = [
     name: 'Brasil Coffee Exports',
     fantasyName: 'BCE',
     email: 'export@bce.com.br',
-    industry: 'coffee',
+    clientType: ClientType.EXPORTERS_COOPS,
     totalTripCostsThisYear: 18000,
     isActive: true,
     createdAt: new Date(),
@@ -374,6 +374,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         isOpen={showCompanyModal}
         onClose={() => setShowCompanyModal(false)}
         onCompanyCreated={handleCompanyCreated}
+        searchTerm={companySearch}
       />
       
       <UserCreationModal
