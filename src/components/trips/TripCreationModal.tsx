@@ -192,13 +192,15 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
           </button>
         </div>
 
-        {/* Step Indicator */}
-        <div className="px-6 md:px-8 py-4 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
-          <StepIndicator steps={steps} currentStep={currentStep} />
-        </div>
+        {/* Step Indicator - Only show after trip type is selected */}
+        {formData.tripType && (
+          <div className="px-6 md:px-8 py-6 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
+            <StepIndicator steps={steps} currentStep={currentStep} />
+          </div>
+        )}
 
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 md:px-8 py-8 md:py-10 min-h-0">
           {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
             <TripTypeSelection

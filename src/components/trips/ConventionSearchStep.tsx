@@ -1,94 +1,167 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Calendar, MapPin, Globe, Plus, Check, Loader2, ExternalLink } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
-
-interface Convention {
-  id: string
-  name: string
-  organization?: string
-  website?: string
-  typical_location?: string
-  date_pattern?: string
-  description?: string
-  search_keywords?: string[]
-  is_predefined?: boolean
-  registration_url?: string
-  confidence?: number
-}
-
-interface ConventionEvent {
-  id: string
-  convention_id: string
-  year: number
-  start_date?: string
-  end_date?: string
-  location?: string
-  venue?: string
-  registration_url?: string
-  estimated_cost?: number
-  notes?: string
-  is_confirmed?: boolean
-}
+import { searchEvents } from '@/services/eventSearchService'
+import { EnrichedEvent } from '@/services/eventSearchService'
 
 interface ConventionSearchStepProps {
-  formData: TripFormData & { selectedConvention?: Convention; selectedEvent?: ConventionEvent }
-  updateFormData: (data: Partial<TripFormData & { selectedConvention?: Convention; selectedEvent?: ConventionEvent }>) => void
+  formData: TripFormData & { selectedConvention?: EnrichedEvent }
+  updateFormData: (data: Partial<TripFormData & { selectedConvention?: EnrichedEvent }>) => void
 }
 
-// Mock predefined conventions data - will be replaced with API calls
-const predefinedConventions: Convention[] = [
+const allCoffeeConventions: EnrichedEvent[] = [
   {
-    id: '1',
-    name: 'NCA Convention',
-    organization: 'National Coffee Association USA',
-    website: 'https://www.ncausa.org/Convention',
-    typical_location: 'United States',
-    date_pattern: 'Annual - Usually March/April',
-    description: 'Premier coffee industry event in the United States',
-    search_keywords: ['NCA', 'coffee', 'convention', 'national', 'usa'],
+    id: 'sintercafe-2025',
+    name: 'Sintercafe 2025',
+    organization: 'Costa Rica Coffee Industry Association',
+    description: 'Annual international coffee week bringing together key decision makers from the most important coffee companies worldwide.',
+    startDate: '2025-11-13',
+    endDate: '2025-11-16',
+    location: {
+      name: 'InterContinental Costa Rica at Multiplaza Mall',
+      city: 'San José',
+      country: 'Costa Rica',
+      address: 'Autopista Próspero Fernández, Escazú, San José'
+    },
+    website: 'https://sintercafe.com',
+    confidence: 1.0,
     is_predefined: true
   },
   {
-    id: '2',
-    name: 'Swiss Coffee Dinner',
-    organization: 'Swiss Coffee Trade Association',
-    website: 'https://www.sc-ta.ch/events/forum-dinner-2025/',
-    typical_location: 'Switzerland',
-    date_pattern: 'Annual - Usually November',
-    description: 'Swiss Coffee Trade Association forum dinner',
-    search_keywords: ['SCTA', 'swiss', 'coffee', 'dinner', 'forum'],
+    id: 'sic-2025',
+    name: 'Sustainable & Innovative Coffee Symposium 2025',
+    organization: 'Sustainable Coffee Challenge',
+    description: 'Focus on sustainability, innovation, and the future of coffee production and consumption.',
+    startDate: '2025-10-08',
+    endDate: '2025-10-10',
+    location: {
+      name: 'Amsterdam RAI Convention Centre',
+      city: 'Amsterdam',
+      country: 'Netherlands',
+      address: 'Europaplein, 1078 GZ Amsterdam'
+    },
+    website: 'https://www.sustainablecoffeechallenge.org',
+    confidence: 1.0,
     is_predefined: true
   },
   {
-    id: '3',
-    name: 'Semana Internacional do Café',
-    organization: 'SIC',
-    website: '',
-    typical_location: 'Brazil',
-    date_pattern: 'Annual - Usually October/November',
-    description: 'International Coffee Week in Brazil',
-    search_keywords: ['SIC', 'semana', 'cafe', 'international', 'brazil'],
+    id: 'host-2025',
+    name: 'HOST Milano 2025',
+    organization: 'Fiera Milano',
+    description: 'International hospitality exhibition featuring coffee equipment, technology, and innovations.',
+    startDate: '2025-10-17',
+    endDate: '2025-10-21',
+    location: {
+      name: 'Fiera Milano',
+      city: 'Milan',
+      country: 'Italy',
+      address: 'Strada Statale del Sempione, 28, 20017 Rho MI'
+    },
+    website: 'https://www.host.fieramilano.it',
+    confidence: 1.0,
+    is_predefined: true
+  },
+  {
+    id: 'coffee-fest-winter-2026',
+    name: 'Coffee Fest 2026',
+    organization: 'Coffee Fest Events',
+    description: 'Regional coffee trade show featuring equipment, education, and competitions for coffee professionals.',
+    startDate: '2026-02-20',
+    endDate: '2026-02-22',
+    location: {
+      name: 'Anaheim Convention Center',
+      city: 'Anaheim',
+      country: 'USA',
+      address: '800 W Katella Ave, Anaheim, CA 92802'
+    },
+    website: 'https://www.coffeefest.com',
+    confidence: 1.0,
+    is_predefined: true
+  },
+  {
+    id: 'nca-2026',
+    name: 'National Coffee Association Convention 2026',
+    organization: 'National Coffee Association of USA',
+    description: 'The premier gathering for coffee industry professionals, featuring networking, education, and the latest industry trends.',
+    startDate: '2026-03-20',
+    endDate: '2026-03-22',
+    location: {
+      name: 'Miami Beach Convention Center',
+      city: 'Miami Beach',
+      country: 'USA',
+      address: '1901 Convention Center Dr, Miami Beach, FL 33139'
+    },
+    website: 'https://www.ncausa.org',
+    confidence: 1.0,
+    is_predefined: true
+  },
+  {
+    id: 'sca-expo-2026',
+    name: 'Specialty Coffee Expo 2026',
+    organization: 'Specialty Coffee Association',
+    description: 'The largest coffee trade show in the world, bringing together the global specialty coffee community.',
+    startDate: '2026-04-23',
+    endDate: '2026-04-25',
+    location: {
+      name: 'Chicago McCormick Place',
+      city: 'Chicago',
+      country: 'USA',
+      address: '2301 S King Dr, Chicago, IL 60616'
+    },
+    website: 'https://specialtycoffee.org',
+    confidence: 1.0,
+    is_predefined: true
+  },
+  {
+    id: 'world-of-coffee-2026',
+    name: 'World of Coffee 2026',
+    organization: 'Specialty Coffee Association Europe',
+    description: 'Europe\'s premier specialty coffee event featuring competitions, education, and exhibition.',
+    startDate: '2026-06-25',
+    endDate: '2026-06-27',
+    location: {
+      name: 'Copenhagen Bella Center',
+      city: 'Copenhagen',
+      country: 'Denmark',
+      address: 'Center Blvd 5, 2300 København S'
+    },
+    website: 'https://www.worldofcoffee.org',
+    confidence: 1.0,
+    is_predefined: true
+  },
+  {
+    id: 'scaj-2026',
+    name: 'SCAJ World Specialty Coffee Conference 2026',
+    organization: 'Specialty Coffee Association of Japan',
+    description: 'Asia\'s premier specialty coffee event showcasing innovations and trends in the Asian coffee market.',
+    startDate: '2026-09-24',
+    endDate: '2026-09-26',
+    location: {
+      name: 'Tokyo Big Sight',
+      city: 'Tokyo',
+      country: 'Japan',
+      address: '3 Chome-11-1 Ariake, Koto City, Tokyo 135-0063'
+    },
+    website: 'https://www.scaj.org',
+    confidence: 1.0,
     is_predefined: true
   }
 ]
 
+// Filter to show only upcoming events, max 6
+const predefinedConventions = allCoffeeConventions
+  .filter(event => {
+    const eventDate = new Date(event.startDate || '')
+    const today = new Date()
+    return eventDate > today
+  })
+  .slice(0, 6)
+
 export default function ConventionSearchStep({ formData, updateFormData }: ConventionSearchStepProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [searchResults, setSearchResults] = useState<Convention[]>([])
+  const [searchResults, setSearchResults] = useState<EnrichedEvent[]>([])
   const [showPredefined, setShowPredefined] = useState(true)
-
-  useEffect(() => {
-    // Filter predefined conventions based on search query
-    const filtered = predefinedConventions.filter(conv => 
-      conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.organization?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.search_keywords?.some(keyword => 
-        keyword.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    )
-    setSearchResults(filtered)
-  }, [searchQuery])
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -97,80 +170,31 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
     setShowPredefined(false)
 
     try {
-      const response = await fetch('/api/ai/search-events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ searchQuery: searchQuery.trim() })
-      })
-
-      if (!response.ok) {
-        throw new Error('Search failed')
-      }
-
-      const data = await response.json()
-
-      if (data.success && data.events) {
-        const aiResults: Convention[] = data.events.map((event: any, index: number) => ({
-          id: `ai-${Date.now()}-${index}`,
-          name: event.name,
-          organization: event.organization || 'Found via AI Search',
-          website: event.website || '',
-          typical_location: event.location || 'Various Locations',
-          date_pattern: event.dates || 'To be determined',
-          description: event.description || `Event related to ${searchQuery}`,
-          search_keywords: [searchQuery],
-          is_predefined: false,
-          registration_url: event.registrationUrl,
-          confidence: event.confidence || 0.5
-        }))
-
-        // Filter out duplicates and add to existing results
-        const existingNames = searchResults.map(r => r.name.toLowerCase())
-        const newResults = aiResults.filter(result => 
-          !existingNames.includes(result.name.toLowerCase())
-        )
-        
-        setSearchResults(prev => [...prev, ...newResults])
-      } else {
-        // Fallback result if AI search returns no events
-        const fallbackResult: Convention = {
-          id: `fallback-${Date.now()}`,
-          name: `${searchQuery} Conference 2025`,
-          organization: 'Custom Event',
-          description: `Professional event related to ${searchQuery}`,
-          typical_location: 'To be determined',
-          date_pattern: 'To be scheduled',
-          is_predefined: false
-        }
-        
-        setSearchResults(prev => [...prev, fallbackResult])
-      }
+      const events = await searchEvents(searchQuery)
+      setSearchResults(events)
     } catch (error) {
-      console.error('Search error:', error)
-      
-      // Fallback on error
-      const fallbackResult: Convention = {
-        id: `error-fallback-${Date.now()}`,
-        name: `${searchQuery} Event 2025`,
-        organization: 'Custom Event',
-        description: `Custom event for ${searchQuery} (AI search unavailable)`,
-        typical_location: 'To be determined',
-        date_pattern: 'To be scheduled',
-        is_predefined: false
+      console.error('Event search error:', error)
+      // Fallback result if search fails
+      const fallbackResult: EnrichedEvent = {
+        id: `fallback-${Date.now()}`,
+        name: `${searchQuery} Conference 2025`,
+        description: `Professional event related to ${searchQuery}`,
+        confidence: 0.1
       }
       
-      setSearchResults(prev => [...prev, fallbackResult])
+      setSearchResults([fallbackResult])
     } finally {
       setIsSearching(false)
     }
   }
 
-  const selectConvention = (convention: Convention) => {
+  const selectConvention = (event: EnrichedEvent) => {
     updateFormData({ 
-      selectedConvention: convention,
-      title: `${convention.name} ${new Date().getFullYear()}` 
+      selectedConvention: event,
+      title: `${event.name} ${new Date().getFullYear()}`,
+      startDate: event.startDate ? new Date(event.startDate) : null,
+      endDate: event.endDate ? new Date(event.endDate) : null,
+      description: event.description
     })
   }
 
@@ -195,14 +219,15 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
       <div className="relative mb-2">
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Search for conventions, conferences, or events..."
-              className="w-full pl-11 pr-4 py-3 border border-pearl-200 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-gray-400"
+              style={{ paddingLeft: '36px' }}
+              className="w-full pr-4 py-3 border border-pearl-200 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
             />
           </div>
           <button
@@ -270,68 +295,73 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
           </div>
 
           <div className="space-y-3">
-            {searchResults.map(convention => (
+            {searchResults.map(event => (
               <div
-                key={convention.id}
+                key={event.id}
                 className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.selectedConvention?.id === convention.id
+                  formData.selectedConvention?.id === event.id
                     ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                     : 'border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] hover:border-emerald-300 dark:hover:border-emerald-600'
                 }`}
-                onClick={() => selectConvention(convention)}
+                onClick={() => selectConvention(event)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <h4 className="font-medium text-gray-900 dark:text-golden-400">
-                        {convention.name}
+                        {event.name}
                       </h4>
-                      {formData.selectedConvention?.id === convention.id && (
+                      {formData.selectedConvention?.id === event.id && (
                         <Check className="w-4 h-4 text-emerald-500" />
                       )}
-                      {!convention.is_predefined && (
+                      {event.confidence && event.confidence < 1 && (
                         <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded">
                           AI Found
                         </span>
                       )}
                     </div>
                     
-                    {convention.organization && (
+                    {event.organization && (
                       <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-                        {convention.organization}
+                        {event.organization}
                       </div>
                     )}
                     
-                    {convention.description && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                        {convention.description}
+                    {event.description && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">
+                        {event.description}
                       </div>
                     )}
 
                     <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
-                      {convention.typical_location && (
+                      {event.location?.country && (
                         <div className="flex items-center space-x-1">
                           <MapPin className="w-3 h-3" />
-                          <span>{convention.typical_location}</span>
-                        </div>
-                      )}
-                      {convention.date_pattern && (
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3" />
-                          <span className={`${
-                            convention.date_pattern.includes('2025') || convention.date_pattern.match(/\b\w+ \d{1,2}-?\d*,? 2025\b/) 
-                              ? 'text-emerald-600 dark:text-emerald-400 font-medium' 
-                              : ''
-                          }`}>
-                            {convention.date_pattern}
+                          <span>
+                            {event.location.city ? `${event.location.city}, ` : ''}
+                            {event.location.country}
                           </span>
                         </div>
                       )}
-                      {convention.website && (
+                      {(event.startDate || event.endDate) && (
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3" />
+                          <span className={`${
+                            new Date(event.startDate || '').getFullYear() === 2025 
+                              ? 'text-emerald-600 dark:text-emerald-400 font-medium' 
+                              : ''
+                          }`}>
+                            {event.startDate && new Date(event.startDate).toLocaleDateString()} 
+                            {event.startDate && event.endDate && ' - '}
+                            {event.endDate && new Date(event.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      {event.website && (
                         <div className="flex items-center space-x-1">
                           <ExternalLink className="w-3 h-3" />
                           <a 
-                            href={convention.website} 
+                            href={event.website} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="hover:text-emerald-600 dark:hover:text-emerald-400"
@@ -341,11 +371,11 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
                           </a>
                         </div>
                       )}
-                      {convention.registration_url && (
+                      {event.registrationUrl && (
                         <div className="flex items-center space-x-1">
                           <Plus className="w-3 h-3" />
                           <a 
-                            href={convention.registration_url} 
+                            href={event.registrationUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
@@ -355,7 +385,7 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
                           </a>
                         </div>
                       )}
-                      {convention.confidence && convention.confidence >= 0.8 && (
+                      {event.confidence && event.confidence >= 0.8 && (
                         <div className="flex items-center space-x-1">
                           <Check className="w-3 h-3 text-green-500" />
                           <span className="text-green-600 dark:text-green-400 text-xs">Verified</span>
@@ -394,15 +424,54 @@ export default function ConventionSearchStep({ formData, updateFormData }: Conve
               Selected: {formData.selectedConvention.name}
             </h3>
           </div>
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            Great choice! Click "Next" to continue with attendee selection and travel arrangements.
-          </p>
+          <div className="space-y-2">
+            {formData.selectedConvention.location && (
+              <div className="flex items-center space-x-2 text-sm text-emerald-700 dark:text-emerald-400">
+                <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                <span>
+                  {formData.selectedConvention.location.name || ''}
+                  {formData.selectedConvention.location.city && `, ${formData.selectedConvention.location.city}`}
+                  {formData.selectedConvention.location.country && ` - ${formData.selectedConvention.location.country}`}
+                </span>
+              </div>
+            )}
+            {(formData.selectedConvention.startDate || formData.selectedConvention.endDate) && (
+              <div className="flex items-center space-x-2 text-sm text-emerald-700 dark:text-emerald-400">
+                <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                <span>
+                  {formData.selectedConvention.startDate && new Date(formData.selectedConvention.startDate).toLocaleDateString()}
+                  {formData.selectedConvention.startDate && formData.selectedConvention.endDate && ' - '}
+                  {formData.selectedConvention.endDate && new Date(formData.selectedConvention.endDate).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+            {formData.selectedConvention.description && (
+              <div className="text-sm text-emerald-600 dark:text-emerald-400 line-clamp-2">
+                {formData.selectedConvention.description}
+              </div>
+            )}
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              Great choice! Click "Next" to continue with attendee selection and travel arrangements.
+            </p>
+          </div>
         </div>
       )}
 
       {/* Add Custom Event Button */}
       <div className="pt-4 border-t border-gray-200 dark:border-[#2a2a2a]">
-        <button className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400">
+        <button 
+          onClick={() => {
+            const customEvent: EnrichedEvent = {
+              id: `custom-${Date.now()}`,
+              name: 'Custom Event',
+              description: 'Create a custom event for your trip',
+              confidence: 0,
+              is_predefined: false
+            }
+            selectConvention(customEvent)
+          }}
+          className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+        >
           <Plus className="w-4 h-4" />
           <span>Can't find your event? Add custom event</span>
         </button>

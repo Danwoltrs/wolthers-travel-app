@@ -217,7 +217,7 @@ export interface Activity {
   /** Scheduled time in HH:MM format */
   time: string
   /** Type of activity */
-  type: 'meeting' | 'visit' | 'travel' | 'meal' | 'hotel'
+  type: 'meeting' | 'visit' | 'travel' | 'meal' | 'hotel' | 'conference' | 'convention'
   /** Activity title */
   title: string
   /** Optional activity description */
@@ -236,6 +236,25 @@ export interface Activity {
   confirmationStatus: string
   /** Additional notes */
   notes?: string
+  /** External event source information */
+  externalSource?: {
+    name: string
+    id?: string
+    url?: string
+    registrationUrl?: string
+    confidence?: number
+  }
+  /** Detailed location information */
+  location?: {
+    name?: string
+    address?: string
+    coordinates?: {
+      latitude: number
+      longitude: number
+    }
+    city?: string
+    country?: string
+  }
   /** Activity creation timestamp */
   createdAt: Date
 }

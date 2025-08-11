@@ -15,58 +15,55 @@ interface StepIndicatorProps {
 
 export default function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
   return (
-    <nav aria-label="Progress">
-      <ol className="flex items-center">
+    <nav aria-label="Progress" className="w-full">
+      <ol className="flex items-start justify-between w-full mb-8">
         {steps.map((step, stepIdx) => (
           <li
             key={step.id}
             className={cn(
-              stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : '',
-              'relative'
+              'relative flex-1 flex flex-col items-center',
+              stepIdx !== steps.length - 1 ? 'after:content-[""] after:absolute after:top-3 after:left-[calc(50%+12px)] after:w-[calc(100%-24px)] after:h-0.5 after:bg-pearl-200 dark:after:bg-gray-600' : ''
             )}
           >
             {step.id < currentStep ? (
               <>
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="h-0.5 w-full bg-sage-500" />
-                </div>
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-sage-500 hover:bg-sage-600 transition-colors">
-                  <Check className="h-5 w-5 text-white" aria-hidden="true" />
+                {stepIdx !== 0 && (
+                  <div className="absolute top-3 left-0 w-[calc(50%-12px)] h-0.5 bg-emerald-500" />
+                )}
+                <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors z-10">
+                  <Check className="h-3 w-3 text-white" aria-hidden="true" />
                   <span className="sr-only">{step.name}</span>
                 </div>
               </>
             ) : step.id === currentStep ? (
               <>
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="h-0.5 w-full bg-pearl-200" />
-                </div>
+                {stepIdx !== 0 && (
+                  <div className="absolute top-3 left-0 w-[calc(50%-12px)] h-0.5 bg-emerald-500" />
+                )}
                 <div
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-sage-500 bg-white"
+                  className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-emerald-500 bg-white z-10"
                   aria-current="step"
                 >
-                  <span className="h-2.5 w-2.5 rounded-full bg-sage-500" aria-hidden="true" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
                   <span className="sr-only">{step.name}</span>
                 </div>
               </>
             ) : (
               <>
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="h-0.5 w-full bg-pearl-200" />
-                </div>
-                <div className="group relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-pearl-300 bg-white hover:border-pearl-400 transition-colors">
+                <div className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500 transition-colors z-10">
                   <span
-                    className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-pearl-300 transition-colors"
+                    className="h-2 w-2 rounded-full bg-transparent"
                     aria-hidden="true"
                   />
                   <span className="sr-only">{step.name}</span>
                 </div>
               </>
             )}
-            <div className="mt-3">
-              <span className="text-sm font-medium text-latte-800">
+            <div className="mt-4 text-center max-w-[120px]">
+              <span className="text-xs font-medium text-gray-800 dark:text-golden-400 block">
                 {step.name}
               </span>
-              <p className="text-sm text-latte-600">{step.description}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>
             </div>
           </li>
         ))}
