@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
-import { Plus, X, Calendar } from 'lucide-react'
+import { Plus, X, Calendar, Users } from 'lucide-react'
 import { TripFormData } from '@/app/trips/new/page'
 import type { Company, User } from '@/types'
+import CompanyCreationModal from './CompanyCreationModal'
+import UserCreationModal from './UserCreationModal'
 
 interface BasicInfoStepProps {
   formData: TripFormData
@@ -48,6 +50,9 @@ const availableCompanies: Company[] = [
 export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
+  const [showCompanyModal, setShowCompanyModal] = useState(false)
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<string | undefined>()
 
   const filteredCompanies = availableCompanies.filter(
     company => 
@@ -64,8 +69,31 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
 
   const removeCompany = (companyId: string) => {
     updateFormData({ 
-      companies: formData.companies.filter(c => c.id !== companyId) 
+      companies: formData.companies.filter(c => c.id !== companyId),
+      participants: formData.participants.filter(p => p.companyId !== companyId)
     })
+  }
+
+  const handleCompanyCreated = (company: Company) => {
+    updateFormData({ companies: [...formData.companies, company] })
+    setShowCompanyModal(false)
+  }
+
+  const handleUserCreated = (user: User) => {
+    updateFormData({ participants: [...formData.participants, user] })
+    setShowUserModal(false)
+    setSelectedCompanyForUser(undefined)
+  }
+
+  const removeParticipant = (userId: string) => {
+    updateFormData({ 
+      participants: formData.participants.filter(p => p.id !== userId) 
+    })
+  }
+
+  const openUserModalForCompany = (companyId?: string) => {
+    setSelectedCompanyForUser(companyId)
+    setShowUserModal(true)
   }
 
   const formatDateForInput = (date: Date | null): string => {
@@ -170,7 +198,9 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
             />
             <button
               type="button"
+              onClick={() => setShowCompanyModal(true)}
               className="ml-2 btn-secondary"
+              title="Add new company"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -260,6 +290,102 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           />
         </div>
       </div>
+
+      {/* Participants Section */}
+      {formData.companies.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-latte-700 mb-2">
+            Participants
+          </label>
+          
+          {/* Selected Participants */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {formData.participants.map(participant => {
+              const company = formData.companies.find(c => c.id === participant.companyId)
+              return (
+                <div
+                  key={participant.id}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200"
+                >
+                  <Users className="w-3 h-3 mr-1" />
+                  <span>{participant.fullName}</span>
+                  {company && (
+                    <span className="text-blue-600 text-xs ml-1">
+                      ({company.fantasyName || company.name})
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removeParticipant(participant.id)}
+                    className="ml-2 hover:text-blue-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Add Participants by Company */}
+          <div className="space-y-3">
+            {formData.companies.map(company => {
+              const companyParticipants = formData.participants.filter(p => p.companyId === company.id)
+              return (
+                <div key={company.id} className="border border-pearl-200 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-900 dark:text-white">
+                      {company.fantasyName || company.name}
+                    </h4>
+                    <button
+                      onClick={() => openUserModalForCompany(company.id)}
+                      className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Contact
+                    </button>
+                  </div>
+                  
+                  {companyParticipants.length > 0 ? (
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      {companyParticipants.length} contact{companyParticipants.length !== 1 ? 's' : ''} added
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      No contacts added yet
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            
+            {/* Add general participant not tied to a company */}
+            <button
+              onClick={() => openUserModalForCompany()}
+              className="w-full text-left p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              <Plus className="w-4 h-4 inline mr-2" />
+              Add general participant (not tied to a company)
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Modals */}
+      <CompanyCreationModal
+        isOpen={showCompanyModal}
+        onClose={() => setShowCompanyModal(false)}
+        onCompanyCreated={handleCompanyCreated}
+      />
+      
+      <UserCreationModal
+        isOpen={showUserModal}
+        onClose={() => {
+          setShowUserModal(false)
+          setSelectedCompanyForUser(undefined)
+        }}
+        onUserCreated={handleUserCreated}
+        preSelectedCompanyId={selectedCompanyForUser}
+        availableCompanies={formData.companies}
+      />
     </div>
   )
 }

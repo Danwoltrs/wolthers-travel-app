@@ -3,13 +3,18 @@
 import React, { useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import StepIndicator from '@/components/trips/StepIndicator'
+import TripTypeSelection, { TripType } from '@/components/trips/TripTypeSelection'
+import ConventionSearchStep from '@/components/trips/ConventionSearchStep'
 import BasicInfoStep from '@/components/trips/BasicInfoStep'
-import ItineraryBuilderStep from '@/components/trips/ItineraryBuilderStep'
+import EnhancedItineraryBuilderStep from '@/components/trips/EnhancedItineraryBuilderStep'
 import TeamVehicleStep from '@/components/trips/TeamVehicleStep'
 import ReviewStep from '@/components/trips/ReviewStep'
 import type { Company, User, Vehicle, Activity, ItineraryDay } from '@/types'
 
 export interface TripFormData {
+  // Step 0: Trip Type
+  tripType: TripType | null
+  
   // Step 1: Basic Information
   title: string
   description: string
@@ -30,6 +35,7 @@ export interface TripFormData {
 }
 
 const initialFormData: TripFormData = {
+  tripType: null,
   title: '',
   description: '',
   subject: '',
@@ -44,17 +50,37 @@ const initialFormData: TripFormData = {
   vehicles: []
 }
 
-const steps = [
-  { id: 1, name: 'Basic Information', description: 'Trip details and participants' },
-  { id: 2, name: 'Itinerary Builder', description: 'Create daily activities' },
-  { id: 3, name: 'Team & Vehicles', description: 'Assign staff and transportation' },
-  { id: 4, name: 'Review & Create', description: 'Review and finalize trip' }
-]
+// Dynamic steps based on trip type
+const getStepsForTripType = (tripType: TripType | null) => {
+  if (tripType === 'convention') {
+    return [
+      { id: 1, name: 'Trip Type', description: 'Choose trip type' },
+      { id: 2, name: 'Event Search', description: 'Find your convention or event' },
+      { id: 3, name: 'Basic Information', description: 'Trip details and attendees' },
+      { id: 4, name: 'Team & Travel', description: 'Staff and travel arrangements' },
+      { id: 5, name: 'Review & Create', description: 'Review and finalize trip' }
+    ]
+  } else if (tripType === 'in_land') {
+    return [
+      { id: 1, name: 'Trip Type', description: 'Choose trip type' },
+      { id: 2, name: 'Basic Information', description: 'Trip details and companies' },
+      { id: 3, name: 'Itinerary Builder', description: 'Create daily activities with AI' },
+      { id: 4, name: 'Team & Vehicles', description: 'Assign staff and transportation' },
+      { id: 5, name: 'Review & Create', description: 'Review and finalize trip' }
+    ]
+  } else {
+    return [
+      { id: 1, name: 'Trip Type', description: 'Choose trip type' }
+    ]
+  }
+}
 
 export default function NewTripPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<TripFormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const steps = getStepsForTripType(formData.tripType)
 
   const updateFormData = (data: Partial<TripFormData>) => {
     setFormData(prev => ({ ...prev, ...data }))
@@ -87,18 +113,43 @@ export default function NewTripPage() {
   }
 
   const canProceed = () => {
-    switch (currentStep) {
-      case 1:
-        return formData.title && formData.companies.length > 0 && formData.startDate && formData.endDate
-      case 2:
-        return formData.itineraryDays.length > 0
-      case 3:
-        return formData.wolthersStaff.length > 0
-      case 4:
-        return true
-      default:
-        return false
+    if (!formData.tripType) {
+      return currentStep === 1 ? false : formData.tripType !== null
     }
+
+    if (formData.tripType === 'convention') {
+      switch (currentStep) {
+        case 1:
+          return formData.tripType !== null
+        case 2:
+          return (formData as any).selectedConvention !== undefined
+        case 3:
+          return formData.title && formData.startDate && formData.endDate
+        case 4:
+          return formData.wolthersStaff.length > 0
+        case 5:
+          return true
+        default:
+          return false
+      }
+    } else if (formData.tripType === 'in_land') {
+      switch (currentStep) {
+        case 1:
+          return formData.tripType !== null
+        case 2:
+          return formData.title && formData.companies.length > 0 && formData.startDate && formData.endDate
+        case 3:
+          return formData.itineraryDays.length > 0
+        case 4:
+          return formData.wolthersStaff.length > 0
+        case 5:
+          return true
+        default:
+          return false
+      }
+    }
+
+    return false
   }
 
   return (
@@ -122,29 +173,64 @@ export default function NewTripPage() {
         <StepIndicator steps={steps} currentStep={currentStep} />
 
         {/* Form Content */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-pearl-200 p-6">
+        <div className="mt-8 bg-white dark:bg-[#1a1a1a] rounded-xl shadow-sm border border-pearl-200 dark:border-[#2a2a2a] p-6">
+          {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
+            <TripTypeSelection
+              selectedType={formData.tripType}
+              onTypeSelect={(type) => updateFormData({ tripType: type })}
+            />
+          )}
+          
+          {/* Convention Trip Steps */}
+          {formData.tripType === 'convention' && currentStep === 2 && (
+            <ConventionSearchStep
+              formData={formData as any}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'convention' && currentStep === 3 && (
             <BasicInfoStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
-          {currentStep === 2 && (
-            <ItineraryBuilderStep
-              formData={formData}
-              updateFormData={updateFormData}
-            />
-          )}
-          
-          {currentStep === 3 && (
+          {formData.tripType === 'convention' && currentStep === 4 && (
             <TeamVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
-          {currentStep === 4 && (
+          {formData.tripType === 'convention' && currentStep === 5 && (
+            <ReviewStep formData={formData} />
+          )}
+          
+          {/* In-land Trip Steps */}
+          {formData.tripType === 'in_land' && currentStep === 2 && (
+            <BasicInfoStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 3 && (
+            <EnhancedItineraryBuilderStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 4 && (
+            <TeamVehicleStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 5 && (
             <ReviewStep formData={formData} />
           )}
         </div>
