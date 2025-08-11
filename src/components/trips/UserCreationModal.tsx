@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, User, Mail, Phone, Building2 } from 'lucide-react'
-import type { User as UserType, Company, UserRole } from '@/types'
+import type { User as UserType, Company } from '@/types'
+import { UserRole } from '@/types'
 
 interface UserCreationModalProps {
   isOpen: boolean
