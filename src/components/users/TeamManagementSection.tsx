@@ -32,6 +32,7 @@ import { UserPermissions, filterUsersForViewer } from '@/lib/permissions'
 import { maskEmail, formatLastLogin, copyToClipboard, formatNumber, truncatePhone } from '@/lib/utils'
 import UserEditModal from './UserEditModal'
 import InviteUserModal from './InviteUserModal'
+import WhatsAppIcon from '../icons/WhatsAppIcon'
 
 interface TeamManagementSectionProps {
   currentUser: any
@@ -802,7 +803,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
                               {copiedPhones.has(user.whatsapp) ? (
                                 <Check className="w-3 h-3 text-green-600" />
                               ) : (
-                                <MessageSquare className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                                <WhatsAppIcon className="w-3 h-3 text-green-600 hover:text-green-700" size={12} />
                               )}
                             </button>
                             <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0" title={user.whatsapp}>
