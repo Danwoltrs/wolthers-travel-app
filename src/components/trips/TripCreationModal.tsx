@@ -175,9 +175,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full max-w-5xl max-h-[95vh] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full max-w-7xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
+        <div className="bg-golden-400 dark:bg-[#09261d] px-4 md:px-6 py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0">
           <div className="flex items-center space-x-3">
             <Plus className="w-6 h-6 text-white dark:text-golden-400" />
             <h2 className="text-xl font-semibold text-white dark:text-golden-400">
@@ -193,12 +193,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
         </div>
 
         {/* Step Indicator */}
-        <div className="px-3 md:px-6 py-4 border-b border-pearl-200 dark:border-[#2a2a2a]">
+        <div className="px-6 md:px-8 py-4 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
           <StepIndicator steps={steps} currentStep={currentStep} />
         </div>
 
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6 max-h-[calc(95vh-200px)]">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 min-h-0">
           {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
             <TripTypeSelection
@@ -261,7 +261,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
         </div>
 
         {/* Footer - Navigation Buttons */}
-        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-3 md:px-6 py-4 flex justify-between">
+        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-6 md:px-8 py-5 flex justify-between flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
           <div className="flex space-x-3">
             <button
               onClick={handleClose}
