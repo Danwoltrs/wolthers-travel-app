@@ -185,7 +185,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={formData.phone ? "" : "+1 (555) 123-4567"}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
@@ -198,7 +198,7 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
                     type="tel"
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={formData.whatsapp ? "" : "+1 (555) 123-4567"}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>

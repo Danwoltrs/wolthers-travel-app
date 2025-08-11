@@ -293,7 +293,7 @@ export default function ActivityNotes({ activity, onClose }: ActivityNotesProps)
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
               className="w-full h-32 p-4 resize-none focus:outline-none"
-              placeholder="Add your notes here..."
+              placeholder={noteContent ? "" : "Add your notes here..."}
             />
           </div>
         ) : (

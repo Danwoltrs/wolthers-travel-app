@@ -96,7 +96,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           value={formData.title}
           onChange={(e) => updateFormData({ title: e.target.value })}
           className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
-          placeholder="e.g., NCA Convention 2025"
+          placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
         />
       </div>
 
@@ -111,7 +111,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           value={formData.subject}
           onChange={(e) => updateFormData({ subject: e.target.value })}
           className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
-          placeholder="Brief description of the trip purpose"
+          placeholder={formData.subject ? "" : "Brief description of the trip purpose"}
         />
       </div>
 
@@ -126,7 +126,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           value={formData.description}
           onChange={(e) => updateFormData({ description: e.target.value })}
           className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
-          placeholder="Detailed description of the trip"
+          placeholder={formData.description ? "" : "Detailed description of the trip"}
         />
       </div>
 
@@ -165,7 +165,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                 setShowCompanyDropdown(true)
               }}
               onFocus={() => setShowCompanyDropdown(true)}
-              placeholder="Search for companies..."
+              placeholder={companySearch ? "" : "Search for companies..."}
               className="flex-1 rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
             />
             <button
@@ -255,7 +255,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
             value={formData.estimatedBudget || ''}
             onChange={(e) => updateFormData({ estimatedBudget: e.target.value ? parseFloat(e.target.value) : undefined })}
             className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm pl-8 pr-3 py-2"
-            placeholder="0.00"
+            placeholder={formData.estimatedBudget ? "" : "0.00"}
             step="0.01"
           />
         </div>
