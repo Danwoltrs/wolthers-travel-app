@@ -380,7 +380,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-xl font-semibold text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
-                placeholder="Enter full name"
+                placeholder={formData.full_name ? "" : "Enter full name"}
               />
             ) : (
               <h3 className="text-xl font-semibold text-gray-900 dark:text-amber-400">{user?.full_name || user?.name || 'No name provided'}</h3>
@@ -467,7 +467,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Add phone number"
+                    placeholder={formData.phone ? "" : "Add phone number"}
                     className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
                   />
                 ) : (
@@ -492,7 +492,7 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
                         console.log('⚠️ WhatsApp number should start with country code (+)')
                       }
                     }}
-                    placeholder="Add WhatsApp number (e.g., +55 13 98123 9867)"
+                    placeholder={formData.whatsapp ? "" : "Add WhatsApp number (e.g., +55 13 98123 9867)"}
                     className="w-full px-3 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-emerald-800 dark:text-white bg-[#F3EDE2] dark:bg-[#1a1a1a]"
                   />
                 ) : (
