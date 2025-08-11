@@ -117,10 +117,18 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
       const { users: usersData } = await response.json()
       console.log('✅ Fetched users from API:', usersData.length, 'users')
 
-      // Fetch trip statistics and login location for each user (with error handling)
+      // Fetch trip statistics for each user (with improved error handling)
+      console.log('📊 Fetching trip statistics for', usersData.length, 'users...')
+      const startTime = Date.now()
+      
       const usersWithStats: UserWithStats[] = await Promise.all(
-        (usersData || []).map(async (user) => {
+        (usersData || []).map(async (user, index) => {
           try {
+            // Add a small delay between requests to avoid overwhelming the API
+            if (index > 0 && index % 5 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 100))
+            }
+            
             const stats = await fetchUserTripStats(user.id)
             const lastLoginLocation = await getLastLoginLocation(user.id, user.last_login_at)
             return {
@@ -143,6 +151,9 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
           }
         })
       )
+
+      const endTime = Date.now()
+      console.log(`✅ Trip statistics fetching completed in ${endTime - startTime}ms for ${usersWithStats.length} users`)
 
       // Apply additional permission filtering (as a safety measure)
       const filteredData = filterUsersForViewer(usersWithStats, currentUser)
@@ -170,16 +181,55 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
 
   const fetchUserTripStats = async (userId: string) => {
     try {
-      // For now, return placeholder stats since the trip stats query might also face RLS issues
-      // TODO: Create an API endpoint for trip stats if needed
+      console.log('🔍 Fetching trip stats for user:', userId)
+      
+      // Get auth token for API request
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        console.warn('⚠️ No auth token found for trip stats request')
+        return {
+          total_trips: 0,
+          trips_this_year: 0,
+          upcoming_trips: 0,
+          most_visited_destination: undefined
+        }
+      }
+
+      // Call the stats API endpoint
+      const response = await fetch(`/api/user/stats?userId=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.warn(`⚠️ Stats API error for user ${userId}:`, response.status, errorData)
+        
+        // Return zeros instead of failing completely
+        return {
+          total_trips: 0,
+          trips_this_year: 0,
+          upcoming_trips: 0,
+          most_visited_destination: undefined
+        }
+      }
+
+      const statsData = await response.json()
+      console.log('✅ Successfully fetched stats for user:', userId, statsData)
+
       return {
-        total_trips: 0,
-        trips_this_year: 0,
-        upcoming_trips: 0,
-        most_visited_destination: undefined
+        total_trips: statsData.totalTrips || 0,
+        trips_this_year: statsData.tripsThisYear || 0,
+        upcoming_trips: statsData.upcomingTrips || 0,
+        most_visited_destination: undefined // Could be enhanced later
       }
     } catch (error) {
-      console.error('Error fetching trip stats for user:', userId, error)
+      console.error('❌ Error fetching trip stats for user:', userId, error)
       return {
         total_trips: 0,
         trips_this_year: 0,
@@ -561,7 +611,7 @@ export default function TeamManagementSection({ currentUser, permissions }: Team
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '36px' }}
-              className="w-full pr-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-gray-700 dark:text-white !bg-[#F5F1E8] dark:bg-[#1a1a1a]"
+              className="w-full pr-4 py-2 border border-pearl-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 dark:focus:ring-golden-400 focus:border-emerald-500 dark:focus:border-golden-400 text-sm text-gray-700 dark:text-white bg-[#F5F1E8] dark:bg-[#1a1a1a]"
             />
           </div>
 
