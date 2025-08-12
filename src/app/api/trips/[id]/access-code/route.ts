@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function PATCH(
@@ -18,21 +18,51 @@ export async function PATCH(
       )
     }
 
-    // Verify authentication
+    // Authentication logic (same as other endpoints)
+    let user: any = null
     const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        // Try Supabase session authentication
+        const supabaseClient = createServerSupabaseClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
     }
-
-    const token = authHeader.split(' ')[1]
-    const user = await verifyToken(token)
-
+    
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Authentication required' },
         { status: 401 }
       )
     }
