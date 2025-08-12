@@ -37,15 +37,20 @@ export class CoffeeEventScraper {
 
   constructor(config?: Partial<ScrapingConfig>) {
     this.config = {
-      timeout: 10000,
-      retries: 3,
-      userAgent: 'Mozilla/5.0 (compatible; CoffeeEventBot/1.0; +https://trips.wolthers.com)',
+      timeout: 5000, // Reduced timeout
+      retries: 2, // Reduced retries
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       ...config
     };
   }
 
   // Generic scraping method with real web scraping
-  async scrapeEvents(source: CoffeeEvent['source']): Promise<CoffeeEvent[]> {
+  async scrapeEvents(source: CoffeeEvent['source'], enableScraping: boolean = false): Promise<CoffeeEvent[]> {
+    // Always use fallback data for now to avoid CORS and timeout issues
+    if (!enableScraping || process.env.NODE_ENV !== 'development') {
+      return this.getFallbackEvents(source);
+    }
+
     try {
       // Check cache first
       const cached = this.getFromCache(source);
@@ -81,9 +86,12 @@ export class CoffeeEventScraper {
           events = [];
       }
 
-      // Cache results
-      this.cache.set(source, { data: events, timestamp: Date.now() });
-      return events;
+      // Only cache if we got real results
+      if (events.length > 0) {
+        this.cache.set(source, { data: events, timestamp: Date.now() });
+      }
+      
+      return events.length > 0 ? events : this.getFallbackEvents(source);
 
     } catch (error) {
       console.error(`Error scraping ${source}:`, error);
@@ -100,25 +108,20 @@ export class CoffeeEventScraper {
   }
 
   private async fetchWithRetry(url: string): Promise<string> {
-    for (let i = 0; i < this.config.retries; i++) {
-      try {
-        const response = await axios.get(url, {
-          timeout: this.config.timeout,
-          headers: {
-            'User-Agent': this.config.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
-          }
-        });
-        return response.data;
-      } catch (error) {
-        if (i === this.config.retries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
-      }
+    try {
+      const response = await axios.get(url, {
+        timeout: this.config.timeout,
+        headers: {
+          'User-Agent': this.config.userAgent,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        validateStatus: (status) => status < 500, // Accept 4xx errors but reject 5xx
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch ${url}:`, error.message);
+      throw error;
     }
-    throw new Error('Max retries exceeded');
   }
 
   // Individual scraping methods
@@ -449,12 +452,12 @@ export class CoffeeEventScraper {
         return [
           {
             id: 'swiss-coffee-2025-fall',
-            name: 'Swiss Coffee Forum 2025',
+            name: 'Swiss Coffee Forum & Dinner 2025',
             date: new Date('2025-11-18'),
             location: 'Zürich, Switzerland',
             url: 'https://www.sc-ta.ch/',
             organization: 'Swiss Coffee Trade Association',
-            description: 'Annual gathering of Swiss coffee industry professionals for networking and business development.',
+            description: 'Annual gathering of Swiss coffee industry professionals featuring networking dinner and business development.',
             source: 'SwissCoffeeDinner'
           }
         ];
@@ -555,13 +558,13 @@ export async function scrapeCoffeeEvents(enableScraping: boolean = false): Promi
   }
   
   const allEvents = await Promise.all([
-    scraper.scrapeEvents('WorldOfCoffee'),
-    scraper.scrapeEvents('SwissCoffeeDinner'),
-    scraper.scrapeEvents('NationalCoffeeAssociation'),
-    scraper.scrapeEvents('SantosSeminar'),
-    scraper.scrapeEvents('SpecialtyCoffeeAssociation'),
-    scraper.scrapeEvents('SemanaInternacionalDoCafe'),
-    scraper.scrapeEvents('CampinasEvent')
+    scraper.scrapeEvents('WorldOfCoffee', enableScraping),
+    scraper.scrapeEvents('SwissCoffeeDinner', enableScraping),
+    scraper.scrapeEvents('NationalCoffeeAssociation', enableScraping),
+    scraper.scrapeEvents('SantosSeminar', enableScraping),
+    scraper.scrapeEvents('SpecialtyCoffeeAssociation', enableScraping),
+    scraper.scrapeEvents('SemanaInternacionalDoCafe', enableScraping),
+    scraper.scrapeEvents('CampinasEvent', enableScraping)
   ]);
 
   // Flatten and sort by date, return next 6 events

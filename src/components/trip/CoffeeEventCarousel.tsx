@@ -19,12 +19,19 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        // Enable scraping in development, use fallback in production
-        const enableScraping = process.env.NODE_ENV === 'development';
-        const coffeeEvents = await scrapeCoffeeEvents(enableScraping);
-        setEvents(coffeeEvents);
+        // Use API route instead of direct scraping
+        const response = await fetch('/api/coffee-events?scraping=false');
+        const data = await response.json();
+        
+        if (data.success && data.events) {
+          setEvents(data.events);
+        } else {
+          console.error('Failed to fetch coffee events:', data.error);
+          setEvents([]);
+        }
       } catch (error) {
         console.error('Error fetching coffee events:', error);
+        setEvents([]);
       } finally {
         setIsLoading(false);
       }
@@ -38,11 +45,17 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
       // Reset to all events
       setIsLoading(true);
       try {
-        const enableScraping = process.env.NODE_ENV === 'development';
-        const coffeeEvents = await scrapeCoffeeEvents(enableScraping);
-        setEvents(coffeeEvents);
+        const response = await fetch('/api/coffee-events?scraping=false');
+        const data = await response.json();
+        
+        if (data.success && data.events) {
+          setEvents(data.events);
+        } else {
+          setEvents([]);
+        }
       } catch (error) {
         console.error('Error fetching coffee events:', error);
+        setEvents([]);
       } finally {
         setIsLoading(false);
       }
@@ -51,10 +64,17 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
 
     setIsSearching(true);
     try {
-      const searchResults = await searchCoffeeEvents(searchQuery);
-      setEvents(searchResults);
+      const response = await fetch(`/api/coffee-events?query=${encodeURIComponent(searchQuery)}&scraping=false`);
+      const data = await response.json();
+      
+      if (data.success && data.events) {
+        setEvents(data.events);
+      } else {
+        setEvents([]);
+      }
     } catch (error) {
       console.error('Error searching coffee events:', error);
+      setEvents([]);
     } finally {
       setIsSearching(false);
     }
