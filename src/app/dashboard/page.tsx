@@ -73,8 +73,8 @@ export default function Dashboard() {
   // Helper function to convert draft to trip-like object
   const convertDraftToTrip = (draft: any) => ({
     id: draft.id,
-    title: draft.title,
-    subject: draft.description || '',
+    title: draft.title || 'Untitled Draft Trip',
+    subject: draft.description || 'Draft trip in progress',
     client: [],
     guests: [],
     wolthersStaff: [],
@@ -84,13 +84,18 @@ export default function Dashboard() {
     endDate: new Date(draft.end_date || new Date().toISOString().split('T')[0]),
     duration: 1,
     status: 'draft' as any,
-    tripType: draft.trip_type,
+    tripType: draft.trip_type || 'unspecified',
     accessCode: draft.access_code,
     isDraft: true,
-    currentStep: draft.current_step,
-    completionPercentage: draft.completion_percentage,
+    currentStep: draft.current_step || 1,
+    completionPercentage: draft.completion_percentage || 
+      Math.round((draft.current_step || 1) / 5 * 100),
     createdAt: draft.created_at,
-    updatedAt: draft.updated_at
+    updatedAt: draft.updated_at,
+    draftInformation: {
+      lastAccessed: draft.last_accessed_at,
+      expiresAt: draft.expires_at
+    }
   })
 
   // Convert drafts to trip format
@@ -110,7 +115,12 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
   // Combine ongoing, upcoming, and draft trips
-  const currentTrips = [...ongoingTrips, ...upcomingTrips, ...draftTripsAsTrips]
+  // Ensure draft trips are always included in current trips
+  const currentTrips = [
+    ...ongoingTrips, 
+    ...upcomingTrips, 
+    ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
+  ]
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)

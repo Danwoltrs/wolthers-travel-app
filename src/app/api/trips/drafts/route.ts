@@ -55,11 +55,14 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get draft trips for the current user
-    const { data: drafts, error: draftsError } = await supabase
+    // Get draft trips: 
+    // 1. For the current user 
+    // 2. For all users in the company if the user is a company admin
+    let draftsQuery = supabase
       .from('trip_drafts')
       .select(`
         *,
+        users!inner (id, companyId),
         trips (
           id,
           title,
@@ -68,8 +71,17 @@ export async function GET(request: NextRequest) {
           end_date
         )
       `)
-      .eq('creator_id', user.id)
       .order('updated_at', { ascending: false })
+
+    // If the user is not a company admin, only show their own drafts
+    if (user.role !== 'company_admin') {
+      draftsQuery = draftsQuery.eq('creator_id', user.id)
+    } else if (user.companyId) {
+      // If company admin, show drafts from their company
+      draftsQuery = draftsQuery.eq('users.companyId', user.companyId)
+    }
+
+    const { data: drafts, error: draftsError } = await draftsQuery
 
     if (draftsError) {
       console.error('Failed to fetch drafts:', draftsError)
@@ -190,10 +202,10 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify the draft belongs to the user
+    // Verify the draft belongs to the user or can be deleted by a company admin
     const { data: draft, error: verifyError } = await supabase
       .from('trip_drafts')
-      .select('creator_id, trip_id')
+      .select('creator_id, trip_id, users!inner (id, companyId)')
       .eq('id', draftId)
       .single()
 
@@ -204,7 +216,14 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (draft.creator_id !== user.id) {
+    // Allow deletion if:
+    // 1. User is the draft creator
+    // 2. User is a company admin in the same company as the draft creator
+    const canDelete = 
+      draft.creator_id === user.id || 
+      (user.role === 'company_admin' && user.companyId === draft.users.companyId)
+
+    if (!canDelete) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }

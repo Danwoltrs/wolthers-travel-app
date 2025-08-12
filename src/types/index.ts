@@ -296,6 +296,15 @@ export interface TripCard {
   notesCount?: number
   visitCount?: number
   accessCode?: string
+  
+  // Draft-specific properties
+  isDraft?: boolean
+  currentStep?: number
+  completionPercentage?: number
+  draftInformation?: {
+    lastAccessed?: Date
+    expiresAt?: Date
+  }
 }
 
 export interface MeetingNote {
