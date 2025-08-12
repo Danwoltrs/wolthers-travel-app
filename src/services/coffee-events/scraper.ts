@@ -451,13 +451,13 @@ export class CoffeeEventScraper {
       case 'SwissCoffeeDinner':
         return [
           {
-            id: 'swiss-coffee-2025-fall',
-            name: 'Swiss Coffee Forum & Dinner 2025',
-            date: new Date('2025-11-18'),
-            location: 'Zürich, Switzerland',
-            url: 'https://www.sc-ta.ch/',
-            organization: 'Swiss Coffee Trade Association',
-            description: 'Annual gathering of Swiss coffee industry professionals featuring networking dinner and business development.',
+            id: 'scta-forum-dinner-2025',
+            name: '16th SCTA Coffee Forum & Dinner 2025',
+            date: new Date('2025-10-02'),
+            location: 'Basel, Switzerland',
+            url: 'https://www.sc-ta.ch/events/forum-dinner-2025/',
+            organization: 'Swiss Coffee Trade Association (SCTA)',
+            description: 'The premier Swiss coffee industry event featuring dynamic discussions, networking with global decision-makers, and the SCTA Next Gen Sustainability Contest.',
             source: 'SwissCoffeeDinner'
           }
         ];
