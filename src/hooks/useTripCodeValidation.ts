@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { debounce } from '@/lib/debounce'
+import { generateTripCode } from '@/lib/tripCodeGenerator'
+import { TripFormData } from '@/components/trips/TripCreationModal'
 
 interface TripCodeValidationResult {
   isValid: boolean
@@ -9,7 +11,7 @@ interface TripCodeValidationResult {
 
 export function useTripCodeValidation(
   initialCode: string = '', 
-  autoGenerate: boolean = true
+  formData?: Partial<TripFormData>
 ) {
   const [code, setCode] = useState(initialCode)
   const [validationResult, setValidationResult] = useState<TripCodeValidationResult>({
@@ -18,22 +20,23 @@ export function useTripCodeValidation(
     isChecking: false
   })
 
-  // Function to generate a trip code
-  const generateTripCode = useCallback((title?: string): string => {
-    if (!title) return ''
+  // Function to generate a smart trip code using the full generator
+  const generateSmartTripCode = useCallback((formData?: Partial<TripFormData>): string => {
+    if (!formData || !formData.title || !formData.startDate) return ''
 
-    // Extract first letters and add random 4-digit number
-    const titleParts = title
-      .split(/\s+/)
-      .filter(word => word.length > 0)
-      .map(word => word.substring(0, 3).toUpperCase())
-      .slice(0, 3)  // Limit to first 3 words
-
-    const randomNumber = Math.floor(Math.random() * 9000 + 1000)
-    const prefix = titleParts.map(part => part.slice(0, 3)).join('_')
-    const code = `${prefix}_QA_${randomNumber}`
-
-    return code.slice(0, 15)  // Ensure max length
+    return generateTripCode({
+      title: formData.title || '',
+      companies: formData.companies || [],
+      startDate: formData.startDate,
+      tripType: formData.tripType || 'convention',
+      // Add other required fields with defaults
+      description: formData.description || '',
+      subject: formData.subject || '',
+      endDate: formData.endDate || formData.startDate,
+      participants: formData.participants || [],
+      estimatedBudget: formData.estimatedBudget,
+      accessCode: formData.accessCode || ''
+    })
   }, [])
 
   // Debounced validation function
@@ -90,16 +93,23 @@ export function useTripCodeValidation(
     []
   )
 
-  // Automatically generate or validate the code
+  // Automatically generate or validate the code when form data changes
   useEffect(() => {
-    if (autoGenerate && !code) {
-      const generatedCode = generateTripCode()
-      setCode(generatedCode)
-      validateTripCode(generatedCode)
+    if (formData && formData.title && formData.startDate) {
+      // Only auto-generate if no code exists or if key parameters changed
+      if (!code || (initialCode === '' && code !== initialCode)) {
+        const generatedCode = generateSmartTripCode(formData)
+        if (generatedCode && generatedCode !== code) {
+          setCode(generatedCode)
+          validateTripCode(generatedCode)
+        }
+      } else if (code) {
+        validateTripCode(code)
+      }
     } else if (code) {
       validateTripCode(code)
     }
-  }, [code, autoGenerate, validateTripCode, generateTripCode])
+  }, [code, formData?.title, formData?.startDate, formData?.companies, formData, validateTripCode, generateSmartTripCode, initialCode])
 
   // Handler to update trip code
   const handleCodeChange = useCallback((newCode: string) => {
@@ -110,7 +120,7 @@ export function useTripCodeValidation(
   return {
     code,
     setCode: handleCodeChange,
-    generateTripCode,
+    generateTripCode: generateSmartTripCode,
     validationResult
   }
 }

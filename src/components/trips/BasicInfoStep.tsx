@@ -59,7 +59,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     validationResult 
   } = useTripCodeValidation(
     formData.accessCode || '', 
-    !!formData.startDate
+    formData
   )
 
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
@@ -145,34 +145,34 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           </div>
           {formData.startDate && (
             <div className="flex items-center space-x-2 mt-1">
-              <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-pearl-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
-                <Hash className="w-4 h-4 text-latte-600 dark:text-latte-300" />
+              <div className="flex items-center">
+                <Hash className="w-4 h-4 text-gray-400 mr-1" />
                 <input
                   type="text"
                   id="accessCode"
                   value={code}
                   onChange={(e) => {
-                    setCode(e.target.value)
-                    updateFormData({ accessCode: e.target.value })
+                    setCode(e.target.value.toUpperCase())
+                    updateFormData({ accessCode: e.target.value.toUpperCase() })
                   }}
                   className={`
-                    bg-transparent w-32 text-sm 
-                    ${validationResult.isValid ? 'text-latte-800 dark:text-latte-200' : 'text-red-600 dark:text-red-400'}
-                    focus:outline-none
+                    w-40 px-2 py-1 text-sm font-mono border-none outline-none
+                    ${validationResult.isValid ? 'text-gray-800' : 'text-red-600'}
+                    placeholder-gray-400
                   `}
-                  placeholder="Trip Code"
+                  placeholder={code || "Generating..."}
                   title="Editable Trip Code"
                 />
                 {validationResult.isChecking ? (
-                  <RefreshCw className="w-4 h-4 animate-spin text-blue-500 dark:text-blue-300" />
+                  <RefreshCw className="w-4 h-4 animate-spin text-gray-400 ml-1" />
                 ) : validationResult.isValid ? (
-                  <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                  <CheckCircle className="w-4 h-4 text-green-500 ml-1" />
                 ) : (
-                  <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                  <AlertCircle className="w-4 h-4 text-red-500 ml-1" />
                 )}
               </div>
               {!validationResult.isValid && validationResult.message && (
-                <div className="text-xs text-red-500 dark:text-red-400">
+                <div className="text-xs text-red-500 mt-1">
                   {validationResult.message}
                 </div>
               )}
