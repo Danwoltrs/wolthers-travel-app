@@ -367,171 +367,171 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
           ) : (
             /* View Mode - Show Regular Content */
             <>
-          {/* Dynamic Layout - Companies and Staff */}
-          <div className="space-y-4">
-            {/* Mobile: Simple text layout */}
-            <div className="md:hidden">
-              <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                {/* Guest Companies */}
-                {trip.client.length > 0 && (
-                  <span>
-                    <span className="font-medium text-gray-900 dark:text-gray-200">
-                      {trip.client.map(company => company.fantasyName || company.name).join(', ')}:
-                    </span>
-                    {' '}
-                    {trip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
-                  </span>
-                )}
-                
-                {/* Wolthers Staff */}
-                {trip.wolthersStaff.length > 0 && (
-                  <>
-                    {trip.client.length > 0 && ' | '}
-                    <span>
-                      <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
-                      {' '}
-                      {trip.wolthersStaff.map(staff => staff.fullName).join(', ')}
-                    </span>
-                  </>
-                )}
-                
-                {/* Vehicles */}
-                {trip.vehicles.length > 0 && (
-                  <>
-                    {(trip.client.length > 0 || trip.wolthersStaff.length > 0) && ' | '}
-                    <span>
-                      <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
-                      {' '}
-                      {trip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
-                    </span>
-                  </>
-                )}
-                
-                {/* Drivers */}
-                {trip.drivers.length > 0 && (
-                  <>
-                    {(trip.client.length > 0 || trip.wolthersStaff.length > 0 || trip.vehicles.length > 0) && ' | '}
-                    <span>
-                      <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
-                      {' '}
-                      {trip.drivers.map(driver => driver.fullName).join(', ')}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Desktop: Flexible Card Layout */}
-            <div className="hidden md:block">
-              <div className="flex flex-wrap gap-4">
-                {/* Company Cards - Flexible sizing */}
-                {trip.client.map((company) => {
-                  const companyGuests = trip.guests.find(g => g.companyId === company.id)
-                  return (
-                    <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                        {company.fantasyName || company.name}
-                      </h4>
-                      {companyGuests && (
-                        <div className="space-y-1">
-                          {companyGuests.names.map((name, index) => (
-                            <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
-                              {name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-                {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
-                {(trip.wolthersStaff.length > 0 || trip.vehicles.length > 0 || trip.drivers.length > 0) && (
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
-                    <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
-                      {/* Wolthers Staff */}
-                      <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                          Wolthers Staff
-                        </h4>
-                        {trip.wolthersStaff.length > 0 ? (
-                          <div className="space-y-1">
-                            {trip.wolthersStaff.map((staff) => (
-                              <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                {staff.fullName}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                            No staff
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Vehicles */}
-                      <div className="pl-6">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                          Vehicles
-                        </h4>
-                        {trip.vehicles.length > 0 ? (
-                          <div className="space-y-1">
-                            {trip.vehicles.map((vehicle) => (
-                              <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                {vehicle.make} {vehicle.model}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                            No vehicles
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Drivers */}
-                      <div className="pl-6">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                          Drivers
-                        </h4>
-                        {trip.drivers.length > 0 ? (
-                          <div className="space-y-1">
-                            {trip.drivers.map((driver) => (
-                              <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                {driver.fullName}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                            No drivers
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              {/* Dynamic Layout - Companies and Staff */}
+              <div className="space-y-4">
+                {/* Mobile: Simple text layout */}
+                <div className="md:hidden">
+                  <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {/* Guest Companies */}
+                    {trip.client.length > 0 && (
+                      <span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">
+                          {trip.client.map(company => company.fantasyName || company.name).join(', ')}:
+                        </span>
+                        {' '}
+                        {trip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
+                      </span>
+                    )}
+                    
+                    {/* Wolthers Staff */}
+                    {trip.wolthersStaff.length > 0 && (
+                      <>
+                        {trip.client.length > 0 && ' | '}
+                        <span>
+                          <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
+                          {' '}
+                          {trip.wolthersStaff.map(staff => staff.fullName).join(', ')}
+                        </span>
+                      </>
+                    )}
+                    
+                    {/* Vehicles */}
+                    {trip.vehicles.length > 0 && (
+                      <>
+                        {(trip.client.length > 0 || trip.wolthersStaff.length > 0) && ' | '}
+                        <span>
+                          <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
+                          {' '}
+                          {trip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
+                        </span>
+                      </>
+                    )}
+                    
+                    {/* Drivers */}
+                    {trip.drivers.length > 0 && (
+                      <>
+                        {(trip.client.length > 0 || trip.wolthersStaff.length > 0 || trip.vehicles.length > 0) && ' | '}
+                        <span>
+                          <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
+                          {' '}
+                          {trip.drivers.map(driver => driver.fullName).join(', ')}
+                        </span>
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Separator Line */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
-          </div>
+                </div>
 
-          {/* Meetings & Visits */}
-          {tripLoading ? (
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
-            </div>
-          ) : tripError ? (
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-              <div className="text-sm text-red-500">Error loading meeting details</div>
-            </div>
-          ) : sortedDates.length === 0 ? (
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-              <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
-            </div>
-          ) : (
+                {/* Desktop: Flexible Card Layout */}
+                <div className="hidden md:block">
+                  <div className="flex flex-wrap gap-4">
+                    {/* Company Cards - Flexible sizing */}
+                    {trip.client.map((company) => {
+                      const companyGuests = trip.guests.find(g => g.companyId === company.id)
+                      return (
+                        <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                            {company.fantasyName || company.name}
+                          </h4>
+                          {companyGuests && (
+                            <div className="space-y-1">
+                              {companyGuests.names.map((name, index) => (
+                                <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                                  {name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
+                    {(trip.wolthersStaff.length > 0 || trip.vehicles.length > 0 || trip.drivers.length > 0) && (
+                      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
+                        <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
+                          {/* Wolthers Staff */}
+                          <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                              Wolthers Staff
+                            </h4>
+                            {trip.wolthersStaff.length > 0 ? (
+                              <div className="space-y-1">
+                                {trip.wolthersStaff.map((staff) => (
+                                  <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                    {staff.fullName}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                No staff
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Vehicles */}
+                          <div className="pl-6">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                              Vehicles
+                            </h4>
+                            {trip.vehicles.length > 0 ? (
+                              <div className="space-y-1">
+                                {trip.vehicles.map((vehicle) => (
+                                  <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                    {vehicle.make} {vehicle.model}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                No vehicles
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Drivers */}
+                          <div className="pl-6">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
+                              Drivers
+                            </h4>
+                            {trip.drivers.length > 0 ? (
+                              <div className="space-y-1">
+                                {trip.drivers.map((driver) => (
+                                  <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
+                                    {driver.fullName}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                No drivers
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Separator Line */}
+                <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
+              </div>
+
+              {/* Meetings & Visits */}
+              {tripLoading ? (
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
+                </div>
+              ) : tripError ? (
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
+                  <div className="text-sm text-red-500">Error loading meeting details</div>
+                </div>
+              ) : sortedDates.length === 0 ? (
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
+                </div>
+              ) : (
             <>
               {/* Small screens: Full width list layout */}
               <div className="block sm:hidden space-y-3">
@@ -725,6 +725,8 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
                   </div>
                 </div>
               </div>
+              </>
+              )}
             </>
           )}
         </div>
