@@ -19,13 +19,27 @@ export function useWolthersStaff() {
     async function fetchWolthersStaff() {
       try {
         setLoading(true)
+        console.log('🔍 Fetching Wolthers staff...')
         const supabase = getSupabaseClient()
         
+        // First check what users exist
+        const { data: allUsers, error: allUsersError } = await supabase
+          .from('users')
+          .select('id, email, full_name, phone, user_type')
+          .order('full_name')
+
+        console.log('📊 All users:', allUsers)
+        console.log('❌ All users error:', allUsersError)
+
+        // Then get specifically wolthers_staff
         const { data, error: fetchError } = await supabase
           .from('users')
           .select('id, email, full_name, phone, user_type')
           .eq('user_type', 'wolthers_staff')
           .order('full_name')
+
+        console.log('👥 Wolthers staff data:', data)
+        console.log('❌ Fetch error:', fetchError)
 
         if (fetchError) {
           throw fetchError
@@ -33,8 +47,9 @@ export function useWolthersStaff() {
 
         setStaff(data || [])
         setError(null)
+        console.log('✅ Staff loaded successfully:', data?.length || 0, 'members')
       } catch (err) {
-        console.error('Error fetching Wolthers staff:', err)
+        console.error('❌ Error fetching Wolthers staff:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch staff')
       } finally {
         setLoading(false)

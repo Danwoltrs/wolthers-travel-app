@@ -146,7 +146,7 @@ export default function MultiSelectSearch({
           {/* Search Input */}
           <div className="p-3 border-b border-gray-200 dark:border-[#2a2a2a]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -154,7 +154,7 @@ export default function MultiSelectSearch({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={searchPlaceholder}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-3 py-2 text-sm bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
