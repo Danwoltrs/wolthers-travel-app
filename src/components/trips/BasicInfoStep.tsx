@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
-import { Plus, X, Calendar, Users } from 'lucide-react'
+import { Plus, X, Calendar, Users, Hash } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
 import { ClientType } from '@/types'
 import type { Company, User } from '@/types'
 import CompanyCreationModal from './CompanyCreationModal'
 import UserCreationModal from './UserCreationModal'
+import { generateTripCode } from '@/lib/tripCodeGenerator'
+import { useTripCodeValidation } from '@/hooks/useTripCodeValidation'
+import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 
 interface BasicInfoStepProps {
   formData: TripFormData
@@ -49,6 +52,16 @@ const availableCompanies: Company[] = [
 ]
 
 export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
+  const { 
+    code, 
+    setCode, 
+    generateTripCode: generateCustomTripCode, 
+    validationResult 
+  } = useTripCodeValidation(
+    formData.accessCode || '', 
+    !!formData.startDate
+  )
+
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
   const [showCompanyModal, setShowCompanyModal] = useState(false)
@@ -119,14 +132,53 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         <label htmlFor="title" className="block text-sm font-medium text-latte-700">
           Trip Title *
         </label>
-        <input
-          type="text"
-          id="title"
-          value={formData.title}
-          onChange={(e) => updateFormData({ title: e.target.value })}
-          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
-          placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
-        />
+        <div className="flex items-center space-x-2">
+          <div className="flex-1">
+            <input
+              type="text"
+              id="title"
+              value={formData.title}
+              onChange={(e) => updateFormData({ title: e.target.value })}
+              className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+              placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
+            />
+          </div>
+          {formData.startDate && (
+            <div className="flex items-center space-x-2 mt-1">
+              <div className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-pearl-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
+                <Hash className="w-4 h-4 text-latte-600 dark:text-latte-300" />
+                <input
+                  type="text"
+                  id="accessCode"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value)
+                    updateFormData({ accessCode: e.target.value })
+                  }}
+                  className={`
+                    bg-transparent w-32 text-sm 
+                    ${validationResult.isValid ? 'text-latte-800 dark:text-latte-200' : 'text-red-600 dark:text-red-400'}
+                    focus:outline-none
+                  `}
+                  placeholder="Trip Code"
+                  title="Editable Trip Code"
+                />
+                {validationResult.isChecking ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-500 dark:text-blue-300" />
+                ) : validationResult.isValid ? (
+                  <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                )}
+              </div>
+              {!validationResult.isValid && validationResult.message && (
+                <div className="text-xs text-red-500 dark:text-red-400">
+                  {validationResult.message}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Subject */}

@@ -21,6 +21,7 @@ export interface TripFormData {
   participants: User[]
   startDate: Date | null
   endDate: Date | null
+  accessCode?: string  // Generated and optional trip code
   // Estimated Budget is now hidden and optional, commented out
   // estimatedBudget?: number
   
@@ -138,7 +139,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           currentStep: step,
           stepData: stepData,
           completionPercentage: Math.round((step / steps.length) * 100),
-          tripType: formData.tripType
+          tripType: formData.tripType,
+          accessCode: stepData.accessCode
         })
       })
 

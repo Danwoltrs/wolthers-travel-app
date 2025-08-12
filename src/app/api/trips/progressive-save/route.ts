@@ -279,6 +279,24 @@ function generateRandomString(length: number): string {
   return result
 }
 
+// Function to validate custom access code
+async function validateCustomAccessCode(supabase: any, code: string): Promise<boolean> {
+  // Validate code format first
+  const tripCodeRegex = /^[A-Z]{3}_[A-Z]{3}_[A-Z]{2}_\d{4}$/
+  if (!tripCodeRegex.test(code)) {
+    return false
+  }
+
+  // Check if code already exists
+  const { data: existing } = await supabase
+    .from('trips')
+    .select('id')
+    .eq('access_code', code)
+    .single()
+
+  return !existing
+}
+
 // Helper function to determine creation status based on step
 function getCreationStatus(step: number): string {
   if (step <= 1) return 'draft'
