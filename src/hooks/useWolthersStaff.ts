@@ -62,16 +62,15 @@ export function useWolthersStaff() {
         console.log('🔍 Sample user object structure:', allUsers[0])
         console.log('🧮 Total users fetched:', allUsers.length)
 
-        // Filter Wolthers staff specifically - include wolthers_staff, admin types, and company admins from Wolthers
+        // Filter Wolthers staff specifically - include wolthers_staff and admin types from Wolthers company
         const wolthersStaff = allUsers.filter(user => {
           const isWolthersStaff = user.user_type === 'wolthers_staff'
-          const isGeneralAdmin = user.user_type === 'admin' && !user.company_id // Global admin (no company)
           const isWolthersCompanyAdmin = user.user_type === 'admin' && 
             user.companies?.name?.includes('Wolthers')
           
-          console.log(`🔎 Checking user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isGeneralAdmin=${isGeneralAdmin}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
+          console.log(`🔎 Checking user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
           
-          return isWolthersStaff || isGeneralAdmin || isWolthersCompanyAdmin
+          return isWolthersStaff || isWolthersCompanyAdmin
         })
 
         console.log('👥 Wolthers staff data:', wolthersStaff)
