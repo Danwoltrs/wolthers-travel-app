@@ -356,8 +356,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </button>
         </div>
 
-        {/* Step Indicator - Only show after trip type is selected */}
-        {formData.tripType && (
+        {/* Step Indicator - Only show after trip type is selected and not on first step */}
+        {formData.tripType && currentStep > 1 && (
           <div className="px-4 md:px-6 lg:px-8 py-3 md:py-6 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
             <StepIndicator steps={steps} currentStep={currentStep} />
           </div>
@@ -380,7 +380,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           {currentStep === 1 && (
             <TripTypeSelection
               selectedType={formData.tripType}
-              onTypeSelect={(type) => updateFormData({ tripType: type })}
+              onTypeSelect={(type) => {
+                updateFormData({ tripType: type })
+                // Automatically proceed to next step
+                setTimeout(() => {
+                  setCurrentStep(2)
+                }, 300) // Small delay for smooth transition
+              }}
             />
           )}
           
