@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { getSupabaseClient } from '@/lib/supabase-client'
-import type { User } from '@/types'
 
 export interface WolthersStaffMember {
   id: string
@@ -25,63 +24,87 @@ export function useWolthersStaff() {
     async function fetchWolthersStaff() {
       try {
         setLoading(true)
-        console.log('🔍 Fetching Wolthers staff...')
-        const supabase = getSupabaseClient()
+        console.log('🔍 Fetching Wolthers staff via API...')
         
-        // First check what users exist with company info
-        const { data: allUsers, error: allUsersError } = await supabase
-          .from('users')
-          .select(`
-            id, 
-            email, 
-            full_name, 
-            phone, 
-            user_type, 
-            company_id,
-            companies!company_id (
-              id,
-              name
-            )
-          `)
-          .order('full_name')
-
-        console.log('📊 All users:', allUsers)
-        console.log('❌ All users error:', allUsersError)
-
-        if (allUsersError) {
-          console.error('🚨 Database error:', allUsersError)
-          throw new Error(`Database error: ${allUsersError.message}`)
+        // Get auth token for API request
+        const supabase = getSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.access_token) {
+          console.warn('⚠️ No auth session found')
+          throw new Error('Authentication required')
         }
 
-        if (!allUsers) {
-          console.warn('⚠️ No users returned from database')
-          setStaff([])
-          return
-        }
-
-        console.log('🔍 Sample user object structure:', allUsers[0])
-        console.log('🧮 Total users fetched:', allUsers.length)
-
-        // Filter Wolthers staff specifically - include wolthers_staff and admin types from Wolthers company
-        const wolthersStaff = allUsers.filter(user => {
-          const isWolthersStaff = user.user_type === 'wolthers_staff'
-          const isWolthersCompanyAdmin = user.user_type === 'admin' && 
-            user.companies?.name?.includes('Wolthers')
-          
-          console.log(`🔎 Checking user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
-          
-          return isWolthersStaff || isWolthersCompanyAdmin
+        // Use API endpoint instead of direct Supabase query to bypass RLS issues
+        const response = await fetch('/api/users/wolthers-staff', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
         })
 
-        console.log('👥 Wolthers staff data:', wolthersStaff)
-        console.log('📈 Filtered staff count:', wolthersStaff.length)
+        console.log('📡 API response status:', response.status)
 
-        setStaff(wolthersStaff)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('🚨 API error:', errorData)
+          throw new Error(errorData.error || `API request failed with status ${response.status}`)
+        }
+
+        const staffData: WolthersStaffMember[] = await response.json()
+        console.log('👥 Wolthers staff from API:', staffData)
+        console.log('📈 API staff count:', staffData.length)
+
+        setStaff(staffData)
         setError(null)
-        console.log('✅ Staff loaded successfully:', wolthersStaff.length, 'members')
+        console.log('✅ Staff loaded successfully via API:', staffData.length, 'members')
       } catch (err) {
-        console.error('❌ Error fetching Wolthers staff:', err)
+        console.error('❌ Error fetching Wolthers staff via API:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch staff')
+        
+        // Fallback to direct Supabase query (will likely fail due to RLS but worth trying)
+        try {
+          console.log('🔄 Attempting fallback to direct Supabase query...')
+          const supabase = getSupabaseClient()
+          
+          const { data: allUsers, error: allUsersError } = await supabase
+            .from('users')
+            .select(`
+              id, 
+              email, 
+              full_name, 
+              phone, 
+              user_type, 
+              company_id,
+              companies!company_id (
+                id,
+                name
+              )
+            `)
+            .order('full_name')
+
+          console.log('📊 Fallback - All users:', allUsers)
+          console.log('❌ Fallback - All users error:', allUsersError)
+
+          if (!allUsersError && allUsers) {
+            const wolthersStaff = allUsers.filter(user => {
+              const isWolthersStaff = user.user_type === 'wolthers_staff'
+              const isWolthersCompanyAdmin = user.user_type === 'admin' && 
+                user.companies?.name?.includes('Wolthers')
+              
+              return isWolthersStaff || isWolthersCompanyAdmin
+            })
+
+            if (wolthersStaff.length > 0) {
+              setStaff(wolthersStaff)
+              setError(null)
+              console.log('✅ Fallback successful:', wolthersStaff.length, 'members')
+            }
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback also failed:', fallbackError)
+        }
       } finally {
         setLoading(false)
       }

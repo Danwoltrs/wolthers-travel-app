@@ -21,8 +21,10 @@ interface ProgressiveSaveResponse {
 }
 
 export async function POST(request: NextRequest) {
+  let body: ProgressiveSaveRequest | undefined = undefined
+  let user: any = null
+  
   try {
-    let user: any = null
     
     // Authentication logic (same as trips route)
     const authHeader = request.headers.get('authorization')
@@ -71,11 +73,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let body: ProgressiveSaveRequest
     try {
       body = await request.json()
     } catch (parseError) {
-      console.error('Failed to parse request body:', parseError)
+      console.error('🚨 Failed to parse request body:', parseError)
       return NextResponse.json(
         { error: 'Invalid JSON in request body' },
         { status: 400 }
@@ -281,18 +282,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response)
 
   } catch (error) {
-    console.error('Progressive save error:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-    console.error('Request body received:', body)
-    console.error('User data:', user)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : undefined
-      },
-      { status: 500 }
-    )
+    console.error('🚨 Progressive save error:', error)
+    console.error('🔍 Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('📝 Request body received:', body)
+    console.error('👤 User data:', user)
+    console.error('🔗 Auth header:', request.headers.get('authorization')?.substring(0, 20) + '...')
+    console.error('🌍 Request URL:', request.url)
+    console.error('📡 Request method:', request.method)
+    
+    // Enhanced error response for debugging
+    const errorResponse = {
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : undefined,
+      timestamp: new Date().toISOString(),
+      // Add context for debugging in production
+      context: {
+        hasUser: !!user,
+        hasAuthHeader: !!request.headers.get('authorization'),
+        requestUrl: request.url,
+        bodyReceived: !!body
+      }
+    }
+    
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 
