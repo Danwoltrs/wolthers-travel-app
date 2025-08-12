@@ -240,61 +240,132 @@ function getOrdinalSuffix(num: number): string {
 
 function generateFallbackResults(query: string): EventSearchResult[] {
   const lowerQuery = query.toLowerCase()
+  const currentYear = new Date().getFullYear()
+  const eventYear = currentYear >= 2025 ? currentYear : 2025
   
-  // Generate contextual results based on search terms
-  if (lowerQuery.includes('swiss') && lowerQuery.includes('coffee')) {
-    if (lowerQuery.includes('dinner') || lowerQuery.includes('forum')) {
-      const currentYear = new Date().getFullYear()
-      const eventYear = currentYear >= 2025 ? currentYear : 2025
-      const editionNumber = 16 + (eventYear - 2025) // 16th in 2025, 17th in 2026, etc.
-      
-      return [{
-        name: `${editionNumber}${getOrdinalSuffix(editionNumber)} SCTA Coffee Forum & Dinner`,
-        organization: 'SCTA - Swiss Coffee Trade Association',
-        website: `https://www.sc-ta.ch/events/forum-dinner-${eventYear}/`,
-        registrationUrl: `https://www.sc-ta.ch/events/forum-dinner-${eventYear}/`,
-        location: 'Congress Center Basel, Switzerland',
-        dates: `October 2-3, ${eventYear}`,
-        description: eventYear === 2025 
-          ? 'Unity in Complexity: Building a Smart & Connected Future. Join us in Basel for insightful discussions, networking opportunities, and industry advancements.'
-          : `Annual Swiss coffee industry forum bringing together professionals for networking, education, and industry advancements. The ${editionNumber}${getOrdinalSuffix(editionNumber)} edition continues the tradition of excellence.`,
-        confidence: eventYear === 2025 ? 0.95 : 0.85
-      }]
-    }
+  // Main Coffee Industry Events
+  
+  // Swiss Coffee Dinner/Forum
+  if (lowerQuery.includes('swiss') && (lowerQuery.includes('coffee') || lowerQuery.includes('dinner') || lowerQuery.includes('forum'))) {
+    const editionNumber = 16 + (eventYear - 2025) // 16th in 2025, 17th in 2026, etc.
     
     return [{
-      name: 'Swiss Coffee Championship 2025',
-      organization: 'Swiss Coffee Association',
-      website: 'https://swisscoffee.ch',
-      location: 'Basel Convention Center, Switzerland',
-      dates: 'October 12-13, 2025',
-      description: 'Annual Swiss coffee industry championship and trade show',
-      confidence: 0.7
+      name: `${editionNumber}${getOrdinalSuffix(editionNumber)} SCTA Coffee Forum & Dinner`,
+      organization: 'SCTA - Swiss Coffee Trade Association',
+      website: `https://www.sc-ta.ch/events/forum-dinner-${eventYear}/`,
+      registrationUrl: `https://www.sc-ta.ch/events/forum-dinner-${eventYear}/`,
+      location: 'Congress Center Basel, Switzerland',
+      dates: `October 2-3, ${eventYear}`,
+      description: eventYear === 2025 
+        ? 'Unity in Complexity: Building a Smart & Connected Future. Join us in Basel for insightful discussions, networking opportunities, and industry advancements.'
+        : `Annual Swiss coffee industry forum bringing together professionals for networking, education, and industry advancements. The ${editionNumber}${getOrdinalSuffix(editionNumber)} edition continues the tradition of excellence.`,
+      confidence: eventYear === 2025 ? 0.95 : 0.85
     }]
   }
 
-  if (lowerQuery.includes('coffee')) {
-    if (lowerQuery.includes('dinner') || lowerQuery.includes('tasting')) {
-      return [{
-        name: 'Coffee Cupping Dinner Experience',
-        organization: 'International Coffee Tasting Society',
-        location: 'The Coffee Laboratory, Portland, USA',
-        dates: 'December 8, 2025',
-        description: 'Multi-course dinner paired with specialty coffee tastings from around the world',
-        confidence: 0.6
-      }]
-    }
+  // NCA Convention
+  if (lowerQuery.includes('nca') || (lowerQuery.includes('national') && lowerQuery.includes('coffee'))) {
+    return [{
+      name: `NCA Convention ${eventYear}`,
+      organization: 'National Coffee Association of USA',
+      website: 'https://www.ncausa.org/convention',
+      location: 'Various US locations',
+      dates: `March ${eventYear}`,
+      description: 'The premier coffee industry event in the United States, bringing together industry leaders for networking, education, and business development.',
+      confidence: 0.9
+    }]
+  }
 
-    if (lowerQuery.includes('sca') || lowerQuery.includes('specialty')) {
+  // World of Coffee Europe
+  if (lowerQuery.includes('world') && lowerQuery.includes('coffee')) {
+    return [{
+      name: `World of Coffee ${eventYear}`,
+      organization: 'Specialty Coffee Association Europe',
+      website: 'https://www.worldofcoffee.org',
+      location: 'Various European cities',
+      dates: `June ${eventYear}`,
+      description: 'Europe\'s premier specialty coffee event featuring competitions, education, and exhibition from the global specialty coffee community.',
+      confidence: 0.9
+    }]
+  }
+
+  // Semana Internacional do Café
+  if (lowerQuery.includes('semana') || (lowerQuery.includes('internacional') && lowerQuery.includes('cafe'))) {
+    return [{
+      name: `Semana Internacional do Café ${eventYear}`,
+      organization: 'Federação dos Cafeicultores do Cerrado',
+      website: 'https://www.semanainternacionaldocafe.com.br',
+      location: 'Patrocínio, Minas Gerais, Brazil',
+      dates: `May ${eventYear}`,
+      description: 'Brazil\'s premier international coffee week, showcasing the entire coffee production chain and connecting Brazilian coffee with the global market.',
+      confidence: 0.9
+    }]
+  }
+
+  // Santos/Campinas Biannual Events
+  if (lowerQuery.includes('santos') || (lowerQuery.includes('seminario') && lowerQuery.includes('cafe'))) {
+    // Santos is odd years (2025, 2027, etc)
+    if (eventYear % 2 === 1) {
       return [{
-        name: 'Regional SCA Coffee Meetup',
-        organization: 'Specialty Coffee Association',
-        location: 'Various locations',
-        dates: 'Monthly events',
-        description: 'Local SCA chapter meetings and coffee education sessions',
-        confidence: 0.5
+        name: `Seminário Internacional de Café de Santos ${eventYear}`,
+        organization: 'Centro do Comércio de Café de Santos',
+        website: 'https://www.seminariocafesantos.com.br/',
+        location: 'Santos, São Paulo, Brazil',
+        dates: `July ${eventYear}`,
+        description: 'International coffee seminar in the historic port city of Santos, focusing on coffee trading, logistics, and market trends.',
+        confidence: 0.9
+      }]
+    } else {
+      // Even years redirect to Campinas
+      return [{
+        name: `Campinas Coffee Dinner & Summit ${eventYear}`,
+        organization: 'Campinas Coffee Events',
+        website: 'https://coffeedinner.com.br/',
+        location: 'Campinas, São Paulo, Brazil',
+        dates: `July 2-4, ${eventYear}`,
+        description: 'Biannual coffee summit alternating with Santos seminar, featuring networking dinner and coffee industry discussions.',
+        confidence: 0.9
       }]
     }
+  }
+
+  // Campinas Coffee Dinner & Summit
+  if (lowerQuery.includes('campinas') || (lowerQuery.includes('coffee') && lowerQuery.includes('dinner') && lowerQuery.includes('summit'))) {
+    // Campinas is even years (2024, 2026, etc) 
+    if (eventYear % 2 === 0) {
+      return [{
+        name: `Campinas Coffee Dinner & Summit ${eventYear}`,
+        organization: 'Campinas Coffee Events',
+        website: 'https://coffeedinner.com.br/',
+        location: 'Campinas, São Paulo, Brazil',
+        dates: `July 2-4, ${eventYear}`,
+        description: 'Biannual coffee summit alternating with Santos seminar, featuring networking dinner and coffee industry discussions.',
+        confidence: 0.9
+      }]
+    } else {
+      // Odd years redirect to Santos
+      return [{
+        name: `Seminário Internacional de Café de Santos ${eventYear}`,
+        organization: 'Centro do Comércio de Café de Santos',
+        website: 'https://www.seminariocafesantos.com.br/',
+        location: 'Santos, São Paulo, Brazil',
+        dates: `July ${eventYear}`,
+        description: 'International coffee seminar in the historic port city of Santos, focusing on coffee trading, logistics, and market trends.',
+        confidence: 0.9
+      }]
+    }
+  }
+
+  // Generic coffee event fallback
+  if (lowerQuery.includes('coffee')) {
+    return [{
+      name: `${query} Coffee Event`,
+      organization: 'Coffee Industry Association',
+      location: 'To be determined',
+      dates: `${eventYear}`,
+      description: `Professional coffee industry event related to ${query}`,
+      confidence: 0.3
+    }]
   }
 
   // Generic fallback
