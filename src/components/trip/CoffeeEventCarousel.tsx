@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CoffeeEvent, scrapeCoffeeEvents } from '@/services/coffee-events/scraper';
+import { CoffeeEvent, scrapeCoffeeEvents, searchCoffeeEvents } from '@/services/coffee-events/scraper';
 import { Calendar, MapPin, Search, Plus, Check, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import { TripFormData } from '../trips/TripCreationModal';
@@ -12,13 +12,16 @@ interface CoffeeEventCarouselProps {
 export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formData, updateFormData }) => {
   const [events, setEvents] = useState<CoffeeEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        const coffeeEvents = await scrapeCoffeeEvents();
+        // Enable scraping in development, use fallback in production
+        const enableScraping = process.env.NODE_ENV === 'development';
+        const coffeeEvents = await scrapeCoffeeEvents(enableScraping);
         setEvents(coffeeEvents);
       } catch (error) {
         console.error('Error fetching coffee events:', error);
@@ -29,6 +32,39 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
 
     fetchEvents();
   }, []);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      // Reset to all events
+      setIsLoading(true);
+      try {
+        const enableScraping = process.env.NODE_ENV === 'development';
+        const coffeeEvents = await scrapeCoffeeEvents(enableScraping);
+        setEvents(coffeeEvents);
+      } catch (error) {
+        console.error('Error fetching coffee events:', error);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const searchResults = await searchCoffeeEvents(searchQuery);
+      setEvents(searchResults);
+    } catch (error) {
+      console.error('Error searching coffee events:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const selectConvention = (event: CoffeeEvent) => {
     if (updateFormData) {
@@ -139,11 +175,24 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
               placeholder="Search coffee conventions and events..."
               style={{ paddingLeft: '36px' }}
               className="w-full pr-4 py-3 border border-pearl-200 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
             />
           </div>
+          <button
+            onClick={handleSearch}
+            disabled={isSearching}
+            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center space-x-2 font-medium"
+          >
+            {isSearching ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
+            <span>{isSearching ? 'Searching...' : 'Search'}</span>
+          </button>
         </div>
       </div>
 
