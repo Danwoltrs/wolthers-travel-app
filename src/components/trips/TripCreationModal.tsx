@@ -30,7 +30,6 @@ export interface TripFormData {
   
   // Step 3: Team & Vehicles
   wolthersStaff: User[]
-  drivers: User[]
   vehicles: Vehicle[]
 }
 
@@ -67,7 +66,6 @@ const initialFormData: TripFormData = {
   // estimatedBudget: undefined,
   itineraryDays: [],
   wolthersStaff: [],
-  drivers: [],
   vehicles: []
 }
 
