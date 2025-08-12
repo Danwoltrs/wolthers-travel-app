@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!isValidTripCodeFormat(code)) {
       return NextResponse.json({ 
         isValid: false, 
-        message: 'Invalid trip code format. Use format like AMS_BER_QA_1208.' 
+        message: 'Trip code must contain only uppercase letters, numbers, and underscores (2-20 characters).' 
       }, { status: 400 })
     }
 
@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
 
 // Validate trip code format
 function isValidTripCodeFormat(code: string): boolean {
-  // Matches format like AMS_BER_QA_1208
-  const tripCodeRegex = /^[A-Z]{3}_[A-Z]{3}_[A-Z]{2}_\d{4}$/
+  // Allow flexible formats - uppercase letters, numbers, and underscores only, 2-20 characters
+  const tripCodeRegex = /^[A-Z0-9_]{2,20}$/
   return tripCodeRegex.test(code)
 }
 

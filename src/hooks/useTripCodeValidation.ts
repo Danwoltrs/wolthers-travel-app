@@ -52,12 +52,13 @@ export function useTripCodeValidation(
         return
       }
 
-      // Basic format check
-      const tripCodeRegex = /^[A-Z]{3}_[A-Z]{3}_[A-Z]{2}_\d{4}$/
+      // Basic format check - allow flexible formats
+      // Must be uppercase letters, numbers, and underscores only, 2-20 characters
+      const tripCodeRegex = /^[A-Z0-9_]{2,20}$/
       if (!tripCodeRegex.test(codeToValidate)) {
         setValidationResult({
           isValid: false,
-          message: 'Invalid trip code format. Use format like AMS_BER_QA_1208.',
+          message: 'Trip code must contain only uppercase letters, numbers, and underscores (2-20 characters).',
           isChecking: false
         })
         return
