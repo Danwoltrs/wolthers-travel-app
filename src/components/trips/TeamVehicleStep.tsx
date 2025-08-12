@@ -76,14 +76,8 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          Assign Team & Vehicles
-        </h2>
-      </div>
-
-      {/* Team Assignment with MultiSelect */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Left Column - Team Assignment */}
       <div>
         <div className="flex items-center mb-4">
           <Users className="w-5 h-5 text-gray-400 mr-2" />
@@ -93,7 +87,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
         </div>
         <div className="space-y-3">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Select all Wolthers staff members who will be part of this trip. Selected staff can also serve as drivers when needed.
+            Select all Wolthers staff members who will be part of this trip.
           </p>
           <MultiSelectSearch
             options={staffOptions}
@@ -103,6 +97,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             searchPlaceholder="Search staff members..."
             emptyMessage="No staff members found"
             className="w-full"
+            maxDisplayItems={10}
           />
           {formData.wolthersStaff.length > 0 && (
             <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -114,18 +109,36 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
         </div>
       </div>
 
-      {/* Vehicles - Placeholder for future implementation */}
-      <div>
-        <div className="flex items-center mb-4">
-          <Car className="w-5 h-5 text-gray-400 mr-2" />
-          <h3 className="text-md font-medium text-gray-900 dark:text-white">
-            Transportation
-          </h3>
+      {/* Right Column - Driver Assignment & Vehicles */}
+      <div className="space-y-6">
+        {/* Driver Assignment */}
+        <div>
+          <div className="flex items-center mb-4">
+            <UserCheck className="w-5 h-5 text-gray-400 mr-2" />
+            <h3 className="text-md font-medium text-gray-900 dark:text-white">
+              Driver Assignment
+            </h3>
+          </div>
+          <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Driver assignment coming soon. Selected team members can serve as drivers when needed.
+            </p>
+          </div>
         </div>
-        <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Vehicle assignment will be available soon. Support for both company vehicles and rental options coming.
-          </p>
+
+        {/* Vehicles */}
+        <div>
+          <div className="flex items-center mb-4">
+            <Car className="w-5 h-5 text-gray-400 mr-2" />
+            <h3 className="text-md font-medium text-gray-900 dark:text-white">
+              Transportation
+            </h3>
+          </div>
+          <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Vehicle assignment available soon. Support for both company vehicles and rental options coming.
+            </p>
+          </div>
         </div>
       </div>
     </div>

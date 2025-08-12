@@ -151,7 +151,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       })
 
       if (!response.ok) {
-        throw new Error(`Save failed: ${response.statusText}`)
+        const errorText = await response.text()
+        console.error('📋 Progressive save error response:', errorText)
+        throw new Error(`Save failed: ${response.status} ${response.statusText}`)
       }
 
       const result = await response.json()
