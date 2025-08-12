@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/lib/debounce'
 
 interface TripCodeValidationResult {
   isValid: boolean

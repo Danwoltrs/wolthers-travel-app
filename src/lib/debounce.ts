@@ -1,0 +1,22 @@
+/**
+ * Simple debounce function to delay function execution
+ * @param func Function to debounce
+ * @param wait Delay in milliseconds
+ * @returns Debounced function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout | null = null
+
+  return function debounced(...args: Parameters<T>) {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+
+    timeoutId = setTimeout(() => {
+      func.apply(null, args)
+    }, wait)
+  }
+}
