@@ -212,26 +212,57 @@ export async function POST(request: NextRequest) {
 
     // Update or create trip draft entry
     if (finalTripId) {
-      const { error: draftError } = await supabase
-        .from('trip_drafts')
-        .upsert({
-          creator_id: user.id,
-          trip_type: tripType,
-          trip_id: finalTripId,
-          current_step: currentStep,
-          draft_data: stepData,
-          completion_percentage: completionPercentage,
-          last_accessed_at: now,
-          updated_at: now,
-          access_token: accessCode ? `trip_${accessCode}` : undefined,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        }, { 
-          onConflict: finalTripId ? 'trip_id' : 'creator_id,trip_type',
-          ignoreDuplicates: false 
-        })
+      try {
+        // First try to update existing draft by trip_id
+        const { data: existingDraft, error: findError } = await supabase
+          .from('trip_drafts')
+          .select('id')
+          .eq('trip_id', finalTripId)
+          .single()
 
-      if (draftError) {
-        console.error('Failed to update draft:', draftError)
+        if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
+          console.error('Error finding existing draft:', findError)
+        }
+
+        if (existingDraft) {
+          // Update existing draft
+          const { error: updateError } = await supabase
+            .from('trip_drafts')
+            .update({
+              current_step: currentStep,
+              draft_data: stepData,
+              completion_percentage: completionPercentage,
+              last_accessed_at: now,
+              updated_at: now,
+            })
+            .eq('trip_id', finalTripId)
+
+          if (updateError) {
+            console.error('Failed to update existing draft:', updateError)
+          }
+        } else {
+          // Create new draft
+          const { error: insertError } = await supabase
+            .from('trip_drafts')
+            .insert({
+              creator_id: user.id,
+              trip_type: tripType,
+              trip_id: finalTripId,
+              current_step: currentStep,
+              draft_data: stepData,
+              completion_percentage: completionPercentage,
+              last_accessed_at: now,
+              updated_at: now,
+              access_token: accessCode ? `trip_${accessCode}` : null,
+              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+            })
+
+          if (insertError) {
+            console.error('Failed to create new draft:', insertError)
+          }
+        }
+      } catch (draftError) {
+        console.error('Draft operation failed:', draftError)
         // Don't fail the request if draft update fails
       }
     }
