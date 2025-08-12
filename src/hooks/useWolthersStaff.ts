@@ -52,7 +52,8 @@ export function useWolthersStaff() {
           throw new Error(errorData.error || `API request failed with status ${response.status}`)
         }
 
-        const staffData: WolthersStaffMember[] = await response.json()
+        const data = await response.json()
+        const staffData: WolthersStaffMember[] = data.staff || []
         console.log('👥 Wolthers staff from API:', staffData)
         console.log('📈 API staff count:', staffData.length)
 

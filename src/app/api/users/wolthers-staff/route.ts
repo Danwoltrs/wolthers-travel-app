@@ -2,19 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-interface WolthersStaffMember {
-  id: string
-  email: string
-  full_name: string
-  phone?: string
-  user_type: string
-}
-
 export async function GET(request: NextRequest) {
   try {
     let user: any = null
     
-    // Authentication logic - support both JWT and Supabase sessions
+    // Authentication logic (same as other protected routes)
     const authHeader = request.headers.get('authorization')
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
@@ -61,10 +53,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('🔍 Fetching Wolthers staff via API route...')
+    console.log(`🔍 Wolthers staff API called by: ${user.email}`)
+    
+    // Use service role client to bypass RLS
     const supabase = createServerSupabaseClient()
     
-    // Server-side query with service role bypasses RLS
+    // Get all users with company information using service role
     const { data: allUsers, error: allUsersError } = await supabase
       .from('users')
       .select(`
@@ -81,48 +75,47 @@ export async function GET(request: NextRequest) {
       `)
       .order('full_name')
 
-    console.log('📊 All users fetched via API:', allUsers?.length || 0)
-    console.log('❌ API users error:', allUsersError)
+    console.log(`📊 Service role query - Users found: ${allUsers?.length || 0}`)
+    console.log(`❌ Service role query error:`, allUsersError)
 
     if (allUsersError) {
-      console.error('🚨 API Database error:', allUsersError)
-      throw new Error(`Database error: ${allUsersError.message}`)
+      console.error('🚨 Database error in Wolthers staff API:', allUsersError)
+      return NextResponse.json(
+        { error: 'Database error', details: allUsersError.message },
+        { status: 500 }
+      )
     }
 
     if (!allUsers) {
-      console.warn('⚠️ No users returned from API database')
-      return NextResponse.json([])
+      console.warn('⚠️ No users returned from service role query')
+      return NextResponse.json({ staff: [] })
     }
 
-    // Filter Wolthers staff specifically
+    // Filter Wolthers staff - include admin types from Wolthers company and wolthers_staff types
     const wolthersStaff = allUsers.filter(user => {
       const isWolthersStaff = user.user_type === 'wolthers_staff'
       const isWolthersCompanyAdmin = user.user_type === 'admin' && 
         user.companies?.name?.includes('Wolthers')
       
-      console.log(`🔎 API checking user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
+      console.log(`🔎 Filtering user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
       
       return isWolthersStaff || isWolthersCompanyAdmin
     })
 
-    console.log('👥 Wolthers staff via API:', wolthersStaff.length, 'members')
+    console.log(`👥 Wolthers staff found: ${wolthersStaff.length}`)
+    console.log(`📈 Staff members:`, wolthersStaff.map(s => ({ name: s.full_name, email: s.email, type: s.user_type })))
 
-    // Return clean data matching the expected interface
-    const staffData: WolthersStaffMember[] = wolthersStaff.map(user => ({
-      id: user.id,
-      email: user.email,
-      full_name: user.full_name || '',
-      phone: user.phone || undefined,
-      user_type: user.user_type
-    }))
-
-    return NextResponse.json(staffData)
+    return NextResponse.json({ 
+      staff: wolthersStaff,
+      count: wolthersStaff.length,
+      message: `Found ${wolthersStaff.length} Wolthers staff members`
+    })
 
   } catch (error) {
-    console.error('❌ Wolthers staff API error:', error)
+    console.error('💥 Wolthers staff API error:', error)
     return NextResponse.json(
       { 
-        error: 'Failed to fetch Wolthers staff',
+        error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
