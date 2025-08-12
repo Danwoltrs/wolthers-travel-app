@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
             title: tripData.title || `New ${tripType} Trip`,
             description: tripData.description || '',
             trip_type: tripType,
+            status: 'draft',
             start_date: tripData.start_date || new Date().toISOString().split('T')[0],
             end_date: tripData.end_date || new Date().toISOString().split('T')[0],
             creator_id: user.id,
@@ -310,22 +311,47 @@ function getCreationStatus(step: number): string {
 function extractTripData(stepData: any, currentStep: number): any {
   const data: any = {}
 
-  // Extract from different steps based on your wizard structure
+  // The stepData is actually the full formData object
+  if (stepData.title) {
+    data.title = stepData.title
+  }
+  
+  if (stepData.description) {
+    data.description = stepData.description
+  }
+  
+  // Handle dates - they could be Date objects or strings
+  if (stepData.startDate) {
+    if (stepData.startDate instanceof Date) {
+      data.start_date = stepData.startDate.toISOString().split('T')[0]
+    } else if (typeof stepData.startDate === 'string') {
+      // If it's already a string, ensure it's in YYYY-MM-DD format
+      const date = new Date(stepData.startDate)
+      data.start_date = date.toISOString().split('T')[0]
+    }
+  }
+  
+  if (stepData.endDate) {
+    if (stepData.endDate instanceof Date) {
+      data.end_date = stepData.endDate.toISOString().split('T')[0]
+    } else if (typeof stepData.endDate === 'string') {
+      // If it's already a string, ensure it's in YYYY-MM-DD format
+      const date = new Date(stepData.endDate)
+      data.end_date = date.toISOString().split('T')[0]
+    }
+  }
+
+  // Fallback to legacy structure for backward compatibility
   if (stepData.basic) {
-    data.title = stepData.basic.title
-    data.description = stepData.basic.description
-    data.start_date = stepData.basic.startDate
-    data.end_date = stepData.basic.endDate
+    data.title = stepData.basic.title || data.title
+    data.description = stepData.basic.description || data.description
+    data.start_date = stepData.basic.startDate || data.start_date
+    data.end_date = stepData.basic.endDate || data.end_date
   }
 
   if (stepData.dates) {
-    data.start_date = stepData.dates.startDate
-    data.end_date = stepData.dates.endDate
-  }
-
-  if (stepData.details) {
-    data.title = stepData.details.title || data.title
-    data.description = stepData.details.description || data.description
+    data.start_date = stepData.dates.startDate || data.start_date
+    data.end_date = stepData.dates.endDate || data.end_date
   }
 
   return data

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check } from 'lucide-react'
+import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, Edit3 } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 // Removed framer-motion imports to fix tooltip interference
@@ -303,19 +303,27 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
             </span>
             
             <div className="flex-1 flex justify-center">
-              <span className={cn(
-                'text-xs font-medium',
-                'text-amber-800 dark:text-amber-300'
-              )}>
-                {progress}% Complete
-              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.location.href = `/trips/continue/${trip.accessCode}`
+                }}
+                className={cn(
+                  'flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                  'bg-amber-200 hover:bg-amber-300 text-amber-800',
+                  'dark:bg-amber-800/30 dark:hover:bg-amber-700/40 dark:text-amber-200'
+                )}
+              >
+                <Edit3 className="w-3 h-3" />
+                Continue Editing
+              </button>
             </div>
             
             <span className={cn(
               'text-xs',
               'text-amber-600 dark:text-amber-500'
             )}>
-              Draft
+              {progress}% Complete
             </span>
           </>
         ) : (
@@ -345,13 +353,29 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               )}
             </div>
             
-            {/* Notes Count - Right */}
-            <span className="text-xs text-pearl-500 dark:text-gray-500 hover:text-golden-600 dark:hover:text-[#0E3D2F] transition-colors">
-              {trip.notesCount && trip.notesCount > 0 
-                ? `${trip.notesCount} note${trip.notesCount > 1 ? 's' : ''}`
-                : 'No notes'
-              }
-            </span>
+            {/* Edit Button and Notes Count - Right */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.location.href = `/trips/continue/${trip.accessCode}`
+                }}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
+                  'text-gray-600 hover:text-gray-800 hover:bg-gray-100',
+                  'dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800'
+                )}
+                title="Edit trip"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
+              <span className="text-xs text-pearl-500 dark:text-gray-500 hover:text-golden-600 dark:hover:text-[#0E3D2F] transition-colors">
+                {trip.notesCount && trip.notesCount > 0 
+                  ? `${trip.notesCount} note${trip.notesCount > 1 ? 's' : ''}`
+                  : 'No notes'
+                }
+              </span>
+            </div>
           </>
         )}
       </div>
