@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
   let body: ProgressiveSaveRequest | undefined = undefined
   let user: any = null
   
+  console.log('🔥 Progressive save API called')
+  console.log('🍪 Cookies:', request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })))
+  console.log('🔑 Auth header present:', !!request.headers.get('authorization'))
+  
   try {
     
     // Authentication logic (same as trips route)
@@ -39,10 +43,12 @@ export async function POST(request: NextRequest) {
     }
     
     if (token) {
+      console.log('🎫 Token found, attempting authentication...')
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {
         const decoded = verify(token, secret) as any
+        console.log('✅ Token decoded successfully, user ID:', decoded.userId)
         const supabase = createServerSupabaseClient()
         const { data: userData, error: userError } = await supabase
           .from('users')
@@ -52,6 +58,9 @@ export async function POST(request: NextRequest) {
 
         if (!userError && userData) {
           user = userData
+          console.log('👤 User authenticated:', userData.email)
+        } else {
+          console.error('❌ User lookup failed:', userError)
         }
       } catch (jwtError) {
         // Try Supabase session authentication
@@ -84,6 +93,13 @@ export async function POST(request: NextRequest) {
 
     try {
       body = await request.json()
+      console.log('📋 Request body parsed:', { 
+        hasTripId: !!body.tripId, 
+        currentStep: body.currentStep, 
+        tripType: body.tripType,
+        hasStepData: !!body.stepData,
+        accessCode: body.accessCode
+      })
     } catch (parseError) {
       console.error('🚨 Failed to parse request body:', parseError)
       return NextResponse.json(
