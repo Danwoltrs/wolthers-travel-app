@@ -5,7 +5,6 @@ import { Plus, Loader2 } from 'lucide-react'
 import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
 import TripCreationModal from '@/components/trips/TripCreationModal'
-import DraftTripsSection from '@/components/dashboard/DraftTripsSection'
 import AuthDebug from '@/components/debug/AuthDebug'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
@@ -18,6 +17,7 @@ export default function Dashboard() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showTripCreationModal, setShowTripCreationModal] = useState(false)
   const [resumeData, setResumeData] = useState<any>(null)
+  const [draftTrips, setDraftTrips] = useState<any[]>([])
   const { trips, loading, error, isOffline } = useTrips()
 
   // Listen for menu state changes (this would need to be coordinated with Header component)
@@ -31,6 +31,33 @@ export default function Dashboard() {
     return () => window.removeEventListener('menuToggle', handleMenuToggle as EventListener)
   }, [])
 
+  // Load draft trips
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      loadDraftTrips()
+    }
+  }, [isAuthenticated])
+
+  const loadDraftTrips = async () => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
+      if (!token) return
+
+      const response = await fetch('/api/trips/drafts', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setDraftTrips(data.drafts || [])
+      }
+    } catch (error) {
+      console.error('Failed to load draft trips:', error)
+    }
+  }
+
   // Show loading while checking authentication
   if (authLoading || !isAuthenticated) {
     return (
@@ -43,6 +70,28 @@ export default function Dashboard() {
     )
   }
   
+  // Helper function to convert draft to trip-like object
+  const convertDraftToTrip = (draft: any) => ({
+    id: draft.id,
+    title: draft.title,
+    description: draft.description || '',
+    startDate: draft.start_date || new Date().toISOString().split('T')[0],
+    endDate: draft.end_date || new Date().toISOString().split('T')[0],
+    status: 'draft',
+    tripType: draft.trip_type,
+    accessCode: draft.access_code,
+    companies: [],
+    participants: [],
+    isDraft: true,
+    currentStep: draft.current_step,
+    completionPercentage: draft.completion_percentage,
+    createdAt: draft.created_at,
+    updatedAt: draft.updated_at
+  })
+
+  // Convert drafts to trip format
+  const draftTripsAsTrips = draftTrips.map(convertDraftToTrip)
+
   // Separate and sort trips by calculated status (based on current date)
   const ongoingTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
@@ -56,8 +105,8 @@ export default function Dashboard() {
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
-  // Combine ongoing (first) and upcoming (sorted by date) trips
-  const currentTrips = [...ongoingTrips, ...upcomingTrips]
+  // Combine ongoing, upcoming, and draft trips
+  const currentTrips = [...ongoingTrips, ...upcomingTrips, ...draftTripsAsTrips]
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
@@ -65,8 +114,26 @@ export default function Dashboard() {
   })
 
   const handleTripClick = (trip: TripCardType) => {
-    // Open quick view modal first, then user can choose to view full details
-    setSelectedTrip(trip)
+    // If it's a draft trip, open trip creation modal to continue
+    if ((trip as any).isDraft) {
+      const resumeData = {
+        tripId: (trip as any).trip_id,
+        formData: {
+          tripType: (trip as any).tripType,
+          title: trip.title,
+          description: trip.description,
+          startDate: trip.startDate ? new Date(trip.startDate) : null,
+          endDate: trip.endDate ? new Date(trip.endDate) : null,
+          // Add other form data as needed
+        },
+        currentStep: (trip as any).currentStep || 1
+      }
+      setResumeData(resumeData)
+      setShowTripCreationModal(true)
+    } else {
+      // Open quick view modal for regular trips
+      setSelectedTrip(trip)
+    }
   }
 
   const handleCreateTrip = () => {
@@ -148,9 +215,6 @@ export default function Dashboard() {
         
         {/* Debug info - temporary */}
         <AuthDebug />
-        
-        {/* Draft Trips Section */}
-        <DraftTripsSection onContinueTrip={handleContinueTrip} />
         
         {/* Offline indicator */}
         {isOffline && (
