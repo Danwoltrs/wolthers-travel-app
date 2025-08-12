@@ -53,12 +53,12 @@ export function useTripCodeValidation(
       }
 
       // Basic format check - allow flexible formats
-      // Must be uppercase letters, numbers, and underscores only, 2-20 characters
-      const tripCodeRegex = /^[A-Z0-9_]{2,20}$/
+      // Must be uppercase letters, numbers, underscores, and dashes only, 2-20 characters
+      const tripCodeRegex = /^[A-Z0-9_-]{2,20}$/
       if (!tripCodeRegex.test(codeToValidate)) {
         setValidationResult({
           isValid: false,
-          message: 'Trip code must contain only uppercase letters, numbers, and underscores (2-20 characters).',
+          message: 'Trip code must contain only uppercase letters, numbers, underscores, and dashes (2-20 characters).',
           isChecking: false
         })
         return
