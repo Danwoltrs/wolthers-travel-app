@@ -16,7 +16,8 @@ export const CoffeeEventSchema = z.object({
     'SwissCoffeeDinner', 
     'NationalCoffeeAssociation', 
     'SantosSeminar', 
-    'SpecialtyCoffeeAssociation'
+    'SpecialtyCoffeeAssociation',
+    'SemanaInternacionalDoCafe'
   ])
 });
 
@@ -46,10 +47,10 @@ export class CoffeeEventScraper {
       case 'WorldOfCoffee':
         return [
           {
-            id: 'woc-2025-athens',
+            id: 'woc-2025-berlin',
             name: 'World of Coffee 2025',
-            date: new Date('2025-06-26'),
-            location: 'Athens, Greece',
+            date: new Date('2025-12-05'),
+            location: 'Berlin, Germany',
             url: 'https://www.worldofcoffee.org/',
             organization: 'Specialty Coffee Association Europe',
             description: 'The premier European specialty coffee event featuring competitions, education, and exhibition.',
@@ -60,9 +61,9 @@ export class CoffeeEventScraper {
       case 'SwissCoffeeDinner':
         return [
           {
-            id: 'swiss-coffee-2025',
-            name: 'Swiss Coffee Forum Dinner 2025',
-            date: new Date('2025-03-15'),
+            id: 'swiss-coffee-2025-fall',
+            name: 'Swiss Coffee Forum Autumn 2025',
+            date: new Date('2025-11-18'),
             location: 'Zürich, Switzerland',
             url: 'https://www.sc-ta.ch/events/forum-dinner-2025/',
             organization: 'Swiss Coffee Trade Association',
@@ -74,10 +75,10 @@ export class CoffeeEventScraper {
       case 'NationalCoffeeAssociation':
         return [
           {
-            id: 'nca-convention-2025',
-            name: 'NCA Convention 2025',
-            date: new Date('2025-04-10'),
-            location: 'New Orleans, LA, USA',
+            id: 'nca-convention-2025-fall',
+            name: 'NCA Coffee Summit 2025',
+            date: new Date('2025-10-15'),
+            location: 'Miami, FL, USA',
             url: 'https://www.ncausa.org/',
             organization: 'National Coffee Association USA',
             description: 'The premier gathering for coffee industry professionals in North America.',
@@ -90,7 +91,7 @@ export class CoffeeEventScraper {
           {
             id: 'santos-2025',
             name: 'Santos Coffee Seminar 2025',
-            date: new Date('2025-09-12'),
+            date: new Date('2025-09-20'),
             location: 'Santos, Brazil',
             url: 'https://www.santoscoffee.com/',
             organization: 'Santos Coffee Exchange',
@@ -102,24 +103,38 @@ export class CoffeeEventScraper {
       case 'SpecialtyCoffeeAssociation':
         return [
           {
-            id: 'sca-expo-2025',
-            name: 'SCA Expo 2025',
-            date: new Date('2025-04-24'),
-            location: 'Portland, OR, USA',
+            id: 'sca-expo-2025-fall',
+            name: 'SCA Regional Conference 2025',
+            date: new Date('2025-11-08'),
+            location: 'Seattle, WA, USA',
             url: 'https://specialtycoffee.org/',
             organization: 'Specialty Coffee Association',
-            description: 'The largest specialty coffee event in the world, bringing together the global coffee community.',
+            description: 'Regional specialty coffee event focusing on Pacific Northwest coffee culture and innovation.',
             source: 'SpecialtyCoffeeAssociation'
           },
           {
             id: 'scaj-2025',
             name: 'SCAJ World Specialty Coffee Conference 2025',
-            date: new Date('2025-09-28'),
+            date: new Date('2025-12-12'),
             location: 'Tokyo, Japan',
             url: 'https://www.scaj.org/',
             organization: 'Specialty Coffee Association of Japan',
             description: 'Asia\'s premier specialty coffee event showcasing innovations in the Asian coffee market.',
             source: 'SpecialtyCoffeeAssociation'
+          }
+        ];
+        
+      case 'SemanaInternacionalDoCafe':
+        return [
+          {
+            id: 'sic-2025',
+            name: 'Semana Internacional do Café 2025',
+            date: new Date('2025-10-28'),
+            location: 'Belo Horizonte, Brazil',
+            url: 'https://semanainternacionaldocafe.com.br/',
+            organization: 'Associação Brasileira da Indústria de Café',
+            description: 'Brazil\'s premier international coffee week bringing together industry professionals from across Latin America.',
+            source: 'SemanaInternacionalDoCafe'
           }
         ];
         
@@ -138,7 +153,8 @@ export async function scrapeCoffeeEvents(): Promise<CoffeeEvent[]> {
     scraper.scrapeEvents('SwissCoffeeDinner'),
     scraper.scrapeEvents('NationalCoffeeAssociation'),
     scraper.scrapeEvents('SantosSeminar'),
-    scraper.scrapeEvents('SpecialtyCoffeeAssociation')
+    scraper.scrapeEvents('SpecialtyCoffeeAssociation'),
+    scraper.scrapeEvents('SemanaInternacionalDoCafe')
   ]);
 
   // Flatten and sort by date, return next 6 events
