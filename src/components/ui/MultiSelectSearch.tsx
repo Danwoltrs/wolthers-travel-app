@@ -142,7 +142,7 @@ export default function MultiSelectSearch({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg shadow-lg max-h-96 overflow-hidden">
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg shadow-lg max-h-[500px] overflow-hidden">
           {/* Search Input */}
           <div className="p-3 border-b border-gray-200 dark:border-[#2a2a2a]">
             <div className="relative">
@@ -160,7 +160,7 @@ export default function MultiSelectSearch({
           </div>
 
           {/* Options List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[400px] overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                 {emptyMessage}

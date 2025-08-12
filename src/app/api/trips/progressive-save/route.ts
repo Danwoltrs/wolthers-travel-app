@@ -192,7 +192,9 @@ export async function POST(request: NextRequest) {
       // Create new trip when reaching step 3 (basic information)
       if (currentStep >= 3) {
         // Use provided access code or generate one
+        console.log('🎫 Access code logic - provided:', providedAccessCode)
         accessCode = providedAccessCode || await generateAccessCode(supabase)
+        console.log('🎫 Final access code to use:', accessCode)
         isNewTrip = true
 
         // Extract basic trip information from stepData
@@ -233,6 +235,32 @@ export async function POST(request: NextRequest) {
         }
 
         finalTripId = newTrip.id
+
+        // Also create trip participants for Wolthers staff if they exist in step data
+        if (stepData.wolthersStaff && Array.isArray(stepData.wolthersStaff) && stepData.wolthersStaff.length > 0) {
+          console.log('👥 Creating trip participants for Wolthers staff:', stepData.wolthersStaff.length)
+          
+          const participantInserts = stepData.wolthersStaff.map((staff: any) => ({
+            trip_id: finalTripId,
+            user_id: staff.id,
+            company_id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Wolthers & Associates company ID
+            role: 'staff',
+            is_partial: false,
+            created_at: now,
+            updated_at: now
+          }))
+
+          const { error: participantsError } = await supabase
+            .from('trip_participants')
+            .insert(participantInserts)
+
+          if (participantsError) {
+            console.error('⚠️ Failed to create trip participants:', participantsError)
+            // Don't fail the trip creation, just log the error
+          } else {
+            console.log('✅ Trip participants created successfully')
+          }
+        }
       }
     }
 

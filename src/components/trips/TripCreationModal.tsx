@@ -146,7 +146,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           stepData: stepData,
           completionPercentage: Math.round((step / steps.length) * 100),
           tripType: formData.tripType,
-          accessCode: stepData.accessCode
+          accessCode: stepData.accessCode || formData.accessCode
         })
       })
 
