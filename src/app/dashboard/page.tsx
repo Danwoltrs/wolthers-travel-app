@@ -191,7 +191,10 @@ export default function Dashboard() {
       <div className="fixed left-[calc(max(2rem,(100vw-80rem)/2)+2rem+30px)] top-[calc(160px+72px+24px+2px)] z-40 hidden xl:block">
         <div
           onClick={handleCreateTrip}
-          className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px] h-[420px]"
+          className={cn(
+            "bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px]",
+            currentTrips.length > 0 ? "h-[420px]" : "h-[120px]"
+          )}
         >
           <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
         </div>
