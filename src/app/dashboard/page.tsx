@@ -74,14 +74,18 @@ export default function Dashboard() {
   const convertDraftToTrip = (draft: any) => ({
     id: draft.id,
     title: draft.title,
-    description: draft.description || '',
-    startDate: draft.start_date || new Date().toISOString().split('T')[0],
-    endDate: draft.end_date || new Date().toISOString().split('T')[0],
-    status: 'draft',
+    subject: draft.description || '',
+    client: [],
+    guests: [],
+    wolthersStaff: [],
+    vehicles: [],
+    drivers: [],
+    startDate: new Date(draft.start_date || new Date().toISOString().split('T')[0]),
+    endDate: new Date(draft.end_date || new Date().toISOString().split('T')[0]),
+    duration: 1,
+    status: 'draft' as any,
     tripType: draft.trip_type,
     accessCode: draft.access_code,
-    companies: [],
-    participants: [],
     isDraft: true,
     currentStep: draft.current_step,
     completionPercentage: draft.completion_percentage,
@@ -121,7 +125,7 @@ export default function Dashboard() {
         formData: {
           tripType: (trip as any).tripType,
           title: trip.title,
-          description: trip.description,
+          description: trip.subject || '',
           startDate: trip.startDate ? new Date(trip.startDate) : null,
           endDate: trip.endDate ? new Date(trip.endDate) : null,
           // Add other form data as needed
@@ -193,7 +197,7 @@ export default function Dashboard() {
           onClick={handleCreateTrip}
           className={cn(
             "bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px]",
-            currentTrips.length > 0 ? "h-[420px]" : "h-[120px]"
+            currentTrips.length > 0 ? "h-[420px]" : "h-[280px]"
           )}
         >
           <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
