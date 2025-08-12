@@ -162,7 +162,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       {/* Companies */}
       <div>
         <label className="block text-sm font-medium text-latte-700 mb-2">
-          Companies *
+          Companies (Optional)
         </label>
         
         {/* Selected Companies */}
@@ -248,7 +248,11 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
               type="date"
               id="startDate"
               value={formatDateForInput(formData.startDate)}
-              onChange={(e) => updateFormData({ startDate: new Date(e.target.value) })}
+              onChange={(e) => {
+                const inputDate = e.target.value.split('-');
+                const newDate = new Date(parseInt(inputDate[0]), parseInt(inputDate[1]) - 1, parseInt(inputDate[2]));
+                updateFormData({ startDate: newDate });
+              }}
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
             />
             <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
@@ -264,7 +268,11 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
               type="date"
               id="endDate"
               value={formatDateForInput(formData.endDate)}
-              onChange={(e) => updateFormData({ endDate: new Date(e.target.value) })}
+              onChange={(e) => {
+                const inputDate = e.target.value.split('-');
+                const newDate = new Date(parseInt(inputDate[0]), parseInt(inputDate[1]) - 1, parseInt(inputDate[2]));
+                updateFormData({ endDate: newDate });
+              }}
               min={formatDateForInput(formData.startDate)}
               className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
             />
@@ -273,8 +281,8 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         </div>
       </div>
 
-      {/* Estimated Budget */}
-      <div>
+      {/* Estimated Budget - Commented out */}
+      {/* <div>
         <label htmlFor="budget" className="block text-sm font-medium text-latte-700">
           Estimated Budget (USD)
         </label>
@@ -290,7 +298,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
             step="0.01"
           />
         </div>
-      </div>
+      </div> */}
 
       {/* Participants Section */}
       {formData.companies.length > 0 && (

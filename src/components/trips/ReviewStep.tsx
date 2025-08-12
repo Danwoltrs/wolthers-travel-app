@@ -48,17 +48,8 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
             </p>
           </div>
           
-          {formData.estimatedBudget && (
-            <div>
-              <span className="text-gray-500 dark:text-gray-400 flex items-center">
-                <DollarSign className="w-4 h-4 mr-1" />
-                Budget:
-              </span>
-              <p className="font-medium text-gray-900 dark:text-white">
-                ${formData.estimatedBudget.toLocaleString()}
-              </p>
-            </div>
-          )}
+          {/* Estimated Budget section removed */}
+          {/* Budget will be re-implemented in a future update */}
         </div>
         
         {formData.description && (

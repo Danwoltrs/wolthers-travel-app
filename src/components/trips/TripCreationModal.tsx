@@ -21,7 +21,8 @@ export interface TripFormData {
   participants: User[]
   startDate: Date | null
   endDate: Date | null
-  estimatedBudget?: number
+  // Estimated Budget is now hidden and optional, commented out
+  // estimatedBudget?: number
   
   // Step 2: Itinerary
   itineraryDays: ItineraryDay[]
@@ -61,7 +62,8 @@ const initialFormData: TripFormData = {
   participants: [],
   startDate: null,
   endDate: null,
-  estimatedBudget: undefined,
+  // Estimated Budget is hidden, commented out
+  // estimatedBudget: undefined,
   itineraryDays: [],
   wolthersStaff: [],
   drivers: [],
