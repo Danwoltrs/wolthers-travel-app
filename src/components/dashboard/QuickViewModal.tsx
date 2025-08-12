@@ -727,11 +727,6 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
               </div>
             </>
           )}
-
-        </div>
-
-            </>
-          )}
         </div>
 
         {/* Footer */}
