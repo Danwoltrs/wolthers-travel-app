@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
             title: tripData.title || `New ${tripType} Trip`,
             description: tripData.description || '',
             trip_type: tripType,
-            status: 'draft',
+            status: 'planning',
             start_date: tripData.start_date || new Date().toISOString().split('T')[0],
             end_date: tripData.end_date || new Date().toISOString().split('T')[0],
             creator_id: user.id,
