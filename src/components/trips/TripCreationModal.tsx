@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, X, Plus, Save, AlertCircle, CheckCircle } from '
 import StepIndicator from './StepIndicator'
 import TripTypeSelection, { TripType } from './TripTypeSelection'
 import ConventionSearchStep from './ConventionSearchStep'
+import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
 import EnhancedItineraryBuilderStep from './EnhancedItineraryBuilderStep'
 import TeamVehicleStep from './TeamVehicleStep'
@@ -386,10 +387,15 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           
           {/* Convention Trip Steps */}
           {formData.tripType === 'convention' && currentStep === 2 && (
-            <ConventionSearchStep
-              formData={formData as any}
-              updateFormData={updateFormData}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ConventionSearchStep
+                formData={formData as any}
+                updateFormData={updateFormData}
+              />
+              <div>
+                <CoffeeEventCarousel />
+              </div>
+            </div>
           )}
           
           {formData.tripType === 'convention' && currentStep === 3 && (
