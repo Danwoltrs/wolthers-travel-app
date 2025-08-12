@@ -15,6 +15,17 @@ interface TeamVehicleStepProps {
 export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicleStepProps) {
   const { staff, loading, error } = useWolthersStaff()
 
+  // Early return with fallback if there's an issue
+  if (typeof window === 'undefined') {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
   // Convert Supabase staff data to MultiSelectOption format
   const staffOptions: MultiSelectOption[] = staff.map(member => ({
     id: member.id,

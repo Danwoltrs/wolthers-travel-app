@@ -4,7 +4,19 @@ import TripTypeSelection, { TripType } from './TripTypeSelection'
 import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
 import EnhancedItineraryBuilderStep from './EnhancedItineraryBuilderStep'
-import TeamVehicleStep from './TeamVehicleStep'
+import dynamic from 'next/dynamic'
+
+// Dynamically import TeamVehicleStep to prevent SSR issues
+const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-8">
+      <div className="flex items-center justify-center py-8">
+        <div className="text-gray-500 dark:text-gray-400">Loading team assignment...</div>
+      </div>
+    </div>
+  )
+})
 import ReviewStep from './ReviewStep'
 import type { Company, User, Vehicle, Activity, ItineraryDay } from '@/types'
 

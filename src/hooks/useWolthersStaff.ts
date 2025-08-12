@@ -16,6 +16,12 @@ export function useWolthersStaff() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Skip if running on server-side
+    if (typeof window === 'undefined') {
+      setLoading(false)
+      return
+    }
+
     async function fetchWolthersStaff() {
       try {
         setLoading(true)
