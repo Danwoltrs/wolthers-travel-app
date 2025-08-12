@@ -132,17 +132,14 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     setSaveStatus(prev => ({ ...prev, isSaving: true, error: null }))
     
     try {
-      const token = localStorage.getItem('auth-token')
-      if (!token) {
-        throw new Error('No authentication token found')
-      }
-
+      // Use cookies for authentication instead of localStorage token
+      // The httpOnly auth-token cookie will be sent automatically
       const response = await fetch('/api/trips/progressive-save', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include cookies in the request
         body: JSON.stringify({
           tripId: saveStatus.tripId,
           currentStep: step,

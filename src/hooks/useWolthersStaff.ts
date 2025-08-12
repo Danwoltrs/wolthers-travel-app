@@ -26,22 +26,14 @@ export function useWolthersStaff() {
         setLoading(true)
         console.log('🔍 Fetching Wolthers staff via API...')
         
-        // Get auth token for API request
-        const supabase = getSupabaseClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!session?.access_token) {
-          console.warn('⚠️ No auth session found')
-          throw new Error('Authentication required')
-        }
-
         // Use API endpoint instead of direct Supabase query to bypass RLS issues
+        // Authentication is handled via httpOnly cookies automatically
         const response = await fetch('/api/users/wolthers-staff', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // Include cookies in the request
         })
 
         console.log('📡 API response status:', response.status)

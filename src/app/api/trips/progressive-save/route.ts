@@ -28,8 +28,17 @@ export async function POST(request: NextRequest) {
     
     // Authentication logic (same as trips route)
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    // Try Authorization header first, then cookie
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {
