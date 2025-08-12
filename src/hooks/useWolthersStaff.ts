@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createClientSupabaseClient } from '@/lib/supabase-client'
+import { getSupabaseClient } from '@/lib/supabase-client'
 import type { User } from '@/types'
 
 export interface WolthersStaffMember {
@@ -19,7 +19,7 @@ export function useWolthersStaff() {
     async function fetchWolthersStaff() {
       try {
         setLoading(true)
-        const supabase = createClientSupabaseClient()
+        const supabase = getSupabaseClient()
         
         const { data, error: fetchError } = await supabase
           .from('users')

@@ -282,8 +282,8 @@ function generateRandomString(length: number): string {
 
 // Function to validate custom access code
 async function validateCustomAccessCode(supabase: any, code: string): Promise<boolean> {
-  // Validate code format first
-  const tripCodeRegex = /^[A-Z]{3}_[A-Z]{3}_[A-Z]{2}_\d{4}$/
+  // Validate code format first - allow flexible formats
+  const tripCodeRegex = /^[A-Z0-9_-]{2,20}$/
   if (!tripCodeRegex.test(code)) {
     return false
   }
