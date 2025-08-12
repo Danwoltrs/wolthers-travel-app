@@ -90,7 +90,9 @@ export function getDaysUntilTrip(startDate: Date | string): string {
   return `${diffDays} day${diffDays > 1 ? 's' : ''} to go`
 }
 
-export function getTripStatusLabel(startDate: Date | string, endDate: Date | string): string {
+export function getTripStatusLabel(startDate: Date | string, endDate: Date | string, isDraft: boolean = false): string {
+  if (isDraft) return 'TRIP DRAFT'
+  
   const status = getTripStatus(startDate, endDate)
   
   switch (status) {
@@ -104,6 +106,8 @@ export function getTripStatusLabel(startDate: Date | string, endDate: Date | str
     }
     case 'completed':
       return 'COMPLETED'
+    case 'draft':
+      return 'TRIP DRAFT'
     default:
       return 'UNKNOWN'
   }

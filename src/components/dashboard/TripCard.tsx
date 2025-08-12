@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, Edit3 } from 'lucide-react'
+import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, Edit3, CheckSquare, Trash2 } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 // Removed framer-motion imports to fix tooltip interference
@@ -15,13 +15,14 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const [showCopied, setShowCopied] = useState(false)
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   
-  // Check if this is a draft trip
-  const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft
+  // Check if this is a draft trip (planning status with is_draft flag)
+  const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft || 
+                  ((trip as any).status === 'planning' && (trip as any).is_draft !== false)
 
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
   const tripStatus = getTripStatus(trip.startDate, trip.endDate, isDraft)
-  const statusLabel = isDraft ? 'DRAFT' : getTripStatusLabel(trip.startDate, trip.endDate)
+  const statusLabel = getTripStatusLabel(trip.startDate, trip.endDate, isDraft)
   const progressColor = isDraft ? 'amber' : getTripProgressColor(trip.startDate, trip.endDate)
   const { dateRange, duration } = formatTripDates(trip.startDate, trip.endDate)
   
@@ -57,6 +58,58 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       // Show copied notification even for fallback
       setShowCopied(true)
       setTimeout(() => setShowCopied(false), 1200)
+    }
+  }
+
+  const handleFinalizeTrip = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    
+    if (!isDraft) return
+    
+    try {
+      const response = await fetch(`/api/trips/${trip.id}/finalize`, {
+        method: 'PATCH',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        // Refresh the page to show updated trip status
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Failed to finalize trip: ${error.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Failed to finalize trip:', error)
+      alert('Failed to finalize trip. Please try again.')
+    }
+  }
+
+  const handleDeleteDraft = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    
+    if (!isDraft) return
+    
+    if (!confirm('Are you sure you want to delete this draft trip? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/trips/drafts?draftId=${(trip as any).draftId || trip.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        // Refresh the page to remove the deleted draft
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete draft: ${error.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete draft:', error)
+      alert('Failed to delete draft. Please try again.')
     }
   }
   
@@ -302,20 +355,47 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               Step {(trip as any).currentStep || 1} of 5
             </span>
             
-            <div className="flex-1 flex justify-center">
+            <div className="flex-1 flex justify-center gap-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   window.location.href = `/trips/continue/${trip.accessCode}`
                 }}
                 className={cn(
-                  'flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
                   'bg-amber-200 hover:bg-amber-300 text-amber-800',
                   'dark:bg-amber-800/30 dark:hover:bg-amber-700/40 dark:text-amber-200'
                 )}
               >
                 <Edit3 className="w-3 h-3" />
-                Continue Editing
+                Edit
+              </button>
+              
+              {((trip as any).currentStep || 1) >= 4 && (
+                <button
+                  onClick={handleFinalizeTrip}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
+                    'bg-green-200 hover:bg-green-300 text-green-800',
+                    'dark:bg-green-800/30 dark:hover:bg-green-700/40 dark:text-green-200'
+                  )}
+                  title="Finalize trip"
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  Finalize
+                </button>
+              )}
+              
+              <button
+                onClick={handleDeleteDraft}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
+                  'bg-red-200 hover:bg-red-300 text-red-800',
+                  'dark:bg-red-800/30 dark:hover:bg-red-700/40 dark:text-red-200'
+                )}
+                title="Delete draft"
+              >
+                <Trash2 className="w-3 h-3" />
               </button>
             </div>
             

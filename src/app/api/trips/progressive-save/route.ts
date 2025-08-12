@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
           creation_status: getCreationStatus(currentStep),
           last_edited_at: now,
           last_edited_by: user.id,
-          is_draft: currentStep < 4, // Assuming 4+ steps means confirmed
+          is_draft: currentStep < 5, // Draft until final step (5)
         })
         .eq('id', tripId)
 
@@ -192,8 +192,8 @@ export async function POST(request: NextRequest) {
       // Create new trip when reaching step 3 (basic information)
       if (currentStep >= 3) {
         // Use provided access code or generate one
-        console.log('🎫 Access code logic - provided:', providedAccessCode)
-        accessCode = providedAccessCode || await generateAccessCode(supabase)
+        console.log('🎫 Access code logic - provided:', providedAccessCode, 'stepData.accessCode:', stepData.accessCode)
+        accessCode = providedAccessCode || stepData.accessCode || await generateAccessCode(supabase)
         console.log('🎫 Final access code to use:', accessCode)
         isNewTrip = true
 
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
             creation_status: getCreationStatus(currentStep),
             completion_step: currentStep,
             step_data: stepData,
-            is_draft: true,
+            is_draft: currentStep < 5, // Draft until final step (5)
             last_edited_at: now,
             last_edited_by: user.id,
             progress_percentage: completionPercentage,

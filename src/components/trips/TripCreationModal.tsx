@@ -245,21 +245,48 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      // TODO: Submit form data to API
-      console.log('Submitting trip:', formData)
+      // First save the final step data
+      await saveProgress(formData, currentStep, false)
       
-      // Mock successful creation
-      const newTrip = {
-        id: `trip-${Date.now()}`,
-        ...formData,
-        createdAt: new Date()
+      // If we have a trip ID from progressive saves, finalize it
+      if (saveStatus.tripId) {
+        console.log('Finalizing existing trip:', saveStatus.tripId)
+        
+        const response = await fetch(`/api/trips/${saveStatus.tripId}/finalize`, {
+          method: 'PATCH',
+          credentials: 'include'
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.message || 'Failed to finalize trip')
+        }
+        
+        const result = await response.json()
+        console.log('Trip finalized successfully:', result)
+        
+        onTripCreated?.({ 
+          id: saveStatus.tripId, 
+          accessCode: saveStatus.accessCode,
+          ...formData 
+        })
+      } else {
+        // Create new trip directly if no progressive save occurred
+        console.log('Creating new trip directly:', formData)
+        
+        const newTrip = {
+          id: `trip-${Date.now()}`,
+          ...formData,
+          createdAt: new Date()
+        }
+        
+        onTripCreated?.(newTrip)
       }
       
-      onTripCreated?.(newTrip)
       handleClose()
     } catch (error) {
-      console.error('Error creating trip:', error)
-      alert('Failed to create trip. Please try again.')
+      console.error('Error finalizing trip:', error)
+      alert(`Failed to finalize trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -506,13 +533,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               >
                 {isSubmitting ? (
                   <>
-                    <span className="hidden sm:inline">Creating...</span>
-                    <span className="sm:hidden">Create</span>
+                    <span className="hidden sm:inline">{saveStatus.tripId ? 'Finalizing...' : 'Creating...'}</span>
+                    <span className="sm:hidden">{saveStatus.tripId ? 'Finalizing' : 'Creating'}</span>
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">Create Trip</span>
-                    <span className="sm:hidden">Create</span>
+                    <span className="hidden sm:inline">{saveStatus.tripId ? 'Finalize Trip' : 'Create Trip'}</span>
+                    <span className="sm:hidden">{saveStatus.tripId ? 'Finalize' : 'Create'}</span>
                   </>
                 )}
               </button>

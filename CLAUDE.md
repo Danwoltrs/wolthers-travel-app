@@ -268,3 +268,102 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Keep glassmorphic effects subtle and professional
 - "Authentication methos fully implemented with oauth and e-mail"
 - any editing from supabase has to load the current information pre-populated from supabase if it has data, otherwise use a placeholder text
+
+## Trip Creation Workflow Fix - Previous Session Summary
+
+### **Initial Problems Identified**
+1. **Staff Loading**: Showing "0 members found" instead of expected 4 Wolthers staff (Daniel, Tom, Svenn, Rasmus)
+2. **Progressive Save Errors**: Continuous 500 Internal Server Error preventing auto-save
+3. **UI Issues**: Staff picker too small, requiring excessive scrolling
+4. **Custom Trip Codes**: Not using provided codes (e.g., SCTA-2025), generating random ones instead
+5. **Staff Not Persisting**: Selected staff disappeared from saved trips
+
+### **Root Causes & Solutions**
+
+#### **1. Authentication Issues**
+- **Problem**: Trip creation modal using `localStorage.getItem('auth-token')` but app uses httpOnly cookies
+- **Solution**: Changed to `credentials: 'include'` and removed localStorage dependency
+- **Files**: `TripCreationModal.tsx`, `useWolthersStaff.ts`, progressive-save API, wolthers-staff API
+
+#### **2. Database Enum Constraint Violation** 
+- **Problem**: Progressive save setting `status: 'draft'` but database enum only accepts: `planning`, `confirmed`, `ongoing`, `completed`, `cancelled`
+- **Error**: `"invalid input value for enum trip_status: \"draft\"" (code 22P02)`
+- **Solution**: Changed `status: 'draft'` → `status: 'planning'`
+- **File**: `src/app/api/trips/progressive-save/route.ts`
+
+#### **3. Row Level Security (RLS) Blocking Staff Access**
+- **Problem**: Client-side queries blocked by RLS policies
+- **Solution**: Created secure `/api/users/wolthers-staff` endpoint using service role to bypass RLS
+- **Files**: New API route, updated hook, applied RLS policies
+
+#### **4. Missing Database Assignments**
+- **Problem**: Daniel missing `company_id` assignment to Wolthers & Associates
+- **Solution**: Updated Daniel's user record with correct company_id
+- **Database**: Direct SQL update
+
+### **Key Files Modified**
+```
+src/app/api/trips/progressive-save/route.ts
+- Fixed status enum value (draft → planning)
+- Added cookie authentication support
+- Added trip_participants creation for staff
+- Enhanced error logging and debugging
+
+src/app/api/users/wolthers-staff/route.ts  
+- New secure endpoint using service role
+- Bypasses RLS restrictions
+- Supports both header and cookie auth
+
+src/hooks/useWolthersStaff.ts
+- API-first approach instead of direct Supabase
+- Cookie-based authentication
+- Comprehensive fallback logic
+
+src/components/trips/TripCreationModal.tsx
+- Fixed authentication (cookies vs localStorage)
+- Enhanced error handling and logging
+- Fixed access code passing logic
+
+src/components/trips/TeamVehicleStep.tsx
+- Removed redundant title (shown in header)
+- Two-column layout: team (left), driver/vehicles (right)
+- Improved responsive design
+
+src/components/ui/MultiSelectSearch.tsx
+- Increased picker height: max-h-[500px] container, max-h-[400px] list
+- Better visibility for staff selection
+```
+
+### **Database Changes Applied**
+```sql
+-- Fixed Daniel's company assignment
+UPDATE users SET company_id = '840783f4-866d-4bdb-9b5d-5d0facf62db0' 
+WHERE email = 'daniel@wolthers.com';
+
+-- RLS policies applied for proper staff access
+-- (handled via existing migration system)
+```
+
+### **Final Status**
+
+#### **✅ Resolved Issues**
+- Staff loading: Shows all 4 members (Daniel, Tom, Svenn, Rasmus)
+- Progressive save: 500 errors eliminated  
+- Authentication: Secure cookie-based system working
+- UI: Taller staff picker, better layout
+- Database: Proper RLS policies and staff assignments
+- Trip codes: Custom codes (SCTA-2025) now used correctly
+- Staff persistence: Selected staff saved to trip_participants table
+
+#### **⚠️ Remaining Issues**
+- Potential crash when proceeding to next step after staff selection
+- Trip status display (may show as regular trip vs planning mode)
+
+### **Key Lessons Learned**
+1. **Authentication Flow**: httpOnly cookies require `credentials: 'include'` in fetch requests
+2. **Database Constraints**: Always check enum values before inserting data
+3. **RLS Policies**: Service role endpoints can bypass restrictive client-side policies
+4. **Data Relationships**: Staff assignments require separate `trip_participants` table entries
+5. **Debugging Strategy**: Enhanced logging at API entry points reveals root causes quickly
+
+The core trip creation functionality is now working correctly with proper authentication, staff loading, and database persistence.

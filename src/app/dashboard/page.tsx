@@ -40,13 +40,14 @@ export default function Dashboard() {
 
   const loadDraftTrips = async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
+      const token = localStorage.getItem('auth-token') || sessionStorage.getItem('supabase-token')
       if (!token) return
 
       const response = await fetch('/api/trips/drafts', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include' // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -114,17 +115,25 @@ export default function Dashboard() {
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
-  // Combine ongoing, upcoming, and draft trips
+  // Filter for draft trips (planning status with is_draft flag)
+  const draftTrips = trips.filter(trip => {
+    return (trip as any).status === 'planning' && (trip as any).is_draft !== false
+  })
+  
+  // Combine ongoing, upcoming, draft trips from main query, and additional draft trips
   // Ensure draft trips are always included in current trips
   const currentTrips = [
     ...ongoingTrips, 
-    ...upcomingTrips, 
+    ...upcomingTrips,
+    ...draftTrips,
     ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
   ]
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
-    return calculatedStatus === 'completed'
+    // Exclude draft trips from past trips
+    const isDraftTrip = (trip as any).status === 'planning' && (trip as any).is_draft !== false
+    return calculatedStatus === 'completed' && !isDraftTrip
   })
 
   const handleTripClick = (trip: TripCardType) => {
