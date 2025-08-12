@@ -6,10 +6,18 @@ export async function GET(request: NextRequest) {
   try {
     let user: any = null
     
-    // Authentication logic (same as other endpoints)
+    // Authentication logic - support both header and cookie auth
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {
@@ -144,10 +152,18 @@ export async function DELETE(request: NextRequest) {
   try {
     let user: any = null
     
-    // Authentication logic (same as GET)
+    // Authentication logic - support both header and cookie auth
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {

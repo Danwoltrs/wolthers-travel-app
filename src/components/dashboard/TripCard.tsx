@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, Edit3, CheckSquare, Trash2 } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
+import ConfirmationModal from '@/components/ui/ConfirmationModal'
 // Removed framer-motion imports to fix tooltip interference
 
 interface TripCardProps {
@@ -14,6 +15,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const ref = useRef(null)
   const [showCopied, setShowCopied] = useState(false)
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   // Check if this is a draft trip (planning status with is_draft flag)
   const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft || 
@@ -90,10 +92,11 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
     
     if (!isDraft) return
     
-    if (!confirm('Are you sure you want to delete this draft trip? This action cannot be undone.')) {
-      return
-    }
-    
+    // Show confirmation modal instead of browser confirm
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteDraft = async () => {
     try {
       const response = await fetch(`/api/trips/drafts?draftId=${(trip as any).draftId || trip.id}`, {
         method: 'DELETE',
@@ -475,6 +478,19 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteDraft}
+        title="Delete Draft Trip"
+        message="Are you sure you want to delete this draft trip? This action cannot be undone and all progress will be lost."
+        confirmText="Delete Draft"
+        cancelText="Keep Draft"
+        variant="danger"
+        icon={<Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />}
+      />
     </div>
   )
 }
