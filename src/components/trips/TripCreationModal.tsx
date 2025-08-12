@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, ArrowRight, X, Plus, Save, AlertCircle, CheckCircle } from 'lucide-react'
 import StepIndicator from './StepIndicator'
 import TripTypeSelection, { TripType } from './TripTypeSelection'
-import ConventionSearchStep from './ConventionSearchStep'
 import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
 import EnhancedItineraryBuilderStep from './EnhancedItineraryBuilderStep'
@@ -387,15 +386,10 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           
           {/* Convention Trip Steps */}
           {formData.tripType === 'convention' && currentStep === 2 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ConventionSearchStep
-                formData={formData as any}
-                updateFormData={updateFormData}
-              />
-              <div>
-                <CoffeeEventCarousel />
-              </div>
-            </div>
+            <CoffeeEventCarousel 
+              formData={formData as any}
+              updateFormData={updateFormData}
+            />
           )}
           
           {formData.tripType === 'convention' && currentStep === 3 && (
