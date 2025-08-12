@@ -16,33 +16,16 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   
   // Check if this is a draft trip
-  const isDraft = (trip as any).isDraft || (trip as any).status === 'draft'
-  
+  const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft
+
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
-  const tripStatus = isDraft ? 'draft' : getTripStatus(trip.startDate, trip.endDate)
-  const statusLabel = isDraft ? getDraftStatusLabel(trip) : getTripStatusLabel(trip.startDate, trip.endDate)
+  const tripStatus = getTripStatus(trip.startDate, trip.endDate, isDraft)
+  const statusLabel = isDraft ? 'DRAFT' : getTripStatusLabel(trip.startDate, trip.endDate)
   const progressColor = isDraft ? 'amber' : getTripProgressColor(trip.startDate, trip.endDate)
   const { dateRange, duration } = formatTripDates(trip.startDate, trip.endDate)
   
-  // Helper function to get draft status label
-  function getDraftStatusLabel(trip: any) {
-    if (!trip.startDate) return 'DRAFT'
-    
-    const startDate = new Date(trip.startDate)
-    const now = new Date()
-    const diffTime = startDate.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays <= 0) return 'DRAFT'
-    if (diffDays <= 7) return `DRAFT - ${diffDays} day${diffDays === 1 ? '' : 's'}`
-    if (diffDays <= 56) { // 8 weeks
-      const weeks = Math.ceil(diffDays / 7)
-      return `DRAFT - ${weeks} week${weeks === 1 ? '' : 's'}`
-    }
-    const months = Math.ceil(diffDays / 30)
-    return `DRAFT - ${months} month${months === 1 ? '' : 's'}`
-  }
+  // Ensure draft trips always appear in "Current & Upcoming" section without date restrictions
 
   // Removed 3D tilt effect to fix tooltip interference
 

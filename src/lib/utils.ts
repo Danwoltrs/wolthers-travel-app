@@ -40,7 +40,9 @@ export function calculateDuration(startDate: Date | string, endDate: Date | stri
   return diffDays
 }
 
-export function getTripStatus(startDate: Date | string, endDate: Date | string): 'upcoming' | 'ongoing' | 'completed' {
+export function getTripStatus(startDate: Date | string, endDate: Date | string, isDraft: boolean = false): 'draft' | 'upcoming' | 'ongoing' | 'completed' {
+  if (isDraft) return 'draft'
+
   const now = new Date()
   const start = new Date(startDate)
   const end = new Date(endDate)

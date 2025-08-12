@@ -120,8 +120,8 @@ export async function GET(request: NextRequest) {
         access_code: trip?.access_code || draft.access_token?.replace('trip_', ''),
         draft_data: draft.draft_data,
         expires_at: draft.expires_at,
-        start_date: trip?.start_date || draft.draft_data?.startDate || draft.draft_data?.basic?.startDate,
-        end_date: trip?.end_date || draft.draft_data?.endDate || draft.draft_data?.basic?.endDate
+        start_date: trip?.start_date || draft.draft_data?.startDate || draft.draft_data?.basic?.startDate || new Date().toISOString(),
+        end_date: trip?.end_date || draft.draft_data?.endDate || draft.draft_data?.basic?.endDate || new Date(new Date().setDate(new Date().getDate() + 1)).toISOString()
       }
     }) || []
 
