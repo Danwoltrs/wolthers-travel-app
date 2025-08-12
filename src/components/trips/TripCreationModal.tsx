@@ -356,8 +356,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </button>
         </div>
 
-        {/* Step Indicator - Only show after trip type is selected and not on first step */}
-        {formData.tripType && currentStep > 1 && (
+        {/* Step Indicator - Hide on step 2 (convention selection) to save space */}
+        {formData.tripType && currentStep > 1 && currentStep !== 2 && (
           <div className="px-4 md:px-6 lg:px-8 py-3 md:py-6 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
             <StepIndicator steps={steps} currentStep={currentStep} />
           </div>
