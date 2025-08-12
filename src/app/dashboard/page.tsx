@@ -197,7 +197,7 @@ export default function Dashboard() {
           onClick={handleCreateTrip}
           className={cn(
             "bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px]",
-            currentTrips.length > 0 ? "h-[420px]" : "h-[280px]"
+            currentTrips.length > 0 ? "h-[420px]" : "h-[190px]"
           )}
         >
           <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
