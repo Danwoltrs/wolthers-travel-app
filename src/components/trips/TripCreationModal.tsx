@@ -120,7 +120,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     setSaveStatus(prev => ({ ...prev, isSaving: true, error: null }))
     
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
+      const token = localStorage.getItem('auth-token')
       if (!token) {
         throw new Error('No authentication token found')
       }
