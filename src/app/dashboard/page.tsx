@@ -116,7 +116,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
   // Filter for draft trips (planning status with is_draft flag)
-  const draftTrips = trips.filter(trip => {
+  const planningDraftTrips = trips.filter(trip => {
     return (trip as any).status === 'planning' && (trip as any).is_draft !== false
   })
   
@@ -125,7 +125,7 @@ export default function Dashboard() {
   const currentTrips = [
     ...ongoingTrips, 
     ...upcomingTrips,
-    ...draftTrips,
+    ...planningDraftTrips,
     ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
   ]
   
