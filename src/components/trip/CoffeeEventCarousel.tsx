@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CoffeeEvent } from '@/services/coffee-events/scraper';
-import { CoffeeEventScraper } from '@/services/coffee-events/scraper';
+import { CoffeeEvent, scrapeCoffeeEvents } from '@/services/coffee-events/scraper';
 import { Calendar, MapPin, Search, Plus, Check, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 import { TripFormData } from '../trips/TripCreationModal';
@@ -19,20 +18,8 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        const scraper = new CoffeeEventScraper();
-        const allEvents = await Promise.all([
-          scraper.scrapeEvents('WorldOfCoffee'),
-          scraper.scrapeEvents('SwissCoffeeDinner'),
-          scraper.scrapeEvents('NationalCoffeeAssociation'),
-          scraper.scrapeEvents('SantosSeminar'),
-          scraper.scrapeEvents('SpecialtyCoffeeAssociation')
-        ]);
-
-        const sortedEvents = allEvents.flat()
-          .sort((a, b) => a.date.getTime() - b.date.getTime())
-          .slice(0, 6);
-
-        setEvents(sortedEvents);
+        const coffeeEvents = await scrapeCoffeeEvents();
+        setEvents(coffeeEvents);
       } catch (error) {
         console.error('Error fetching coffee events:', error);
       } finally {
