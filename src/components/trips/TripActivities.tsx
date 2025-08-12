@@ -441,6 +441,13 @@ export default function TripActivities({ activities, loading, error, canEditTrip
           </div>
         )
       })}
+
+      {/* End of Coffee Trip */}
+      <div className="flex justify-center py-8">
+        <p className="text-amber-500 dark:text-amber-400 text-xl font-serif italic">
+          End of Coffee Trip
+        </p>
+      </div>
     </div>
   )
 }

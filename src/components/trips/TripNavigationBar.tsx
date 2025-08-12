@@ -85,7 +85,7 @@ export default function TripNavigationBar({
   return (
     <div className={cn(
       "fixed left-0 right-0 z-50 shadow-lg transition-all duration-300",
-      "bg-slate-800 dark:bg-[#182521] border-b border-slate-700 dark:border-[#2a3530]"
+      "bg-[#1E293B] dark:bg-[#1E293B] border-b border-slate-700 dark:border-[#2a3530]"
     )}
     style={{ 
       top: `${getTopPosition()}px`
