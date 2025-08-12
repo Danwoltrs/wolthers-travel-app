@@ -332,9 +332,11 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
             <h2 className="text-lg md:text-xl font-semibold text-white dark:text-golden-400">
               <span className="hidden sm:inline">
                 {resumeData ? 'Continue Trip Creation' : 'Create New Trip'}
+                {formData.tripType && currentStep > 1 && ` - ${steps[currentStep - 1]?.name}`}
               </span>
               <span className="sm:hidden">
                 {resumeData ? 'Continue Trip' : 'New Trip'}
+                {formData.tripType && currentStep > 1 && ` - ${steps[currentStep - 1]?.name}`}
               </span>
             </h2>
             {/* Save Status Indicator */}

@@ -8,6 +8,7 @@ interface ProgressiveSaveRequest {
   stepData: any
   completionPercentage: number
   tripType: string
+  accessCode?: string
 }
 
 interface ProgressiveSaveResponse {
@@ -70,8 +71,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body: ProgressiveSaveRequest = await request.json()
-    const { tripId, currentStep, stepData, completionPercentage, tripType } = body
+    let body: ProgressiveSaveRequest
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
+    const { tripId, currentStep, stepData, completionPercentage, tripType, accessCode: providedAccessCode } = body
 
     if (!stepData || typeof currentStep !== 'number' || !tripType) {
       return NextResponse.json(
@@ -142,7 +153,11 @@ export async function POST(request: NextRequest) {
       if (updateError) {
         console.error('Failed to update trip:', updateError)
         return NextResponse.json(
-          { error: 'Failed to save progress' },
+          { 
+            error: 'Failed to save progress', 
+            details: updateError.message, 
+            code: updateError.code 
+          },
           { status: 500 }
         )
       }
@@ -150,8 +165,8 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new trip when reaching step 3 (basic information)
       if (currentStep >= 3) {
-        // Generate access code
-        accessCode = await generateAccessCode(supabase)
+        // Use provided access code or generate one
+        accessCode = providedAccessCode || await generateAccessCode(supabase)
         isNewTrip = true
 
         // Extract basic trip information from stepData
@@ -182,7 +197,11 @@ export async function POST(request: NextRequest) {
         if (createError || !newTrip) {
           console.error('Failed to create trip:', createError)
           return NextResponse.json(
-            { error: 'Failed to create trip' },
+            { 
+              error: 'Failed to create trip', 
+              details: createError?.message, 
+              code: createError?.code 
+            },
             { status: 500 }
           )
         }
@@ -232,8 +251,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Progressive save error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Request body received:', body)
+    console.error('User data:', user)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : undefined
+      },
       { status: 500 }
     )
   }

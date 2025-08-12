@@ -31,29 +31,23 @@ export function useWolthersStaff() {
         // First check what users exist
         const { data: allUsers, error: allUsersError } = await supabase
           .from('users')
-          .select('id, email, full_name, phone, user_type')
+          .select('id, email, full_name, phone, user_type, company_id')
           .order('full_name')
 
         console.log('📊 All users:', allUsers)
         console.log('❌ All users error:', allUsersError)
 
-        // Then get specifically wolthers_staff
-        const { data, error: fetchError } = await supabase
-          .from('users')
-          .select('id, email, full_name, phone, user_type')
-          .eq('user_type', 'wolthers_staff')
-          .order('full_name')
+        // Filter Wolthers staff specifically - include both wolthers_staff and admin types
+        const wolthersStaff = allUsers?.filter(user => 
+          user.user_type === 'wolthers_staff' || 
+          user.user_type === 'admin'
+        ) || []
 
-        console.log('👥 Wolthers staff data:', data)
-        console.log('❌ Fetch error:', fetchError)
+        console.log('👥 Wolthers staff data:', wolthersStaff)
 
-        if (fetchError) {
-          throw fetchError
-        }
-
-        setStaff(data || [])
+        setStaff(wolthersStaff)
         setError(null)
-        console.log('✅ Staff loaded successfully:', data?.length || 0, 'members')
+        console.log('✅ Staff loaded successfully:', wolthersStaff.length, 'members')
       } catch (err) {
         console.error('❌ Error fetching Wolthers staff:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch staff')
