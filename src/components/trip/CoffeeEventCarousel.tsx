@@ -24,7 +24,12 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
         const data = await response.json();
         
         if (data.success && data.events) {
-          setEvents(data.events);
+          // Convert date strings back to Date objects
+          const eventsWithDates = data.events.map((event: any) => ({
+            ...event,
+            date: new Date(event.date)
+          }));
+          setEvents(eventsWithDates);
         } else {
           console.error('Failed to fetch coffee events:', data.error);
           setEvents([]);
@@ -49,7 +54,12 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
         const data = await response.json();
         
         if (data.success && data.events) {
-          setEvents(data.events);
+          // Convert date strings back to Date objects
+          const eventsWithDates = data.events.map((event: any) => ({
+            ...event,
+            date: new Date(event.date)
+          }));
+          setEvents(eventsWithDates);
         } else {
           setEvents([]);
         }
@@ -68,7 +78,12 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
       const data = await response.json();
       
       if (data.success && data.events) {
-        setEvents(data.events);
+        // Convert date strings back to Date objects
+        const eventsWithDates = data.events.map((event: any) => ({
+          ...event,
+          date: new Date(event.date)
+        }));
+        setEvents(eventsWithDates);
       } else {
         setEvents([]);
       }

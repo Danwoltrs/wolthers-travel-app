@@ -15,10 +15,16 @@ export async function GET(request: Request) {
       events = await scrapeCoffeeEvents(enableScraping);
     }
 
+    // Convert Date objects to ISO strings for JSON serialization
+    const serializedEvents = events.map(event => ({
+      ...event,
+      date: event.date.toISOString()
+    }));
+
     return NextResponse.json({
       success: true,
-      events: events,
-      count: events.length
+      events: serializedEvents,
+      count: serializedEvents.length
     });
 
   } catch (error) {
@@ -26,11 +32,15 @@ export async function GET(request: Request) {
     
     // Return fallback data on error
     const fallbackEvents = await scrapeCoffeeEvents(false);
+    const serializedFallbackEvents = fallbackEvents.map(event => ({
+      ...event,
+      date: event.date.toISOString()
+    }));
     
     return NextResponse.json({
       success: false,
-      events: fallbackEvents,
-      count: fallbackEvents.length,
+      events: serializedFallbackEvents,
+      count: serializedFallbackEvents.length,
       error: 'Scraping failed, using fallback data'
     });
   }
