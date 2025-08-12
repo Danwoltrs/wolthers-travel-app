@@ -310,33 +310,38 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full max-w-7xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none md:rounded-xl shadow-xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-4 md:px-6 py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0">
+        <div className="bg-golden-400 dark:bg-[#09261d] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0">
           <div className="flex items-center space-x-3">
             <Plus className="w-6 h-6 text-white dark:text-golden-400" />
-            <h2 className="text-xl font-semibold text-white dark:text-golden-400">
-              {resumeData ? 'Continue Trip Creation' : 'Create New Trip'}
+            <h2 className="text-lg md:text-xl font-semibold text-white dark:text-golden-400">
+              <span className="hidden sm:inline">
+                {resumeData ? 'Continue Trip Creation' : 'Create New Trip'}
+              </span>
+              <span className="sm:hidden">
+                {resumeData ? 'Continue Trip' : 'New Trip'}
+              </span>
             </h2>
             {/* Save Status Indicator */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2">
               {saveStatus.isSaving && (
                 <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
-                  <Save className="w-4 h-4 animate-pulse" />
-                  <span className="text-sm">Saving...</span>
+                  <Save className="w-3 md:w-4 h-3 md:h-4 animate-pulse" />
+                  <span className="text-xs md:text-sm hidden xs:inline">Saving...</span>
                 </div>
               )}
               {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
                 <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="text-sm">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
+                  <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
+                  <span className="text-xs md:text-sm hidden xs:inline">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
                 </div>
               )}
               {saveStatus.error && (
                 <div className="flex items-center space-x-1 text-red-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-sm">Save failed</span>
+                  <AlertCircle className="w-3 md:w-4 h-3 md:h-4" />
+                  <span className="text-xs md:text-sm hidden xs:inline">Save failed</span>
                 </div>
               )}
             </div>
@@ -351,7 +356,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
         {/* Step Indicator - Only show after trip type is selected */}
         {formData.tripType && (
-          <div className="px-6 md:px-8 py-6 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
+          <div className="px-4 md:px-6 lg:px-8 py-3 md:py-6 border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
             <StepIndicator steps={steps} currentStep={currentStep} />
           </div>
         )}
@@ -368,7 +373,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         )}
         
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto px-6 md:px-8 py-8 md:py-10 min-h-0">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0">
           {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
             <TripTypeSelection
@@ -431,32 +436,33 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         </div>
 
         {/* Footer - Navigation Buttons */}
-        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-6 md:px-8 py-5 flex justify-between flex-shrink-0 bg-gray-50 dark:bg-[#0f1419]">
-          <div className="flex space-x-3">
+        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-4 md:px-6 lg:px-8 py-4 md:py-5 flex justify-between flex-shrink-0 bg-gray-50 dark:bg-[#0f1419] items-center">
+          <div className="flex space-x-2 md:space-x-3">
             <button
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>
             {currentStep > 1 && (
               <button
                 onClick={handlePrevious}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center"
+                className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Previous
+                <ArrowLeft className="w-4 h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Back</span>
               </button>
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Manual Save Button */}
+          <div className="flex items-center space-x-2 md:space-x-3">
+            {/* Manual Save Button - hide on very small screens */}
             {currentStep > 1 && formData.tripType && (
               <button
                 onClick={() => saveProgress(formData, currentStep, true)}
                 disabled={saveStatus.isSaving}
-                className="px-3 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center"
+                className="hidden xs:flex px-2 md:px-3 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors items-center"
                 title="Save progress"
               >
                 {saveStatus.isSaving ? (
@@ -464,7 +470,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                <span className="ml-1 hidden sm:inline">Save</span>
+                <span className="ml-1 hidden md:inline">Save</span>
               </button>
             )}
             
@@ -472,18 +478,29 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               <button
                 onClick={handleNext}
                 disabled={!canProceed()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center"
+                className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center"
               >
-                Next
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
+                <ArrowRight className="w-4 h-4 ml-1 md:ml-2" />
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
                 disabled={!canProceed() || isSubmitting}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
               >
-                {isSubmitting ? 'Creating...' : 'Create Trip'}
+                {isSubmitting ? (
+                  <>
+                    <span className="hidden sm:inline">Creating...</span>
+                    <span className="sm:hidden">Create</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Create Trip</span>
+                    <span className="sm:hidden">Create</span>
+                  </>
+                )}
               </button>
             )}
           </div>
