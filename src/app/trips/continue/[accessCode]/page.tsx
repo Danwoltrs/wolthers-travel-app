@@ -37,16 +37,12 @@ export default function ContinueTripPage() {
     setError(null)
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
-      if (!token) {
-        setError('Please log in to continue')
-        return
-      }
-
       const response = await fetch(`/api/trips/continue/${accessCode}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' // Use cookie-based authentication
       })
 
       if (!response.ok) {
@@ -72,7 +68,8 @@ export default function ContinueTripPage() {
   }
 
   const handleContinueEditing = () => {
-    setShowModal(true)
+    // Redirect to dashboard with edit modal for this trip
+    router.push(`/dashboard?edit=${accessCode}`)
   }
 
   const handleTripCreated = (trip: any) => {
@@ -324,7 +321,7 @@ export default function ContinueTripPage() {
                   onClick={() => router.push('/dashboard')}
                   className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-6 py-3 rounded-lg font-medium transition-colors"
                 >
-                  Back to Dashboard
+                  View in Dashboard
                 </button>
               </div>
             </div>

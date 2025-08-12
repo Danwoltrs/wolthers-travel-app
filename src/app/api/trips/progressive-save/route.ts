@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { makeTripSlug } from '@/lib/tripCodeGenerator'
 
 interface ProgressiveSaveRequest {
   tripId?: string
@@ -9,6 +10,7 @@ interface ProgressiveSaveRequest {
   completionPercentage: number
   tripType: string
   accessCode?: string
+  clientTempId?: string  // For idempotent creation
 }
 
 interface ProgressiveSaveResponse {
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { tripId, currentStep, stepData, completionPercentage, tripType, accessCode: providedAccessCode } = body
+    const { tripId, currentStep, stepData, completionPercentage, tripType, accessCode: providedAccessCode, clientTempId } = body
 
     if (!stepData || typeof currentStep !== 'number' || !tripType) {
       return NextResponse.json(
@@ -189,17 +191,83 @@ export async function POST(request: NextRequest) {
       }
 
     } else {
-      // Create new trip when reaching step 3 (basic information)
-      if (currentStep >= 3) {
-        // Use provided access code or generate one
+      // Idempotent creation: check if trip already exists with client temp ID
+      if (clientTempId) {
+        const { data: existingTrip } = await supabase
+          .from('trips')
+          .select('id, access_code')
+          .eq('metadata->client_temp_id', clientTempId)
+          .eq('creator_id', user.id)
+          .single()
+        
+        if (existingTrip) {
+          finalTripId = existingTrip.id
+          accessCode = existingTrip.access_code || ''
+          console.log('♾️ Found existing trip with client temp ID:', clientTempId, 'tripId:', finalTripId)
+          
+          // Update existing trip with new step data
+          const { error: updateError } = await supabase
+            .from('trips')
+            .update({
+              completion_step: currentStep,
+              step_data: stepData,
+              creation_status: getCreationStatus(currentStep),
+              last_edited_at: now,
+              last_edited_by: user.id,
+              is_draft: currentStep < 5,
+            })
+            .eq('id', finalTripId)
+          
+          if (updateError) {
+            console.error('Failed to update existing trip:', updateError)
+          }
+        }
+      }
+      
+      // Create new trip when reaching step 3 (basic information) and no existing trip found
+      if (currentStep >= 3 && !finalTripId) {
+        // Generate smart slug using new business logic
         console.log('🎫 Access code logic - provided:', providedAccessCode, 'stepData.accessCode:', stepData.accessCode)
-        accessCode = providedAccessCode || stepData.accessCode || await generateAccessCode(supabase)
+        
+        if (providedAccessCode || stepData.accessCode) {
+          accessCode = providedAccessCode || stepData.accessCode
+        } else {
+          // Generate business-logic based slug
+          const tripData = extractTripData(stepData, currentStep)
+          const companies = stepData.companies || []
+          const startDate = new Date(tripData.start_date || new Date())
+          
+          const baseSlug = makeTripSlug({
+            trip_type: mapTripType(tripType),
+            companies: companies,
+            month: startDate.getMonth() + 1,
+            year: startDate.getFullYear(),
+            code: stepData.eventCode,
+            title: tripData.title
+          })
+          
+          // Ensure uniqueness using database function
+          const { data: uniqueSlug } = await supabase
+            .rpc('generate_unique_trip_slug', {
+              base_slug: baseSlug,
+              creator_user_id: user.id
+            })
+          
+          accessCode = uniqueSlug || baseSlug
+        }
+        
         console.log('🎫 Final access code to use:', accessCode)
         isNewTrip = true
 
         // Extract basic trip information from stepData
         const tripData = extractTripData(stepData, currentStep)
 
+        // Prepare metadata with client temp ID for idempotency
+        const metadata = {
+          ...(stepData.metadata || {}),
+          ...(clientTempId ? { client_temp_id: clientTempId } : {})
+        }
+        
         const { data: newTrip, error: createError } = await supabase
           .from('trips')
           .insert({
@@ -218,6 +286,7 @@ export async function POST(request: NextRequest) {
             last_edited_at: now,
             last_edited_by: user.id,
             progress_percentage: completionPercentage,
+            metadata: metadata,
           })
           .select('id')
           .single()
@@ -444,23 +513,46 @@ function extractTripData(stepData: any, currentStep: number): any {
   }
   
   // Handle dates - they could be Date objects or strings
+  // Ensure dates are stored as UTC midnight to avoid timezone issues
   if (stepData.startDate) {
     if (stepData.startDate instanceof Date) {
-      data.start_date = stepData.startDate.toISOString().split('T')[0]
+      // Create a new date at UTC midnight to avoid timezone shifts
+      const utcDate = new Date(Date.UTC(
+        stepData.startDate.getFullYear(),
+        stepData.startDate.getMonth(),
+        stepData.startDate.getDate()
+      ))
+      data.start_date = utcDate.toISOString().split('T')[0]
     } else if (typeof stepData.startDate === 'string') {
-      // If it's already a string, ensure it's in YYYY-MM-DD format
+      // If it's already a string, parse and normalize to UTC date
       const date = new Date(stepData.startDate)
-      data.start_date = date.toISOString().split('T')[0]
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      ))
+      data.start_date = utcDate.toISOString().split('T')[0]
     }
   }
   
   if (stepData.endDate) {
     if (stepData.endDate instanceof Date) {
-      data.end_date = stepData.endDate.toISOString().split('T')[0]
+      // Create a new date at UTC midnight to avoid timezone shifts
+      const utcDate = new Date(Date.UTC(
+        stepData.endDate.getFullYear(),
+        stepData.endDate.getMonth(),
+        stepData.endDate.getDate()
+      ))
+      data.end_date = utcDate.toISOString().split('T')[0]
     } else if (typeof stepData.endDate === 'string') {
-      // If it's already a string, ensure it's in YYYY-MM-DD format
+      // If it's already a string, parse and normalize to UTC date
       const date = new Date(stepData.endDate)
-      data.end_date = date.toISOString().split('T')[0]
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      ))
+      data.end_date = utcDate.toISOString().split('T')[0]
     }
   }
 
@@ -478,4 +570,20 @@ function extractTripData(stepData: any, currentStep: number): any {
   }
 
   return data
+}
+
+// Helper function to map old trip types to new slug system
+function mapTripType(tripType: string): 'conference' | 'event' | 'business' | 'client_visit' {
+  switch (tripType.toLowerCase()) {
+    case 'conference':
+      return 'conference'
+    case 'event':
+      return 'event'
+    case 'client_visit':
+    case 'client-visit':
+      return 'client_visit'
+    case 'business':
+    default:
+      return 'business'
+  }
 }

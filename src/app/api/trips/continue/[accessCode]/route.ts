@@ -237,8 +237,16 @@ export async function POST(request: NextRequest, { params }: { params: { accessC
     
     // Authentication logic (same as GET)
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {

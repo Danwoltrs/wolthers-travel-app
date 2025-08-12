@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Users, Car, Key } from 'lucide-react'
+import { X, Users, Car, Key, Edit3, Calendar, Settings } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
 import { useTripDetails } from '@/hooks/useTrips'
@@ -117,6 +117,8 @@ const groupDestinationsByLocation = (destinations: Array<{date: string, location
 
 export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModalProps) {
   const [showCopyTooltip, setShowCopyTooltip] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'participants' | 'logistics'>('overview')
+  const [isEditing, setIsEditing] = useState(false)
   
   if (!isOpen) return null
 
@@ -186,22 +188,66 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
-        {/* Header with Title */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
-          <div className="flex items-center justify-between w-full mr-4">
-            <h2 className="text-xl font-bold text-white dark:text-golden-400">{trip.title}</h2>
-            <div className="text-right">
-              <div className="text-sm text-white dark:text-golden-400 font-medium">
+        {/* Header with Title and Edit Toggle */}
+        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-white dark:text-golden-400">{trip.title}</h2>
+              <div className="text-sm text-white/70 dark:text-golden-400/70 font-medium">
                 {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
               </div>
             </div>
+            
+            <div className="flex items-center space-x-3">
+              {/* Edit Toggle */}
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isEditing 
+                    ? 'bg-white/20 text-white dark:bg-emerald-800/50 dark:text-golden-400' 
+                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
+                }`}
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>{isEditing ? 'View Mode' : 'Edit Mode'}</span>
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors flex-shrink-0"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors flex-shrink-0"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          
+          {/* Tabs */}
+          {isEditing && (
+            <div className="flex mt-4 space-x-1">
+              {[
+                { id: 'overview', label: 'Overview', icon: Key },
+                { id: 'schedule', label: 'Schedule', icon: Calendar },
+                { id: 'participants', label: 'Participants', icon: Users },
+                { id: 'logistics', label: 'Logistics', icon: Car }
+              ].map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400'
+                        : 'text-white/70 dark:text-golden-400/70 hover:text-white hover:bg-white/10 dark:hover:text-golden-400 dark:hover:bg-emerald-800/40'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Progress Bar */}
@@ -228,6 +274,99 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
 
         {/* Content */}
         <div className="p-3 md:p-6 space-y-6">
+          {isEditing ? (
+            /* Editing Mode - Show Tabs */
+            <div className="space-y-6">
+              {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Trip Overview</h3>
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                        <input 
+                          type="text" 
+                          defaultValue={trip.title}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                        <textarea 
+                          rows={3}
+                          defaultValue={trip.subject}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                          <input 
+                            type="date" 
+                            defaultValue={new Date(trip.startDate).toISOString().split('T')[0]}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                          <input 
+                            type="date" 
+                            defaultValue={new Date(trip.endDate).toISOString().split('T')[0]}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end space-x-3">
+                        <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2a2a2a] rounded-md hover:bg-gray-200 dark:hover:bg-[#3a3a3a]">Cancel</button>
+                        <button className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700">Save Changes</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'schedule' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Schedule & Meetings</h3>
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">Schedule editing interface coming soon</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Add meetings, visits, and activities by day and time</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'participants' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Participants</h3>
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">Participant management interface coming soon</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Add/remove staff members, guests, and company representatives</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'logistics' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Logistics</h3>
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
+                    <div className="text-center py-8">
+                      <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">Logistics management interface coming soon</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Manage vehicles, drivers, and transportation arrangements</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* View Mode - Show Regular Content */
+            <>
           {/* Dynamic Layout - Companies and Staff */}
           <div className="space-y-4">
             {/* Mobile: Simple text layout */}
@@ -591,6 +730,10 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
 
         </div>
 
+            </>
+          )}
+        </div>
+
         {/* Footer */}
         <div className="flex justify-between items-center p-3 md:p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
           {/* Left side - Access Code */}
@@ -621,12 +764,21 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
             >
               Close
             </button>
-            <button
-              onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
-              className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
-            >
-              View Trip
-            </button>
+            {isEditing ? (
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+              >
+                Done Editing
+              </button>
+            ) : (
+              <button
+                onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+                className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+              >
+                View Details
+              </button>
+            )}
           </div>
         </div>
       </div>

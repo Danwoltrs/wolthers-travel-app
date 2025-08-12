@@ -118,6 +118,11 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
+  
+  // Generate client temp ID for idempotent trip creation
+  const clientTempIdRef = useRef<string>(
+    resumeData?.tripId ? '' : `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  )
 
   // Progressive save function
   const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
@@ -146,7 +151,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           stepData: stepData,
           completionPercentage: Math.round((step / steps.length) * 100),
           tripType: formData.tripType,
-          accessCode: stepData.accessCode || formData.accessCode
+          accessCode: stepData.accessCode || formData.accessCode,
+          clientTempId: clientTempIdRef.current
         })
       })
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { debounce } from '@/lib/debounce'
-import { generateTripCode } from '@/lib/tripCodeGenerator'
+import { generateTripCode, makeTripSlug } from '@/lib/tripCodeGenerator'
 import { TripFormData } from '@/components/trips/TripCreationModal'
 
 interface TripCodeValidationResult {
@@ -20,22 +20,34 @@ export function useTripCodeValidation(
     isChecking: false
   })
 
-  // Function to generate a smart trip code using the full generator
+  // Function to generate a smart trip code using the new business logic
   const generateSmartTripCode = useCallback((formData?: Partial<TripFormData>): string => {
-    if (!formData || !formData.title || !formData.startDate) return ''
+    if (!formData || !formData.startDate) return ''
 
-    return generateTripCode({
-      title: formData.title || '',
+    // Use new makeTripSlug function with business logic
+    const startDate = formData.startDate
+    const month = startDate.getMonth() + 1
+    const year = startDate.getFullYear()
+    
+    // Map trip types to new system
+    const tripTypeMap: { [key: string]: 'conference' | 'event' | 'business' | 'client_visit' } = {
+      'convention': 'conference',
+      'conference': 'conference', 
+      'event': 'event',
+      'business': 'business',
+      'client_visit': 'client_visit',
+      'in_land': 'business'
+    }
+    
+    const mappedTripType = tripTypeMap[formData.tripType || 'business'] || 'business'
+    
+    return makeTripSlug({
+      trip_type: mappedTripType,
       companies: formData.companies || [],
-      startDate: formData.startDate,
-      tripType: formData.tripType || 'convention',
-      // Add other required fields with defaults
-      description: formData.description || '',
-      subject: formData.subject || '',
-      endDate: formData.endDate || formData.startDate,
-      participants: formData.participants || [],
-      estimatedBudget: formData.estimatedBudget,
-      accessCode: formData.accessCode || ''
+      month,
+      year,
+      code: formData.accessCode,
+      title: formData.title
     })
   }, [])
 

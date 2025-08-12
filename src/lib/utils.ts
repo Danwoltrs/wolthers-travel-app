@@ -15,13 +15,29 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatDateRange(startDate: Date | string, endDate: Date | string): string {
+  // Ensure we're working with Date objects and handle timezone properly
   const start = new Date(startDate)
   const end = new Date(endDate)
+  
+  // If dates are strings from database, they might be in UTC - normalize to local date
+  if (typeof startDate === 'string' && startDate.includes('T')) {
+    // ISO string with time - convert to local date only
+    start.setHours(12, 0, 0, 0) // Set to noon to avoid timezone issues
+  }
+  if (typeof endDate === 'string' && endDate.includes('T')) {
+    // ISO string with time - convert to local date only
+    end.setHours(12, 0, 0, 0) // Set to noon to avoid timezone issues
+  }
   
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   
   const startDay = dayNames[start.getDay()]
   const endDay = dayNames[end.getDay()]
+  
+  // Check if it's the same day
+  if (start.toDateString() === end.toDateString()) {
+    return `${startDay} ${start.getDate()} ${start.toLocaleDateString('en-US', { month: 'short' })}`
+  }
   
   if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
     // Same month and year
@@ -35,9 +51,16 @@ export function formatDateRange(startDate: Date | string, endDate: Date | string
 export function calculateDuration(startDate: Date | string, endDate: Date | string): number {
   const start = new Date(startDate)
   const end = new Date(endDate)
-  const diffTime = Math.abs(end.getTime() - start.getTime())
+  
+  // Handle timezone issues by normalizing to UTC dates
+  const startUTC = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const endUTC = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  
+  const diffTime = Math.abs(endUTC.getTime() - startUTC.getTime())
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays
+  
+  // For inclusive date ranges (both start and end dates are included)
+  return Math.max(1, diffDays + 1)
 }
 
 export function getTripStatus(startDate: Date | string, endDate: Date | string, isDraft: boolean = false): 'draft' | 'upcoming' | 'ongoing' | 'completed' {
@@ -129,23 +152,8 @@ export function getTripProgressColor(startDate: Date | string, endDate: Date | s
 }
 
 export function formatTripDates(startDate: Date | string, endDate: Date | string): { dateRange: string; duration: string } {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  const dateRange = formatDateRange(startDate, endDate)
   const duration = calculateDuration(startDate, endDate)
-  
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const startDay = dayNames[start.getDay()]
-  const endDay = dayNames[end.getDay()]
-  
-  let dateRange: string
-  
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    // Same month and year
-    dateRange = `${startDay} ${start.getDate()} - ${endDay} ${end.getDate()} ${start.toLocaleDateString('en-US', { month: 'short' })}`
-  } else {
-    // Different months or years
-    dateRange = `${startDay} ${start.getDate()} ${start.toLocaleDateString('en-US', { month: 'short' })} - ${endDay} ${end.getDate()} ${end.toLocaleDateString('en-US', { month: 'short' })}`
-  }
   
   const durationText = duration === 1 ? '1 day' : `${duration} days`
   
