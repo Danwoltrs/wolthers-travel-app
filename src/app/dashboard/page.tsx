@@ -5,6 +5,7 @@ import { Plus, Loader2 } from 'lucide-react'
 import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
 import TripCreationModal from '@/components/trips/TripCreationModal'
+import DraftTripsSection from '@/components/dashboard/DraftTripsSection'
 import AuthDebug from '@/components/debug/AuthDebug'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showTripCreationModal, setShowTripCreationModal] = useState(false)
+  const [resumeData, setResumeData] = useState<any>(null)
   const { trips, loading, error, isOffline } = useTrips()
 
   // Listen for menu state changes (this would need to be coordinated with Header component)
@@ -68,6 +70,12 @@ export default function Dashboard() {
   }
 
   const handleCreateTrip = () => {
+    setResumeData(null) // Clear any resume data
+    setShowTripCreationModal(true)
+  }
+
+  const handleContinueTrip = (draftData: any) => {
+    setResumeData(draftData)
     setShowTripCreationModal(true)
   }
 
@@ -140,6 +148,9 @@ export default function Dashboard() {
         
         {/* Debug info - temporary */}
         <AuthDebug />
+        
+        {/* Draft Trips Section */}
+        <DraftTripsSection onContinueTrip={handleContinueTrip} />
         
         {/* Offline indicator */}
         {isOffline && (
@@ -221,8 +232,12 @@ export default function Dashboard() {
         {/* Trip Creation Modal */}
         <TripCreationModal
           isOpen={showTripCreationModal}
-          onClose={() => setShowTripCreationModal(false)}
+          onClose={() => {
+            setShowTripCreationModal(false)
+            setResumeData(null)
+          }}
           onTripCreated={handleTripCreated}
+          resumeData={resumeData}
         />
       </div>
     </div>

@@ -171,6 +171,12 @@
            pl-4 py-3 rounded-r-lg shadow-sm;
   }
   
+  .section-lane-draft {
+    @apply border-l-4 border-blue-500 dark:border-blue-400 
+           bg-blue-50 dark:bg-blue-900/20 
+           pl-4 py-3 rounded-r-lg shadow-sm;
+  }
+  
   /* 3D Card effects with golden glow */
   .card-3d {
     @apply transform transition-all duration-300 shadow-lg;

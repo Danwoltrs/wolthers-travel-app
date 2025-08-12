@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { ArrowLeft, ArrowRight, X, Plus } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, ArrowRight, X, Plus, Save, AlertCircle, CheckCircle } from 'lucide-react'
 import StepIndicator from './StepIndicator'
 import TripTypeSelection, { TripType } from './TripTypeSelection'
 import ConventionSearchStep from './ConventionSearchStep'
@@ -32,10 +32,24 @@ export interface TripFormData {
   vehicles: Vehicle[]
 }
 
+interface SaveStatus {
+  isSaving: boolean
+  lastSaved: Date | null
+  error: string | null
+  tripId?: string
+  accessCode?: string
+  continueUrl?: string
+}
+
 interface TripCreationModalProps {
   isOpen: boolean
   onClose: () => void
   onTripCreated?: (trip: any) => void
+  resumeData?: {
+    tripId?: string
+    formData: TripFormData
+    currentStep: number
+  }
 }
 
 const initialFormData: TripFormData = {
@@ -79,10 +93,120 @@ const getStepsForTripType = (tripType: TripType | null) => {
   }
 }
 
-export default function TripCreationModal({ isOpen, onClose, onTripCreated }: TripCreationModalProps) {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<TripFormData>(initialFormData)
+export default function TripCreationModal({ isOpen, onClose, onTripCreated, resumeData }: TripCreationModalProps) {
+  const [currentStep, setCurrentStep] = useState(resumeData?.currentStep || 1)
+  const [formData, setFormData] = useState<TripFormData>(resumeData?.formData || initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({
+    isSaving: false,
+    lastSaved: null,
+    error: null,
+    tripId: resumeData?.tripId
+  })
+  const [showSaveNotification, setShowSaveNotification] = useState(false)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveDataRef = useRef<string>('')
+
+  // Progressive save function
+  const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
+    if (!formData.tripType) return
+    
+    // Don't save if data hasn't changed
+    const currentDataString = JSON.stringify({ stepData, step })
+    if (currentDataString === lastSaveDataRef.current && saveStatus.tripId) {
+      return
+    }
+    
+    setSaveStatus(prev => ({ ...prev, isSaving: true, error: null }))
+    
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+
+      const response = await fetch('/api/trips/progressive-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          tripId: saveStatus.tripId,
+          currentStep: step,
+          stepData: stepData,
+          completionPercentage: Math.round((step / steps.length) * 100),
+          tripType: formData.tripType
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Save failed: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      setSaveStatus(prev => ({
+        ...prev,
+        isSaving: false,
+        lastSaved: new Date(),
+        tripId: result.tripId,
+        accessCode: result.accessCode,
+        continueUrl: result.continueUrl,
+        error: null
+      }))
+      
+      lastSaveDataRef.current = currentDataString
+      
+      if (showNotification || (step === 3 && !saveStatus.tripId)) {
+        setShowSaveNotification(true)
+        setTimeout(() => setShowSaveNotification(false), 3000)
+        
+        // Show continuation URL for new trips
+        if (step === 3 && result.continueUrl && !saveStatus.tripId) {
+          console.log('Trip saved! Continue later at:', result.continueUrl)
+        }
+      }
+      
+    } catch (error) {
+      console.error('Save error:', error)
+      setSaveStatus(prev => ({
+        ...prev,
+        isSaving: false,
+        error: error instanceof Error ? error.message : 'Failed to save progress'
+      }))
+    }
+  }
+
+  // Auto-save when form data changes
+  useEffect(() => {
+    if (!isOpen || !formData.tripType || currentStep < 2) return
+    
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    
+    // Set new timeout for auto-save
+    saveTimeoutRef.current = setTimeout(() => {
+      saveProgress(formData, currentStep)
+    }, 2000) // Auto-save after 2 seconds of no changes
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [formData, currentStep, isOpen])
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -92,8 +216,10 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
     setFormData(prev => ({ ...prev, ...data }))
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length) {
+      // Save progress before moving to next step
+      await saveProgress(formData, currentStep, currentStep === 2) // Show notification on step 3 (when trip is created)
       setCurrentStep(currentStep + 1)
     }
   }
@@ -127,9 +253,19 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
     }
   }
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    // Save progress before closing if we have meaningful data
+    if (formData.tripType && (currentStep > 2 || (currentStep === 2 && (formData.title || formData.companies.length > 0)))) {
+      await saveProgress(formData, currentStep, false)
+    }
+    
     setFormData(initialFormData)
     setCurrentStep(1)
+    setSaveStatus({
+      isSaving: false,
+      lastSaved: null,
+      error: null
+    })
     onClose()
   }
 
@@ -181,8 +317,29 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
           <div className="flex items-center space-x-3">
             <Plus className="w-6 h-6 text-white dark:text-golden-400" />
             <h2 className="text-xl font-semibold text-white dark:text-golden-400">
-              Create New Trip
+              {resumeData ? 'Continue Trip Creation' : 'Create New Trip'}
             </h2>
+            {/* Save Status Indicator */}
+            <div className="flex items-center space-x-2">
+              {saveStatus.isSaving && (
+                <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                  <Save className="w-4 h-4 animate-pulse" />
+                  <span className="text-sm">Saving...</span>
+                </div>
+              )}
+              {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
+                <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
+                </div>
+              )}
+              {saveStatus.error && (
+                <div className="flex items-center space-x-1 text-red-200">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">Save failed</span>
+                </div>
+              )}
+            </div>
           </div>
           <button
             onClick={handleClose}
@@ -199,6 +356,17 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
           </div>
         )}
 
+        {/* Save Notification */}
+        {showSaveNotification && (
+          <div className="absolute top-20 right-6 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4" />
+            <span>Progress saved successfully!</span>
+            {saveStatus.continueUrl && currentStep === 3 && (
+              <span className="text-xs opacity-90">You can continue later</span>
+            )}
+          </div>
+        )}
+        
         {/* Form Content */}
         <div className="flex-1 overflow-y-auto px-6 md:px-8 py-8 md:py-10 min-h-0">
           {/* Step 1: Trip Type Selection */}
@@ -282,7 +450,24 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
             )}
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-3">
+            {/* Manual Save Button */}
+            {currentStep > 1 && formData.tripType && (
+              <button
+                onClick={() => saveProgress(formData, currentStep, true)}
+                disabled={saveStatus.isSaving}
+                className="px-3 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center"
+                title="Save progress"
+              >
+                {saveStatus.isSaving ? (
+                  <Save className="w-4 h-4 animate-pulse" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span className="ml-1 hidden sm:inline">Save</span>
+              </button>
+            )}
+            
             {currentStep < steps.length ? (
               <button
                 onClick={handleNext}
@@ -306,4 +491,20 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated }: Tr
       </div>
     </div>
   )
+}
+
+// Helper function to format save time
+function formatSaveTime(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSecs = Math.floor(diffMs / 1000)
+  const diffMins = Math.floor(diffSecs / 60)
+  
+  if (diffSecs < 60) {
+    return 'just now'
+  } else if (diffMins < 60) {
+    return `${diffMins}m ago`
+  } else {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 }

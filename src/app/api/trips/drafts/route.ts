@@ -1,0 +1,240 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { verify } from 'jsonwebtoken'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+export async function GET(request: NextRequest) {
+  try {
+    let user: any = null
+    
+    // Authentication logic (same as other endpoints)
+    const authHeader = request.headers.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        // Try Supabase session authentication
+        const supabaseClient = createServerSupabaseClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    // Get draft trips for the current user
+    const { data: drafts, error: draftsError } = await supabase
+      .from('trip_drafts')
+      .select(`
+        *,
+        trips (
+          id,
+          title,
+          access_code,
+          start_date,
+          end_date
+        )
+      `)
+      .eq('creator_id', user.id)
+      .order('updated_at', { ascending: false })
+
+    if (draftsError) {
+      console.error('Failed to fetch drafts:', draftsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch draft trips' },
+        { status: 500 }
+      )
+    }
+
+    // Process drafts to include trip data and enrich with calculated fields
+    const processedDrafts = drafts?.map(draft => {
+      const trip = draft.trips
+      let title = 'Untitled Trip'
+      
+      // Try to get title from various sources
+      if (trip?.title) {
+        title = trip.title
+      } else if (draft.draft_data?.title) {
+        title = draft.draft_data.title
+      } else if (draft.draft_data?.basic?.title) {
+        title = draft.draft_data.basic.title
+      } else if (draft.trip_type) {
+        title = `${draft.trip_type.replace('_', ' ').toUpperCase()} Trip`
+      }
+
+      return {
+        id: draft.id,
+        trip_id: draft.trip_id,
+        title,
+        trip_type: draft.trip_type,
+        current_step: draft.current_step,
+        completion_percentage: draft.completion_percentage || Math.round((draft.current_step / 5) * 100),
+        created_at: draft.created_at,
+        updated_at: draft.updated_at,
+        last_accessed_at: draft.last_accessed_at,
+        access_code: trip?.access_code || draft.access_token?.replace('trip_', ''),
+        draft_data: draft.draft_data,
+        expires_at: draft.expires_at,
+        start_date: trip?.start_date || draft.draft_data?.startDate || draft.draft_data?.basic?.startDate,
+        end_date: trip?.end_date || draft.draft_data?.endDate || draft.draft_data?.basic?.endDate
+      }
+    }) || []
+
+    return NextResponse.json({
+      success: true,
+      drafts: processedDrafts
+    })
+
+  } catch (error) {
+    console.error('Get drafts error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE endpoint to remove drafts that are no longer needed
+export async function DELETE(request: NextRequest) {
+  try {
+    let user: any = null
+    
+    // Authentication logic (same as GET)
+    const authHeader = request.headers.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createServerSupabaseClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const draftId = searchParams.get('draftId')
+
+    if (!draftId) {
+      return NextResponse.json(
+        { error: 'Draft ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    // Verify the draft belongs to the user
+    const { data: draft, error: verifyError } = await supabase
+      .from('trip_drafts')
+      .select('creator_id, trip_id')
+      .eq('id', draftId)
+      .single()
+
+    if (verifyError || !draft) {
+      return NextResponse.json(
+        { error: 'Draft not found' },
+        { status: 404 }
+      )
+    }
+
+    if (draft.creator_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Permission denied' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the draft
+    const { error: deleteError } = await supabase
+      .from('trip_drafts')
+      .delete()
+      .eq('id', draftId)
+
+    if (deleteError) {
+      console.error('Failed to delete draft:', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete draft' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Draft deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Delete draft error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

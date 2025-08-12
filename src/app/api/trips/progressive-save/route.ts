@@ -1,0 +1,314 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { verify } from 'jsonwebtoken'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+interface ProgressiveSaveRequest {
+  tripId?: string
+  currentStep: number
+  stepData: any
+  completionPercentage: number
+  tripType: string
+}
+
+interface ProgressiveSaveResponse {
+  success: boolean
+  tripId: string
+  accessCode: string
+  continueUrl: string
+  savedAt: string
+  message: string
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    let user: any = null
+    
+    // Authentication logic (same as trips route)
+    const authHeader = request.headers.get('authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        // Try Supabase session authentication
+        const supabaseClient = createServerSupabaseClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const body: ProgressiveSaveRequest = await request.json()
+    const { tripId, currentStep, stepData, completionPercentage, tripType } = body
+
+    if (!stepData || typeof currentStep !== 'number' || !tripType) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = createServerSupabaseClient()
+    const now = new Date().toISOString()
+
+    let finalTripId = tripId
+    let accessCode = ''
+    let isNewTrip = false
+
+    if (tripId) {
+      // Check if user has permission to edit this trip
+      const { data: existingTrip, error: tripError } = await supabase
+        .from('trips')
+        .select(`
+          id, 
+          creator_id, 
+          access_code,
+          trip_access_permissions (user_id, permission_type, expires_at)
+        `)
+        .eq('id', tripId)
+        .single()
+
+      if (tripError || !existingTrip) {
+        return NextResponse.json(
+          { error: 'Trip not found' },
+          { status: 404 }
+        )
+      }
+
+      // Check permissions
+      const hasPermission = 
+        existingTrip.creator_id === user.id ||
+        user.is_global_admin ||
+        existingTrip.trip_access_permissions?.some((perm: any) => 
+          perm.user_id === user.id && 
+          ['edit', 'admin'].includes(perm.permission_type) &&
+          (!perm.expires_at || new Date(perm.expires_at) > new Date())
+        )
+
+      if (!hasPermission) {
+        return NextResponse.json(
+          { error: 'Permission denied' },
+          { status: 403 }
+        )
+      }
+
+      accessCode = existingTrip.access_code || ''
+
+      // Update existing trip
+      const { error: updateError } = await supabase
+        .from('trips')
+        .update({
+          completion_step: currentStep,
+          step_data: stepData,
+          creation_status: getCreationStatus(currentStep),
+          last_edited_at: now,
+          last_edited_by: user.id,
+          is_draft: currentStep < 4, // Assuming 4+ steps means confirmed
+        })
+        .eq('id', tripId)
+
+      if (updateError) {
+        console.error('Failed to update trip:', updateError)
+        return NextResponse.json(
+          { error: 'Failed to save progress' },
+          { status: 500 }
+        )
+      }
+
+    } else {
+      // Create new trip when reaching step 3 (basic information)
+      if (currentStep >= 3) {
+        // Generate access code
+        accessCode = await generateAccessCode(supabase)
+        isNewTrip = true
+
+        // Extract basic trip information from stepData
+        const tripData = extractTripData(stepData, currentStep)
+
+        const { data: newTrip, error: createError } = await supabase
+          .from('trips')
+          .insert({
+            title: tripData.title || `New ${tripType} Trip`,
+            description: tripData.description || '',
+            trip_type: tripType,
+            start_date: tripData.start_date || new Date().toISOString().split('T')[0],
+            end_date: tripData.end_date || new Date().toISOString().split('T')[0],
+            creator_id: user.id,
+            access_code: accessCode,
+            creation_status: getCreationStatus(currentStep),
+            completion_step: currentStep,
+            step_data: stepData,
+            is_draft: true,
+            last_edited_at: now,
+            last_edited_by: user.id,
+            progress_percentage: completionPercentage,
+          })
+          .select('id')
+          .single()
+
+        if (createError || !newTrip) {
+          console.error('Failed to create trip:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create trip' },
+            { status: 500 }
+          )
+        }
+
+        finalTripId = newTrip.id
+      }
+    }
+
+    // Update or create trip draft entry
+    if (finalTripId) {
+      const { error: draftError } = await supabase
+        .from('trip_drafts')
+        .upsert({
+          creator_id: user.id,
+          trip_type: tripType,
+          trip_id: finalTripId,
+          current_step: currentStep,
+          draft_data: stepData,
+          completion_percentage: completionPercentage,
+          last_accessed_at: now,
+          updated_at: now,
+          access_token: accessCode ? `trip_${accessCode}` : undefined,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        }, { 
+          onConflict: finalTripId ? 'trip_id' : 'creator_id,trip_type',
+          ignoreDuplicates: false 
+        })
+
+      if (draftError) {
+        console.error('Failed to update draft:', draftError)
+        // Don't fail the request if draft update fails
+      }
+    }
+
+    const response: ProgressiveSaveResponse = {
+      success: true,
+      tripId: finalTripId || '',
+      accessCode: accessCode,
+      continueUrl: accessCode ? `/trips/continue/${accessCode}` : '',
+      savedAt: now,
+      message: isNewTrip ? 
+        'Trip created successfully! You can continue editing later using the provided link.' :
+        `Progress saved at step ${currentStep}`
+    }
+
+    return NextResponse.json(response)
+
+  } catch (error) {
+    console.error('Progressive save error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// Helper function to generate unique access code
+async function generateAccessCode(supabase: any): Promise<string> {
+  let attempts = 0
+  const maxAttempts = 5
+
+  while (attempts < maxAttempts) {
+    // Generate a random code (e.g., "AMS_BER_QA_1208")
+    const code = [
+      generateRandomString(3).toUpperCase(),
+      generateRandomString(3).toUpperCase(),
+      generateRandomString(2).toUpperCase(),
+      Math.floor(Math.random() * 9000 + 1000)
+    ].join('_')
+
+    // Check if code already exists
+    const { data: existing } = await supabase
+      .from('trips')
+      .select('id')
+      .eq('access_code', code)
+      .single()
+
+    if (!existing) {
+      return code
+    }
+
+    attempts++
+  }
+
+  // Fallback to UUID-based code
+  return 'TRIP_' + Math.random().toString(36).substr(2, 9).toUpperCase()
+}
+
+function generateRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+// Helper function to determine creation status based on step
+function getCreationStatus(step: number): string {
+  if (step <= 1) return 'draft'
+  if (step === 2) return 'step1_completed'
+  if (step === 3) return 'step2_completed'
+  if (step === 4) return 'step3_completed'
+  return 'published'
+}
+
+// Helper function to extract trip data from step data
+function extractTripData(stepData: any, currentStep: number): any {
+  const data: any = {}
+
+  // Extract from different steps based on your wizard structure
+  if (stepData.basic) {
+    data.title = stepData.basic.title
+    data.description = stepData.basic.description
+    data.start_date = stepData.basic.startDate
+    data.end_date = stepData.basic.endDate
+  }
+
+  if (stepData.dates) {
+    data.start_date = stepData.dates.startDate
+    data.end_date = stepData.dates.endDate
+  }
+
+  if (stepData.details) {
+    data.title = stepData.details.title || data.title
+    data.description = stepData.details.description || data.description
+  }
+
+  return data
+}
