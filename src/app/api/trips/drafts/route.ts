@@ -63,9 +63,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get draft trips: 
-    // 1. For the current user 
-    // 2. For all users in the company if the user is a company admin
+    // Get draft trips
     let draftsQuery = supabase
       .from('trip_drafts')
       .select(`
@@ -99,12 +97,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Process drafts to include trip data and enrich with calculated fields
+    // Process drafts to include trip data
     const processedDrafts = drafts?.map(draft => {
       const trip = draft.trips
       let title = 'Untitled Trip'
       
-      // Try to get title from various sources
       if (trip?.title) {
         title = trip.title
       } else if (draft.draft_data?.title) {
@@ -149,10 +146,24 @@ export async function GET(request: NextRequest) {
 
 // DELETE endpoint to remove drafts that are no longer needed
 export async function DELETE(request: NextRequest) {
+  console.log('🗑️ DELETE draft endpoint called')
+  
   try {
-    let user: any = null
-    
+    // Get draft ID from query params
+    const { searchParams } = new URL(request.url)
+    const draftId = searchParams.get('draftId')
+
+    if (!draftId) {
+      return NextResponse.json(
+        { error: 'Draft ID is required' },
+        { status: 400 }
+      )
+    }
+
+    console.log('Deleting draft ID:', draftId)
+
     // Authentication logic - support both header and cookie auth
+    let user: any = null
     const authHeader = request.headers.get('authorization')
     const cookieToken = request.cookies.get('auth-token')?.value
     
@@ -179,42 +190,41 @@ export async function DELETE(request: NextRequest) {
           user = userData
         }
       } catch (jwtError) {
-        const supabaseClient = createServerSupabaseClient()
-        
-        if (token && token.includes('.')) {
-          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+        console.log('JWT auth failed, trying Supabase session auth')
+        // Fallback to Supabase session authentication
+        try {
+          const supabaseClient = createServerSupabaseClient()
           
-          if (!sessionError && supabaseUser) {
-            const { data: userData, error: userError } = await supabaseClient
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .single()
+          if (token && token.includes('.')) {
+            const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+            
+            if (!sessionError && supabaseUser) {
+              const { data: userData, error: userError } = await supabaseClient
+                .from('users')
+                .select('*')
+                .eq('id', supabaseUser.id)
+                .single()
 
-            if (!userError && userData) {
-              user = userData
+              if (!userError && userData) {
+                user = userData
+              }
             }
           }
+        } catch (fallbackError) {
+          console.error('Fallback auth also failed:', fallbackError)
         }
       }
     }
     
     if (!user) {
+      console.log('Authentication failed - no user found')
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
-    const { searchParams } = new URL(request.url)
-    const draftId = searchParams.get('draftId')
-
-    if (!draftId) {
-      return NextResponse.json(
-        { error: 'Draft ID is required' },
-        { status: 400 }
-      )
-    }
+    console.log('User authenticated:', user.email)
 
     const supabase = createServerSupabaseClient()
 
@@ -230,7 +240,9 @@ export async function DELETE(request: NextRequest) {
 
     if (draftFromDrafts && !draftError) {
       draft = draftFromDrafts
+      console.log('Found draft in trip_drafts table')
     } else {
+      console.log('Draft not in trip_drafts, checking trips table')
       // If not found in trip_drafts, check trips table with planning status and is_draft flag
       const { data: draftFromTrips, error: tripError } = await supabase
         .from('trips')
@@ -253,10 +265,12 @@ export async function DELETE(request: NextRequest) {
           users: draftFromTrips.users
         }
         isDraftTable = false
+        console.log('Found draft in trips table')
       }
     }
 
     if (!draft) {
+      console.log('Draft not found in either table')
       return NextResponse.json(
         { error: 'Draft not found' },
         { status: 404 }
@@ -271,11 +285,14 @@ export async function DELETE(request: NextRequest) {
       (user.role === 'company_admin' && user.companyId === draft.users.companyId)
 
     if (!canDelete) {
+      console.log('Permission denied for user:', user.id, 'to delete draft created by:', draft.creator_id)
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       )
     }
+
+    console.log('Deleting from', isDraftTable ? 'trip_drafts' : 'trips', 'table')
 
     // Delete the draft from the appropriate table
     if (isDraftTable) {
@@ -293,6 +310,8 @@ export async function DELETE(request: NextRequest) {
         )
       }
       
+      console.log('Successfully deleted from trip_drafts')
+      
       // Also delete the associated trip if it exists
       if (draft.trip_id) {
         const { error: tripDeleteError } = await supabase
@@ -303,6 +322,8 @@ export async function DELETE(request: NextRequest) {
         
         if (tripDeleteError) {
           console.warn('Failed to delete associated trip:', tripDeleteError)
+        } else {
+          console.log('Successfully deleted associated trip')
         }
       }
     } else {
@@ -320,6 +341,8 @@ export async function DELETE(request: NextRequest) {
           { status: 500 }
         )
       }
+      
+      console.log('Successfully deleted from trips table')
     }
 
     return NextResponse.json({
