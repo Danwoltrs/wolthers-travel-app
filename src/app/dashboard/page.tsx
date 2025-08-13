@@ -73,7 +73,8 @@ export default function Dashboard() {
   
   // Helper function to convert draft to trip-like object
   const convertDraftToTrip = (draft: any) => ({
-    id: draft.id,
+    id: draft.trip_id || draft.id, // Use trip_id if available, fallback to draft.id
+    draftId: draft.id, // Always set the draft ID for deletion
     title: draft.title || 'Untitled Draft Trip',
     subject: draft.description || 'Draft trip in progress',
     client: [],

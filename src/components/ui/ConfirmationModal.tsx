@@ -65,7 +65,10 @@ export default function ConfirmationModal({
       className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-md w-full border border-pearl-200 dark:border-[#2a2a2a]">
+      <div 
+        className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-md w-full border border-pearl-200 dark:border-[#2a2a2a]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           <div className="flex items-center justify-between">
