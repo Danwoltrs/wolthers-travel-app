@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Clock, Edit3, Trash2, Share2, Calendar, Building2, User, AlertCircle } from 'lucide-react'
+import { Clock, Trash2, Share2, Calendar, Building2, User, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface DraftTrip {
@@ -248,7 +248,6 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
                 onClick={() => handleContinue(draft)}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
               >
-                <Edit3 className="w-4 h-4 mr-1" />
                 Continue
               </button>
               

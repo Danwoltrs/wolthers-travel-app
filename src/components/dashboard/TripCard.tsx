@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, Edit3, CheckSquare, Trash2 } from 'lucide-react'
+import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, CheckSquare, Trash2 } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
@@ -377,8 +377,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                   'dark:bg-amber-800/30 dark:hover:bg-amber-700/40 dark:text-amber-200'
                 )}
               >
-                <Edit3 className="w-3 h-3" />
-                Edit
+                Continue
               </button>
               
               {((trip as any).currentStep || 1) >= 4 && (
@@ -443,22 +442,8 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               )}
             </div>
             
-            {/* Edit Button and Notes Count - Right */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  window.location.href = `/trips/continue/${trip.accessCode}`
-                }}
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
-                  'text-gray-600 hover:text-gray-800 hover:bg-gray-100',
-                  'dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800'
-                )}
-                title="Edit trip"
-              >
-                <Edit3 className="w-3 h-3" />
-              </button>
+            {/* Notes Count - Right */}
+            <div className="flex items-center">
               <span className="text-xs text-pearl-500 dark:text-gray-500 hover:text-golden-600 dark:hover:text-[#0E3D2F] transition-colors">
                 {trip.notesCount && trip.notesCount > 0 
                   ? `${trip.notesCount} note${trip.notesCount > 1 ? 's' : ''}`
