@@ -39,11 +39,11 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
 
   // Check availability when dates or staff change
   useEffect(() => {
-    if (formData.startDate && formData.endDate && formData.wolthersStaff.length > 0) {
+    if (formData.startDate && formData.endDate && (formData.wolthersStaff || []).length > 0) {
       const startDate = formData.startDate.toISOString().split('T')[0]
       const endDate = formData.endDate.toISOString().split('T')[0]
       
-      const checks = formData.wolthersStaff.map(staffMember => ({
+      const checks = (formData.wolthersStaff || []).map(staffMember => ({
         type: 'staff' as const,
         id: staffMember.id,
         startDate,
@@ -54,7 +54,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
         const newConflicts = new Map()
         let hasConflicts = false
         
-        formData.wolthersStaff.forEach(staffMember => {
+        ;(formData.wolthersStaff || []).forEach(staffMember => {
           const result = results.get(`staff-${staffMember.id}`)
           if (result && !result.available) {
             newConflicts.set(`staff-${staffMember.id}`, result.conflicts)
@@ -138,11 +138,11 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             className="w-full"
             maxDisplayItems={10}
           />
-          {formData.wolthersStaff.length > 0 && (
+          {(formData.wolthersStaff || []).length > 0 && (
             <>
               <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-300">
-                  <strong>{formData.wolthersStaff.length}</strong> team member{formData.wolthersStaff.length !== 1 ? 's' : ''} selected
+                  <strong>{(formData.wolthersStaff || []).length}</strong> team member{(formData.wolthersStaff || []).length !== 1 ? 's' : ''} selected
                 </p>
               </div>
               
@@ -156,7 +156,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
                         Schedule Conflicts Detected
                       </p>
                       <div className="text-xs text-red-700 dark:text-red-400 space-y-1">
-                        {formData.wolthersStaff.map(staffMember => {
+                        {(formData.wolthersStaff || []).map(staffMember => {
                           const staffConflicts = conflicts.get(`staff-${staffMember.id}`)
                           if (!staffConflicts || staffConflicts.length === 0) return null
                           

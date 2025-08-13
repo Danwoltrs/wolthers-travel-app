@@ -4,6 +4,9 @@ import TripTypeSelection, { TripType } from './TripTypeSelection'
 import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
 import EnhancedItineraryBuilderStep from './EnhancedItineraryBuilderStep'
+import MeetingAgendaStep from './MeetingAgendaStep'
+import HotelBookingStep from './HotelBookingStep'
+import FlightBookingStep from './FlightBookingStep'
 import dynamic from 'next/dynamic'
 
 // Dynamically import TeamVehicleStep to prevent SSR issues
@@ -19,6 +22,53 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
 })
 import ReviewStep from './ReviewStep'
 import type { Company, User, Vehicle, Activity, ItineraryDay } from '@/types'
+
+// Define additional data types for hotels, flights, and meetings
+interface Hotel {
+  id: string
+  name: string
+  address: string
+  checkInDate: string
+  checkOutDate: string
+  nights: number
+  cost?: number
+  notes?: string
+}
+
+interface Flight {
+  id: string
+  airline: string
+  flightNumber: string
+  departure: {
+    airport: string
+    city: string
+    date: string
+    time: string
+  }
+  arrival: {
+    airport: string
+    city: string
+    date: string
+    time: string
+  }
+  cost?: number
+  bookingReference?: string
+  notes?: string
+}
+
+interface Meeting {
+  id: string
+  title: string
+  type: 'conference_session' | 'networking' | 'presentation' | 'meeting' | 'other'
+  date: string
+  startTime: string
+  endTime: string
+  location: string
+  attendees: string
+  description?: string
+  priority: 'low' | 'medium' | 'high'
+  notes?: string
+}
 
 export interface TripFormData {
   // Step 0: Trip Type
@@ -42,6 +92,11 @@ export interface TripFormData {
   // Step 3: Team & Vehicles
   wolthersStaff: User[]
   vehicles: Vehicle[]
+  
+  // Step 4-6: Conference-specific data
+  meetings?: Meeting[]
+  hotels?: Hotel[]
+  flights?: Flight[]
 }
 
 interface SaveStatus {
@@ -77,7 +132,10 @@ const initialFormData: TripFormData = {
   // estimatedBudget: undefined,
   itineraryDays: [],
   wolthersStaff: [],
-  vehicles: []
+  vehicles: [],
+  meetings: [],
+  hotels: [],
+  flights: []
 }
 
 // Dynamic steps based on trip type
@@ -87,16 +145,20 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Event Search', description: 'Find your convention or event' },
       { id: 3, name: 'Basic Information', description: 'Trip details and attendees' },
-      { id: 4, name: 'Team & Travel', description: 'Staff and travel arrangements' },
-      { id: 5, name: 'Review & Create', description: 'Review and finalize trip' }
+      { id: 4, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
+      { id: 5, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
+      { id: 6, name: 'Flights & Travel', description: 'Arrange international flights and travel' },
+      { id: 7, name: 'Team Assignment', description: 'Assign Wolthers staff and logistics' },
+      { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else if (tripType === 'in_land') {
     return [
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Basic Information', description: 'Trip details and companies' },
-      { id: 3, name: 'Itinerary Builder', description: 'Create daily activities with AI' },
-      { id: 4, name: 'Team & Vehicles', description: 'Assign staff and transportation' },
-      { id: 5, name: 'Review & Create', description: 'Review and finalize trip' }
+      { id: 3, name: 'Meetings & Schedule', description: 'Plan meetings, visits, and appointments' },
+      { id: 4, name: 'Itinerary Builder', description: 'Create daily activities and optimize routes' },
+      { id: 5, name: 'Team & Vehicles', description: 'Assign staff and transportation' },
+      { id: 6, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
     return [
@@ -208,7 +270,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     // Set new timeout for auto-save
     saveTimeoutRef.current = setTimeout(() => {
       saveProgress(formData, currentStep)
-    }, 2000) // Auto-save after 2 seconds of no changes
+    }, 1000) // Auto-save after 1 second of no changes
     
     return () => {
       if (saveTimeoutRef.current) {
@@ -328,8 +390,18 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         case 3:
           return formData.title && formData.startDate && formData.endDate
         case 4:
-          return formData.wolthersStaff.length > 0
+          // Meetings & Agenda step - optional but allow proceeding
+          return true
         case 5:
+          // Hotels & Accommodation step - optional but allow proceeding
+          return true
+        case 6:
+          // Flights & Travel step - optional but allow proceeding
+          return true
+        case 7:
+          // Team Assignment step - require staff selection
+          return formData.wolthersStaff.length > 0
+        case 8:
           return true
         default:
           return false
@@ -341,10 +413,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         case 2:
           return formData.title && formData.companies.length > 0 && formData.startDate && formData.endDate
         case 3:
-          return formData.itineraryDays.length > 0
+          // Meetings & Schedule step - for now, allow proceeding (implement validation later)
+          return true
         case 4:
-          return formData.wolthersStaff.length > 0
+          return formData.itineraryDays.length > 0
         case 5:
+          return formData.wolthersStaff.length > 0
+        case 6:
           return true
         default:
           return false
@@ -445,13 +520,34 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'convention' && currentStep === 4 && (
-            <TeamVehicleStep
+            <MeetingAgendaStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'convention' && currentStep === 5 && (
+            <HotelBookingStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'convention' && currentStep === 6 && (
+            <FlightBookingStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'convention' && currentStep === 7 && (
+            <TeamVehicleStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'convention' && currentStep === 8 && (
             <ReviewStep formData={formData} />
           )}
           
@@ -464,20 +560,76 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Meetings & Schedule Planning
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                  Plan your meetings, client visits, facility tours, and appointments for this business trip.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+                    <div className="text-center">
+                      <div className="text-blue-600 dark:text-blue-400 mb-3">🤝</div>
+                      <h3 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Client Meetings</h3>
+                      <p className="text-blue-700 dark:text-blue-300 text-sm">
+                        Schedule meetings with clients, partners, and stakeholders along your route.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border border-green-200 dark:border-green-800">
+                    <div className="text-center">
+                      <div className="text-green-600 dark:text-green-400 mb-3">🏭</div>
+                      <h3 className="font-medium text-green-900 dark:text-green-300 mb-2">Facility Visits</h3>
+                      <p className="text-green-700 dark:text-green-300 text-sm">
+                        Plan tours of production facilities, warehouses, and business locations.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
+                    <div className="text-center">
+                      <div className="text-purple-600 dark:text-purple-400 mb-3">📋</div>
+                      <h3 className="font-medium text-purple-900 dark:text-purple-300 mb-2">Business Appointments</h3>
+                      <p className="text-purple-700 dark:text-purple-300 text-sm">
+                        Organize business appointments, negotiations, and contract meetings.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-6 border border-orange-200 dark:border-orange-800">
+                    <div className="text-center">
+                      <div className="text-orange-600 dark:text-orange-400 mb-3">📊</div>
+                      <h3 className="font-medium text-orange-900 dark:text-orange-300 mb-2">Presentations</h3>
+                      <p className="text-orange-700 dark:text-orange-300 text-sm">
+                        Schedule presentations, demos, and business showcases with multiple companies.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Coming soon: Advanced meeting scheduler with calendar integration and automated routing optimization.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 4 && (
             <EnhancedItineraryBuilderStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
-          {formData.tripType === 'in_land' && currentStep === 4 && (
+          {formData.tripType === 'in_land' && currentStep === 5 && (
             <TeamVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
-          {formData.tripType === 'in_land' && currentStep === 5 && (
+          {formData.tripType === 'in_land' && currentStep === 6 && (
             <ReviewStep formData={formData} />
           )}
         </div>

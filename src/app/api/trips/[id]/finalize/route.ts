@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     let user: any = null
     
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       )
     }
 
-    const tripId = params.id
+    const { id: tripId } = await params
     const supabase = createServerSupabaseClient()
     const now = new Date().toISOString()
 
@@ -109,6 +109,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         { error: 'Only draft trips with planning status can be finalized' },
         { status: 400 }
       )
+    }
+
+    // Get the trip's step_data to migrate to normalized tables
+    const { data: tripWithStepData, error: stepDataError } = await supabase
+      .from('trips')
+      .select('step_data')
+      .eq('id', tripId)
+      .single()
+
+    if (stepDataError || !tripWithStepData) {
+      console.error('Failed to get trip step data:', stepDataError)
+      // Continue with finalization even if we can't get step data
+    }
+
+    // Migrate step data to normalized tables if available
+    if (tripWithStepData?.step_data) {
+      console.log('📦 Finalizing trip - migrating step data to normalized tables')
+      await finalizeExtendedTripData(supabase, tripId, tripWithStepData.step_data, user.id, now)
     }
 
     // Update trip to finalized status
@@ -159,5 +177,180 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to finalize extended trip data from step_data to normalized tables
+async function finalizeExtendedTripData(supabase: any, tripId: string, stepData: any, userId: string, now: string) {
+  try {
+    console.log('🔄 Finalizing extended trip data for trip:', tripId)
+
+    // Ensure we don't duplicate data if it was already saved during progressive save
+    // Check if we already have data in the normalized tables
+    const { data: existingHotels } = await supabase
+      .from('trip_hotels')
+      .select('id')
+      .eq('trip_id', tripId)
+      .limit(1)
+
+    const { data: existingFlights } = await supabase
+      .from('trip_flights')
+      .select('id')
+      .eq('trip_id', tripId)
+      .limit(1)
+
+    const { data: existingMeetings } = await supabase
+      .from('trip_meetings')
+      .select('id')
+      .eq('trip_id', tripId)
+      .limit(1)
+
+    // Only migrate data if it doesn't already exist (avoid duplicates)
+    
+    // Insert hotels if they don't exist
+    if (!existingHotels || existingHotels.length === 0) {
+      if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
+        console.log('🏨 Migrating hotel bookings to normalized table')
+        
+        const hotelInserts = stepData.hotels.map((hotel: any) => ({
+          trip_id: tripId,
+          hotel_name: hotel.name || hotel.hotelName,
+          hotel_address: hotel.address || hotel.hotelAddress,
+          check_in_date: hotel.checkInDate || hotel.checkIn,
+          check_out_date: hotel.checkOutDate || hotel.checkOut,
+          cost_amount: hotel.cost ? parseFloat(hotel.cost) : null,
+          cost_currency: 'USD',
+          room_type: hotel.roomType,
+          guest_names: hotel.guestNames || [],
+          booking_status: 'confirmed', // Finalized trips have confirmed bookings
+          created_at: now,
+          updated_at: now,
+          created_by: userId,
+          updated_by: userId
+        }))
+
+        const { error: hotelsError } = await supabase
+          .from('trip_hotels')
+          .insert(hotelInserts)
+
+        if (hotelsError) {
+          console.error('⚠️ Failed to migrate hotel bookings:', hotelsError)
+        } else {
+          console.log('✅ Hotel bookings migrated successfully')
+        }
+      }
+    }
+
+    // Insert flights if they don't exist
+    if (!existingFlights || existingFlights.length === 0) {
+      if (stepData.flights && Array.isArray(stepData.flights) && stepData.flights.length > 0) {
+        console.log('✈️ Migrating flight bookings to normalized table')
+        
+        const flightInserts = stepData.flights.map((flight: any) => ({
+          trip_id: tripId,
+          flight_type: flight.type || 'outbound',
+          airline: flight.airline,
+          flight_number: flight.flightNumber,
+          departure_airport: flight.departure?.airport || '',
+          departure_city: flight.departure?.city || '',
+          departure_date: flight.departure?.date,
+          departure_time: flight.departure?.time || '00:00',
+          arrival_airport: flight.arrival?.airport || '',
+          arrival_city: flight.arrival?.city || '',
+          arrival_date: flight.arrival?.date,
+          arrival_time: flight.arrival?.time || '00:00',
+          cost_amount: flight.cost ? parseFloat(flight.cost) : null,
+          cost_currency: 'USD',
+          passenger_names: flight.passengerNames || [],
+          booking_status: 'confirmed', // Finalized trips have confirmed bookings
+          created_at: now,
+          updated_at: now,
+          created_by: userId,
+          updated_by: userId
+        }))
+
+        const { error: flightsError } = await supabase
+          .from('trip_flights')
+          .insert(flightInserts)
+
+        if (flightsError) {
+          console.error('⚠️ Failed to migrate flight bookings:', flightsError)
+        } else {
+          console.log('✅ Flight bookings migrated successfully')
+        }
+      }
+    }
+
+    // Insert meetings if they don't exist
+    if (!existingMeetings || existingMeetings.length === 0) {
+      if (stepData.meetings && Array.isArray(stepData.meetings) && stepData.meetings.length > 0) {
+        console.log('🤝 Migrating meetings to normalized table')
+        
+        for (const meeting of stepData.meetings) {
+          // Create the meeting
+          const { data: newMeeting, error: meetingError } = await supabase
+            .from('trip_meetings')
+            .insert({
+              trip_id: tripId,
+              title: meeting.title,
+              meeting_type: meeting.type || 'meeting',
+              meeting_date: meeting.date,
+              start_time: meeting.startTime || '09:00',
+              end_time: meeting.endTime,
+              location: meeting.location,
+              description: meeting.description,
+              agenda: meeting.agenda,
+              priority_level: meeting.priority || 'medium',
+              meeting_status: 'confirmed', // Finalized trips have confirmed meetings
+              is_supplier_meeting: meeting.isSupplierMeeting || false,
+              supplier_company_name: meeting.supplierCompany,
+              created_at: now,
+              updated_at: now,
+              created_by: userId,
+              updated_by: userId
+            })
+            .select('id')
+            .single()
+
+          if (meetingError) {
+            console.error('⚠️ Failed to migrate meeting:', meetingError)
+            continue
+          }
+
+          // Create attendees for this meeting if they exist
+          if (newMeeting && meeting.attendees && Array.isArray(meeting.attendees) && meeting.attendees.length > 0) {
+            const attendeeInserts = meeting.attendees.map((attendee: any) => ({
+              meeting_id: newMeeting.id,
+              attendee_name: attendee.name || attendee,
+              attendee_email: attendee.email,
+              attendee_company: attendee.company,
+              attendee_title: attendee.title,
+              is_external: true,
+              attendance_status: 'confirmed', // Finalized meetings have confirmed attendees
+              created_at: now,
+              updated_at: now
+            }))
+
+            const { error: attendeesError } = await supabase
+              .from('meeting_attendees')
+              .insert(attendeeInserts)
+
+            if (attendeesError) {
+              console.error('⚠️ Failed to migrate meeting attendees:', attendeesError)
+            }
+          }
+        }
+        
+        console.log('✅ Meetings migrated successfully')
+      }
+    }
+
+    // After successful migration, we could optionally clear the step_data
+    // to reduce storage size, but keeping it for now for safety
+    console.log('✅ Extended trip data finalized successfully')
+    
+  } catch (error) {
+    console.error('⚠️ Failed to finalize extended trip data:', error)
+    // Don't throw error - this shouldn't fail the entire finalization
   }
 }

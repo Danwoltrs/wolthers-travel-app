@@ -218,14 +218,45 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify the draft belongs to the user or can be deleted by a company admin
-    const { data: draft, error: verifyError } = await supabase
+    // Try to find the draft in trip_drafts table first
+    let draft: any = null
+    let isDraftTable = true
+    
+    const { data: draftFromDrafts, error: draftError } = await supabase
       .from('trip_drafts')
       .select('creator_id, trip_id, users!inner (id, companyId)')
       .eq('id', draftId)
       .single()
 
-    if (verifyError || !draft) {
+    if (draftFromDrafts && !draftError) {
+      draft = draftFromDrafts
+    } else {
+      // If not found in trip_drafts, check trips table with planning status and is_draft flag
+      const { data: draftFromTrips, error: tripError } = await supabase
+        .from('trips')
+        .select(`
+          id,
+          creator_id,
+          status,
+          is_draft,
+          users!inner (id, companyId)
+        `)
+        .eq('id', draftId)
+        .eq('status', 'planning')
+        .eq('is_draft', true)
+        .single()
+
+      if (draftFromTrips && !tripError) {
+        draft = {
+          creator_id: draftFromTrips.creator_id,
+          trip_id: draftFromTrips.id,
+          users: draftFromTrips.users
+        }
+        isDraftTable = false
+      }
+    }
+
+    if (!draft) {
       return NextResponse.json(
         { error: 'Draft not found' },
         { status: 404 }
@@ -246,18 +277,49 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Delete the draft
-    const { error: deleteError } = await supabase
-      .from('trip_drafts')
-      .delete()
-      .eq('id', draftId)
+    // Delete the draft from the appropriate table
+    if (isDraftTable) {
+      // Delete from trip_drafts table
+      const { error: deleteError } = await supabase
+        .from('trip_drafts')
+        .delete()
+        .eq('id', draftId)
 
-    if (deleteError) {
-      console.error('Failed to delete draft:', deleteError)
-      return NextResponse.json(
-        { error: 'Failed to delete draft' },
-        { status: 500 }
-      )
+      if (deleteError) {
+        console.error('Failed to delete draft from trip_drafts:', deleteError)
+        return NextResponse.json(
+          { error: 'Failed to delete draft' },
+          { status: 500 }
+        )
+      }
+      
+      // Also delete the associated trip if it exists
+      if (draft.trip_id) {
+        const { error: tripDeleteError } = await supabase
+          .from('trips')
+          .delete()
+          .eq('id', draft.trip_id)
+          .eq('is_draft', true)
+        
+        if (tripDeleteError) {
+          console.warn('Failed to delete associated trip:', tripDeleteError)
+        }
+      }
+    } else {
+      // Delete from trips table (draft trip stored directly in trips table)
+      const { error: deleteError } = await supabase
+        .from('trips')
+        .delete()
+        .eq('id', draftId)
+        .eq('is_draft', true)
+
+      if (deleteError) {
+        console.error('Failed to delete draft trip:', deleteError)
+        return NextResponse.json(
+          { error: 'Failed to delete draft trip' },
+          { status: 500 }
+        )
+      }
     }
 
     return NextResponse.json({

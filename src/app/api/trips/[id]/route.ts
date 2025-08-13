@@ -4,10 +4,10 @@ import { verifySessionToken, extractBearerToken } from '@/lib/jwt-utils'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const tripId = params.id
+    const { id: tripId } = await params
 
     let user: any = null
     
@@ -95,6 +95,60 @@ export async function GET(
             driver_id,
             vehicles (id, model, license_plate),
             users!trip_vehicles_driver_id_fkey (id, full_name, email)
+          ),
+          trip_hotels (
+            id,
+            hotel_name,
+            hotel_address,
+            check_in_date,
+            check_out_date,
+            nights_count,
+            cost_amount,
+            cost_currency,
+            room_type,
+            guest_names,
+            booking_status
+          ),
+          trip_flights (
+            id,
+            flight_type,
+            airline,
+            flight_number,
+            departure_airport,
+            departure_city,
+            departure_date,
+            departure_time,
+            arrival_airport,
+            arrival_city,
+            arrival_date,
+            arrival_time,
+            cost_amount,
+            cost_currency,
+            passenger_names,
+            booking_status
+          ),
+          trip_meetings (
+            id,
+            title,
+            meeting_type,
+            meeting_date,
+            start_time,
+            end_time,
+            location,
+            description,
+            agenda,
+            priority_level,
+            meeting_status,
+            is_supplier_meeting,
+            supplier_company_name,
+            meeting_attendees (
+              id,
+              attendee_name,
+              attendee_email,
+              attendee_company,
+              attendee_title,
+              attendance_status
+            )
           )
         `)
         .eq('id', tripId)
@@ -119,6 +173,60 @@ export async function GET(
             driver_id,
             vehicles (id, model, license_plate),
             users!trip_vehicles_driver_id_fkey (id, full_name, email)
+          ),
+          trip_hotels (
+            id,
+            hotel_name,
+            hotel_address,
+            check_in_date,
+            check_out_date,
+            nights_count,
+            cost_amount,
+            cost_currency,
+            room_type,
+            guest_names,
+            booking_status
+          ),
+          trip_flights (
+            id,
+            flight_type,
+            airline,
+            flight_number,
+            departure_airport,
+            departure_city,
+            departure_date,
+            departure_time,
+            arrival_airport,
+            arrival_city,
+            arrival_date,
+            arrival_time,
+            cost_amount,
+            cost_currency,
+            passenger_names,
+            booking_status
+          ),
+          trip_meetings (
+            id,
+            title,
+            meeting_type,
+            meeting_date,
+            start_time,
+            end_time,
+            location,
+            description,
+            agenda,
+            priority_level,
+            meeting_status,
+            is_supplier_meeting,
+            supplier_company_name,
+            meeting_attendees (
+              id,
+              attendee_name,
+              attendee_email,
+              attendee_company,
+              attendee_title,
+              attendance_status
+            )
           )
         `)
         .eq('access_code', tripId)

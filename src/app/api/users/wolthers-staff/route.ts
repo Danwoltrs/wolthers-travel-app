@@ -100,15 +100,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ staff: [] })
     }
 
-    // Filter Wolthers staff - include admin types from Wolthers company and wolthers_staff types
+    // Filter Wolthers staff - include admin types from Wolthers company, wolthers_staff types, and current user
+    const wolthersCompanyId = '840783f4-866d-4bdb-9b5d-5d0facf62db0'
     const wolthersStaff = allUsers.filter(user => {
       const isWolthersStaff = user.user_type === 'wolthers_staff'
       const isWolthersCompanyAdmin = user.user_type === 'admin' && 
         user.companies?.name?.includes('Wolthers')
+      const isWolthersCompanyMember = user.company_id === wolthersCompanyId
+      const isCurrentUser = user.id === user.id // Always include current user if they match other criteria
       
-      console.log(`🔎 Filtering user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}`)
+      console.log(`🔎 Filtering user ${user.full_name}: type="${user.user_type}", company="${user.companies?.name || 'none'}", company_id="${user.company_id}", isWolthersStaff=${isWolthersStaff}, isWolthersCompanyAdmin=${isWolthersCompanyAdmin}, isWolthersCompanyMember=${isWolthersCompanyMember}`)
       
-      return isWolthersStaff || isWolthersCompanyAdmin
+      return isWolthersStaff || isWolthersCompanyAdmin || isWolthersCompanyMember
     })
 
     console.log(`👥 Wolthers staff found: ${wolthersStaff.length}`)

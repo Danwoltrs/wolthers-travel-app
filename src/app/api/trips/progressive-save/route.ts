@@ -190,6 +190,9 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Update hotels, flights, and meetings for existing trip
+      await updateTripExtendedData(supabase, tripId, stepData, user.id, now)
+
     } else {
       // Idempotent creation: check if trip already exists with client temp ID
       if (clientTempId) {
@@ -268,6 +271,9 @@ export async function POST(request: NextRequest) {
           ...(clientTempId ? { client_temp_id: clientTempId } : {})
         }
         
+        // Extract year from start date for database
+        const tripYear = new Date(tripData.start_date || new Date()).getFullYear()
+        
         const { data: newTrip, error: createError } = await supabase
           .from('trips')
           .insert({
@@ -279,6 +285,8 @@ export async function POST(request: NextRequest) {
             end_date: tripData.end_date || new Date().toISOString().split('T')[0],
             creator_id: user.id,
             access_code: accessCode,
+            slug: accessCode, // Use access code as slug
+            year: tripYear,
             creation_status: getCreationStatus(currentStep),
             completion_step: currentStep,
             step_data: stepData,
@@ -329,6 +337,138 @@ export async function POST(request: NextRequest) {
           } else {
             console.log('✅ Trip participants created successfully')
           }
+        }
+
+        // Save hotels data if it exists
+        if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
+          console.log('🏨 Creating hotel bookings:', stepData.hotels.length)
+          
+          const hotelInserts = stepData.hotels.map((hotel: any) => ({
+            trip_id: finalTripId,
+            hotel_name: hotel.name || hotel.hotelName,
+            hotel_address: hotel.address || hotel.hotelAddress,
+            check_in_date: hotel.checkInDate || hotel.checkIn,
+            check_out_date: hotel.checkOutDate || hotel.checkOut,
+            cost_amount: hotel.cost ? parseFloat(hotel.cost) : null,
+            cost_currency: 'USD',
+            room_type: hotel.roomType,
+            guest_names: hotel.guestNames || [],
+            booking_status: 'pending',
+            created_at: now,
+            updated_at: now,
+            created_by: user.id,
+            updated_by: user.id
+          }))
+
+          const { error: hotelsError } = await supabase
+            .from('trip_hotels')
+            .insert(hotelInserts)
+
+          if (hotelsError) {
+            console.error('⚠️ Failed to create hotel bookings:', hotelsError)
+          } else {
+            console.log('✅ Hotel bookings created successfully')
+          }
+        }
+
+        // Save flights data if it exists
+        if (stepData.flights && Array.isArray(stepData.flights) && stepData.flights.length > 0) {
+          console.log('✈️ Creating flight bookings:', stepData.flights.length)
+          
+          const flightInserts = stepData.flights.map((flight: any) => ({
+            trip_id: finalTripId,
+            flight_type: flight.type || 'outbound',
+            airline: flight.airline,
+            flight_number: flight.flightNumber,
+            departure_airport: flight.departure?.airport || '',
+            departure_city: flight.departure?.city || '',
+            departure_date: flight.departure?.date,
+            departure_time: flight.departure?.time || '00:00',
+            arrival_airport: flight.arrival?.airport || '',
+            arrival_city: flight.arrival?.city || '',
+            arrival_date: flight.arrival?.date,
+            arrival_time: flight.arrival?.time || '00:00',
+            cost_amount: flight.cost ? parseFloat(flight.cost) : null,
+            cost_currency: 'USD',
+            passenger_names: flight.passengerNames || [],
+            booking_status: 'pending',
+            created_at: now,
+            updated_at: now,
+            created_by: user.id,
+            updated_by: user.id
+          }))
+
+          const { error: flightsError } = await supabase
+            .from('trip_flights')
+            .insert(flightInserts)
+
+          if (flightsError) {
+            console.error('⚠️ Failed to create flight bookings:', flightsError)
+          } else {
+            console.log('✅ Flight bookings created successfully')
+          }
+        }
+
+        // Save meetings data if it exists
+        if (stepData.meetings && Array.isArray(stepData.meetings) && stepData.meetings.length > 0) {
+          console.log('🤝 Creating meetings:', stepData.meetings.length)
+          
+          for (const meeting of stepData.meetings) {
+            // First create the meeting
+            const { data: newMeeting, error: meetingError } = await supabase
+              .from('trip_meetings')
+              .insert({
+                trip_id: finalTripId,
+                title: meeting.title,
+                meeting_type: meeting.type || 'meeting',
+                meeting_date: meeting.date,
+                start_time: meeting.startTime || '09:00',
+                end_time: meeting.endTime,
+                location: meeting.location,
+                description: meeting.description,
+                agenda: meeting.agenda,
+                priority_level: meeting.priority || 'medium',
+                meeting_status: 'scheduled',
+                is_supplier_meeting: meeting.isSupplierMeeting || false,
+                supplier_company_name: meeting.supplierCompany,
+                created_at: now,
+                updated_at: now,
+                created_by: user.id,
+                updated_by: user.id
+              })
+              .select('id')
+              .single()
+
+            if (meetingError) {
+              console.error('⚠️ Failed to create meeting:', meetingError)
+              continue
+            }
+
+            // Create attendees for this meeting if they exist
+            if (meeting.attendees && Array.isArray(meeting.attendees) && meeting.attendees.length > 0) {
+              const attendeeInserts = meeting.attendees.map((attendee: any) => ({
+                meeting_id: newMeeting.id,
+                attendee_name: attendee.name || attendee,
+                attendee_email: attendee.email,
+                attendee_company: attendee.company,
+                attendee_title: attendee.title,
+                is_external: true,
+                attendance_status: 'invited',
+                created_at: now,
+                updated_at: now
+              }))
+
+              const { error: attendeesError } = await supabase
+                .from('meeting_attendees')
+                .insert(attendeeInserts)
+
+              if (attendeesError) {
+                console.error('⚠️ Failed to create meeting attendees:', attendeesError)
+              }
+            }
+          }
+          
+          console.log('✅ Meetings created successfully')
         }
       }
     }
@@ -585,5 +725,119 @@ function mapTripType(tripType: string): 'conference' | 'event' | 'business' | 'c
     case 'business':
     default:
       return 'business'
+  }
+}
+
+// Helper function to update hotels, flights, and meetings for existing trips
+async function updateTripExtendedData(supabase: any, tripId: string, stepData: any, userId: string, now: string) {
+  try {
+    console.log('🔄 Updating extended trip data for trip:', tripId)
+
+    // Clear existing data and re-insert (simpler than trying to diff/update)
+    await supabase.from('trip_hotels').delete().eq('trip_id', tripId)
+    await supabase.from('trip_flights').delete().eq('trip_id', tripId)
+    
+    // Delete meetings and their related data (cascading delete will handle attendees)
+    await supabase.from('trip_meetings').delete().eq('trip_id', tripId)
+
+    // Re-insert hotels
+    if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
+      const hotelInserts = stepData.hotels.map((hotel: any) => ({
+        trip_id: tripId,
+        hotel_name: hotel.name || hotel.hotelName,
+        hotel_address: hotel.address || hotel.hotelAddress,
+        check_in_date: hotel.checkInDate || hotel.checkIn,
+        check_out_date: hotel.checkOutDate || hotel.checkOut,
+        cost_amount: hotel.cost ? parseFloat(hotel.cost) : null,
+        cost_currency: 'USD',
+        room_type: hotel.roomType,
+        guest_names: hotel.guestNames || [],
+        booking_status: 'pending',
+        created_at: now,
+        updated_at: now,
+        created_by: userId,
+        updated_by: userId
+      }))
+
+      await supabase.from('trip_hotels').insert(hotelInserts)
+    }
+
+    // Re-insert flights
+    if (stepData.flights && Array.isArray(stepData.flights) && stepData.flights.length > 0) {
+      const flightInserts = stepData.flights.map((flight: any) => ({
+        trip_id: tripId,
+        flight_type: flight.type || 'outbound',
+        airline: flight.airline,
+        flight_number: flight.flightNumber,
+        departure_airport: flight.departure?.airport || '',
+        departure_city: flight.departure?.city || '',
+        departure_date: flight.departure?.date,
+        departure_time: flight.departure?.time || '00:00',
+        arrival_airport: flight.arrival?.airport || '',
+        arrival_city: flight.arrival?.city || '',
+        arrival_date: flight.arrival?.date,
+        arrival_time: flight.arrival?.time || '00:00',
+        cost_amount: flight.cost ? parseFloat(flight.cost) : null,
+        cost_currency: 'USD',
+        passenger_names: flight.passengerNames || [],
+        booking_status: 'pending',
+        created_at: now,
+        updated_at: now,
+        created_by: userId,
+        updated_by: userId
+      }))
+
+      await supabase.from('trip_flights').insert(flightInserts)
+    }
+
+    // Re-insert meetings
+    if (stepData.meetings && Array.isArray(stepData.meetings) && stepData.meetings.length > 0) {
+      for (const meeting of stepData.meetings) {
+        const { data: newMeeting, error: meetingError } = await supabase
+          .from('trip_meetings')
+          .insert({
+            trip_id: tripId,
+            title: meeting.title,
+            meeting_type: meeting.type || 'meeting',
+            meeting_date: meeting.date,
+            start_time: meeting.startTime || '09:00',
+            end_time: meeting.endTime,
+            location: meeting.location,
+            description: meeting.description,
+            agenda: meeting.agenda,
+            priority_level: meeting.priority || 'medium',
+            meeting_status: 'scheduled',
+            is_supplier_meeting: meeting.isSupplierMeeting || false,
+            supplier_company_name: meeting.supplierCompany,
+            created_at: now,
+            updated_at: now,
+            created_by: userId,
+            updated_by: userId
+          })
+          .select('id')
+          .single()
+
+        if (!meetingError && newMeeting && meeting.attendees && Array.isArray(meeting.attendees)) {
+          const attendeeInserts = meeting.attendees.map((attendee: any) => ({
+            meeting_id: newMeeting.id,
+            attendee_name: attendee.name || attendee,
+            attendee_email: attendee.email,
+            attendee_company: attendee.company,
+            attendee_title: attendee.title,
+            is_external: true,
+            attendance_status: 'invited',
+            created_at: now,
+            updated_at: now
+          }))
+
+          await supabase.from('meeting_attendees').insert(attendeeInserts)
+        }
+      }
+    }
+
+    console.log('✅ Extended trip data updated successfully')
+  } catch (error) {
+    console.error('⚠️ Failed to update extended trip data:', error)
+    // Don't throw error - this shouldn't fail the entire save operation
   }
 }
