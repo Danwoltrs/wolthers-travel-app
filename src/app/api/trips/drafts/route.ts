@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       .from('trip_drafts')
       .select(`
         *,
-        users!inner (id, companyId),
+        users!inner (id, company_id),
         trips (
           id,
           title,
@@ -82,9 +82,9 @@ export async function GET(request: NextRequest) {
     // If the user is not a company admin, only show their own drafts
     if (user.role !== 'company_admin') {
       draftsQuery = draftsQuery.eq('creator_id', user.id)
-    } else if (user.companyId) {
+    } else if (user.company_id) {
       // If company admin, show drafts from their company
-      draftsQuery = draftsQuery.eq('users.companyId', user.companyId)
+      draftsQuery = draftsQuery.eq('users.company_id', user.company_id)
     }
 
     const { data: drafts, error: draftsError } = await draftsQuery
@@ -234,7 +234,7 @@ export async function DELETE(request: NextRequest) {
     
     const { data: draftFromDrafts, error: draftError } = await supabase
       .from('trip_drafts')
-      .select('creator_id, trip_id, users!inner (id, companyId)')
+      .select('creator_id, trip_id, users!inner (id, company_id)')
       .eq('id', draftId)
       .single()
 
@@ -251,7 +251,7 @@ export async function DELETE(request: NextRequest) {
           creator_id,
           status,
           is_draft,
-          users!inner (id, companyId)
+          users!inner (id, company_id)
         `)
         .eq('id', draftId)
         .eq('status', 'planning')
@@ -282,7 +282,7 @@ export async function DELETE(request: NextRequest) {
     // 2. User is a company admin in the same company as the draft creator
     const canDelete = 
       draft.creator_id === user.id || 
-      (user.role === 'company_admin' && user.companyId === draft.users.companyId)
+      (user.role === 'company_admin' && user.company_id === draft.users.company_id)
 
     if (!canDelete) {
       console.log('Permission denied for user:', user.id, 'to delete draft created by:', draft.creator_id)

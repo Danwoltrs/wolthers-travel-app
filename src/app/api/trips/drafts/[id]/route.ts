@@ -2,44 +2,60 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    console.log('DELETE /api/trips/drafts/[id] called')
     let user: any = null
     
-    // Authentication logic (same as other endpoints)
-    const authHeader = request.headers.get('authorization')
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    // Check for cookie-based authentication first (NextAuth)
+    const supabase = createServerSupabaseClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    
+    if (authUser) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
 
-      try {
-        const decoded = verify(token, secret) as any
-        const supabase = createServerSupabaseClient()
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', decoded.userId)
-          .single()
+      if (!userError && userData) {
+        user = userData
+      }
+    }
+    
+    // Fallback to header-based authentication
+    if (!user) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
-        if (!userError && userData) {
-          user = userData
-        }
-      } catch (jwtError) {
-        // Try Supabase session authentication
-        const supabaseClient = createServerSupabaseClient()
-        
-        if (token && token.includes('.')) {
-          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
-          
-          if (!sessionError && supabaseUser) {
-            const { data: userData, error: userError } = await supabaseClient
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .single()
+        try {
+          const decoded = verify(token, secret) as any
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', decoded.userId)
+            .single()
 
-            if (!userError && userData) {
-              user = userData
+          if (!userError && userData) {
+            user = userData
+          }
+        } catch (jwtError) {
+          // Try Supabase session authentication
+          if (token && token.includes('.')) {
+            const { data: { user: supabaseUser }, error: sessionError } = await supabase.auth.getUser(token)
+            
+            if (!sessionError && supabaseUser) {
+              const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', supabaseUser.id)
+                .single()
+
+              if (!userError && userData) {
+                user = userData
+              }
             }
           }
         }
@@ -53,16 +69,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       )
     }
 
-    const draftId = params.id
+    const resolvedParams = await params
+    const draftId = resolvedParams.id
+    console.log('Draft ID from params:', draftId)
 
     if (!draftId) {
+      console.log('No draft ID provided')
       return NextResponse.json(
         { error: 'Draft ID is required' },
         { status: 400 }
       )
     }
-
-    const supabase = createServerSupabaseClient()
 
     // Verify the draft belongs to the user
     const { data: draft, error: verifyError } = await supabase

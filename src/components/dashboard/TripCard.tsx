@@ -98,16 +98,23 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
 
   const confirmDeleteDraft = async () => {
     try {
-      const response = await fetch(`/api/trips/drafts?draftId=${(trip as any).draftId || trip.id}`, {
+      const draftId = (trip as any).draftId || trip.id
+      console.log('Deleting draft with ID:', draftId)
+      console.log('Trip object:', trip)
+      
+      const response = await fetch(`/api/trips/drafts/${draftId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
+      
+      console.log('Delete response status:', response.status)
       
       if (response.ok) {
         // Refresh the page to remove the deleted draft
         window.location.reload()
       } else {
         const error = await response.json()
+        console.error('Delete error response:', error)
         alert(`Failed to delete draft: ${error.message || 'Unknown error'}`)
       }
     } catch (error) {
