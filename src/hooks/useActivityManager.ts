@@ -72,7 +72,7 @@ export function useActivityManager(tripId: string) {
 
   // Create new activity
   const createActivity = useCallback(async (activityData: ActivityFormData): Promise<Activity | null> => {
-    if (!tripId || !user) return null
+    if (!tripId) return null
 
     try {
       setSaving(true)
@@ -80,23 +80,24 @@ export function useActivityManager(tripId: string) {
 
       const newActivity = {
         ...activityData,
-        trip_id: tripId,
-        created_by: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        trip_id: tripId
       }
 
-      const { data, error: createError } = await supabase
-        .from('activities')
-        .insert([newActivity])
-        .select()
-        .single()
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newActivity),
+        credentials: 'include'
+      })
 
-      if (createError) {
-        console.error('Error creating activity:', createError)
-        setError(`Failed to create activity: ${createError.message}`)
-        return null
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
+
+      const data = await response.json()
 
       // Update local state
       setActivities(prev => [...prev, data])
@@ -108,33 +109,31 @@ export function useActivityManager(tripId: string) {
     } finally {
       setSaving(false)
     }
-  }, [tripId, user])
+  }, [tripId])
 
   // Update existing activity
   const updateActivity = useCallback(async (activityId: string, updates: Partial<ActivityFormData>): Promise<Activity | null> => {
-    if (!activityId || !user) return null
+    if (!activityId) return null
 
     try {
       setSaving(true)
       setError(null)
 
-      const updateData = {
-        ...updates,
-        updated_at: new Date().toISOString()
+      const response = await fetch('/api/activities', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ activityId, ...updates }),
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      const { data, error: updateError } = await supabase
-        .from('activities')
-        .update(updateData)
-        .eq('id', activityId)
-        .select()
-        .single()
-
-      if (updateError) {
-        console.error('Error updating activity:', updateError)
-        setError(`Failed to update activity: ${updateError.message}`)
-        return null
-      }
+      const data = await response.json()
 
       // Update local state
       setActivities(prev => prev.map(activity => 
@@ -148,7 +147,7 @@ export function useActivityManager(tripId: string) {
     } finally {
       setSaving(false)
     }
-  }, [user])
+  }, [])
 
   // Delete activity
   const deleteActivity = useCallback(async (activityId: string): Promise<boolean> => {
@@ -158,15 +157,14 @@ export function useActivityManager(tripId: string) {
       setSaving(true)
       setError(null)
 
-      const { error: deleteError } = await supabase
-        .from('activities')
-        .delete()
-        .eq('id', activityId)
+      const response = await fetch(`/api/activities?id=${activityId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
 
-      if (deleteError) {
-        console.error('Error deleting activity:', deleteError)
-        setError(`Failed to delete activity: ${deleteError.message}`)
-        return false
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       // Update local state
