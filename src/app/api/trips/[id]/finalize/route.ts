@@ -103,10 +103,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       )
     }
 
-    // Can only finalize draft trips with planning status
-    if (!existingTrip.is_draft || existingTrip.status !== 'planning') {
+    // Can only finalize trips with planning status (both draft and regular planning trips)
+    if (existingTrip.status !== 'planning') {
       return NextResponse.json(
-        { error: 'Only draft trips with planning status can be finalized' },
+        { error: 'Only trips with planning status can be finalized' },
         { status: 400 }
       )
     }

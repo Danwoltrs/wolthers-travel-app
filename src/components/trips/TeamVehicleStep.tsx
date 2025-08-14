@@ -115,9 +115,9 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
       {/* Left Column - Team Assignment */}
-      <div>
+      <div className="h-full">
         <div className="flex items-center mb-4">
           <Users className="w-5 h-5 text-gray-400 mr-2" />
           <h3 className="text-md font-medium text-gray-900 dark:text-white">

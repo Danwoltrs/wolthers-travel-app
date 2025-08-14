@@ -61,6 +61,9 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     formData.accessCode || '', 
     formData
   )
+  
+  // Check if this is a predefined event (from convention selection)
+  const isPredefinedEvent = (formData as any)?.selectedConvention?.is_predefined === true
 
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
@@ -152,16 +155,20 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                   id="accessCode"
                   value={code}
                   onChange={(e) => {
-                    setCode(e.target.value.toUpperCase())
-                    updateFormData({ accessCode: e.target.value.toUpperCase() })
+                    if (!isPredefinedEvent) {
+                      setCode(e.target.value.toUpperCase())
+                      updateFormData({ accessCode: e.target.value.toUpperCase() })
+                    }
                   }}
+                  readOnly={isPredefinedEvent}
                   className={`
                     w-40 px-2 py-1 text-sm font-mono border-none outline-none
                     ${validationResult.isValid ? 'text-gray-800' : 'text-red-600'}
+                    ${isPredefinedEvent ? 'text-green-700 bg-green-50' : ''}
                     placeholder-gray-400
                   `}
                   placeholder={code || "Generating..."}
-                  title="Editable Trip Code"
+                  title={isPredefinedEvent ? "Generated from selected event (locked)" : "Editable Trip Code"}
                 />
                 {validationResult.isChecking ? (
                   <RefreshCw className="w-4 h-4 animate-spin text-gray-400 ml-1" />

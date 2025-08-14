@@ -179,18 +179,42 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     tripId: resumeData?.tripId
   })
   const [showSaveNotification, setShowSaveNotification] = useState(false)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    // Get auto-save preference from localStorage, default to true
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('trip-creation-auto-save-enabled')
+      return saved ? JSON.parse(saved) : true
+    }
+    return true
+  })
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
   const { alert } = useDialogs()
   
-  // Generate client temp ID for idempotent trip creation
-  const clientTempIdRef = useRef<string>(
-    resumeData?.tripId ? '' : `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  )
+  // Generate client temp ID for idempotent trip creation - use session storage to persist
+  const clientTempIdRef = useRef<string>('')
+  
+  useEffect(() => {
+    if (resumeData?.tripId) {
+      clientTempIdRef.current = ''
+    } else {
+      // Check if we already have a temp ID in session storage
+      const storedTempId = sessionStorage.getItem('trip-creation-temp-id')
+      if (storedTempId) {
+        clientTempIdRef.current = storedTempId
+      } else {
+        const newTempId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        clientTempIdRef.current = newTempId
+        sessionStorage.setItem('trip-creation-temp-id', newTempId)
+      }
+    }
+  }, [resumeData?.tripId])
 
   // Progressive save function
   const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
     if (!formData.tripType) return
+    
+    // For auto-save (showNotification = false), don't show UI notifications
     
     // Don't save if data hasn't changed
     const currentDataString = JSON.stringify({ stepData, step })
@@ -260,26 +284,47 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }
 
-  // Auto-save when form data changes
+  // Smart auto-save: Only update existing trips, never create new ones
   useEffect(() => {
-    if (!isOpen || !formData.tripType || currentStep < 2) return
+    if (!autoSaveEnabled || !isOpen || !formData.tripType || currentStep < 3) {
+      return
+    }
+    
+    // Only auto-save if we already have a trip ID (from progressive save or resume)
+    const existingTripId = saveStatus.tripId || resumeData?.tripId
+    if (!existingTripId) {
+      return // Don't auto-save until after first manual save creates the trip
+    }
     
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
     
-    // Set new timeout for auto-save
+    // Set new timeout for auto-save (only for updates)
     saveTimeoutRef.current = setTimeout(() => {
-      saveProgress(formData, currentStep)
-    }, 1000) // Auto-save after 1 second of no changes
+      if (existingTripId && !saveStatus.isSaving) {
+        console.log('🔄 Auto-saving existing trip:', existingTripId)
+        saveProgress(formData, currentStep, false) // false = don't show notification
+      }
+    }, 3000) // Auto-save after 3 seconds of no changes
     
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [formData, currentStep, isOpen])
+  }, [formData, currentStep, isOpen, autoSaveEnabled, saveStatus.tripId, saveStatus.isSaving])
+
+  // Handle auto-save toggle change
+  const handleAutoSaveToggle = (enabled: boolean) => {
+    setAutoSaveEnabled(enabled)
+    localStorage.setItem('trip-creation-auto-save-enabled', JSON.stringify(enabled))
+    
+    if (!enabled && saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+  }
   
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -340,6 +385,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           accessCode: saveStatus.accessCode,
           ...formData 
         })
+        
+        // Clear temp ID after successful creation
+        sessionStorage.removeItem('trip-creation-temp-id')
       } else {
         // Create new trip directly if no progressive save occurred
         console.log('Creating new trip directly:', formData)
@@ -367,6 +415,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     if (formData.tripType && (currentStep > 2 || (currentStep === 2 && (formData.title || formData.companies.length > 0)))) {
       await saveProgress(formData, currentStep, false)
     }
+    
+    // Clear temp ID from session storage when modal is closed
+    sessionStorage.removeItem('trip-creation-temp-id')
     
     setFormData(initialFormData)
     setCurrentStep(1)
@@ -448,24 +499,59 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
                 {formData.tripType && currentStep > 1 && ` - ${steps[currentStep - 1]?.name}`}
               </span>
             </h2>
-            {/* Save Status Indicator */}
-            <div className="flex items-center space-x-1 md:space-x-2">
-              {saveStatus.isSaving && (
-                <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
-                  <Save className="w-3 md:w-4 h-3 md:h-4 animate-pulse" />
-                  <span className="text-xs md:text-sm hidden xs:inline">Saving...</span>
-                </div>
-              )}
-              {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
-                <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
-                  <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
-                  <span className="text-xs md:text-sm hidden xs:inline">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
-                </div>
-              )}
-              {saveStatus.error && (
-                <div className="flex items-center space-x-1 text-red-200">
-                  <AlertCircle className="w-3 md:w-4 h-3 md:h-4" />
-                  <span className="text-xs md:text-sm hidden xs:inline">Save failed</span>
+            {/* Save Status Indicator and Auto-save Toggle */}
+            <div className="flex items-center space-x-1 md:space-x-3">
+              {/* Save Status */}
+              <div className="flex items-center space-x-1 md:space-x-2">
+                {saveStatus.isSaving && (
+                  <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                    <Save className="w-3 md:w-4 h-3 md:h-4 animate-pulse" />
+                    <span className="text-xs md:text-sm hidden xs:inline">Saving...</span>
+                  </div>
+                )}
+                {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
+                  <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                    <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
+                    <span className="text-xs md:text-sm hidden xs:inline">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
+                  </div>
+                )}
+                {saveStatus.error && (
+                  <div className="flex items-center space-x-1 text-red-200">
+                    <AlertCircle className="w-3 md:w-4 h-3 md:h-4" />
+                    <span className="text-xs md:text-sm hidden xs:inline">Save failed</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Auto-save Toggle - only show after step 3 when we can have a trip ID */}
+              {currentStep >= 3 && (
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <label className="flex items-center space-x-1 md:space-x-2 cursor-pointer text-white/80 dark:text-golden-400/80">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={autoSaveEnabled}
+                        onChange={(e) => handleAutoSaveToggle(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-6 md:w-8 h-3 md:h-4 rounded-full transition-colors ${
+                        autoSaveEnabled 
+                          ? 'bg-green-500' 
+                          : 'bg-gray-400 dark:bg-gray-600'
+                      }`}>
+                        <div className={`w-2 md:w-3 h-2 md:h-3 bg-white rounded-full shadow-sm transition-transform transform ${
+                          autoSaveEnabled ? 'translate-x-3 md:translate-x-4' : 'translate-x-0.5'
+                        } mt-0.5`} />
+                      </div>
+                    </div>
+                    <span className="text-xs md:text-sm hidden sm:inline select-none">Auto-save</span>
+                  </label>
+                  {autoSaveEnabled && saveStatus.tripId && (
+                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" title="Auto-save active - Updates existing trip every 3 seconds"></div>
+                  )}
+                  {autoSaveEnabled && !saveStatus.tripId && (
+                    <div className="w-1 h-1 bg-orange-400 rounded-full" title="Auto-save ready - Will activate after first manual save"></div>
+                  )}
                 </div>
               )}
             </div>
@@ -491,7 +577,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         )}
         
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0 h-full">
           {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
             <TripTypeSelection
@@ -511,6 +597,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
             <CoffeeEventCarousel 
               formData={formData as any}
               updateFormData={updateFormData}
+              onEventSelected={handleNext}
             />
           )}
           

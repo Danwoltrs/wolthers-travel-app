@@ -7,9 +7,10 @@ import { TripFormData } from '../trips/TripCreationModal';
 interface CoffeeEventCarouselProps {
   formData?: TripFormData & { selectedConvention?: any }
   updateFormData?: (data: Partial<TripFormData & { selectedConvention?: any }>) => void
+  onEventSelected?: () => void // Callback for auto-progress
 }
 
-export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formData, updateFormData }) => {
+export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formData, updateFormData, onEventSelected }) => {
   const [events, setEvents] = useState<CoffeeEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
@@ -128,8 +129,16 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
         title: `${event.name} ${new Date().getFullYear()}`,
         startDate: event.date,
         endDate: endDate,
-        description: event.description || `Business trip for ${event.name}`
+        description: event.description || `Business trip for ${event.name}`,
+        eventCode: event.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()
       });
+
+      // Auto-progress to next step after a short delay for smooth transition
+      setTimeout(() => {
+        if (onEventSelected) {
+          onEventSelected();
+        }
+      }, 500);
     }
   };
 

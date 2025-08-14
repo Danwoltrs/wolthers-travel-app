@@ -171,9 +171,9 @@ export default function Dashboard() {
   }
 
   const handleTripCreated = (trip: any) => {
-    // Optionally refresh trips data here
+    // Refresh trips data to show the newly created trip
     console.log('Trip created:', trip)
-    // You might want to call a refresh function from useTrips hook
+    refetch()
   }
 
   const closeModal = () => {

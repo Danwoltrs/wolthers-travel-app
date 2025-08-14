@@ -240,12 +240,18 @@ export async function POST(request: NextRequest) {
           const companies = stepData.companies || []
           const startDate = new Date(tripData.start_date || new Date())
           
+          // For predefined events (conventions), use event-based code
+          let eventCode = stepData.eventCode
+          if (stepData.selectedConvention?.is_predefined && stepData.selectedConvention?.name) {
+            eventCode = stepData.selectedConvention.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()
+          }
+          
           const baseSlug = makeTripSlug({
             trip_type: mapTripType(tripType),
             companies: companies,
             month: startDate.getMonth() + 1,
             year: startDate.getFullYear(),
-            code: stepData.eventCode,
+            code: eventCode,
             title: tripData.title
           })
           

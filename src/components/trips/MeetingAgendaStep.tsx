@@ -1,42 +1,61 @@
 import React, { useState } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Plus, Trash2, Clock, MapPin, Users, FileText } from 'lucide-react'
+import { Calendar, Plus, Trash2, Clock, MapPin, Users, FileText, X, Plane, Hotel, Coffee, Utensils } from 'lucide-react'
 
-interface Meeting {
+interface CalendarEvent {
   id: string
   title: string
-  type: 'conference_session' | 'networking' | 'presentation' | 'meeting' | 'other'
+  type: 'flight' | 'hotel' | 'meeting' | 'lunch' | 'dinner' | 'conference_session' | 'networking' | 'presentation' | 'other'
   date: string
   startTime: string
   endTime: string
-  location: string
-  attendees: string
+  location?: string
+  attendees?: string
   description?: string
   priority: 'low' | 'medium' | 'high'
   notes?: string
+  // Flight specific
+  airline?: string
+  flightNumber?: string
+  departure?: { airport: string; city: string }
+  arrival?: { airport: string; city: string }
+  // Hotel specific
+  hotelName?: string
+  hotelAddress?: string
+  checkIn?: string
+  checkOut?: string
 }
 
 interface MeetingAgendaStepProps {
-  formData: TripFormData & { meetings?: Meeting[] }
-  updateFormData: (data: Partial<TripFormData & { meetings?: Meeting[] }>) => void
+  formData: TripFormData & { meetings?: CalendarEvent[]; hotels?: any[]; flights?: any[] }
+  updateFormData: (data: Partial<TripFormData & { meetings?: CalendarEvent[]; hotels?: any[]; flights?: any[] }>) => void
 }
 
-const meetingTypes = [
-  { value: 'conference_session', label: 'Conference Session', icon: '🎯', color: 'blue' },
-  { value: 'networking', label: 'Networking Event', icon: '🤝', color: 'green' },
-  { value: 'presentation', label: 'Presentation', icon: '📊', color: 'purple' },
-  { value: 'meeting', label: 'Business Meeting', icon: '💼', color: 'orange' },
-  { value: 'other', label: 'Other', icon: '📅', color: 'gray' }
+const eventTypes = [
+  { value: 'flight', label: 'Flight', icon: <Plane className="w-4 h-4" />, color: 'bg-blue-500', textColor: 'text-white' },
+  { value: 'hotel', label: 'Hotel', icon: <Hotel className="w-4 h-4" />, color: 'bg-purple-500', textColor: 'text-white' },
+  { value: 'conference_session', label: 'Conference Session', icon: <FileText className="w-4 h-4" />, color: 'bg-emerald-500', textColor: 'text-white' },
+  { value: 'meeting', label: 'Business Meeting', icon: <Users className="w-4 h-4" />, color: 'bg-orange-500', textColor: 'text-white' },
+  { value: 'lunch', label: 'Lunch', icon: <Coffee className="w-4 h-4" />, color: 'bg-yellow-500', textColor: 'text-white' },
+  { value: 'dinner', label: 'Dinner', icon: <Utensils className="w-4 h-4" />, color: 'bg-red-500', textColor: 'text-white' },
+  { value: 'networking', label: 'Networking', icon: <Users className="w-4 h-4" />, color: 'bg-green-500', textColor: 'text-white' },
+  { value: 'presentation', label: 'Presentation', icon: <FileText className="w-4 h-4" />, color: 'bg-indigo-500', textColor: 'text-white' },
+  { value: 'other', label: 'Other', icon: <Calendar className="w-4 h-4" />, color: 'bg-gray-500', textColor: 'text-white' }
 ]
 
-const priorityColors = {
-  low: 'bg-gray-50 dark:bg-gray-800/20 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300',
-  medium: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300',
-  high: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-800 dark:text-red-300'
-}
+// Time slots from 6 AM to 8 PM
+const timeSlots = [
+  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+  '18:00', '19:00', '20:00'
+]
 
 export default function MeetingAgendaStep({ formData, updateFormData }: MeetingAgendaStepProps) {
-  const [meetings, setMeetings] = useState<Meeting[]>(formData.meetings || [])
+  const [events, setEvents] = useState<CalendarEvent[]>(formData.meetings || [])
+  const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
+  const [showEventModal, setShowEventModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   // Generate array of dates between start and end date for the trip
   const getTripDates = (): string[] => {
@@ -54,351 +73,497 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
     return dates
   }
 
-  // Add a new meeting/event
-  const addMeeting = () => {
-    const tripDates = getTripDates()
-    const newMeeting: Meeting = {
-      id: `meeting_${Date.now()}`,
-      title: '',
-      type: 'conference_session',
-      date: tripDates[0] || formData.startDate?.toISOString().split('T')[0] || '',
-      startTime: '09:00',
-      endTime: '10:00',
-      location: '',
-      attendees: '',
-      description: '',
-      priority: 'medium',
-      notes: ''
-    }
-
-    const updatedMeetings = [...meetings, newMeeting]
-    setMeetings(updatedMeetings)
-    updateFormData({ meetings: updatedMeetings })
+  // Handle opening the event creation modal
+  const handleTimeSlotClick = (date: string, timeSlot: string) => {
+    setSelectedDate(date)
+    setSelectedTimeSlot(timeSlot)
+    setEditingEvent(null)
+    setShowEventModal(true)
   }
 
-  // Update meeting information
-  const updateMeeting = (meetingId: string, updates: Partial<Meeting>) => {
-    const updatedMeetings = meetings.map(meeting =>
-      meeting.id === meetingId ? { ...meeting, ...updates } : meeting
-    )
+  // Handle editing an existing event
+  const handleEditEvent = (event: CalendarEvent) => {
+    setEditingEvent(event)
+    setSelectedDate(event.date)
+    setSelectedTimeSlot(event.startTime)
+    setShowEventModal(true)
+  }
+
+  // Save an event (create or update)
+  const saveEvent = (eventData: Partial<CalendarEvent>) => {
+    const updatedEvents = [...events]
     
-    setMeetings(updatedMeetings)
-    updateFormData({ meetings: updatedMeetings })
-  }
-
-  // Remove a meeting
-  const removeMeeting = (meetingId: string) => {
-    const updatedMeetings = meetings.filter(meeting => meeting.id !== meetingId)
-    setMeetings(updatedMeetings)
-    updateFormData({ meetings: updatedMeetings })
-  }
-
-  // Group meetings by date
-  const meetingsByDate = meetings.reduce((acc, meeting) => {
-    if (!acc[meeting.date]) {
-      acc[meeting.date] = []
+    if (editingEvent) {
+      // Update existing event
+      const index = updatedEvents.findIndex(e => e.id === editingEvent.id)
+      if (index !== -1) {
+        updatedEvents[index] = { ...updatedEvents[index], ...eventData }
+      }
+    } else {
+      // Create new event
+      const newEvent: CalendarEvent = {
+        id: `event_${Date.now()}`,
+        title: eventData.title || '',
+        type: eventData.type || 'meeting',
+        date: selectedDate,
+        startTime: selectedTimeSlot,
+        endTime: eventData.endTime || selectedTimeSlot,
+        priority: 'medium',
+        ...eventData
+      }
+      updatedEvents.push(newEvent)
     }
-    acc[meeting.date].push(meeting)
-    return acc
-  }, {} as Record<string, Meeting[]>)
+    
+    setEvents(updatedEvents)
+    updateFormData({ 
+      meetings: updatedEvents,
+      // Also update hotels and flights arrays for proper form data structure
+      hotels: updatedEvents.filter(e => e.type === 'hotel').map(e => ({
+        id: e.id,
+        name: e.hotelName || e.title,
+        address: e.hotelAddress || e.location,
+        checkInDate: e.checkIn,
+        checkOutDate: e.checkOut,
+        notes: e.notes
+      })),
+      flights: updatedEvents.filter(e => e.type === 'flight').map(e => ({
+        id: e.id,
+        airline: e.airline,
+        flightNumber: e.flightNumber,
+        departure: e.departure,
+        arrival: e.arrival,
+        notes: e.notes
+      }))
+    })
+    setShowEventModal(false)
+  }
 
-  // Sort meetings by time within each date
-  Object.keys(meetingsByDate).forEach(date => {
-    meetingsByDate[date].sort((a, b) => a.startTime.localeCompare(b.startTime))
-  })
+  // Remove an event
+  const removeEvent = (eventId: string) => {
+    const updatedEvents = events.filter(e => e.id !== eventId)
+    setEvents(updatedEvents)
+    updateFormData({ meetings: updatedEvents })
+  }
+
+  // Get events for a specific date and time slot
+  const getEventsForSlot = (date: string, timeSlot: string): CalendarEvent[] => {
+    return events.filter(event => 
+      event.date === date && 
+      event.startTime <= timeSlot && 
+      (event.endTime >= timeSlot || event.startTime === timeSlot)
+    )
+  }
 
   const tripDates = getTripDates()
-  const totalMeetings = meetings.length
-  const highPriorityMeetings = meetings.filter(m => m.priority === 'high').length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full">
       <div>
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
           <Calendar className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
-          Meetings & Agenda Planning
+          Meetings & Schedule
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Plan your conference sessions, meetings, and networking events.
+          Click on any time slot to add flights, hotels, meetings, lunches, or dinners. All scheduling is handled here.
         </p>
+      </div>
 
-        {/* Summary Stats */}
-        {meetings.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center">
-                <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Total Events</p>
-                  <p className="text-lg font-bold text-blue-900 dark:text-blue-300">{totalMeetings}</p>
-                </div>
-              </div>
+      {/* Calendar Grid */}
+      {tripDates.length > 0 ? (
+        <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+          {/* Header with dates */}
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-200 dark:border-[#2a2a2a]">
+            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] font-medium text-sm text-gray-700 dark:text-gray-300">
+              Time
             </div>
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
-              <div className="flex items-center">
-                <FileText className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-red-900 dark:text-red-300">High Priority</p>
-                  <p className="text-lg font-bold text-red-900 dark:text-red-300">{highPriorityMeetings}</p>
+            {tripDates.slice(0, 6).map(date => {
+              const dateObj = new Date(date)
+              const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
+              const dayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              
+              return (
+                <div key={date} className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
+                  <div className="font-medium text-sm text-gray-900 dark:text-white">{dayName}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{dayMonth}</div>
                 </div>
-              </div>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-green-900 dark:text-green-300">Days Covered</p>
-                  <p className="text-lg font-bold text-green-900 dark:text-green-300">
-                    {Object.keys(meetingsByDate).length} / {tripDates.length}
-                  </p>
-                </div>
-              </div>
-            </div>
+              )
+            })}
           </div>
-        )}
 
-        {/* Daily Agenda View */}
-        {tripDates.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4">Daily Agenda</h3>
-            <div className="space-y-4">
-              {tripDates.map(date => {
-                const dayMeetings = meetingsByDate[date] || []
-                const dateObj = new Date(date)
-                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
-                const dayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                
-                return (
-                  <div key={date} className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-gray-900 dark:text-white">
-                        {dayName}, {dayMonth}
-                      </h4>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {dayMeetings.length} event{dayMeetings.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    
-                    {dayMeetings.length > 0 ? (
-                      <div className="space-y-2">
-                        {dayMeetings.map(meeting => {
-                          const meetingType = meetingTypes.find(t => t.value === meeting.type)
-                          return (
-                            <div key={meeting.id} className={`p-3 rounded border ${priorityColors[meeting.priority]}`}>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <span>{meetingType?.icon}</span>
-                                  <span className="font-medium">{meeting.title || 'Untitled Event'}</span>
-                                  <span className="text-xs px-2 py-1 rounded bg-white dark:bg-gray-800 border">
-                                    {meetingType?.label}
-                                  </span>
-                                </div>
-                                <div className="flex items-center space-x-2 text-sm">
-                                  <Clock className="w-3 h-3" />
-                                  <span>{meeting.startTime} - {meeting.endTime}</span>
-                                </div>
-                              </div>
-                              {meeting.location && (
-                                <div className="mt-1 flex items-center space-x-1 text-sm">
-                                  <MapPin className="w-3 h-3" />
-                                  <span>{meeting.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">No events scheduled</p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Meeting List */}
-        <div className="space-y-6">
-          {meetings.map((meeting, index) => {
-            const meetingType = meetingTypes.find(t => t.value === meeting.type)
-            
-            return (
-              <div key={meeting.id} className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-md font-medium text-gray-900 dark:text-white">
-                    Event {index + 1}
-                  </h3>
-                  {meetings.length > 1 && (
-                    <button
-                      onClick={() => removeMeeting(meeting.id)}
-                      className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+          {/* Time slots grid */}
+          <div className="max-h-96 overflow-y-auto">
+            {timeSlots.map(timeSlot => (
+              <div key={timeSlot} className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-100 dark:border-gray-700">
+                <div className="p-2 bg-gray-50 dark:bg-[#2a2a2a] text-xs font-medium text-gray-600 dark:text-gray-400 text-center">
+                  {timeSlot}
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Event Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={meeting.title}
-                      onChange={(e) => updateMeeting(meeting.id, { title: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                      placeholder="e.g., Opening Keynote - Future of Coffee Industry"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Event Type *
-                    </label>
-                    <select
-                      value={meeting.type}
-                      onChange={(e) => updateMeeting(meeting.id, { type: e.target.value as Meeting['type'] })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                {tripDates.slice(0, 6).map(date => {
+                  const slotEvents = getEventsForSlot(date, timeSlot)
+                  
+                  return (
+                    <div
+                      key={`${date}-${timeSlot}`}
+                      className="p-1 min-h-[60px] border-r border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                      onClick={() => handleTimeSlotClick(date, timeSlot)}
                     >
-                      {meetingTypes.map(type => (
-                        <option key={type.value} value={type.value}>
-                          {type.icon} {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Priority
-                    </label>
-                    <select
-                      value={meeting.priority}
-                      onChange={(e) => updateMeeting(meeting.id, { priority: e.target.value as Meeting['priority'] })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                    >
-                      <option value="low">Low Priority</option>
-                      <option value="medium">Medium Priority</option>
-                      <option value="high">High Priority</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Date *
-                    </label>
-                    <select
-                      value={meeting.date}
-                      onChange={(e) => updateMeeting(meeting.id, { date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                    >
-                      {tripDates.map(date => {
-                        const dateObj = new Date(date)
-                        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
-                        const dayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      {slotEvents.map(event => {
+                        const eventType = eventTypes.find(t => t.value === event.type)
+                        
                         return (
-                          <option key={date} value={date}>
-                            {dayName}, {dayMonth}
-                          </option>
+                          <div
+                            key={event.id}
+                            className={`text-xs p-1 rounded mb-1 flex items-center justify-between ${eventType?.color} ${eventType?.textColor}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditEvent(event)
+                            }}
+                          >
+                            <div className="flex items-center space-x-1 flex-1 min-w-0">
+                              {eventType?.icon}
+                              <span className="truncate">{event.title || eventType?.label}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                removeEvent(event.id)
+                              }}
+                              className="ml-1 hover:bg-black/10 rounded p-0.5 flex-shrink-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         )
                       })}
-                    </select>
-                  </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          Please set trip dates to view the calendar.
+        </div>
+      )}
 
+      {/* Event Creation/Edit Modal */}
+      {showEventModal && (
+        <EventModal
+          event={editingEvent}
+          date={selectedDate}
+          timeSlot={selectedTimeSlot}
+          onSave={saveEvent}
+          onCancel={() => setShowEventModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Event Modal Component for creating/editing events
+const EventModal: React.FC<{
+  event: CalendarEvent | null
+  date: string
+  timeSlot: string
+  onSave: (eventData: Partial<CalendarEvent>) => void
+  onCancel: () => void
+}> = ({ event, date, timeSlot, onSave, onCancel }) => {
+  const [formData, setFormData] = useState({
+    title: event?.title || '',
+    type: event?.type || 'meeting',
+    startTime: event?.startTime || timeSlot,
+    endTime: event?.endTime || timeSlot,
+    location: event?.location || '',
+    attendees: event?.attendees || '',
+    description: event?.description || '',
+    notes: event?.notes || '',
+    // Flight specific
+    airline: event?.airline || '',
+    flightNumber: event?.flightNumber || '',
+    departure: event?.departure || { airport: '', city: '' },
+    arrival: event?.arrival || { airport: '', city: '' },
+    // Hotel specific
+    hotelName: event?.hotelName || '',
+    hotelAddress: event?.hotelAddress || '',
+    checkIn: event?.checkIn || date,
+    checkOut: event?.checkOut || date,
+  })
+
+  const selectedEventType = eventTypes.find(t => t.value === formData.type)
+  const isFlightType = formData.type === 'flight'
+  const isHotelType = formData.type === 'hotel'
+
+  const handleSave = () => {
+    onSave(formData)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-gray-200 dark:border-[#2a2a2a] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {event ? 'Edit Event' : 'Add Event'} - {new Date(date).toLocaleDateString()}
+            </h3>
+            <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Event Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Event Type *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {eventTypes.map(type => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, type: type.value as any }))}
+                    className={`p-2 rounded-lg border text-sm font-medium flex items-center justify-center space-x-1 ${
+                      formData.type === type.value 
+                        ? `${type.color} ${type.textColor} border-transparent`
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {type.icon}
+                    <span>{type.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                placeholder={`e.g., ${selectedEventType?.label}`}
+              />
+            </div>
+
+            {/* Time inputs */}
+            {!isHotelType && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Flight specific fields */}
+            {isFlightType && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Start Time *
-                    </label>
-                    <input
-                      type="time"
-                      value={meeting.startTime}
-                      onChange={(e) => updateMeeting(meeting.id, { startTime: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      End Time *
-                    </label>
-                    <input
-                      type="time"
-                      value={meeting.endTime}
-                      onChange={(e) => updateMeeting(meeting.id, { endTime: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      Location
+                      Airline
                     </label>
                     <input
                       type="text"
-                      value={meeting.location}
-                      onChange={(e) => updateMeeting(meeting.id, { location: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                      placeholder="e.g., Conference Hall A, Zurich Convention Center"
+                      value={formData.airline}
+                      onChange={(e) => setFormData(prev => ({ ...prev, airline: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                      placeholder="e.g., Swiss Air"
                     />
                   </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                      <Users className="w-4 h-4 mr-1" />
-                      Attendees
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Flight Number
                     </label>
                     <input
                       type="text"
-                      value={meeting.attendees}
-                      onChange={(e) => updateMeeting(meeting.id, { attendees: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                      placeholder="e.g., Industry experts, Coffee producers, Daniel Wolthers"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={meeting.description || ''}
-                      onChange={(e) => updateMeeting(meeting.id, { description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                      placeholder="Brief description of the event, objectives, or key topics..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Notes
-                    </label>
-                    <textarea
-                      value={meeting.notes || ''}
-                      onChange={(e) => updateMeeting(meeting.id, { notes: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                      placeholder="Preparation notes, follow-up actions, or important reminders..."
-                      rows={2}
+                      value={formData.flightNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, flightNumber: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                      placeholder="e.g., LX123"
                     />
                   </div>
                 </div>
-              </div>
-            )
-          })}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Departure Airport
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.departure.airport}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        departure: { ...prev.departure, airport: e.target.value } 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                      placeholder="e.g., ZUR"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Arrival Airport
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.arrival.airport}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        arrival: { ...prev.arrival, airport: e.target.value } 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                      placeholder="e.g., JFK"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
-          {/* Add Meeting Button */}
-          <button
-            onClick={addMeeting}
-            className="w-full p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
-          >
-            <div className="flex items-center justify-center text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-              <Plus className="w-5 h-5 mr-2" />
-              <span className="font-medium">Add Event to Agenda</span>
+            {/* Hotel specific fields */}
+            {isHotelType && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hotel Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.hotelName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, hotelName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                    placeholder="e.g., Hotel Schweizerhof"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Check In
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.checkIn}
+                      onChange={(e) => setFormData(prev => ({ ...prev, checkIn: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Check Out
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.checkOut}
+                      onChange={(e) => setFormData(prev => ({ ...prev, checkOut: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Location */}
+            {!isFlightType && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={isHotelType ? formData.hotelAddress : formData.location}
+                  onChange={(e) => setFormData(prev => 
+                    isHotelType 
+                      ? { ...prev, hotelAddress: e.target.value }
+                      : { ...prev, location: e.target.value }
+                  )}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                  placeholder={isHotelType ? "Hotel address" : "Event location"}
+                />
+              </div>
+            )}
+
+            {/* Attendees (for meetings) */}
+            {!isFlightType && !isHotelType && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Attendees
+                </label>
+                <input
+                  type="text"
+                  value={formData.attendees}
+                  onChange={(e) => setFormData(prev => ({ ...prev, attendees: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                  placeholder="Who will attend?"
+                />
+              </div>
+            )}
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                rows={3}
+                placeholder="Event description..."
+              />
             </div>
-          </button>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                rows={2}
+                placeholder="Additional notes..."
+              />
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-gray-200 dark:border-[#2a2a2a]">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              {event ? 'Update' : 'Add'} Event
+            </button>
+          </div>
         </div>
       </div>
     </div>

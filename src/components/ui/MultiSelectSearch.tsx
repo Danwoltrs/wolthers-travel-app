@@ -18,6 +18,7 @@ interface MultiSelectSearchProps {
   emptyMessage?: string
   className?: string
   disabled?: boolean
+  maxDisplayItems?: number
 }
 
 export default function MultiSelectSearch({
@@ -28,7 +29,8 @@ export default function MultiSelectSearch({
   searchPlaceholder = "Search...",
   emptyMessage = "No options found",
   className,
-  disabled = false
+  disabled = false,
+  maxDisplayItems = 5
 }: MultiSelectSearchProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -112,12 +114,12 @@ export default function MultiSelectSearch({
             <span className="text-gray-500 dark:text-gray-400">{placeholder}</span>
           ) : (
             <div className="flex flex-wrap gap-1">
-              {selectedOptions.map(option => (
+              {selectedOptions.slice(0, maxDisplayItems).map(option => (
                 <span
                   key={option.id}
                   className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm rounded"
                 >
-                  {option.label}
+                  <span className="truncate max-w-[120px]">{option.label}</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -125,12 +127,17 @@ export default function MultiSelectSearch({
                       removeOption(option.id)
                     }}
                     disabled={disabled}
-                    className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 flex-shrink-0"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               ))}
+              {selectedOptions.length > maxDisplayItems && (
+                <span className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm rounded">
+                  +{selectedOptions.length - maxDisplayItems} more
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -142,7 +149,7 @@ export default function MultiSelectSearch({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg shadow-lg max-h-[600px] overflow-hidden">
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg shadow-lg max-h-[500px] overflow-hidden">
           {/* Search Input */}
           <div className="p-3 border-b border-gray-200 dark:border-[#2a2a2a]">
             <div className="relative">
@@ -160,7 +167,7 @@ export default function MultiSelectSearch({
           </div>
 
           {/* Options List */}
-          <div className="max-h-[500px] overflow-y-auto">
+          <div className="max-h-[400px] overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                 {emptyMessage}
