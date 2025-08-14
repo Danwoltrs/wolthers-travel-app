@@ -143,7 +143,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           // Close modal and show success
           setShowDeleteConfirm(false)
           // Show success message briefly
-          await alert('Trip deleted successfully!', 'Success', 'success')
+          await alert('Trip deleted successfully - reloading dashboard', '', 'success')
           // Force a full page reload to update the trips list
           window.location.reload()
         } else {

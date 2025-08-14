@@ -122,7 +122,7 @@ export function AlertModal({
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-sm text-pearl-600 mt-2">
+            <DialogDescription className="text-sm text-amber-400 mt-2">
               {description}
             </DialogDescription>
           )}
