@@ -106,5 +106,10 @@ export function useWolthersStaff() {
     fetchWolthersStaff()
   }, [])
 
-  return { staff, loading, error }
+  return { 
+    staff, 
+    wolthersStaff: staff, // Alias for backwards compatibility
+    loading, 
+    error 
+  }
 }
