@@ -27,7 +27,8 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
           // Convert date strings back to Date objects
           const eventsWithDates = data.events.map((event: any) => ({
             ...event,
-            date: new Date(event.date)
+            date: new Date(event.date),
+            endDate: event.endDate ? new Date(event.endDate) : undefined
           }));
           setEvents(eventsWithDates);
         } else {
@@ -57,7 +58,8 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
           // Convert date strings back to Date objects
           const eventsWithDates = data.events.map((event: any) => ({
             ...event,
-            date: new Date(event.date)
+            date: new Date(event.date),
+            endDate: event.endDate ? new Date(event.endDate) : undefined
           }));
           setEvents(eventsWithDates);
         } else {
@@ -103,13 +105,14 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
 
   const selectConvention = (event: CoffeeEvent) => {
     if (updateFormData) {
+      const endDate = event.endDate || event.date;
       const eventData = {
         id: event.id,
         name: event.name,
         organization: event.organization || 'Coffee Industry Event',
         description: event.description || `Professional coffee industry event: ${event.name}`,
         startDate: event.date.toISOString().split('T')[0],
-        endDate: event.date.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
         location: {
           name: event.location,
           city: event.location,
@@ -124,7 +127,7 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
         selectedConvention: eventData,
         title: `${event.name} ${new Date().getFullYear()}`,
         startDate: event.date,
-        endDate: event.date,
+        endDate: endDate,
         description: event.description || `Business trip for ${event.name}`
       });
     }
@@ -163,7 +166,12 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
             <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
               <div className="flex items-center space-x-1">
                 <Calendar className="w-3 h-3" />
-                <span>{event.date.toLocaleDateString()}</span>
+                <span>
+                  {event.date.toLocaleDateString()}
+                  {event.endDate && event.endDate.getTime() !== event.date.getTime() && 
+                    ` - ${event.endDate.toLocaleDateString()}`
+                  }
+                </span>
               </div>
               <div className="flex items-center space-x-1">
                 <MapPin className="w-3 h-3" />

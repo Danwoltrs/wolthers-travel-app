@@ -18,7 +18,8 @@ export async function GET(request: Request) {
     // Convert Date objects to ISO strings for JSON serialization
     const serializedEvents = events.map(event => ({
       ...event,
-      date: event.date.toISOString()
+      date: event.date.toISOString(),
+      endDate: event.endDate ? event.endDate.toISOString() : undefined
     }));
 
     return NextResponse.json({
@@ -34,7 +35,8 @@ export async function GET(request: Request) {
     const fallbackEvents = await scrapeCoffeeEvents(false);
     const serializedFallbackEvents = fallbackEvents.map(event => ({
       ...event,
-      date: event.date.toISOString()
+      date: event.date.toISOString(),
+      endDate: event.endDate ? event.endDate.toISOString() : undefined
     }));
     
     return NextResponse.json({

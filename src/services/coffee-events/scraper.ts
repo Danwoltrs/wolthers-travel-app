@@ -7,6 +7,7 @@ export const CoffeeEventSchema = z.object({
   id: z.string(),
   name: z.string(),
   date: z.date(),
+  endDate: z.date().optional(),
   location: z.string(),
   url: z.string(),
   organization: z.string().optional(),
@@ -453,7 +454,8 @@ export class CoffeeEventScraper {
           {
             id: 'scta-forum-dinner-2025',
             name: '16th SCTA Coffee Forum & Dinner 2025',
-            date: new Date('2025-10-02'),
+            date: new Date('2025-10-01'),
+            endDate: new Date('2025-10-03'),
             location: 'Basel, Switzerland',
             url: 'https://www.sc-ta.ch/events/forum-dinner-2025/',
             organization: 'Swiss Coffee Trade Association (SCTA)',
