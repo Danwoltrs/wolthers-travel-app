@@ -157,22 +157,22 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
   const tripDates = getTripDates()
 
   return (
-    <div className="space-y-6 h-full">
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+    <div className="flex flex-col h-full min-h-[80vh]">
+      <div className="flex-shrink-0 mb-3">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-1 flex items-center">
           <Calendar className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
           Meetings & Schedule
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Click on any time slot to add flights, hotels, meetings, lunches, or dinners. All scheduling is handled here.
         </p>
       </div>
 
       {/* Calendar Grid */}
       {tripDates.length > 0 ? (
-        <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+        <div className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden flex flex-col">
           {/* Header with dates */}
-          <div className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-200 dark:border-[#2a2a2a] flex-shrink-0">
             <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] font-medium text-sm text-gray-700 dark:text-gray-300">
               Time
             </div>
@@ -190,11 +190,11 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
             })}
           </div>
 
-          {/* Time slots grid */}
-          <div className="max-h-96 overflow-y-auto">
+          {/* Time slots grid - now takes full remaining height */}
+          <div className="flex-1 overflow-y-auto">
             {timeSlots.map(timeSlot => (
               <div key={timeSlot} className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-100 dark:border-gray-700">
-                <div className="p-2 bg-gray-50 dark:bg-[#2a2a2a] text-xs font-medium text-gray-600 dark:text-gray-400 text-center">
+                <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] text-sm font-medium text-gray-600 dark:text-gray-400 text-center min-h-[100px] flex items-center justify-center">
                   {timeSlot}
                 </div>
                 {tripDates.slice(0, 6).map(date => {
@@ -203,7 +203,7 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
                   return (
                     <div
                       key={`${date}-${timeSlot}`}
-                      className="p-1 min-h-[60px] border-r border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                      className="p-2 min-h-[100px] border-r border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
                       onClick={() => handleTimeSlotClick(date, timeSlot)}
                     >
                       {slotEvents.map(event => {
@@ -242,7 +242,7 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+        <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
           Please set trip dates to view the calendar.
         </div>
       )}
