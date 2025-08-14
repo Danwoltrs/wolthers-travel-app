@@ -305,7 +305,7 @@ export function OutlookCalendar({
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
         {/* Calendar Header */}
         <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-4 py-2">
-          <p className="text-sm text-golden-400/90">
+          <p className="text-sm text-golden-400/90 text-center">
             Drag activities to reschedule • Click empty slots to add activities
           </p>
         </div>
