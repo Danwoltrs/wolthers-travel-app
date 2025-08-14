@@ -12,6 +12,42 @@ export function useTrips() {
   
   const { isAuthenticated, session, user } = useAuth()
 
+  // Helper function to fetch activity counts for trips
+  const fetchActivityCounts = async (tripIds: string[]) => {
+    try {
+      const activityCounts: { [tripId: string]: { meetings: number, visits: number, confirmed: number } } = {}
+      
+      // Fetch activity counts for each trip using our activities API
+      for (const tripId of tripIds) {
+        try {
+          const response = await fetch(`/api/activities?tripId=${tripId}`, {
+            method: 'GET',
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            const activities = await response.json()
+            const meetings = activities.filter((a: any) => a.type === 'meeting').length
+            const visits = activities.filter((a: any) => a.type === 'meeting' || a.type === 'event').length
+            const confirmed = activities.filter((a: any) => a.is_confirmed).length
+            
+            activityCounts[tripId] = { meetings, visits, confirmed }
+          } else {
+            activityCounts[tripId] = { meetings: 0, visits: 0, confirmed: 0 }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch activities for trip ${tripId}:`, err)
+          activityCounts[tripId] = { meetings: 0, visits: 0, confirmed: 0 }
+        }
+      }
+      
+      return activityCounts
+    } catch (err) {
+      console.error('Error fetching activity counts:', err)
+      return {}
+    }
+  }
+
   useEffect(() => {
     // Don't fetch if not authenticated
     if (!isAuthenticated || !session || !user) {
@@ -211,6 +247,11 @@ export function useTrips() {
           // Data is already enriched from API with participants, vehicles, and itinerary items
           // No need for additional database queries
 
+          // Fetch activity counts for all trips
+          console.log('useTrips: Fetching activity counts for trips...')
+          const tripIds = data.map((trip: any) => trip.id).filter(Boolean)
+          const activityCounts = await fetchActivityCounts(tripIds)
+          
           // Transform the data to match TripCard interface
           console.log('useTrips: Starting trip transformation...')
           const transformedTrips: TripCard[] = data.map((trip: any, index: number) => {
@@ -282,9 +323,16 @@ export function useTrips() {
                 email: v.users?.email
               }))
 
-            // Calculate stats for this trip (already nested from API)
+            // Get activity counts for this trip
+            const tripActivityCounts = activityCounts[trip.id] || { meetings: 0, visits: 0, confirmed: 0 }
+            
+            // Calculate stats for this trip (use new activity counts)
+            const visitCount = tripActivityCounts.visits
+            const meetingCount = tripActivityCounts.meetings
+            const confirmedCount = tripActivityCounts.confirmed
+            
+            // Keep legacy itinerary items for notes count if needed
             const tripItems = trip.itinerary_items || []
-            const visitCount = tripItems.filter(item => item.activity_type === 'visit').length
             const notesCount = tripItems.reduce((total, item) => {
               return total + (item.meeting_notes?.length || 0)
             }, 0)
@@ -323,29 +371,40 @@ export function useTrips() {
           console.log('useTrips: Trips set in state successfully')
         } else {
           console.log('useTrips: No trip data found or empty array')
-          // If no enhanced data available, create basic trip cards
-          const basicTrips: TripCard[] = data?.map((trip: any) => ({
-            id: trip.id,
-            title: trip.title,
-            subject: trip.description || '',
-            client: [],
-            guests: [],
-            wolthersStaff: [],
-            vehicles: [],
-            drivers: [],
-            startDate: new Date(trip.start_date),
-            endDate: new Date(trip.end_date),
-            duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
-            status: trip.status,
-            progress: 0,
-            notesCount: 0,
-            visitCount: 0,
-            accessCode: trip.access_code,
-            draftId: trip.draftId || null,
-            isDraft: trip.isDraft || false
-          })) || []
-          
-          setTrips(basicTrips)
+          // If no enhanced data available, create basic trip cards with activity counts
+          if (data && data.length > 0) {
+            const tripIds = data.map((trip: any) => trip.id).filter(Boolean)
+            const activityCounts = await fetchActivityCounts(tripIds)
+            
+            const basicTrips: TripCard[] = data?.map((trip: any) => {
+              const tripActivityCounts = activityCounts[trip.id] || { meetings: 0, visits: 0, confirmed: 0 }
+              
+              return {
+                id: trip.id,
+                title: trip.title,
+                subject: trip.description || '',
+                client: [],
+                guests: [],
+                wolthersStaff: [],
+                vehicles: [],
+                drivers: [],
+                startDate: new Date(trip.start_date),
+                endDate: new Date(trip.end_date),
+                duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+                status: trip.status,
+                progress: 0,
+                notesCount: 0,
+                visitCount: tripActivityCounts.visits,
+                accessCode: trip.access_code,
+                draftId: trip.draftId || null,
+                isDraft: trip.isDraft || false
+              }
+            }) || []
+            
+            setTrips(basicTrips)
+          } else {
+            setTrips([])
+          }
         }
       } catch (err) {
         console.error('Error fetching trips:', err)
