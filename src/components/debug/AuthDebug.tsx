@@ -21,7 +21,7 @@ export default function AuthDebug() {
   }, [])
 
   return (
-    <div className="fixed bottom-4 right-4 bg-black/80 text-white text-xs p-3 rounded max-w-sm z-50">
+    <div className="hidden lg:block fixed bottom-4 right-4 bg-black/80 text-white text-xs p-3 rounded max-w-sm z-50">
       <h3 className="font-bold mb-2">Auth Debug</h3>
       <div className="space-y-1">
         <div>Loading: {isLoading ? 'Yes' : 'No'}</div>

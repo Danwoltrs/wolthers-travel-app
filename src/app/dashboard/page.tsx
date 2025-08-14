@@ -210,7 +210,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-40 xl:pt-40 pb-8 transition-colors duration-300">
+    <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 xl:pt-40 pb-8 transition-colors duration-300">
       {/* Fixed Add Trip Button fine-tuned positioning */}
       <div className="fixed left-[calc(max(2rem,(100vw-80rem)/2)+2rem+30px)] top-[calc(160px+72px+24px+2px)] z-40 hidden xl:block">
         <div
@@ -224,11 +224,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Mobile Fixed Add Trip Button */}
-      <div className={cn(
-        "fixed left-0 right-0 z-50 px-10 sm:px-12 md:px-20 lg:px-20 xl:hidden transition-all duration-300",
-        isMenuOpen ? "top-[520px]" : "top-[125px]"
-      )}>
+      {/* Mobile Add Trip Button - positioned in content flow */}
+      <div className="xl:hidden px-4 sm:px-6 lg:px-8 mb-6">
         <div
           onClick={handleCreateTrip}
           className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 w-full h-[50px]"
