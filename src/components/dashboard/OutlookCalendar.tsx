@@ -9,7 +9,7 @@
  * - Click-to-add functionality on time slots
  */
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Plus, Clock, MapPin, User, Check } from 'lucide-react'
@@ -56,11 +56,17 @@ const TIME_SLOTS: TimeSlot[] = Array.from({ length: 16 }, (_, index) => {
 
 function ActivityCard({ 
   activity, 
-  onEdit 
+  onEdit,
+  onResize
 }: { 
   activity: Activity
   onEdit: (activity: Activity) => void 
+  onResize?: (activity: Activity, newStartTime: string, newEndTime: string) => void
 }) {
+  const [isResizing, setIsResizing] = useState(false)
+  const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  
   const [{ isDragging }, drag] = useDrag({
     type: ITEM_TYPE,
     item: {
@@ -72,6 +78,7 @@ function ActivityCard({
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+    canDrag: () => !isResizing, // Prevent drag when resizing
   })
 
   const getTypeColor = (type: string) => {
@@ -89,21 +96,109 @@ function ActivityCard({
   const duration = activity.start_time && activity.end_time ? 
     calculateDuration(activity.start_time, activity.end_time) : 1
 
+  // Handle resize functionality
+  const handleResizeStart = (type: 'top' | 'bottom', event: React.MouseEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    setIsResizing(true)
+    setResizeType(type)
+    
+    const startY = event.clientY
+    const startTime = activity.start_time || '09:00'
+    const endTime = activity.end_time || '10:00'
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = moveEvent.clientY - startY
+      const hoursDelta = Math.round(deltaY / 60) // 60px = 1 hour
+      
+      if (hoursDelta === 0) return
+      
+      let newStartTime = startTime
+      let newEndTime = endTime
+      
+      if (type === 'top') {
+        // Resize from top (change start time)
+        const startHour = parseInt(startTime.split(':')[0])
+        const newStartHour = Math.max(6, Math.min(22, startHour + hoursDelta))
+        newStartTime = `${newStartHour.toString().padStart(2, '0')}:00`
+        
+        // Ensure minimum 1 hour duration
+        const endHour = parseInt(endTime.split(':')[0])
+        if (newStartHour >= endHour) {
+          newStartTime = `${Math.max(6, endHour - 1).toString().padStart(2, '0')}:00`
+        }
+      } else {
+        // Resize from bottom (change end time)
+        const endHour = parseInt(endTime.split(':')[0])
+        const newEndHour = Math.max(7, Math.min(22, endHour + hoursDelta))
+        newEndTime = `${newEndHour.toString().padStart(2, '0')}:00`
+        
+        // Ensure minimum 1 hour duration
+        const startHour = parseInt(startTime.split(':')[0])
+        if (newEndHour <= startHour) {
+          newEndTime = `${Math.min(22, startHour + 1).toString().padStart(2, '0')}:00`
+        }
+      }
+      
+      // Update the activity if we have a resize handler
+      if (onResize && (newStartTime !== startTime || newEndTime !== endTime)) {
+        onResize(activity, newStartTime, newEndTime)
+      }
+    }
+    
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      setResizeType(null)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
+
   return (
     <div
-      ref={drag}
-      onClick={() => onEdit(activity)}
+      ref={(node) => {
+        drag(node)
+        if (cardRef.current !== node) {
+          cardRef.current = node
+        }
+      }}
+      onClick={() => !isResizing && onEdit(activity)}
       className={`
         relative cursor-pointer rounded-md border-l-4 p-2 text-white text-xs
-        transition-all duration-200 hover:shadow-lg
+        transition-all duration-200 hover:shadow-lg group
         ${getTypeColor(activity.type)}
         ${isDragging ? 'opacity-50 transform rotate-2' : 'opacity-100'}
+        ${isResizing ? 'cursor-resizing' : ''}
       `}
       style={{
         height: `${Math.max(duration * 60 - 4, 40)}px`,
         minHeight: '40px'
       }}
     >
+      {/* Top resize handle */}
+      {onResize && (
+        <div
+          className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseDown={(e) => handleResizeStart('top', e)}
+          style={{ zIndex: 10 }}
+        >
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/50 rounded-full" />
+        </div>
+      )}
+      
+      {/* Bottom resize handle */}
+      {onResize && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseDown={(e) => handleResizeStart('bottom', e)}
+          style={{ zIndex: 10 }}
+        >
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/50 rounded-full" />
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="font-medium text-white truncate">
@@ -144,7 +239,8 @@ function TimeSlotComponent({
   activities, 
   onActivityCreate, 
   onActivityEdit,
-  onActivityDrop 
+  onActivityDrop,
+  onActivityResize
 }: {
   timeSlot: TimeSlot
   date: CalendarDay
@@ -152,6 +248,7 @@ function TimeSlotComponent({
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
   onActivityDrop: (item: DragItem, targetDate: string, targetTime: string) => void
+  onActivityResize?: (activity: Activity, newStartTime: string, newEndTime: string) => void
 }) {
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -199,6 +296,7 @@ function TimeSlotComponent({
             key={activity.id}
             activity={activity}
             onEdit={onActivityEdit}
+            onResize={onActivityResize}
           />
         ))}
       </div>
@@ -248,6 +346,18 @@ export function OutlookCalendar({
   }, [trip.startDate, trip.duration])
 
   const activitiesByDate = getActivitiesByDate()
+
+  // Handle activity resize
+  const handleActivityResize = useCallback(async (
+    activity: Activity,
+    newStartTime: string,
+    newEndTime: string
+  ) => {
+    await updateActivity(activity.id, {
+      start_time: newStartTime,
+      end_time: newEndTime
+    })
+  }, [updateActivity])
 
   const handleActivityDrop = useCallback(async (
     item: DragItem, 
@@ -396,6 +506,7 @@ export function OutlookCalendar({
                         onActivityCreate={onActivityCreate}
                         onActivityEdit={onActivityEdit}
                         onActivityDrop={handleActivityDrop}
+                        onActivityResize={handleActivityResize}
                       />
                     </div>
                   ))}
