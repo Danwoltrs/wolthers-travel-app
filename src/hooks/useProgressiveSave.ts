@@ -6,7 +6,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSupabase } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabase-client'
+import { useAuth } from '@/contexts/AuthContext'
 import type { 
   ProgressiveSaveRequest, 
   ProgressiveSaveResponse, 
@@ -25,7 +26,7 @@ export function useProgressiveSave({
   autoSaveDelay = 2000,
   onRealtimeUpdate 
 }: UseProgressiveSaveProps) {
-  const { supabase } = useSupabase()
+  const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({
     isSaving: false,
     status: 'idle',

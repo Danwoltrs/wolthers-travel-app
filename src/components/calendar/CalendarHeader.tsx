@@ -15,8 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid3X3,
-  List,
-  Timeline
+  List
 } from 'lucide-react'
 import type { CalendarViewSettings } from '@/types/enhanced-modal'
 import type { Trip } from '@/types'
@@ -42,7 +41,7 @@ export function CalendarHeader({
   const viewTypeOptions = [
     { value: 'day', label: 'Day', icon: Calendar },
     { value: 'week', label: 'Week', icon: Grid3X3 },
-    { value: 'timeline', label: 'Timeline', icon: Timeline }
+    { value: 'timeline', label: 'Timeline', icon: List }
   ] as const
 
   const timeSlotOptions = [

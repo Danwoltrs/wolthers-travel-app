@@ -730,6 +730,8 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </div>
                 </div>
               </div>
+            </>
+              )}
             </div>
           )}
         </div>

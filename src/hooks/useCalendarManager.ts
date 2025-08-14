@@ -6,7 +6,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { useSupabase } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabase-client'
+import { useAuth } from '@/contexts/AuthContext'
 import { useProgressiveSave } from '@/hooks/useProgressiveSave'
 import type { 
   EnhancedActivity, 
@@ -22,7 +23,7 @@ interface UseCalendarManagerProps {
 }
 
 export function useCalendarManager({ trip, onUpdate }: UseCalendarManagerProps) {
-  const { supabase } = useSupabase()
+  const { user } = useAuth()
   
   // Progressive save functionality
   const { 
