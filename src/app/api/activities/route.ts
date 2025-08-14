@@ -1,13 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verify } from 'jsonwebtoken'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-config'
 
 export async function POST(request: NextRequest) {
+  let user: any = null
+  
   try {
-    // Get session and user
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    // Authentication logic (same as progressive-save route)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    // Try Authorization header first, then cookie
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        // Try Supabase session authentication
+        const supabaseClient = createSupabaseServiceClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -16,18 +64,6 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const activityData = await request.json()
-
-    // Get user from database to ensure we have the correct user ID
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, user_type, is_global_admin')
-      .eq('email', session.user.email)
-      .single()
-
-    if (userError || !user) {
-      console.error('User lookup error:', userError)
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
 
     // Prepare activity data with server-side user ID
     const newActivity = {
@@ -63,10 +99,54 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  let user: any = null
+  
   try {
-    // Get session and user
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    // Authentication logic (same as POST)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -112,10 +192,54 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  let user: any = null
+  
   try {
-    // Get session and user
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    // Authentication logic (same as POST)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
