@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, CheckSquare, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
@@ -13,6 +14,7 @@ interface TripCardProps {
 
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
   const ref = useRef(null)
+  const router = useRouter()
   const [showCopied, setShowCopied] = useState(false)
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -76,7 +78,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       
       if (response.ok) {
         // Refresh the page to show updated trip status
-        window.location.reload()
+        router.refresh()
       } else {
         const error = await response.json()
         alert(`Failed to finalize trip: ${error.message || 'Unknown error'}`)
@@ -98,28 +100,55 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
 
   const confirmDeleteDraft = async () => {
     try {
-      const draftId = (trip as any).draftId || trip.id
-      console.log('Deleting draft with ID:', draftId)
-      console.log('Trip object:', trip)
+      // Check if this has a draft ID or if it's just a planning trip
+      const hasDraftId = !!(trip as any).draftId
       
-      const response = await fetch(`/api/trips/drafts/${draftId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      
-      console.log('Delete response status:', response.status)
-      
-      if (response.ok) {
-        // Refresh the page to remove the deleted draft
-        window.location.reload()
+      if (hasDraftId) {
+        // Delete via draft endpoint
+        const draftId = (trip as any).draftId
+        console.log('Deleting draft with ID:', draftId)
+        
+        const response = await fetch(`/api/trips/drafts/${draftId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+        
+        console.log('Delete draft response status:', response.status)
+        
+        if (response.ok) {
+          // Use router refresh to update without losing auth
+          router.refresh()
+          setShowDeleteConfirm(false)
+        } else {
+          const error = await response.json()
+          console.error('Delete draft error:', error)
+          alert(`Failed to delete draft: ${error.error || 'Unknown error'}`)
+        }
       } else {
-        const error = await response.json()
-        console.error('Delete error response:', error)
-        alert(`Failed to delete draft: ${error.message || 'Unknown error'}`)
+        // Delete the actual trip
+        console.log('Deleting trip with ID:', trip.id)
+        console.log('Trip object:', trip)
+        
+        const response = await fetch(`/api/trips/${trip.id}/delete`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+        
+        console.log('Delete trip response status:', response.status)
+        
+        if (response.ok) {
+          // Use router refresh to update without losing auth
+          router.refresh()
+          setShowDeleteConfirm(false)
+        } else {
+          const error = await response.json()
+          console.error('Delete trip error:', error)
+          alert(`Failed to delete trip: ${error.error || 'Unknown error'}`)
+        }
       }
     } catch (error) {
-      console.error('Failed to delete draft:', error)
-      alert('Failed to delete draft. Please try again.')
+      console.error('Failed to delete:', error)
+      alert('Failed to delete. Please try again.')
     }
   }
   
