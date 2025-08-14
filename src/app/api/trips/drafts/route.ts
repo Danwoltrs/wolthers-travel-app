@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createSupabaseServiceClient()
 
     // Get draft trips
     let draftsQuery = supabase
@@ -226,7 +226,7 @@ export async function DELETE(request: NextRequest) {
 
     console.log('User authenticated:', user.email)
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createSupabaseServiceClient()
 
     // Try to find the draft in trip_drafts table first
     let draft: any = null

@@ -82,22 +82,26 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
     }
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('supabase-token')
+      console.log('Deleting draft with ID:', draftId)
+      
       const response = await fetch(`/api/trips/drafts/${draftId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
+      
+      console.log('Delete response status:', response.status)
 
       if (response.ok) {
         setDrafts(prev => prev.filter(d => d.id !== draftId))
+        console.log('Draft deleted successfully')
       } else {
-        alert('Failed to delete draft')
+        const error = await response.json()
+        console.error('Delete error response:', error)
+        alert(`Failed to delete draft: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Delete error:', error)
-      alert('Failed to delete draft')
+      alert('Failed to delete draft. Please try again.')
     }
   }
 

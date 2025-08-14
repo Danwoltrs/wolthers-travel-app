@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -86,14 +86,22 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       )
     }
 
-    // Initialize Supabase client for database operations
-    const supabase = createServerSupabaseClient()
+    // Initialize Supabase service client for database operations (bypasses RLS)
+    const supabase = createSupabaseServiceClient()
 
-    // Verify the draft belongs to the user
+    // Verify the draft exists and get authorization info
     console.log('🔍 Looking for draft with ID:', draftId, 'for user:', user.email)
     const { data: draft, error: verifyError } = await supabase
       .from('trip_drafts')
-      .select('creator_id, trip_id')
+      .select(`
+        creator_id, 
+        trip_id,
+        users!creator_id (
+          id,
+          email,
+          company_id
+        )
+      `)
       .eq('id', draftId)
       .single()
 
@@ -106,8 +114,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     console.log('✅ Found draft, creator_id:', draft.creator_id, 'user.id:', user.id)
-    if (draft.creator_id !== user.id) {
-      console.error('❌ Permission denied - user does not own draft')
+    
+    // Authorization: Allow deletion if user is draft creator OR company admin in same company
+    const canDelete = 
+      draft.creator_id === user.id || 
+      (user.role === 'company_admin' && user.company_id === draft.users?.company_id)
+
+    if (!canDelete) {
+      console.error('❌ Permission denied - user cannot delete this draft')
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
