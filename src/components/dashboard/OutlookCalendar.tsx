@@ -312,86 +312,88 @@ export function OutlookCalendar({
 
         {/* Calendar Grid */}
         <div className="overflow-x-auto">
-          <div className="min-w-max">
-            {/* Day Headers */}
-            <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
-              gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
-            }}>
-              {/* Time column header */}
-              <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => onExtendTrip('before')}
-                  className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                  title="Add day before trip"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Day columns */}
-              {calendarDays.map((day, index) => (
-                <div
-                  key={day.dateString}
-                  className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center"
-                >
-                  <div className="font-medium text-gray-900 dark:text-gray-100">
-                    {day.dayName}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {day.monthName} {day.dayNumber}
-                  </div>
-                </div>
-              ))}
-
-              {/* Add day after button */}
-              <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => onExtendTrip('after')}
-                  className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                  title="Add day after trip"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Time Slots Grid */}
-            {TIME_SLOTS.map((timeSlot) => (
-              <div
-                key={timeSlot.time}
-                className="grid border-b border-gray-200 dark:border-gray-700"
-                style={{ 
-                  gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
-                }}
-              >
-                {/* Time label */}
-                <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                    {timeSlot.display}
-                  </div>
+          <div className="flex justify-center">
+            <div className="inline-block min-w-max">
+              {/* Day Headers */}
+              <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
+                gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
+              }}>
+                {/* Time column header */}
+                <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => onExtendTrip('before')}
+                    className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    title="Add day before trip"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Day columns */}
-                {calendarDays.map((day) => (
+                {calendarDays.map((day, index) => (
                   <div
-                    key={`${day.dateString}-${timeSlot.time}`}
-                    className="border-r border-gray-200 dark:border-gray-700"
+                    key={day.dateString}
+                    className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center"
                   >
-                    <TimeSlotComponent
-                      timeSlot={timeSlot}
-                      date={day}
-                      activities={activitiesByDate[day.dateString] || []}
-                      onActivityCreate={onActivityCreate}
-                      onActivityEdit={onActivityEdit}
-                      onActivityDrop={handleActivityDrop}
-                    />
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {day.dayName}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {day.monthName} {day.dayNumber}
+                    </div>
                   </div>
                 ))}
 
-                {/* Empty cell for add day after column */}
-                <div className="border-r border-gray-200 dark:border-gray-700" />
+                {/* Add day after button */}
+                <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => onExtendTrip('after')}
+                    className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    title="Add day after trip"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            ))}
+
+              {/* Time Slots Grid */}
+              {TIME_SLOTS.map((timeSlot) => (
+                <div
+                  key={timeSlot.time}
+                  className="grid border-b border-gray-200 dark:border-gray-700"
+                  style={{ 
+                    gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
+                  }}
+                >
+                  {/* Time label */}
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      {timeSlot.display}
+                    </div>
+                  </div>
+
+                  {/* Day columns */}
+                  {calendarDays.map((day) => (
+                    <div
+                      key={`${day.dateString}-${timeSlot.time}`}
+                      className="border-r border-gray-200 dark:border-gray-700"
+                    >
+                      <TimeSlotComponent
+                        timeSlot={timeSlot}
+                        date={day}
+                        activities={activitiesByDate[day.dateString] || []}
+                        onActivityCreate={onActivityCreate}
+                        onActivityEdit={onActivityEdit}
+                        onActivityDrop={handleActivityDrop}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Empty cell for add day after column */}
+                  <div className="border-r border-gray-200 dark:border-gray-700" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
