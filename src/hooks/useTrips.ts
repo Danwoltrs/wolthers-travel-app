@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase, getCachedTrips, cacheTrips, isOnline } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { TripCard, Company } from '@/types'
