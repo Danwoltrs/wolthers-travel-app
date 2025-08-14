@@ -269,6 +269,15 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - "Authentication methos fully implemented with oauth and e-mail"
 - any editing from supabase has to load the current information pre-populated from supabase if it has data, otherwise use a placeholder text
 
+## Important Database Notes
+
+### Trip Draft vs Planning Status
+**CRITICAL:** Trip cards shown as "drafts" in the UI are actually stored as regular trips with `status='planning'` in the database. The `trip_drafts` table is separate and may be empty. When implementing deletion:
+- Trips with `status='planning'` are considered drafts in the UI
+- Delete endpoint should handle actual trip deletion, not draft deletion
+- The `trip_drafts` table is for progressive save functionality during trip creation
+- Always check if a trip has an associated draft_id before attempting draft deletion
+
 ## Trip Creation Workflow Fix - Previous Session Summary
 
 ### **Initial Problems Identified**
