@@ -40,7 +40,7 @@ export function useActivityManager(tripId: string) {
   const [saving, setSaving] = useState(false)
   const { user } = useAuth()
 
-  // Load activities from Supabase
+  // Load activities via API
   const loadActivities = useCallback(async () => {
     if (!tripId) return
 
@@ -48,23 +48,22 @@ export function useActivityManager(tripId: string) {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('trip_id', tripId)
-        .order('activity_date', { ascending: true })
-        .order('start_time', { ascending: true })
+      const response = await fetch(`/api/activities?tripId=${tripId}`, {
+        method: 'GET',
+        credentials: 'include'
+      })
 
-      if (fetchError) {
-        console.error('Error loading activities:', fetchError)
-        setError(`Failed to load activities: ${fetchError.message}`)
-        return
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      console.log('📋 Activities loaded:', {
+      const data = await response.json()
+
+      console.log('📋 Activities loaded via API:', {
         tripId,
         count: data?.length || 0,
-        activities: data?.map(a => ({
+        activities: data?.map((a: any) => ({
           id: a.id,
           title: a.title,
           date: a.activity_date,

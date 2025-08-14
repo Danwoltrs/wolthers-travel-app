@@ -2,6 +2,95 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
+export async function GET(request: NextRequest) {
+  let user: any = null
+  
+  try {
+    // Authentication logic
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get trip ID from query params
+    const url = new URL(request.url)
+    const tripId = url.searchParams.get('tripId')
+
+    if (!tripId) {
+      return NextResponse.json({ error: 'Trip ID is required' }, { status: 400 })
+    }
+
+    // Create server-side Supabase client
+    const supabase = createSupabaseServiceClient()
+
+    // Fetch activities for the trip
+    const { data: activities, error: fetchError } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('activity_date', { ascending: true })
+      .order('start_time', { ascending: true })
+
+    if (fetchError) {
+      console.error('Error fetching activities:', fetchError)
+      return NextResponse.json({ 
+        error: 'Failed to fetch activities', 
+        details: fetchError.message 
+      }, { status: 500 })
+    }
+
+    return NextResponse.json(activities || [])
+  } catch (error) {
+    console.error('API Error:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   let user: any = null
   
