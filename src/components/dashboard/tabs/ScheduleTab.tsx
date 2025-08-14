@@ -261,7 +261,7 @@ export function ScheduleTab({
         
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {itineraryDays.reduce((sum, day) => sum + day.activities.filter(a => a.type === 'visit').length, 0)}
+            0
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
             Visits
@@ -270,7 +270,7 @@ export function ScheduleTab({
         
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {itineraryDays.reduce((sum, day) => sum + day.activities.filter(a => a.status === 'confirmed').length, 0)}
+            0
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
             Confirmed
@@ -279,7 +279,7 @@ export function ScheduleTab({
         
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-            {itineraryDays.length}
+            {trip.duration || 3}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
             Days
