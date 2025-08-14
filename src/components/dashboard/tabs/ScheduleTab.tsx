@@ -8,6 +8,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { useActivityManager, type ActivityFormData } from '@/hooks/useActivityManager'
+import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import type { TripCard, Activity } from '@/types'
 
 interface ScheduleTabProps {
@@ -75,14 +76,23 @@ export function ScheduleTab({
   }, [])
 
   // Handle new activity creation
-  const handleNewActivity = useCallback((date?: string) => {
+  const handleNewActivity = useCallback((timeSlot?: string, date?: string) => {
     setEditingActivity(null)
     setSelectedDate(date || '')
+    
+    // Calculate end time (1 hour after start time)
+    let endTime = ''
+    if (timeSlot) {
+      const [hours, minutes] = timeSlot.split(':').map(Number)
+      const endHour = hours + 1
+      endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    }
+    
     setFormData({
       title: '',
       description: '',
-      start_time: '',
-      end_time: '',
+      start_time: timeSlot || '',
+      end_time: endTime,
       activity_date: date || new Date(trip.startDate).toISOString().split('T')[0],
       type: 'meeting',
       location: '',
@@ -94,6 +104,14 @@ export function ScheduleTab({
     })
     setShowActivityEditor(true)
   }, [trip.startDate])
+
+  // Handle trip extension
+  const handleExtendTrip = useCallback((direction: 'before' | 'after') => {
+    // TODO: Implement trip extension logic
+    console.log(`Extending trip ${direction}`)
+    // This would update the trip dates and duration
+    // For now, we'll just log the action
+  }, [])
 
   // Handle activity save
   const handleActivitySave = useCallback(async () => {
@@ -149,131 +167,13 @@ export function ScheduleTab({
         </div>
       </div>
 
-      {/* Schedule Interface */}
-      <div className="space-y-4">
-        {/* Calendar Header */}
-        <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-4 py-3 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Trip Schedule</h4>
-              <p className="text-sm text-golden-400/70">
-                {trip.duration} days • {trip.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {trip.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </p>
-              {loading && (
-                <p className="text-xs text-golden-400/50 mt-1">Loading activities...</p>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => handleNewActivity()}
-                disabled={saving}
-                className="bg-golden-400 text-gray-900 px-3 py-1.5 rounded text-sm font-medium hover:bg-golden-300 transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : '+ Add Activity'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Daily Schedule Cards */}
-        <div className="space-y-4">
-          {Array.from({ length: trip.duration || 3 }, (_, index) => {
-            const currentDate = new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000)
-            const dateString = currentDate.toISOString().split('T')[0]
-            const dayActivities = activitiesByDate[dateString] || []
-            
-            return (
-              <div key={index} className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
-                <div className="bg-gray-50 dark:bg-[#2a2a2a] px-4 py-2 flex justify-between items-center">
-                  <h5 className="font-medium text-gray-900 dark:text-golden-400">
-                    Day {index + 1} - {currentDate.toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
-                  </h5>
-                  <button 
-                    onClick={() => handleNewActivity(dateString)}
-                    disabled={saving}
-                    className="text-xs px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    + Add
-                  </button>
-                </div>
-                <div className="p-4">
-                  {loading ? (
-                    <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                      <p className="text-sm">Loading activities...</p>
-                    </div>
-                  ) : dayActivities.length > 0 ? (
-                    <div className="space-y-3">
-                      {dayActivities.map((activity) => (
-                        <div 
-                          key={activity.id} 
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-100 dark:hover:bg-[#333] cursor-pointer"
-                          onClick={() => handleActivityEdit(activity)}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-900 dark:text-gray-100">
-                                {activity.title}
-                              </span>
-                              {activity.is_confirmed && (
-                                <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              {activity.start_time && activity.end_time ? 
-                                `${activity.start_time} - ${activity.end_time}` : 
-                                activity.start_time || 'No time set'
-                              }
-                              {activity.location && ` • ${activity.location}`}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              activity.type === 'meeting' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                              activity.type === 'meal' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
-                              activity.type === 'flight' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                              activity.type === 'accommodation' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}>
-                              {activity.type}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      <p className="text-sm">No activities scheduled</p>
-                      <button 
-                        onClick={() => handleNewActivity(dateString)}
-                        disabled={saving}
-                        className="mt-2 text-emerald-600 dark:text-golden-400 hover:text-emerald-700 dark:hover:text-golden-300 text-sm font-medium disabled:opacity-50"
-                      >
-                        + Add first activity
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Add Days Section */}
-        <div className="grid grid-cols-2 gap-4">
-          <button className="flex items-center justify-center space-x-2 p-4 border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-golden-400 transition-colors">
-            <span className="text-lg">+</span>
-            <span className="text-sm font-medium">Add Days Before Trip</span>
-          </button>
-          <button className="flex items-center justify-center space-x-2 p-4 border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-golden-400 transition-colors">
-            <span className="text-lg">+</span>
-            <span className="text-sm font-medium">Add Days After Trip</span>
-          </button>
-        </div>
-      </div>
+      {/* Outlook-Style Calendar */}
+      <OutlookCalendar
+        trip={trip}
+        onExtendTrip={handleExtendTrip}
+        onActivityCreate={handleNewActivity}
+        onActivityEdit={handleActivityEdit}
+      />
 
       {/* Activity Editor Modal */}
       {showActivityEditor && (
