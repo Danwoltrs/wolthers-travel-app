@@ -116,9 +116,10 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         console.log('Delete draft response status:', response.status)
         
         if (response.ok) {
-          // Use router refresh to update without losing auth
-          router.refresh()
+          // Close modal and trigger page refresh
           setShowDeleteConfirm(false)
+          // Force a full page reload to update the trips list
+          window.location.reload()
         } else {
           const error = await response.json()
           console.error('Delete draft error:', error)
@@ -137,9 +138,12 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         console.log('Delete trip response status:', response.status)
         
         if (response.ok) {
-          // Use router refresh to update without losing auth
-          router.refresh()
+          // Close modal and show success
           setShowDeleteConfirm(false)
+          // Show success message briefly
+          alert('Trip deleted successfully!')
+          // Force a full page reload to update the trips list
+          window.location.reload()
         } else {
           const error = await response.json()
           console.error('Delete trip error:', error)

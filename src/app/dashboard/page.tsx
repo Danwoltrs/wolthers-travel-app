@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [showTripCreationModal, setShowTripCreationModal] = useState(false)
   const [resumeData, setResumeData] = useState<any>(null)
   const [draftTrips, setDraftTrips] = useState<any[]>([])
-  const { trips, loading, error, isOffline } = useTrips()
+  const { trips, loading, error, isOffline, refetch } = useTrips()
 
   // Listen for menu state changes (this would need to be coordinated with Header component)
   // This useEffect must be called unconditionally to maintain hooks order

@@ -64,17 +64,6 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
     }
   }
 
-  const handleContinue = (draft: DraftTrip) => {
-    const resumeData = {
-      tripId: draft.trip_id,
-      formData: {
-        tripType: draft.trip_type,
-        ...draft.draft_data
-      },
-      currentStep: draft.current_step
-    }
-    onContinueTrip(resumeData)
-  }
 
   const handleDelete = async (draftId: string) => {
     if (!confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
@@ -247,13 +236,7 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleContinue(draft)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
-              >
-                Continue
-              </button>
+            <div className="flex items-center justify-end space-x-2">
               
               {draft.access_code && (
                 <button

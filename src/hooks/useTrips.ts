@@ -424,7 +424,12 @@ export function useTrips() {
     }
   }, [isAuthenticated, session, user])
 
-  return { trips, loading, error, isOffline }
+  // Create a refetch function
+  const refetch = React.useCallback(() => {
+    fetchTrips()
+  }, [isAuthenticated, session, user])
+
+  return { trips, loading, error, isOffline, refetch }
 }
 
 export function useTripDetails(tripId: string) {
