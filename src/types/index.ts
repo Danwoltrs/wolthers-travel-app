@@ -295,10 +295,9 @@ export interface TripCard {
   progress?: number
   notesCount?: number
   visitCount?: number
-  accessCode?: string
-  
-  // Draft-specific properties
+  draftId?: string | null
   isDraft?: boolean
+  accessCode?: string
   currentStep?: number
   completionPercentage?: number
   draftInformation?: {

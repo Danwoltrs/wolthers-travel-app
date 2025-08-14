@@ -77,13 +77,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const resolvedParams = await params
-    const draftId = resolvedParams.id
-    console.log('Draft ID from params:', draftId)
+    const paramId = resolvedParams.id
+    console.log('Param ID from URL:', paramId)
 
-    if (!draftId) {
-      console.log('No draft ID provided')
+    if (!paramId) {
+      console.log('No ID provided')
       return NextResponse.json(
-        { error: 'Draft ID is required' },
+        { error: 'ID is required' },
         { status: 400 }
       )
     }
@@ -91,9 +91,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // Initialize Supabase service client for database operations (bypasses RLS)
     const supabase = createSupabaseServiceClient()
 
-    // Verify the draft exists and get authorization info
-    console.log('🔍 Looking for draft with ID:', draftId, 'for user:', user.email)
-    const { data: draft, error: verifyError } = await supabase
+    // First, check if this is a draft ID or a trip ID
+    // Try to find it as a draft ID first
+    console.log('🔍 Looking for draft with ID:', paramId, 'for user:', user.email)
+    let { data: draft, error: verifyError } = await supabase
       .from('trip_drafts')
       .select(`
         *,
@@ -103,8 +104,33 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           company_id
         )
       `)
-      .eq('id', draftId)
+      .eq('id', paramId)
       .single()
+    
+    // If not found as draft ID, try to find it by trip_id
+    if (!draft) {
+      console.log('🔄 Not found as draft ID, trying as trip_id:', paramId)
+      const { data: draftByTripId, error: tripError } = await supabase
+        .from('trip_drafts')
+        .select(`
+          *,
+          users!creator_id (
+            id,
+            email,
+            company_id
+          )
+        `)
+        .eq('trip_id', paramId)
+        .single()
+      
+      if (draftByTripId) {
+        draft = draftByTripId
+        verifyError = null
+        console.log('✅ Found draft by trip_id, draft_id:', draft.id)
+      } else {
+        verifyError = tripError
+      }
+    }
 
     if (verifyError || !draft) {
       console.error('❌ Draft not found:', verifyError)
@@ -133,12 +159,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       )
     }
 
-    // Delete the draft
-    console.log('🗑️ Deleting draft with ID:', draftId)
+    // Delete the draft using the actual draft ID
+    const draftIdToDelete = draft.id
+    console.log('🗑️ Deleting draft with ID:', draftIdToDelete, '(trip_id:', draft.trip_id, ')')
     const { error: deleteError, count } = await supabase
       .from('trip_drafts')
       .delete()
-      .eq('id', draftId)
+      .eq('id', draftIdToDelete)
       .select()
 
     if (deleteError) {

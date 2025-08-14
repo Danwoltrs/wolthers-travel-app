@@ -306,7 +306,9 @@ export function useTrips() {
               progress: 0, // Will calculate if needed
               notesCount,
               visitCount,
-              accessCode: trip.access_code
+              accessCode: trip.access_code,
+              draftId: trip.draftId || null,
+              isDraft: trip.isDraft || false
             }
           })
 
@@ -338,7 +340,9 @@ export function useTrips() {
             progress: 0,
             notesCount: 0,
             visitCount: 0,
-            accessCode: trip.access_code
+            accessCode: trip.access_code,
+            draftId: trip.draftId || null,
+            isDraft: trip.isDraft || false
           })) || []
           
           setTrips(basicTrips)

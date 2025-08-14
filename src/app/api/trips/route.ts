@@ -177,10 +177,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`✅ API: Returning ${trips?.length || 0} trips for user ${user.email}`)
+    // Also fetch draft information for these trips
+    const tripIds = trips?.map(t => t.id) || []
+    let draftsMap = {}
+    
+    if (tripIds.length > 0) {
+      const { data: drafts } = await supabase
+        .from('trip_drafts')
+        .select('id, trip_id, creator_id')
+        .in('trip_id', tripIds)
+      
+      if (drafts) {
+        draftsMap = drafts.reduce((acc, draft) => {
+          acc[draft.trip_id] = draft.id
+          return acc
+        }, {})
+      }
+    }
+
+    // Add draft IDs to trips
+    const tripsWithDrafts = trips?.map(trip => ({
+      ...trip,
+      draftId: draftsMap[trip.id] || null,
+      isDraft: trip.status === 'planning' && draftsMap[trip.id] != null
+    })) || []
+
+    console.log(`✅ API: Returning ${tripsWithDrafts.length} trips for user ${user.email}`)
 
     return NextResponse.json({
-      trips: trips || [],
+      trips: tripsWithDrafts,
       user: {
         id: user.id,
         email: user.email,
