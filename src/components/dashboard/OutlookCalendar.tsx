@@ -46,13 +46,11 @@ interface CalendarDay {
 
 const ITEM_TYPE = 'ACTIVITY'
 
-// Generate time slots from 6 AM to 10 PM
+// Generate time slots from 6 AM to 10 PM (24-hour format)
 const TIME_SLOTS: TimeSlot[] = Array.from({ length: 16 }, (_, index) => {
   const hour = 6 + index
   const time = `${hour.toString().padStart(2, '0')}:00`
-  const display = hour < 12 ? `${hour}:00 AM` : 
-                  hour === 12 ? '12:00 PM' : 
-                  `${hour - 12}:00 PM`
+  const display = `${hour.toString().padStart(2, '0')}:00`
   return { hour, time, display }
 })
 
@@ -306,9 +304,8 @@ export function OutlookCalendar({
     <DndProvider backend={HTML5Backend}>
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
         {/* Calendar Header */}
-        <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-4 py-3">
-          <h4 className="font-medium">Trip Calendar</h4>
-          <p className="text-sm text-golden-400/70">
+        <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-4 py-2">
+          <p className="text-sm text-golden-400/90">
             Drag activities to reschedule • Click empty slots to add activities
           </p>
         </div>
@@ -318,7 +315,7 @@ export function OutlookCalendar({
           <div className="min-w-max">
             {/* Day Headers */}
             <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
-              gridTemplateColumns: `80px repeat(${calendarDays.length}, 200px) 80px` 
+              gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
             }}>
               {/* Time column header */}
               <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
@@ -364,12 +361,12 @@ export function OutlookCalendar({
                 key={timeSlot.time}
                 className="grid border-b border-gray-200 dark:border-gray-700"
                 style={{ 
-                  gridTemplateColumns: `80px repeat(${calendarDays.length}, 200px) 80px` 
+                  gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
                 }}
               >
                 {/* Time label */}
-                <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                     {timeSlot.display}
                   </div>
                 </div>
@@ -405,9 +402,7 @@ export function OutlookCalendar({
 // Utility functions
 function formatTime(time: string): string {
   const [hours, minutes] = time.split(':').map(Number)
-  const period = hours >= 12 ? 'PM' : 'AM'
-  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
-  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 }
 
 function calculateDuration(startTime: string, endTime: string): number {

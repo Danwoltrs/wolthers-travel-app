@@ -153,19 +153,14 @@ export function ScheduleTab({
   const stats = getActivityStats()
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
-            Schedule Management
-          </h3>
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-              {error}
-            </p>
-          )}
+    <div className="space-y-4">
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Outlook-Style Calendar */}
       <OutlookCalendar
@@ -178,7 +173,7 @@ export function ScheduleTab({
       {/* Activity Editor Modal */}
       {showActivityEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
                 {editingActivity ? 'Edit Activity' : 'Add Activity'}
