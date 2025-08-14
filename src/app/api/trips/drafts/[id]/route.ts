@@ -4,7 +4,9 @@ import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/s
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('DELETE /api/trips/drafts/[id] called')
+    console.log('='.repeat(60))
+    console.log('DELETE /api/trips/drafts/[id] called at', new Date().toISOString())
+    console.log('Request URL:', request.url)
     let user: any = null
     
     // Authentication logic matching the progressive-save endpoint
@@ -29,7 +31,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       try {
         const decoded = verify(token, secret) as any
         console.log('✅ Token decoded successfully, user ID:', decoded.userId)
-        const supabase = createServerSupabaseClient()
+        const supabase = createSupabaseServiceClient()
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
@@ -38,14 +40,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
         if (!userError && userData) {
           user = userData
-          console.log('👤 User authenticated:', userData.email)
+          console.log('👤 User authenticated:', userData.email, 'Role:', userData.role || userData.user_type)
         } else {
           console.error('❌ User lookup failed:', userError)
         }
       } catch (jwtError) {
         console.log('🔄 JWT verification failed, trying Supabase session authentication...')
-        // Try Supabase session authentication
-        const supabaseClient = createServerSupabaseClient()
+        // Try Supabase session authentication - use service client to bypass RLS
+        const supabaseClient = createSupabaseServiceClient()
         
         if (token && token.includes('.')) {
           const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
@@ -59,7 +61,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
             if (!userError && userData) {
               user = userData
-              console.log('👤 User authenticated via Supabase session:', userData.email)
+              console.log('👤 User authenticated via Supabase session:', userData.email, 'Role:', userData.role || userData.user_type)
             }
           }
         }
@@ -94,8 +96,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { data: draft, error: verifyError } = await supabase
       .from('trip_drafts')
       .select(`
-        creator_id, 
-        trip_id,
+        *,
         users!creator_id (
           id,
           email,
@@ -114,11 +115,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     console.log('✅ Found draft, creator_id:', draft.creator_id, 'user.id:', user.id)
+    console.log('User role:', user.role || user.user_type, 'Company ID:', user.company_id)
+    console.log('Draft creator company:', draft.users?.company_id)
     
-    // Authorization: Allow deletion if user is draft creator OR company admin in same company
+    // Authorization: Allow deletion if user is draft creator OR company admin in same company OR global admin
+    const userRole = user.role || user.user_type
     const canDelete = 
       draft.creator_id === user.id || 
-      (user.role === 'company_admin' && user.company_id === draft.users?.company_id)
+      (userRole === 'company_admin' && user.company_id === draft.users?.company_id) ||
+      user.is_global_admin === true
 
     if (!canDelete) {
       console.error('❌ Permission denied - user cannot delete this draft')
@@ -130,15 +135,22 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     // Delete the draft
     console.log('🗑️ Deleting draft with ID:', draftId)
-    const { error: deleteError } = await supabase
+    const { error: deleteError, count } = await supabase
       .from('trip_drafts')
       .delete()
       .eq('id', draftId)
+      .select()
 
     if (deleteError) {
       console.error('❌ Failed to delete draft:', deleteError)
+      console.error('Delete error details:', {
+        code: deleteError.code,
+        message: deleteError.message,
+        details: deleteError.details,
+        hint: deleteError.hint
+      })
       return NextResponse.json(
-        { error: 'Failed to delete draft' },
+        { error: `Failed to delete draft: ${deleteError.message || 'Unknown error'}` },
         { status: 500 }
       )
     }
