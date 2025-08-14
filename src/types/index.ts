@@ -481,3 +481,306 @@ export interface AuthContextState {
   resetPassword: (data: PasswordResetData) => Promise<AuthResponse>
   clearError: () => void
 }
+
+// ===== ENHANCED MEETINGS & AGENDA TYPES =====
+
+/**
+ * Cost breakdown item for detailed per-person or per-item cost tracking
+ */
+export interface CostBreakdownItem {
+  /** Unique identifier for the cost item */
+  id: string
+  /** Description of the cost item */
+  description: string
+  /** Cost amount for this item */
+  amount: number
+  /** Currency code (ISO 4217) */
+  currency: string
+  /** Number of units/people for this cost */
+  quantity?: number
+  /** Person or entity this cost applies to */
+  assignedTo?: string
+  /** Additional notes about this cost */
+  notes?: string
+}
+
+/**
+ * Enhanced cost tracking structure for calendar events
+ */
+export interface CostTracking {
+  /** Cost per person for this event */
+  costPerPerson?: number
+  /** Total cost for the entire event */
+  totalCost?: number
+  /** Currency code (ISO 4217) - defaults to 'USD' */
+  currency?: string
+  /** Detailed breakdown of costs */
+  costBreakdown?: CostBreakdownItem[]
+  /** Additional notes about costs */
+  costNotes?: string
+}
+
+/**
+ * Detailed company location information for events
+ */
+export interface CompanyLocationDetails {
+  /** Location name */
+  name: string
+  /** Street address line 1 */
+  addressLine1?: string
+  /** Street address line 2 */
+  addressLine2?: string
+  /** City */
+  city?: string
+  /** State or province */
+  state?: string
+  /** Postal/ZIP code */
+  postalCode?: string
+  /** Country */
+  country?: string
+  /** Phone number */
+  phone?: string
+  /** Email contact */
+  email?: string
+  /** Website URL */
+  website?: string
+  /** Google Maps link for easy navigation */
+  googleMapsLink?: string
+  /** GPS coordinates */
+  coordinates?: { lat: number; lng: number }
+  /** Additional location notes */
+  notes?: string
+  /** Business hours or availability info */
+  hours?: string
+}
+
+/**
+ * Company association information for calendar events
+ */
+export interface CompanyAssociation {
+  /** Associated company ID */
+  companyId?: string
+  /** Company name for display */
+  companyName?: string
+  /** Specific location within the company */
+  companyLocationId?: string
+  /** Detailed location information */
+  locationDetails?: CompanyLocationDetails
+}
+
+/**
+ * Enhanced CalendarEvent interface with cost tracking and company integration
+ * Maintains backward compatibility with optional enhanced fields
+ */
+export interface CalendarEvent {
+  /** Unique identifier for the event */
+  id: string
+  /** Event title */
+  title: string
+  /** Event type determining behavior and display */
+  type: 'flight' | 'hotel' | 'meeting' | 'lunch' | 'dinner' | 'conference_session' | 'networking' | 'presentation' | 'other'
+  /** Event date in YYYY-MM-DD format */
+  date: string
+  /** Start time in HH:MM format */
+  startTime: string
+  /** End time in HH:MM format */
+  endTime: string
+  /** Location text (legacy field for backward compatibility) */
+  location?: string
+  /** Attendees text (legacy field for backward compatibility) */
+  attendees?: string
+  /** Event description */
+  description?: string
+  /** Event priority level */
+  priority: 'low' | 'medium' | 'high'
+  /** Additional notes */
+  notes?: string
+  
+  // Flight specific fields
+  /** Airline name */
+  airline?: string
+  /** Flight number */
+  flightNumber?: string
+  /** Departure information */
+  departure?: { airport: string; city: string }
+  /** Arrival information */
+  arrival?: { airport: string; city: string }
+  
+  // Hotel specific fields
+  /** Hotel name */
+  hotelName?: string
+  /** Hotel address */
+  hotelAddress?: string
+  /** Check-in date */
+  checkIn?: string
+  /** Check-out date */
+  checkOut?: string
+  
+  // ===== NEW ENHANCED FIELDS =====
+  
+  /** Enhanced cost tracking information */
+  costTracking?: CostTracking
+  
+  /** Company association and location details */
+  companyAssociation?: CompanyAssociation
+  
+  /** Advanced attendee information with IDs and roles */
+  attendeeDetails?: {
+    userId?: string
+    name: string
+    role?: string
+    company?: string
+    confirmationStatus?: 'pending' | 'confirmed' | 'declined'
+  }[]
+  
+  /** Event confirmation status */
+  confirmationStatus?: 'draft' | 'pending' | 'confirmed' | 'cancelled'
+  
+  /** Meeting room or specific location within venue */
+  room?: string
+  
+  /** External calendar integration data */
+  externalCalendar?: {
+    source: 'google' | 'outlook' | 'other'
+    externalId?: string
+    syncStatus?: 'synced' | 'pending' | 'failed'
+    lastSynced?: Date
+  }
+  
+  /** Recurring event information */
+  recurrence?: {
+    type: 'daily' | 'weekly' | 'monthly'
+    interval: number
+    endDate?: string
+    parentEventId?: string
+  }
+}
+
+/**
+ * Company with locations for dropdown/selection use
+ */
+export interface CompanyWithLocations extends Company {
+  /** Array of company locations */
+  locations: CompanyLocation[]
+}
+
+/**
+ * Enhanced meeting agenda step props with new data types
+ */
+export interface MeetingAgendaStepProps {
+  /** Form data including enhanced calendar events */
+  formData: TripFormData & { 
+    meetings?: CalendarEvent[]
+    hotels?: any[]
+    flights?: any[]
+    companies?: CompanyWithLocations[]
+  }
+  /** Function to update form data */
+  updateFormData: (data: Partial<TripFormData & { 
+    meetings?: CalendarEvent[]
+    hotels?: any[]
+    flights?: any[]
+    companies?: CompanyWithLocations[]
+  }>) => void
+}
+
+/**
+ * Cost calculation request for API calls
+ */
+export interface CostCalculationRequest {
+  /** Event type for cost estimation */
+  eventType: CalendarEvent['type']
+  /** Number of attendees */
+  attendeeCount: number
+  /** Event duration in minutes */
+  durationMinutes?: number
+  /** Location for cost estimation */
+  location?: string
+  /** Company ID for location-based pricing */
+  companyId?: string
+  /** Additional parameters for calculation */
+  parameters?: Record<string, any>
+}
+
+/**
+ * Cost calculation response from API
+ */
+export interface CostCalculationResponse {
+  /** Success status */
+  success: boolean
+  /** Estimated cost per person */
+  costPerPerson?: number
+  /** Total estimated cost */
+  totalCost?: number
+  /** Currency code */
+  currency: string
+  /** Detailed breakdown */
+  breakdown?: CostBreakdownItem[]
+  /** Calculation notes or warnings */
+  notes?: string[]
+  /** Error message if calculation failed */
+  error?: string
+}
+
+/**
+ * Progressive save request for enhanced calendar events
+ */
+export interface ProgressiveSaveRequest {
+  /** Trip ID for progressive save */
+  tripId?: string
+  /** Calendar events to save */
+  meetings?: CalendarEvent[]
+  /** Hotels data */
+  hotels?: any[]
+  /** Flights data */
+  flights?: any[]
+  /** Additional trip form data */
+  tripData?: Partial<TripFormData>
+  /** Save timestamp */
+  timestamp: Date
+}
+
+/**
+ * Progressive save response
+ */
+export interface ProgressiveSaveResponse {
+  /** Success status */
+  success: boolean
+  /** Saved trip ID */
+  tripId?: string
+  /** Number of events saved */
+  eventsSaved: number
+  /** Any validation warnings */
+  warnings?: string[]
+  /** Error message if save failed */
+  error?: string
+  /** Last save timestamp */
+  lastSaved: Date
+}
+
+/**
+ * Company location API response
+ */
+export interface CompanyLocationResponse {
+  /** Success status */
+  success: boolean
+  /** Array of company locations */
+  locations: CompanyLocation[]
+  /** Total count */
+  total: number
+  /** Error message if request failed */
+  error?: string
+}
+
+/**
+ * Enhanced expense category for calendar event costs
+ */
+export enum CalendarEventExpenseCategory {
+  FLIGHT = "flight",
+  HOTEL = "hotel", 
+  MEALS = "meals",
+  MEETING_ROOM = "meeting_room",
+  CONFERENCE = "conference",
+  TRANSPORTATION = "transportation",
+  OTHER = "other"
+}

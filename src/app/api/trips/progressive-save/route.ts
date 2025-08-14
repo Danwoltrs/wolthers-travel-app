@@ -465,7 +465,10 @@ export async function POST(request: NextRequest) {
             check_in_date: hotel.checkInDate || hotel.checkIn,
             check_out_date: hotel.checkOutDate || hotel.checkOut,
             cost_amount: hotel.cost ? parseFloat(hotel.cost) : null,
-            cost_currency: 'USD',
+            cost_currency: hotel.costCurrency || 'USD',
+            // Enhanced cost tracking fields
+            cost_per_person: hotel.costPerPerson || {},
+            cost_breakdown: hotel.costBreakdown || {},
             room_type: hotel.roomType,
             guest_names: hotel.guestNames || [],
             booking_status: 'pending',
@@ -504,7 +507,10 @@ export async function POST(request: NextRequest) {
             arrival_date: flight.arrival?.date,
             arrival_time: flight.arrival?.time || '00:00',
             cost_amount: flight.cost ? parseFloat(flight.cost) : null,
-            cost_currency: 'USD',
+            cost_currency: flight.costCurrency || 'USD',
+            // Enhanced cost tracking fields
+            cost_per_person: flight.costPerPerson || {},
+            cost_breakdown: flight.costBreakdown || {},
             passenger_names: flight.passengerNames || [],
             booking_status: 'pending',
             created_at: now,
@@ -529,7 +535,7 @@ export async function POST(request: NextRequest) {
           console.log('🤝 Creating meetings:', stepData.meetings.length)
           
           for (const meeting of stepData.meetings) {
-            // First create the meeting
+            // First create the meeting with enhanced cost tracking and company location support
             const { data: newMeeting, error: meetingError } = await supabase
               .from('trip_meetings')
               .insert({
@@ -546,6 +552,12 @@ export async function POST(request: NextRequest) {
                 meeting_status: 'scheduled',
                 is_supplier_meeting: meeting.isSupplierMeeting || false,
                 supplier_company_name: meeting.supplierCompany,
+                // Enhanced cost tracking fields
+                cost_per_person: meeting.costPerPerson || {},
+                cost_breakdown: meeting.costBreakdown || {},
+                cost_currency: meeting.costCurrency || 'USD',
+                // Company location integration
+                company_location_id: meeting.companyLocationId,
                 created_at: now,
                 updated_at: now,
                 created_by: user.id,
@@ -812,7 +824,10 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
         check_in_date: hotel.checkInDate || hotel.checkIn,
         check_out_date: hotel.checkOutDate || hotel.checkOut,
         cost_amount: hotel.cost ? parseFloat(hotel.cost) : null,
-        cost_currency: 'USD',
+        cost_currency: hotel.costCurrency || 'USD',
+        // Enhanced cost tracking fields
+        cost_per_person: hotel.costPerPerson || {},
+        cost_breakdown: hotel.costBreakdown || {},
         room_type: hotel.roomType,
         guest_names: hotel.guestNames || [],
         booking_status: 'pending',
@@ -841,7 +856,10 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
         arrival_date: flight.arrival?.date,
         arrival_time: flight.arrival?.time || '00:00',
         cost_amount: flight.cost ? parseFloat(flight.cost) : null,
-        cost_currency: 'USD',
+        cost_currency: flight.costCurrency || 'USD',
+        // Enhanced cost tracking fields
+        cost_per_person: flight.costPerPerson || {},
+        cost_breakdown: flight.costBreakdown || {},
         passenger_names: flight.passengerNames || [],
         booking_status: 'pending',
         created_at: now,
@@ -872,6 +890,12 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
             meeting_status: 'scheduled',
             is_supplier_meeting: meeting.isSupplierMeeting || false,
             supplier_company_name: meeting.supplierCompany,
+            // Enhanced cost tracking fields
+            cost_per_person: meeting.costPerPerson || {},
+            cost_breakdown: meeting.costBreakdown || {},
+            cost_currency: meeting.costCurrency || 'USD',
+            // Company location integration
+            company_location_id: meeting.companyLocationId,
             created_at: now,
             updated_at: now,
             created_by: userId,

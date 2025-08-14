@@ -1,35 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Plus, Trash2, Clock, MapPin, Users, FileText, X, Plane, Hotel, Coffee, Utensils } from 'lucide-react'
-
-interface CalendarEvent {
-  id: string
-  title: string
-  type: 'flight' | 'hotel' | 'meeting' | 'lunch' | 'dinner' | 'conference_session' | 'networking' | 'presentation' | 'other'
-  date: string
-  startTime: string
-  endTime: string
-  location?: string
-  attendees?: string
-  description?: string
-  priority: 'low' | 'medium' | 'high'
-  notes?: string
-  // Flight specific
-  airline?: string
-  flightNumber?: string
-  departure?: { airport: string; city: string }
-  arrival?: { airport: string; city: string }
-  // Hotel specific
-  hotelName?: string
-  hotelAddress?: string
-  checkIn?: string
-  checkOut?: string
-}
-
-interface MeetingAgendaStepProps {
-  formData: TripFormData & { meetings?: CalendarEvent[]; hotels?: any[]; flights?: any[] }
-  updateFormData: (data: Partial<TripFormData & { meetings?: CalendarEvent[]; hotels?: any[]; flights?: any[] }>) => void
-}
+import { Calendar, Plus, Trash2, Clock, MapPin, Users, FileText, X, Plane, Hotel, Coffee, Utensils, DollarSign, Building2 } from 'lucide-react'
+import { CalendarEvent, MeetingAgendaStepProps, CompanyWithLocations, CompanyLocation, CostTracking } from '@/types'
+import { useCompaniesWithLocations } from '@/hooks/useCompaniesWithLocations'
 
 const eventTypes = [
   { value: 'flight', label: 'Flight', icon: <Plane className="w-4 h-4" />, color: 'bg-blue-500', textColor: 'text-white' },
@@ -43,11 +16,29 @@ const eventTypes = [
   { value: 'other', label: 'Other', icon: <Calendar className="w-4 h-4" />, color: 'bg-gray-500', textColor: 'text-white' }
 ]
 
-// Time slots from 6 AM to 8 PM
+// Time slots from 6 AM to 8 PM with military time ranges
 const timeSlots = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-  '18:00', '19:00', '20:00'
+  '06:00-07:00', '07:00-08:00', '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
+  '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
+  '18:00-19:00', '19:00-20:00', '20:00-21:00'
+]
+
+// Helper to get start time from slot
+const getStartTimeFromSlot = (timeSlot: string): string => {
+  return timeSlot.split('-')[0]
+}
+
+// Helper to get end time from slot
+const getEndTimeFromSlot = (timeSlot: string): string => {
+  return timeSlot.split('-')[1]
+}
+
+// Currency options for cost tracking
+const currencyOptions = [
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'EUR', label: 'EUR (€)' },
+  { value: 'CHF', label: 'CHF (CHF)' },
+  { value: 'GBP', label: 'GBP (£)' }
 ]
 
 export default function MeetingAgendaStep({ formData, updateFormData }: MeetingAgendaStepProps) {
@@ -56,6 +47,16 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
   const [showEventModal, setShowEventModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+  
+  // Use the companies hook
+  const { companies, isLoading: isLoadingCompanies, error: companiesError, refetch } = useCompaniesWithLocations()
+
+  // Error handling for companies
+  useEffect(() => {
+    if (companiesError) {
+      console.error('Error loading companies:', companiesError)
+    }
+  }, [companiesError])
 
   // Generate array of dates between start and end date for the trip
   const getTripDates = (): string[] => {
@@ -73,10 +74,34 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
     return dates
   }
 
+  // Add day before start date
+  const addDayBefore = () => {
+    if (!formData.startDate) return
+    
+    const newStartDate = new Date(formData.startDate)
+    newStartDate.setDate(newStartDate.getDate() - 1)
+    
+    updateFormData({
+      startDate: newStartDate
+    })
+  }
+
+  // Add day after end date
+  const addDayAfter = () => {
+    if (!formData.endDate) return
+    
+    const newEndDate = new Date(formData.endDate)
+    newEndDate.setDate(newEndDate.getDate() + 1)
+    
+    updateFormData({
+      endDate: newEndDate
+    })
+  }
+
   // Handle opening the event creation modal
   const handleTimeSlotClick = (date: string, timeSlot: string) => {
     setSelectedDate(date)
-    setSelectedTimeSlot(timeSlot)
+    setSelectedTimeSlot(getStartTimeFromSlot(timeSlot)) // Extract start time
     setEditingEvent(null)
     setShowEventModal(true)
   }
@@ -147,10 +172,13 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
 
   // Get events for a specific date and time slot
   const getEventsForSlot = (date: string, timeSlot: string): CalendarEvent[] => {
+    const slotStart = getStartTimeFromSlot(timeSlot)
+    const slotEnd = getEndTimeFromSlot(timeSlot)
+    
     return events.filter(event => 
       event.date === date && 
-      event.startTime <= timeSlot && 
-      (event.endTime >= timeSlot || event.startTime === timeSlot)
+      event.startTime <= slotStart && 
+      (event.endTime >= slotStart || event.startTime === slotStart)
     )
   }
 
@@ -171,12 +199,24 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
       {/* Calendar Grid */}
       {tripDates.length > 0 ? (
         <div className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden flex flex-col">
-          {/* Header with dates */}
-          <div className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-200 dark:border-[#2a2a2a] flex-shrink-0">
+          {/* Header with dates and add buttons */}
+          <div className="grid grid-cols-1 lg:grid-cols-8 gap-0 border-b border-gray-200 dark:border-[#2a2a2a] flex-shrink-0">
             <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] font-medium text-sm text-gray-700 dark:text-gray-300">
               Time
             </div>
-            {tripDates.slice(0, 6).map(date => {
+            
+            {/* Add day before button */}
+            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center border-r border-gray-200 dark:border-[#2a2a2a]">
+              <button
+                onClick={addDayBefore}
+                className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                title="Add day before"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {tripDates.slice(0, 5).map(date => {
               const dateObj = new Date(date)
               const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
               const dayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -188,16 +228,30 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
                 </div>
               )
             })}
+            
+            {/* Add day after button */}
+            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center border-l border-gray-200 dark:border-[#2a2a2a]">
+              <button
+                onClick={addDayAfter}
+                className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                title="Add day after"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Time slots grid - now takes full remaining height */}
           <div className="flex-1 overflow-y-auto">
             {timeSlots.map(timeSlot => (
-              <div key={timeSlot} className="grid grid-cols-1 lg:grid-cols-7 gap-0 border-b border-gray-100 dark:border-gray-700">
+              <div key={timeSlot} className="grid grid-cols-1 lg:grid-cols-8 gap-0 border-b border-gray-100 dark:border-gray-700">
                 <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] text-sm font-medium text-gray-600 dark:text-gray-400 text-center min-h-[100px] flex items-center justify-center">
                   {timeSlot}
                 </div>
-                {tripDates.slice(0, 6).map(date => {
+                {/* Empty cell for add day before button column */}
+                <div className="p-2 min-h-[100px] border-r border-gray-100 dark:border-gray-700"></div>
+                
+                {tripDates.slice(0, 5).map(date => {
                   const slotEvents = getEventsForSlot(date, timeSlot)
                   
                   return (
@@ -237,6 +291,9 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
                     </div>
                   )
                 })}
+                
+                {/* Empty cell for add day after button column */}
+                <div className="p-2 min-h-[100px] border-l border-gray-100 dark:border-gray-700"></div>
               </div>
             ))}
           </div>
@@ -253,6 +310,8 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
           event={editingEvent}
           date={selectedDate}
           timeSlot={selectedTimeSlot}
+          companies={companies}
+          isLoadingCompanies={isLoadingCompanies}
           onSave={saveEvent}
           onCancel={() => setShowEventModal(false)}
         />
@@ -266,14 +325,16 @@ const EventModal: React.FC<{
   event: CalendarEvent | null
   date: string
   timeSlot: string
+  companies: CompanyWithLocations[]
+  isLoadingCompanies: boolean
   onSave: (eventData: Partial<CalendarEvent>) => void
   onCancel: () => void
-}> = ({ event, date, timeSlot, onSave, onCancel }) => {
+}> = ({ event, date, timeSlot, companies, isLoadingCompanies, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     title: event?.title || '',
     type: event?.type || 'meeting',
     startTime: event?.startTime || timeSlot,
-    endTime: event?.endTime || timeSlot,
+    endTime: event?.endTime || calculateDefaultEndTime(timeSlot),
     location: event?.location || '',
     attendees: event?.attendees || '',
     description: event?.description || '',
@@ -288,14 +349,92 @@ const EventModal: React.FC<{
     hotelAddress: event?.hotelAddress || '',
     checkIn: event?.checkIn || date,
     checkOut: event?.checkOut || date,
+    // Enhanced fields
+    costTracking: event?.costTracking || { currency: 'USD' },
+    companyAssociation: event?.companyAssociation || {},
+    selectedCompanyId: event?.companyAssociation?.companyId || '',
+    selectedLocationId: event?.companyAssociation?.companyLocationId || ''
   })
+
+  // Calculate default end time (1 hour after start time)
+  function calculateDefaultEndTime(startTime: string): string {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const endHour = hours + 1
+    return `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  }
 
   const selectedEventType = eventTypes.find(t => t.value === formData.type)
   const isFlightType = formData.type === 'flight'
   const isHotelType = formData.type === 'hotel'
+  const isMeetingType = ['meeting', 'lunch', 'dinner', 'presentation'].includes(formData.type)
+  const isCostTrackingType = ['flight', 'hotel', 'meeting', 'lunch', 'dinner'].includes(formData.type)
+
+  // Handle company selection
+  const handleCompanyChange = (companyId: string) => {
+    const selectedCompany = companies.find(c => c.id === companyId)
+    setFormData(prev => ({
+      ...prev,
+      selectedCompanyId: companyId,
+      selectedLocationId: '',
+      companyAssociation: {
+        companyId: companyId,
+        companyName: selectedCompany?.name || '',
+        companyLocationId: '',
+        locationDetails: undefined
+      }
+    }))
+  }
+
+  // Handle location selection
+  const handleLocationChange = (locationId: string) => {
+    const selectedCompany = companies.find(c => c.id === formData.selectedCompanyId)
+    const selectedLocation = selectedCompany?.locations?.find(l => l.id === locationId)
+    
+    setFormData(prev => ({
+      ...prev,
+      selectedLocationId: locationId,
+      location: selectedLocation ? `${selectedLocation.name}, ${selectedLocation.addressLine1 || ''}` : '',
+      companyAssociation: {
+        ...prev.companyAssociation,
+        companyLocationId: locationId,
+        locationDetails: selectedLocation ? {
+          name: selectedLocation.name,
+          addressLine1: selectedLocation.addressLine1,
+          addressLine2: selectedLocation.addressLine2,
+          city: selectedLocation.city,
+          state: selectedLocation.state,
+          postalCode: selectedLocation.postalCode,
+          country: selectedLocation.country,
+          coordinates: selectedLocation.coordinates
+        } : undefined
+      }
+    }))
+  }
+
+  // Handle cost tracking changes
+  const handleCostChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      costTracking: {
+        ...prev.costTracking,
+        [field]: value
+      }
+    }))
+  }
+
+  // Get selected company locations
+  const selectedCompany = companies.find(c => c.id === formData.selectedCompanyId)
+  const companyLocations = selectedCompany?.locations || []
 
   const handleSave = () => {
-    onSave(formData)
+    // Prepare the event data with enhanced fields
+    const eventData = {
+      ...formData,
+      // Ensure we don't pass UI-only fields to the parent
+      selectedCompanyId: undefined,
+      selectedLocationId: undefined
+    }
+    onSave(eventData)
   }
 
   return (
@@ -360,7 +499,7 @@ const EventModal: React.FC<{
                   <input
                     type="time"
                     value={formData.startTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value, endTime: calculateDefaultEndTime(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
                   />
                 </div>
@@ -484,11 +623,59 @@ const EventModal: React.FC<{
               </>
             )}
 
+            {/* Company Selection for Business Events */}
+            {isMeetingType && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Company
+                  </label>
+                  <select
+                    value={formData.selectedCompanyId}
+                    onChange={(e) => handleCompanyChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                    disabled={isLoadingCompanies}
+                  >
+                    <option value="">Select a company...</option>
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                  {isLoadingCompanies && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Loading companies...</p>
+                  )}
+                </div>
+
+                {/* Company Location Selection */}
+                {formData.selectedCompanyId && companyLocations.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Location
+                    </label>
+                    <select
+                      value={formData.selectedLocationId}
+                      onChange={(e) => handleLocationChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select a location...</option>
+                      {companyLocations.map(location => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}{location.addressLine1 ? ` - ${location.addressLine1}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Location */}
             {!isFlightType && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Location
+                  {isMeetingType && formData.selectedCompanyId ? 'Additional Location Notes' : 'Location'}
                 </label>
                 <input
                   type="text"
@@ -499,7 +686,8 @@ const EventModal: React.FC<{
                       : { ...prev, location: e.target.value }
                   )}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
-                  placeholder={isHotelType ? "Hotel address" : "Event location"}
+                  placeholder={isHotelType ? "Hotel address" : (isMeetingType && formData.selectedCompanyId ? "Room, floor, or additional details" : "Event location")}
+                  readOnly={isMeetingType && formData.selectedLocationId ? false : false}
                 />
               </div>
             )}
@@ -533,6 +721,78 @@ const EventModal: React.FC<{
                 placeholder="Event description..."
               />
             </div>
+
+            {/* Cost Tracking Section */}
+            {isCostTrackingType && (
+              <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-4">
+                <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Cost Tracking
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Currency
+                      </label>
+                      <select
+                        value={formData.costTracking?.currency || 'USD'}
+                        onChange={(e) => handleCostChange('currency', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white text-sm"
+                      >
+                        {currencyOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Cost per Person
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.costTracking?.costPerPerson || ''}
+                        onChange={(e) => handleCostChange('costPerPerson', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Total Cost
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.costTracking?.totalCost || ''}
+                        onChange={(e) => handleCostChange('totalCost', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Cost Notes
+                    </label>
+                    <textarea
+                      value={formData.costTracking?.costNotes || ''}
+                      onChange={(e) => handleCostChange('costNotes', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white"
+                      rows={2}
+                      placeholder="Additional cost information..."
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             <div>

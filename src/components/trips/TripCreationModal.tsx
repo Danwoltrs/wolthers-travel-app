@@ -22,7 +22,15 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
   )
 })
 import ReviewStep from './ReviewStep'
-import type { Company, User, Vehicle, Activity, ItineraryDay } from '@/types'
+import type { 
+  Company, 
+  User, 
+  Vehicle, 
+  Activity, 
+  ItineraryDay, 
+  CalendarEvent, 
+  CompanyWithLocations 
+} from '@/types'
 
 // Define additional data types for hotels, flights, and meetings
 interface Hotel {
@@ -95,9 +103,12 @@ export interface TripFormData {
   vehicles: Vehicle[]
   
   // Step 4-6: Conference-specific data
-  meetings?: Meeting[]
+  meetings?: CalendarEvent[]
   hotels?: Hotel[]
   flights?: Flight[]
+  
+  // Enhanced data for cost tracking and company integration
+  companies?: CompanyWithLocations[]
 }
 
 interface SaveStatus {
