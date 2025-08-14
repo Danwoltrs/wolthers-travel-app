@@ -31,7 +31,7 @@ export function OverviewTab({
     status: trip.status,
     priority: 'medium',
     budget: '',
-    currency: 'DKK',
+    currency: 'BRL',
     notes: ''
   })
 
@@ -156,9 +156,11 @@ export function OverviewTab({
                     onChange={(e) => handleFieldChange('currency', e.target.value)}
                     className="w-20 px-2 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
-                    <option value="DKK">DKK</option>
-                    <option value="EUR">EUR</option>
+                    <option value="BRL">BRL</option>
                     <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="DKK">DKK</option>
                   </select>
                 </div>
               </div>

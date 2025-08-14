@@ -212,7 +212,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
-        isEditing 
+        isEditing && activeTab === 'schedule'
           ? 'max-w-[95vw] xl:max-w-[90vw] w-full h-[95vh]' 
           : 'max-w-5xl w-full max-h-[90vh]'
       }`}>

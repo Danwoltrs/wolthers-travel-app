@@ -5,7 +5,7 @@
  * role assignments, and bulk operations support.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { 
   Users, 
   UserPlus, 
@@ -19,14 +19,14 @@ import {
   Trash2,
   Settings
 } from 'lucide-react'
+import { useWolthersStaff } from '@/hooks/useWolthersStaff'
 import type { TripCard } from '@/types'
-import type { TabValidationState } from '@/types/enhanced-modal'
 
 interface ParticipantsTabProps {
   trip: TripCard
   tripDetails?: any
   onUpdate: (tab: 'participants', updates: any) => void
-  validationState: TabValidationState
+  validationState?: any
 }
 
 export function ParticipantsTab({ 
@@ -39,6 +39,9 @@ export function ParticipantsTab({
   const [showAddModal, setShowAddModal] = useState(false)
   const [bulkSelectMode, setBulkSelectMode] = useState(false)
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([])
+
+  // Load Wolthers staff from Supabase
+  const { wolthersStaff, loading: staffLoading, error: staffError } = useWolthersStaff()
 
   const handleAddParticipant = useCallback((type: string, participantData: any) => {
     onUpdate('participants', {
@@ -103,7 +106,7 @@ export function ParticipantsTab({
       <div className="border-b border-gray-200 dark:border-[#2a2a2a]">
         <nav className="flex space-x-6">
           {[
-            { id: 'wolthers', label: 'Wolthers Staff', count: trip.wolthersStaff.length },
+            { id: 'wolthers', label: 'Wolthers Staff', count: wolthersStaff.length },
             { id: 'companies', label: 'Company Guests', count: trip.guests.reduce((acc, g) => acc + g.names.length, 0) },
             { id: 'external', label: 'External Guests', count: 0 }
           ].map((section) => (
@@ -134,15 +137,23 @@ export function ParticipantsTab({
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-golden-400">Wolthers & Associates Staff</h4>
                 <div className="text-xs text-golden-400/70">
-                  {trip.wolthersStaff.length} member{trip.wolthersStaff.length !== 1 ? 's' : ''}
+                  {wolthersStaff.length} member{wolthersStaff.length !== 1 ? 's' : ''}
                 </div>
               </div>
             </div>
 
             {/* Staff List */}
-            {trip.wolthersStaff.length > 0 ? (
+            {staffLoading ? (
+              <div className="p-6 text-center">
+                <div className="text-gray-500 dark:text-gray-400">Loading staff...</div>
+              </div>
+            ) : staffError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-500">Error loading staff: {staffError}</div>
+              </div>
+            ) : wolthersStaff.length > 0 ? (
               <div className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                {trip.wolthersStaff.map((staff, index) => (
+                {wolthersStaff.map((staff, index) => (
                   <div key={staff.id || index} className="px-6 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
@@ -168,7 +179,7 @@ export function ParticipantsTab({
                           </div>
                           <div>
                             <div className="font-medium text-gray-900 dark:text-gray-100">
-                              {staff.fullName}
+                              {staff.full_name}
                             </div>
                             {staff.email && (
                               <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
@@ -209,10 +220,24 @@ export function ParticipantsTab({
             ) : (
               <div className="px-6 py-12 text-center">
                 <Users className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400">No staff members assigned</p>
+                <p className="text-gray-500 dark:text-gray-400">No staff members found</p>
                 <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                  Add Wolthers staff to manage this trip
+                  Add existing Wolthers staff or create new member
                 </p>
+                <div className="mt-4 flex justify-center space-x-3">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm"
+                  >
+                    Add Existing Staff
+                  </button>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="px-4 py-2 bg-golden-400 text-gray-900 rounded-md hover:bg-golden-300 text-sm"
+                  >
+                    Create New Staff
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -358,7 +383,7 @@ export function ParticipantsTab({
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {trip.wolthersStaff.length}
+            {wolthersStaff.length}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
             Wolthers Staff
@@ -401,6 +426,21 @@ export function ParticipantsTab({
                   <option value="wolthers">Wolthers Staff</option>
                   <option value="company">Company Representative</option>
                   <option value="external">External Guest</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Select Existing Staff Member
+                </label>
+                <select className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
+                  <option value="">-- Select Existing Staff --</option>
+                  {wolthersStaff.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.full_name} ({staff.email})
+                    </option>
+                  ))}
+                  <option value="create_new">+ Create New Staff Member</option>
                 </select>
               </div>
               

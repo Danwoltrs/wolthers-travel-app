@@ -8,13 +8,12 @@
 
 import React, { useState, useCallback } from 'react'
 import type { TripCard } from '@/types'
-import type { TabValidationState } from '@/types/enhanced-modal'
 
 interface ScheduleTabProps {
   trip: TripCard
   tripDetails?: any
   onUpdate: (tab: 'schedule', updates: any) => void
-  validationState: TabValidationState
+  validationState?: any
 }
 
 export function ScheduleTab({ 
@@ -87,7 +86,7 @@ export function ScheduleTab({
             <div>
               <h4 className="font-medium">Trip Schedule</h4>
               <p className="text-sm text-golden-400/70">
-                {trip.duration} days • Sep 30 - Oct 2, 2025
+                {trip.duration} days • {trip.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {trip.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
             </div>
             <div className="flex items-center space-x-2">
@@ -107,7 +106,7 @@ export function ScheduleTab({
             <div key={index} className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
               <div className="bg-gray-50 dark:bg-[#2a2a2a] px-4 py-2">
                 <h5 className="font-medium text-gray-900 dark:text-golden-400">
-                  Day {index + 1} - {new Date(Date.now() + index * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
+                  Day {index + 1} - {new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     month: 'short', 
                     day: 'numeric' 
