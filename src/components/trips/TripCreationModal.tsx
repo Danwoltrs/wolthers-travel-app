@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, ArrowRight, X, Plus, Save, AlertCircle, CheckCircle } from 'lucide-react'
+import { useDialogs } from '@/hooks/use-modal'
 import TripTypeSelection, { TripType } from './TripTypeSelection'
 import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
@@ -180,6 +181,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
+  const { alert } = useDialogs()
   
   // Generate client temp ID for idempotent trip creation
   const clientTempIdRef = useRef<string>(
@@ -354,7 +356,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       handleClose()
     } catch (error) {
       console.error('Error finalizing trip:', error)
-      alert(`Failed to finalize trip: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      await alert(`Failed to finalize trip: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Finalization Failed', 'error')
     } finally {
       setIsSubmitting(false)
     }

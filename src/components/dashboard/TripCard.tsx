@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
+import { useDialogs } from '@/hooks/use-modal'
 // Removed framer-motion imports to fix tooltip interference
 
 interface TripCardProps {
@@ -18,6 +19,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const [showCopied, setShowCopied] = useState(false)
   const [copiedPosition, setCopiedPosition] = useState({ x: 0, y: 0 })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { alert } = useDialogs()
   
   // Check if this is a draft trip (planning status with is_draft flag)
   const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft || 
@@ -81,11 +83,11 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         router.refresh()
       } else {
         const error = await response.json()
-        alert(`Failed to finalize trip: ${error.message || 'Unknown error'}`)
+        await alert(`Failed to finalize trip: ${error.message || 'Unknown error'}`, 'Finalization Failed', 'error')
       }
     } catch (error) {
       console.error('Failed to finalize trip:', error)
-      alert('Failed to finalize trip. Please try again.')
+      await alert('Failed to finalize trip. Please try again.', 'Error', 'error')
     }
   }
 
@@ -123,7 +125,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         } else {
           const error = await response.json()
           console.error('Delete draft error:', error)
-          alert(`Failed to delete draft: ${error.error || 'Unknown error'}`)
+          await alert(`Failed to delete draft: ${error.error || 'Unknown error'}`, 'Delete Failed', 'error')
         }
       } else {
         // Delete the actual trip
@@ -141,18 +143,18 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           // Close modal and show success
           setShowDeleteConfirm(false)
           // Show success message briefly
-          alert('Trip deleted successfully!')
+          await alert('Trip deleted successfully!', 'Success', 'success')
           // Force a full page reload to update the trips list
           window.location.reload()
         } else {
           const error = await response.json()
           console.error('Delete trip error:', error)
-          alert(`Failed to delete trip: ${error.error || 'Unknown error'}`)
+          await alert(`Failed to delete trip: ${error.error || 'Unknown error'}`, 'Delete Failed', 'error')
         }
       }
     } catch (error) {
       console.error('Failed to delete:', error)
-      alert('Failed to delete. Please try again.')
+      await alert('Failed to delete. Please try again.', 'Error', 'error')
     }
   }
   
