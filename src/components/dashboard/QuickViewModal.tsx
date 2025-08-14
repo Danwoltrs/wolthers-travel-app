@@ -211,7 +211,11 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-[95vw] xl:max-w-[90vw] w-full h-[95vh] flex flex-col border border-pearl-200 dark:border-[#2a2a2a]">
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
+        isEditing 
+          ? 'max-w-[95vw] xl:max-w-[90vw] w-full h-[95vh]' 
+          : 'max-w-5xl w-full max-h-[90vh]'
+      }`}>
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full">
@@ -795,20 +799,12 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 </button>
               </div>
             ) : !readOnly ? (
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setEditingMode('edit')}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
-                >
-                  Edit Trip
-                </button>
-                <button
-                  onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
-                  className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
-                >
-                  View Details
-                </button>
-              </div>
+              <button
+                onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+                className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+              >
+                View Details
+              </button>
             ) : (
               <button
                 onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
