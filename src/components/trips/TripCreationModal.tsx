@@ -340,7 +340,14 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const steps = getStepsForTripType(formData.tripType)
 
   const updateFormData = (data: Partial<TripFormData>) => {
-    setFormData(prev => ({ ...prev, ...data }))
+    // Special handling for predefined events
+    if (data.selectedConvention && data.accessCode) {
+      // When a predefined event is selected with an access code, preserve it
+      console.log('🎯 Setting predefined event with access code:', data.accessCode)
+      setFormData(prev => ({ ...prev, ...data }))
+    } else {
+      setFormData(prev => ({ ...prev, ...data }))
+    }
   }
 
   const handleNext = async () => {

@@ -124,13 +124,58 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
         is_predefined: true
       };
 
+      // Generate a proper access code for predefined events
+      // Extract event code from event name with smart abbreviation logic
+      const getEventCode = (eventName: string): string => {
+        // Known event mappings for coffee industry events
+        const eventMappings: { [key: string]: string } = {
+          'SCTA': 'SCTA',
+          'NCA': 'NCA',
+          'SIC': 'SIC',
+          'SCA': 'SCA',
+          'Swiss Coffee': 'SCTA',
+          'National Coffee': 'NCA',
+          'World of Coffee': 'WOC',
+          'Specialty Coffee Association': 'SCA',
+          'Specialty Coffee': 'SCA',
+          'Coffee Expo': 'CEXP',
+          'Santos': 'SANTOS'
+        }
+        
+        // Check for known event patterns in the name
+        for (const [pattern, code] of Object.entries(eventMappings)) {
+          if (eventName.toUpperCase().includes(pattern.toUpperCase())) {
+            return code
+          }
+        }
+        
+        // Fallback: extract meaningful abbreviation (skip numbers and common words)
+        const words = eventName.split(/\s+/)
+        const meaningfulWords = words.filter(word => 
+          word.length > 2 && 
+          !/^\d/.test(word) && // Skip words starting with numbers
+          !['annual', 'the', 'of', 'for', 'and'].includes(word.toLowerCase())
+        )
+        
+        if (meaningfulWords.length > 0) {
+          return meaningfulWords[0].substring(0, 4).toUpperCase()
+        }
+        
+        // Final fallback
+        return eventName.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+      }
+      
+      const eventCode = getEventCode(event.name)
+      const accessCode = `${eventCode}-${new Date().getFullYear()}` // Use full year (2025, not 25)
+      
       updateFormData({
         selectedConvention: eventData,
         title: `${event.name} ${new Date().getFullYear()}`,
         startDate: event.date,
         endDate: endDate,
         description: event.description || `Business trip for ${event.name}`,
-        eventCode: event.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()
+        eventCode: eventCode,
+        accessCode: accessCode
       });
 
       // Auto-progress to next step after a short delay for smooth transition
@@ -315,9 +360,16 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
                 {formData.selectedConvention.description}
               </div>
             )}
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">
-              Great choice! Click "Next" to continue with attendee selection and travel arrangements.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                Great choice! Click "Next" to continue with attendee selection and travel arrangements.
+              </p>
+              {formData.selectedConvention.name.toUpperCase().includes('SCTA') && (
+                <div className="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">
+                  <span className="font-mono">Access Code: {formData.accessCode || 'SCTA-2025'}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -337,7 +389,8 @@ export const CoffeeEventCarousel: React.FC<CoffeeEventCarouselProps> = ({ formDa
               updateFormData({
                 selectedConvention: customEvent,
                 title: 'Custom Coffee Event Trip',
-                description: 'Business trip for custom coffee industry event'
+                description: 'Business trip for custom coffee industry event',
+                // Don't set accessCode for custom events - let the system generate it
               });
             }
           }}

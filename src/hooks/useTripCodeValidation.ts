@@ -108,7 +108,23 @@ export function useTripCodeValidation(
 
   // Automatically generate or validate the code when form data changes
   useEffect(() => {
+    // Check if this is a predefined event - don't overwrite predefined codes
+    const isPredefinedEvent = (
+      (formData as any)?.selectedConvention?.is_predefined === true ||
+      ((formData as any)?.selectedConvention && formData?.accessCode && formData.accessCode.includes('-'))
+    )
+    
     if (formData && formData.title && formData.startDate) {
+      // Don't auto-generate for predefined events that already have a code
+      if (isPredefinedEvent && formData.accessCode) {
+        // Just validate the existing predefined code
+        if (code !== formData.accessCode) {
+          setCode(formData.accessCode)
+        }
+        validateTripCode(formData.accessCode)
+        return
+      }
+      
       // Only auto-generate if no code exists or if key parameters changed
       if (!code || (initialCode === '' && code !== initialCode)) {
         const generatedCode = generateSmartTripCode(formData)

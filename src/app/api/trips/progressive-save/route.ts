@@ -194,48 +194,156 @@ export async function POST(request: NextRequest) {
       await updateTripExtendedData(supabase, tripId, stepData, user.id, now)
 
     } else {
-      // Idempotent creation: check if trip already exists with client temp ID
+      // IMPROVED IDEMPOTENT CREATION: Multiple strategies to prevent duplicates
       if (clientTempId) {
-        const { data: existingTrip } = await supabase
+        console.log('🔍 Checking for existing trip with clientTempId:', clientTempId)
+        
+        // Strategy 1: Check by clientTempId in metadata
+        const { data: existingTripByTempId, error: tempIdError } = await supabase
           .from('trips')
-          .select('id, access_code')
+          .select('id, access_code, completion_step')
           .eq('metadata->client_temp_id', clientTempId)
           .eq('creator_id', user.id)
           .single()
         
-        if (existingTrip) {
-          finalTripId = existingTrip.id
-          accessCode = existingTrip.access_code || ''
-          console.log('♾️ Found existing trip with client temp ID:', clientTempId, 'tripId:', finalTripId)
+        if (!tempIdError && existingTripByTempId) {
+          finalTripId = existingTripByTempId.id
+          accessCode = existingTripByTempId.access_code || ''
+          console.log('♾️ Found existing trip by clientTempId:', clientTempId, 'tripId:', finalTripId, 'accessCode:', accessCode)
           
-          // Update existing trip with new step data
+          // Update existing trip with new step data and prevent regression
+          const updateStep = Math.max(currentStep, existingTripByTempId.completion_step || 0)
+          
           const { error: updateError } = await supabase
             .from('trips')
             .update({
-              completion_step: currentStep,
+              completion_step: updateStep,
               step_data: stepData,
-              creation_status: getCreationStatus(currentStep),
+              creation_status: getCreationStatus(updateStep),
               last_edited_at: now,
               last_edited_by: user.id,
-              is_draft: currentStep < 5,
+              is_draft: updateStep < 5,
             })
             .eq('id', finalTripId)
           
           if (updateError) {
-            console.error('Failed to update existing trip:', updateError)
+            console.error('⚠️ Failed to update existing trip by clientTempId:', updateError)
+          } else {
+            console.log('✅ Successfully updated existing trip')
+            
+            // Update extended data for existing trip
+            await updateTripExtendedData(supabase, finalTripId, stepData, user.id, now)
+            
+            // Skip trip creation - return early with existing trip
+            const response: ProgressiveSaveResponse = {
+              success: true,
+              tripId: finalTripId,
+              accessCode: accessCode,
+              continueUrl: accessCode ? `/trips/continue/${accessCode}` : '',
+              savedAt: now,
+              message: `Progress saved at step ${currentStep} (existing trip updated)`
+            }
+            
+            // Still update draft entry
+            await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
+            
+            return NextResponse.json(response)
+          }
+        } else if (tempIdError && tempIdError.code !== 'PGRST116') {
+          console.error('⚠️ Error checking for existing trip by tempId:', tempIdError)
+        }
+      }
+      
+      // Strategy 2: Additional check for recent drafts by user and trip type
+      if (!finalTripId && currentStep >= 3) {
+        console.log('🔍 Checking for recent similar trips to prevent duplicates...')
+        
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        const { data: recentTrips } = await supabase
+          .from('trips')
+          .select('id, access_code, title, created_at')
+          .eq('creator_id', user.id)
+          .eq('trip_type', tripType)
+          .eq('status', 'planning')
+          .gte('created_at', fiveMinutesAgo)
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (recentTrips && recentTrips.length > 0) {
+          console.log(`🔍 Found ${recentTrips.length} recent similar trips in last 5 minutes`)
+          
+          // If we have a title to match against, use most recently created trip
+          const tripData = extractTripData(stepData, currentStep)
+          if (tripData.title && recentTrips.some(trip => trip.title === tripData.title)) {
+            const matchingTrip = recentTrips.find(trip => trip.title === tripData.title)
+            if (matchingTrip) {
+              finalTripId = matchingTrip.id
+              accessCode = matchingTrip.access_code || ''
+              console.log('♾️ Found recent matching trip by title:', tripData.title, 'tripId:', finalTripId)
+              
+              // Update the recent trip instead of creating new one
+              const { error: updateError } = await supabase
+                .from('trips')
+                .update({
+                  completion_step: currentStep,
+                  step_data: stepData,
+                  creation_status: getCreationStatus(currentStep),
+                  last_edited_at: now,
+                  last_edited_by: user.id,
+                  is_draft: currentStep < 5,
+                  // Update metadata with clientTempId for future idempotency
+                  metadata: {
+                    ...((matchingTrip as any).metadata || {}),
+                    ...(clientTempId ? { client_temp_id: clientTempId } : {})
+                  }
+                })
+                .eq('id', finalTripId)
+              
+              if (!updateError) {
+                console.log('✅ Successfully updated recent matching trip')
+                await updateTripExtendedData(supabase, finalTripId, stepData, user.id, now)
+                
+                const response: ProgressiveSaveResponse = {
+                  success: true,
+                  tripId: finalTripId,
+                  accessCode: accessCode,
+                  continueUrl: accessCode ? `/trips/continue/${accessCode}` : '',
+                  savedAt: now,
+                  message: `Progress saved at step ${currentStep} (recent trip updated)`
+                }
+                
+                await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
+                
+                return NextResponse.json(response)
+              }
+            }
           }
         }
       }
       
       // Create new trip when reaching step 3 (basic information) and no existing trip found
       if (currentStep >= 3 && !finalTripId) {
-        // Generate smart slug using new business logic
-        console.log('🎫 Access code logic - provided:', providedAccessCode, 'stepData.accessCode:', stepData.accessCode)
+        // IMPROVED ACCESS CODE PRIORITY LOGIC
+        console.log('🎫 Access code generation - analyzing priority sources:')
+        console.log('  - stepData.accessCode (predefined):', stepData.accessCode)
+        console.log('  - providedAccessCode (request):', providedAccessCode)
+        console.log('  - stepData.eventCode:', stepData.eventCode)
+        console.log('  - stepData.selectedConvention:', stepData.selectedConvention?.name)
         
-        if (providedAccessCode || stepData.accessCode) {
-          accessCode = providedAccessCode || stepData.accessCode
-        } else {
-          // Generate business-logic based slug
+        // Priority 1: Predefined accessCode from frontend (for SCTA-25, NCA-26, etc.)
+        if (stepData.accessCode && typeof stepData.accessCode === 'string' && stepData.accessCode.trim()) {
+          accessCode = stepData.accessCode.trim()
+          console.log('✅ Using predefined accessCode from stepData:', accessCode)
+        }
+        // Priority 2: Provided accessCode in request  
+        else if (providedAccessCode && typeof providedAccessCode === 'string' && providedAccessCode.trim()) {
+          accessCode = providedAccessCode.trim()
+          console.log('✅ Using providedAccessCode from request:', accessCode)
+        }
+        // Priority 3: Generate business-logic based code
+        else {
+          console.log('🔄 No predefined code found, generating business logic code...')
+          
           const tripData = extractTripData(stepData, currentStep)
           const companies = stepData.companies || []
           const startDate = new Date(tripData.start_date || new Date())
@@ -263,6 +371,7 @@ export async function POST(request: NextRequest) {
             })
           
           accessCode = uniqueSlug || baseSlug
+          console.log('✅ Generated unique code:', accessCode)
         }
         
         console.log('🎫 Final access code to use:', accessCode)
@@ -481,59 +590,7 @@ export async function POST(request: NextRequest) {
 
     // Update or create trip draft entry
     if (finalTripId) {
-      try {
-        // First try to update existing draft by trip_id
-        const { data: existingDraft, error: findError } = await supabase
-          .from('trip_drafts')
-          .select('id')
-          .eq('trip_id', finalTripId)
-          .single()
-
-        if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
-          console.error('Error finding existing draft:', findError)
-        }
-
-        if (existingDraft) {
-          // Update existing draft
-          const { error: updateError } = await supabase
-            .from('trip_drafts')
-            .update({
-              current_step: currentStep,
-              draft_data: stepData,
-              completion_percentage: completionPercentage,
-              last_accessed_at: now,
-              updated_at: now,
-            })
-            .eq('trip_id', finalTripId)
-
-          if (updateError) {
-            console.error('Failed to update existing draft:', updateError)
-          }
-        } else {
-          // Create new draft
-          const { error: insertError } = await supabase
-            .from('trip_drafts')
-            .insert({
-              creator_id: user.id,
-              trip_type: tripType,
-              trip_id: finalTripId,
-              current_step: currentStep,
-              draft_data: stepData,
-              completion_percentage: completionPercentage,
-              last_accessed_at: now,
-              updated_at: now,
-              access_token: accessCode ? `trip_${accessCode}` : null,
-              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            })
-
-          if (insertError) {
-            console.error('Failed to create new draft:', insertError)
-          }
-        }
-      } catch (draftError) {
-        console.error('Draft operation failed:', draftError)
-        // Don't fail the request if draft update fails
-      }
+      await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
     }
 
     const response: ProgressiveSaveResponse = {
@@ -845,5 +902,78 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
   } catch (error) {
     console.error('⚠️ Failed to update extended trip data:', error)
     // Don't throw error - this shouldn't fail the entire save operation
+  }
+}
+
+// Helper function to update or create trip draft entry
+async function updateTripDraftEntry(
+  supabase: any, 
+  tripId: string, 
+  currentStep: number, 
+  stepData: any, 
+  completionPercentage: number, 
+  tripType: string, 
+  accessCode: string, 
+  userId: string, 
+  now: string
+) {
+  try {
+    console.log('📝 Updating trip draft entry for tripId:', tripId)
+    
+    // First try to update existing draft by trip_id
+    const { data: existingDraft, error: findError } = await supabase
+      .from('trip_drafts')
+      .select('id')
+      .eq('trip_id', tripId)
+      .single()
+
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('⚠️ Error finding existing draft:', findError)
+    }
+
+    if (existingDraft) {
+      // Update existing draft
+      const { error: updateError } = await supabase
+        .from('trip_drafts')
+        .update({
+          current_step: currentStep,
+          draft_data: stepData,
+          completion_percentage: completionPercentage,
+          last_accessed_at: now,
+          updated_at: now,
+        })
+        .eq('trip_id', tripId)
+
+      if (updateError) {
+        console.error('⚠️ Failed to update existing draft:', updateError)
+      } else {
+        console.log('✅ Trip draft updated successfully')
+      }
+    } else {
+      // Create new draft
+      const { error: insertError } = await supabase
+        .from('trip_drafts')
+        .insert({
+          creator_id: userId,
+          trip_type: tripType,
+          trip_id: tripId,
+          current_step: currentStep,
+          draft_data: stepData,
+          completion_percentage: completionPercentage,
+          last_accessed_at: now,
+          updated_at: now,
+          access_token: accessCode ? `trip_${accessCode}` : null,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        })
+
+      if (insertError) {
+        console.error('⚠️ Failed to create new draft:', insertError)
+      } else {
+        console.log('✅ Trip draft created successfully')
+      }
+    }
+  } catch (draftError) {
+    console.error('⚠️ Draft operation failed:', draftError)
+    // Don't fail the request if draft update fails
   }
 }

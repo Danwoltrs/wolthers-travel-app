@@ -52,6 +52,14 @@ const availableCompanies: Company[] = [
 ]
 
 export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
+  // Check if this is a predefined event (from convention selection)
+  // Also check if accessCode was set from event selection to prevent overwrites
+  const isPredefinedEvent = (
+    (formData as any)?.selectedConvention?.is_predefined === true ||
+    ((formData as any)?.selectedConvention && formData.accessCode && formData.accessCode.includes('-'))
+  )
+
+  // Initialize the validation hook with proper predefined event handling
   const { 
     code, 
     setCode, 
@@ -62,8 +70,13 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     formData
   )
   
-  // Check if this is a predefined event (from convention selection)
-  const isPredefinedEvent = (formData as any)?.selectedConvention?.is_predefined === true
+  // Ensure the code matches formData.accessCode for predefined events
+  React.useEffect(() => {
+    if (isPredefinedEvent && formData.accessCode && code !== formData.accessCode) {
+      console.log('🎯 Syncing predefined access code:', formData.accessCode)
+      setCode(formData.accessCode)
+    }
+  }, [isPredefinedEvent, formData.accessCode, code, setCode])
 
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
@@ -156,15 +169,16 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                   value={code}
                   onChange={(e) => {
                     if (!isPredefinedEvent) {
-                      setCode(e.target.value.toUpperCase())
-                      updateFormData({ accessCode: e.target.value.toUpperCase() })
+                      const newCode = e.target.value.toUpperCase()
+                      setCode(newCode)
+                      updateFormData({ accessCode: newCode })
                     }
                   }}
                   readOnly={isPredefinedEvent}
                   className={`
                     w-40 px-2 py-1 text-sm font-mono border-none outline-none
                     ${validationResult.isValid ? 'text-gray-800' : 'text-red-600'}
-                    ${isPredefinedEvent ? 'text-green-700 bg-green-50' : ''}
+                    ${isPredefinedEvent ? 'text-green-700 bg-green-50 cursor-not-allowed' : ''}
                     placeholder-gray-400
                   `}
                   placeholder={code || "Generating..."}
