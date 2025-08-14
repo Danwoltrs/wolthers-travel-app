@@ -61,6 +61,16 @@ export function useActivityManager(tripId: string) {
         return
       }
 
+      console.log('📋 Activities loaded:', {
+        tripId,
+        count: data?.length || 0,
+        activities: data?.map(a => ({
+          id: a.id,
+          title: a.title,
+          date: a.activity_date,
+          time: a.start_time
+        }))
+      })
       setActivities(data || [])
     } catch (err: any) {
       console.error('Error in loadActivities:', err)
@@ -99,8 +109,8 @@ export function useActivityManager(tripId: string) {
 
       const data = await response.json()
 
-      // Update local state
-      setActivities(prev => [...prev, data])
+      // Force refresh to ensure consistency
+      await loadActivities()
       return data
     } catch (err: any) {
       console.error('Error in createActivity:', err)
@@ -135,10 +145,8 @@ export function useActivityManager(tripId: string) {
 
       const data = await response.json()
 
-      // Update local state
-      setActivities(prev => prev.map(activity => 
-        activity.id === activityId ? data : activity
-      ))
+      // Force refresh to ensure consistency
+      await loadActivities()
       return data
     } catch (err: any) {
       console.error('Error in updateActivity:', err)
@@ -167,8 +175,8 @@ export function useActivityManager(tripId: string) {
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      // Update local state
-      setActivities(prev => prev.filter(activity => activity.id !== activityId))
+      // Force refresh to ensure consistency
+      await loadActivities()
       return true
     } catch (err: any) {
       console.error('Error in deleteActivity:', err)

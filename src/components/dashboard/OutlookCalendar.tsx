@@ -224,11 +224,22 @@ export function OutlookCalendar({
 
   // Generate calendar days
   const calendarDays: CalendarDay[] = useMemo(() => {
+    console.log('🗓️ Calendar Days Debug:', {
+      tripId: trip.id,
+      startDate: trip.startDate,
+      startDateISO: trip.startDate.toISOString(),
+      duration: trip.duration
+    })
+    
     return Array.from({ length: trip.duration || 3 }, (_, index) => {
       const date = new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000)
+      const dateString = date.toISOString().split('T')[0]
+      
+      console.log(`📅 Day ${index + 1}: ${dateString}`)
+      
       return {
         date,
-        dateString: date.toISOString().split('T')[0],
+        dateString,
         dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
         dayNumber: date.getDate(),
         monthName: date.toLocaleDateString('en-US', { month: 'short' })
