@@ -1,13 +1,24 @@
-import React, { useState } from 'react'
-import { X, Users, Car, Key, Edit3, Calendar, Settings } from 'lucide-react'
+import React, { useState, useCallback, useEffect } from 'react'
+import { X, Users, Car, Key, Edit3, Calendar, Settings, FileText, DollarSign, Save, AlertCircle } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
 import { useTripDetails } from '@/hooks/useTrips'
+import { useEnhancedModal } from '@/hooks/useEnhancedModal'
+import { EnhancedTabNavigation } from './EnhancedTabNavigation'
+import { OverviewTab } from './tabs/OverviewTab'
+import { ParticipantsTab } from './tabs/ParticipantsTab'
+import { LogisticsTab } from './tabs/LogisticsTab'
+import { ScheduleTab } from './tabs/ScheduleTab'
+import { DocumentsTab } from './tabs/DocumentsTab'
+import { ExpensesTab } from './tabs/ExpensesTab'
+import type { EnhancedModalTab, EnhancedModalState, SaveStatus } from '@/types/enhanced-modal'
 
 interface QuickViewModalProps {
   trip: TripCardType
   isOpen: boolean
   onClose: () => void
+  onSave?: (tripData: any) => Promise<void>
+  readOnly?: boolean
 }
 
 // Mock destination companies data based on real Wolthers trips
@@ -115,10 +126,23 @@ const groupDestinationsByLocation = (destinations: Array<{date: string, location
   return grouped
 }
 
-export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModalProps) {
+export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly = false }: QuickViewModalProps) {
   const [showCopyTooltip, setShowCopyTooltip] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'participants' | 'logistics'>('overview')
-  const [isEditing, setIsEditing] = useState(false)
+  
+  // Enhanced modal state management
+  const {
+    modalState,
+    setActiveTab,
+    setEditingMode,
+    updateFormData,
+    saveFormData,
+    hasUnsavedChanges,
+    validationErrors,
+    isAutoSaving
+  } = useEnhancedModal(trip, { onSave, autoSaveEnabled: true })
+  
+  const { activeTab, editingMode } = modalState
+  const isEditing = editingMode === 'edit'
   
   if (!isOpen) return null
 
@@ -187,7 +211,7 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-[95vw] xl:max-w-[90vw] w-full h-[95vh] flex flex-col border border-pearl-200 dark:border-[#2a2a2a]">
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full">
@@ -200,17 +224,19 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
             
             <div className="flex items-center space-x-3">
               {/* Edit Toggle */}
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isEditing 
-                    ? 'bg-white/20 text-white dark:bg-emerald-800/50 dark:text-golden-400' 
-                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
-                }`}
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>{isEditing ? 'View Mode' : 'Edit Mode'}</span>
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => setEditingMode(isEditing ? 'view' : 'edit')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isEditing 
+                      ? 'bg-white/20 text-white dark:bg-emerald-800/50 dark:text-golden-400' 
+                      : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
+                  }`}
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>{isEditing ? 'View Mode' : 'Edit Mode'}</span>
+                </button>
+              )}
               
               <button
                 onClick={onClose}
@@ -221,32 +247,15 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
             </div>
           </div>
           
-          {/* Tabs */}
+          {/* Enhanced Tab Navigation */}
           {isEditing && (
-            <div className="flex mt-4 space-x-1">
-              {[
-                { id: 'overview', label: 'Overview', icon: Key },
-                { id: 'schedule', label: 'Schedule', icon: Calendar },
-                { id: 'participants', label: 'Participants', icon: Users },
-                { id: 'logistics', label: 'Logistics', icon: Car }
-              ].map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400'
-                        : 'text-white/70 dark:text-golden-400/70 hover:text-white hover:bg-white/10 dark:hover:text-golden-400 dark:hover:bg-emerald-800/40'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                )
-              })}
-            </div>
+            <EnhancedTabNavigation
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              validationState={modalState.validationState}
+              saveStatus={modalState.saveStatus}
+              className="mt-4"
+            />
           )}
         </div>
 
@@ -272,101 +281,97 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
           </p>
         </div>
 
-        {/* Content */}
-        <div className="p-3 md:p-6 space-y-6">
+        {/* Content Area - Scrollable */}
+        <div className="flex-1 overflow-hidden">
           {isEditing ? (
-            /* Editing Mode - Show Tabs */
-            <div className="space-y-6">
-              {activeTab === 'overview' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Trip Overview</h3>
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                        <input 
-                          type="text" 
-                          defaultValue={trip.title}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                        <textarea 
-                          rows={3}
-                          defaultValue={trip.subject}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                          <input 
-                            type="date" 
-                            defaultValue={new Date(trip.startDate).toISOString().split('T')[0]}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                          <input 
-                            type="date" 
-                            defaultValue={new Date(trip.endDate).toISOString().split('T')[0]}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-3">
-                        <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2a2a2a] rounded-md hover:bg-gray-200 dark:hover:bg-[#3a3a3a]">Cancel</button>
-                        <button className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700">Save Changes</button>
-                      </div>
+            /* Editing Mode - Enhanced Tabs */
+            <div className="h-full flex flex-col">
+              {/* Auto-save Status Bar */}
+              {(hasUnsavedChanges || isAutoSaving) && (
+                <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {isAutoSaving ? (
+                        <>
+                          <div className="animate-spin h-3 w-3 border border-amber-500 border-t-transparent rounded-full"></div>
+                          <span className="text-xs text-amber-700 dark:text-amber-300">Auto-saving changes...</span>
+                        </>
+                      ) : hasUnsavedChanges ? (
+                        <>
+                          <AlertCircle className="h-3 w-3 text-amber-500" />
+                          <span className="text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>
+                        </>
+                      ) : null}
                     </div>
+                    {modalState.lastSaved && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Last saved: {modalState.lastSaved.toLocaleTimeString()}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
               
-              {activeTab === 'schedule' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Schedule & Meetings</h3>
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
-                    <div className="text-center py-8">
-                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">Schedule editing interface coming soon</p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Add meetings, visits, and activities by day and time</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'participants' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Participants</h3>
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">Participant management interface coming soon</p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Add/remove staff members, guests, and company representatives</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'logistics' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Logistics</h3>
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
-                    <div className="text-center py-8">
-                      <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">Logistics management interface coming soon</p>
-                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Manage vehicles, drivers, and transportation arrangements</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Tab Content Area */}
+              <div className="flex-1 overflow-y-auto p-3 md:p-6">
+                {activeTab === 'overview' && (
+                  <OverviewTab 
+                    trip={trip} 
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.overview}
+                  />
+                )}
+                
+                {activeTab === 'schedule' && (
+                  <ScheduleTab 
+                    trip={trip}
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.schedule}
+                  />
+                )}
+                
+                {activeTab === 'participants' && (
+                  <ParticipantsTab 
+                    trip={trip}
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.participants}
+                  />
+                )}
+                
+                {activeTab === 'logistics' && (
+                  <LogisticsTab 
+                    trip={trip}
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.logistics}
+                  />
+                )}
+                
+                {activeTab === 'documents' && (
+                  <DocumentsTab 
+                    trip={trip}
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.documents}
+                  />
+                )}
+                
+                {activeTab === 'expenses' && (
+                  <ExpensesTab 
+                    trip={trip}
+                    tripDetails={tripDetails}
+                    onUpdate={updateFormData}
+                    validationState={modalState.validationState.expenses}
+                  />
+                )}
+              </div>
             </div>
           ) : (
             /* View Mode - Show Regular Content */
-            <>
+            <div className="overflow-y-auto p-3 md:p-6 space-y-6">
               {/* Dynamic Layout - Companies and Staff */}
               <div className="space-y-4">
                 {/* Mobile: Simple text layout */}
@@ -725,14 +730,12 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
                   </div>
                 </div>
               </div>
-              </>
-              )}
-            </>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-between items-center p-3 md:p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
+        {/* Enhanced Footer */}
+        <div className="flex justify-between items-center p-3 md:p-6 border-t border-pearl-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111] flex-shrink-0">
           {/* Left side - Access Code */}
           {trip.accessCode && (
             <div className="relative">
@@ -759,15 +762,51 @@ export default function QuickViewModal({ trip, isOpen, onClose }: QuickViewModal
               onClick={onClose}
               className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
             >
-              Close
+              {hasUnsavedChanges && isEditing ? 'Close (Unsaved)' : 'Close'}
             </button>
             {isEditing ? (
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
-              >
-                Done Editing
-              </button>
+              <div className="flex space-x-3">
+                {hasUnsavedChanges && (
+                  <button
+                    onClick={saveFormData}
+                    disabled={modalState.saveStatus.isSaving}
+                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors disabled:opacity-50"
+                  >
+                    {modalState.saveStatus.isSaving ? (
+                      <div className="animate-spin h-4 w-4 border border-golden-400 border-t-transparent rounded-full"></div>
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span>{modalState.saveStatus.isSaving ? 'Saving...' : 'Save Now'}</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (hasUnsavedChanges && !confirm('You have unsaved changes. Are you sure you want to exit editing mode?')) {
+                      return
+                    }
+                    setEditingMode('view')
+                  }}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}
+                </button>
+              </div>
+            ) : !readOnly ? (
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setEditingMode('edit')}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Edit Trip
+                </button>
+                <button
+                  onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+                  className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+                >
+                  View Details
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}

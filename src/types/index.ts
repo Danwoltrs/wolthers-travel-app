@@ -784,3 +784,126 @@ export enum CalendarEventExpenseCategory {
   TRANSPORTATION = "transportation",
   OTHER = "other"
 }
+
+// ===== ENHANCED MODAL TYPES EXPORTS =====
+
+// Enhanced Modal Core Types
+export type {
+  EnhancedModalTab,
+  ModalEditingMode,
+  EnhancedModalState,
+  SaveStatus,
+  TabValidationState,
+  FieldValidationState
+} from './enhanced-modal'
+
+// Enhanced Modal Form Data Types
+export type {
+  ScheduleEditData,
+  ParticipantsEditData,
+  LogisticsEditData,
+  EnhancedModalFormData,
+  BulkEditData,
+  BulkOperation
+} from './enhanced-modal'
+
+// Enhanced Activity Types
+export type {
+  EnhancedActivity,
+  EnhancedItineraryDay,
+  DragDropState,
+  DropTarget,
+  DragPreview,
+  ActivityConflict,
+  ActivityDragState,
+  CalendarViewSettings
+} from './enhanced-modal'
+
+// Enhanced Participant Types
+export type {
+  EnhancedStaffParticipant,
+  EnhancedCompanyParticipant,
+  EnhancedExternalGuest,
+  ParticipantAvailability,
+  AvailabilityConflict,
+  StaffWorkload,
+  AvailabilityCheckState,
+  RoleAssignmentData,
+  TripRole,
+  RoleRequirement
+} from './enhanced-modal'
+
+// Enhanced Logistics Types
+export type {
+  EnhancedVehicleAssignment,
+  EnhancedDriverAssignment,
+  VehicleRequirement,
+  DriverCertification,
+  EquipmentItem,
+  AccommodationItem,
+  RoomAssignment,
+  AccommodationCost,
+  TransportationPlan,
+  TransportationLeg,
+  TransportationPreferences,
+  Location
+} from './enhanced-modal'
+
+// API Integration Types
+export type {
+  RealtimeUpdateEvent,
+  ProgressiveSaveRequest,
+  ProgressiveSaveOptions,
+  ProgressiveSaveResponse,
+  SaveConflict
+} from './enhanced-modal'
+
+// Validation Types
+export type {
+  ValidationRule,
+  ValidationRuleType,
+  ValidationRuleConfig,
+  ValidationContext,
+  ValidationMode,
+  ValidationResult,
+  ActivityValidationSchema,
+  ParticipantValidationSchema,
+  VehicleValidationSchema,
+  LogisticsValidationSchema,
+  CrossFieldValidationRule,
+  BusinessLogicValidationRule,
+  AsyncValidationRule,
+  FormValidationState,
+  AsyncValidationState,
+  ValidationBatch,
+  BatchValidationResult,
+  ValidationProgress
+} from './enhanced-modal-validation'
+
+// Conflict Detection Types
+export type {
+  ConflictDetectionConfig,
+  ConflictType,
+  ConflictDetectionMode,
+  ConflictDetectionResult,
+  DetectedConflict,
+  ConflictResolution,
+  ConflictResolutionAction,
+  ResolutionImpact,
+  ConflictDetectionMetadata
+} from './enhanced-modal-validation'
+
+// Validation Presets and Utilities
+export type {
+  ValidationPreset,
+  ValidationSchemaSet,
+  ValidationErrorFormatter,
+  ValidationDebouncerConfig,
+  ValidationPerformanceMetrics
+} from './enhanced-modal-validation'
+
+// Type Guards and Utilities
+export {
+  isEnhancedActivity,
+  isStaffParticipant
+} from './enhanced-modal'

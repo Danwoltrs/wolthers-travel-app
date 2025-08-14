@@ -266,3 +266,71 @@ export function truncatePhone(phone: string): string {
   
   return phone
 }
+
+/**
+ * Detects if the current device supports touch interactions
+ */
+export function isTouchDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  return (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    // @ts-ignore - for older browser compatibility
+    navigator.msMaxTouchPoints > 0
+  )
+}
+
+/**
+ * Detects if the current device is likely a mobile device
+ */
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  return window.innerWidth < 768 || isTouchDevice()
+}
+
+/**
+ * Formats time for display with 12-hour format option
+ */
+export function formatTime(time: string, use24Hour: boolean = true): string {
+  if (!time) return ''
+  
+  if (use24Hour) return time
+  
+  const [hours, minutes] = time.split(':').map(Number)
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const displayHours = hours % 12 || 12
+  
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
+}
+
+/**
+ * Calculates the end time based on start time and duration
+ */
+export function calculateEndTime(startTime: string, durationMinutes: number): string {
+  if (!startTime) return ''
+  
+  const [hours, minutes] = startTime.split(':').map(Number)
+  const startDate = new Date()
+  startDate.setHours(hours, minutes, 0, 0)
+  
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60000)
+  
+  return `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`
+}
+
+/**
+ * Checks if two time ranges overlap
+ */
+export function timeRangesOverlap(
+  start1: string, 
+  duration1: number, 
+  start2: string, 
+  duration2: number
+): boolean {
+  const end1 = calculateEndTime(start1, duration1)
+  const end2 = calculateEndTime(start2, duration2)
+  
+  return start1 < end2 && start2 < end1
+}

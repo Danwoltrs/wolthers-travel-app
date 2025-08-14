@@ -86,6 +86,8 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 - **Email**: Nodemailer for email notifications
 - **Icons**: Lucide React for consistent iconography
 - **Utilities**: clsx and tailwind-merge for className management
+- **Drag & Drop**: React DnD with HTML5 backend for calendar interactions
+- **Touch Support**: React DnD Touch backend for mobile drag operations
 
 ### Project Structure
 - `/src/app/` - Next.js App Router pages and layouts
@@ -97,6 +99,7 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
   - `utils.ts` - Common utilities including date formatting with day names
 - `/src/services/` - External service integrations (API clients, etc.)
 - `/src/types/` - TypeScript type definitions
+  - `enhanced-modal.ts` - Enhanced modal types and interfaces
 - `/supabase/migrations/` - Database migration files
 
 ### Key Features
@@ -106,19 +109,31 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 - AI-powered features using Anthropic Claude and OpenAI
 - Real-time database capabilities with Supabase
 - Email notification system
+- Enhanced Quick View Modal with comprehensive trip editing
+- Calendar system with drag-and-drop activity management
+- Progressive save functionality with conflict resolution
 
 ### Design System
 
 #### Modal Design Standards
 All modals throughout the application must follow the QuickView modal design system to ensure visual consistency:
 
-**Modal Container:**
+**Standard Modal Container:**
 - Background: `bg-white dark:bg-[#1a1a1a]`
 - Border: `border border-pearl-200 dark:border-[#2a2a2a]`
 - Shadow: `shadow-xl`
 - Border radius: `rounded-lg`
 - Max width: `max-w-5xl`
 - Responsive padding: `p-2 md:p-4` (outer), `p-3 md:p-6` (inner content)
+
+**Enhanced Modal Container (for comprehensive editing):**
+- Max width: `max-w-[95vw] xl:max-w-[90vw]` for maximum canvas utilization
+- Height: `h-[95vh]` for full-screen editing experience
+- Background: `bg-white dark:bg-[#1a1a1a]`
+- Border: `border border-pearl-200 dark:border-[#2a2a2a]`
+- Shadow: `shadow-2xl`
+- Border radius: `rounded-lg`
+- Responsive padding: `p-2 md:p-4`
 
 **Modal Header:**
 - Background: `bg-golden-400 dark:bg-[#09261d]`
@@ -141,6 +156,76 @@ All modals throughout the application must follow the QuickView modal design sys
 **Form Elements:**
 - Checkboxes: `dark:bg-[#1a1a1a] dark:border-[#2a2a2a]`
 - Borders: `dark:border-[#2a2a2a]` for separators
+
+#### Enhanced Quick View Modal System
+
+The Enhanced Quick View Modal provides comprehensive trip editing capabilities with a six-tab navigation system and full-screen editing experience.
+
+**Enhanced Modal Structure:**
+- **Dimensions**: `max-w-[95vw] xl:max-w-[90vw]` width, `h-[95vh]` height
+- **Navigation**: Six-tab system with Overview, Schedule, Participants, Logistics, Documents, Expenses
+- **Progressive Save**: Auto-save functionality with conflict resolution
+- **Real-time Validation**: Form validation with error handling
+- **Mobile Optimization**: Touch-friendly interface with responsive design
+
+**Tab-Specific Features:**
+
+1. **Overview Tab**
+   - Trip details editing with real-time updates
+   - Status management and trip information
+   - Quick access to essential trip data
+
+2. **Schedule Tab**
+   - Full calendar interface with day/week/timeline views
+   - Drag-and-drop activity management using React DnD
+   - Time conflict detection and resolution
+   - Trip date extension (add days before/after)
+   - Activity creation, editing, and deletion
+   - Mobile-optimized with touch support
+
+3. **Participants Tab**
+   - Staff selection and role assignment
+   - Real-time participant management
+   - Integration with user management system
+
+4. **Logistics Tab**
+   - Vehicle and driver assignment
+   - Equipment management
+   - Accommodation details
+   - Resource allocation tracking
+
+5. **Documents Tab**
+   - File upload and management
+   - Document categorization
+   - File sharing capabilities
+   - Version control
+
+6. **Expenses Tab**
+   - Budget tracking and management
+   - Expense categorization
+   - Cost analysis and reporting
+
+**Technical Implementation:**
+- Enhanced modal types in `/src/types/enhanced-modal.ts`
+- State management with `useEnhancedModal` hook
+- Supabase integration with real-time updates
+- Calendar drag-and-drop with React DnD
+- Touch backend for mobile devices
+- Progressive save with conflict resolution
+- Form validation and error handling
+
+**Accessibility Features:**
+- Keyboard navigation support
+- Screen reader compatibility
+- High contrast mode support
+- Touch-friendly interface
+- Focus management
+
+**Design Compliance:**
+- Nordic minimalist design system
+- Consistent color palette with forest green and gold accents
+- Responsive typography and spacing
+- Glass morphic effects where appropriate
 
 #### User Management Module Color Scheme
 **Background Colors:**
@@ -202,6 +287,17 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - **Rate Limiting**: Built-in retry logic and exponential backoff for API limits
 - **Responsive Design**: Map component adapts to different screen sizes with proper controls
 
+### Calendar System with Drag & Drop
+- **React DnD Implementation**: Full drag-and-drop support for activity management
+- **Multiple View Modes**: Day, week, and timeline views for different planning perspectives
+- **Touch Support**: Mobile-optimized with React DnD Touch backend
+- **Time Conflict Detection**: Automatic detection and prevention of scheduling conflicts
+- **Activity Management**: Create, edit, delete, and reschedule activities with visual feedback
+- **Trip Extension**: Add days before or after trip dates with calendar integration
+- **Real-time Updates**: Immediate synchronization with Supabase database
+- **Accessibility**: Keyboard navigation and screen reader support
+- **Mobile Optimization**: Touch-friendly interface with responsive design
+
 ### UI/UX Principles
 1. **Consistency**: All cards maintain the same height (420px) for visual uniformity
 2. **Visual Hierarchy**: Color-coded sections guide the eye through important information
@@ -232,30 +328,34 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 1. Main app layout with glassmorphic header
 2. Dashboard with uniform trip cards
 3. Authentication system (Microsoft OAuth, email OTP)
-4. Quick view modal for trip details
+4. Enhanced Quick View Modal with comprehensive trip editing capabilities
 5. Nordic business minimalist design implementation
 6. Responsive grid layout
 7. Date formatting with day names
 8. **User Management Interface** - Complete user management system with search, filtering, role management, online status, and invite functionality
 9. **Supabase Integration** - Real-time trip data with activities and location information
 10. **Trip URL Structure** - Access trips via unique codes (e.g., AMS_DCI_QA_0825) not UUIDs
+11. **Enhanced Quick View Modal** - Six-tab comprehensive editing system with progressive save
+12. **Calendar Drag & Drop System** - Full activity management with time conflict detection
+13. **Progressive Save Functionality** - Auto-save with conflict resolution and real-time validation
+14. **Mobile-Optimized Calendar** - Touch-friendly drag-and-drop with responsive design
 
 #### Pending Features 🚧
-1. Trip creation wizard (UI complete)
+1. Trip creation wizard (backend integration)
 2. Company management pages
 3. Fleet management system
-5. Expense tracking features
-6. Itinerary detail editor
-7. Meeting confirmation system
-8. Real-time updates and notifications
-9. *Google Maps Integration** - Interactive maps with real location data, geocoding, and route planning
+4. Advanced expense tracking features (basic implemented)
+5. Meeting confirmation system
+6. Real-time notifications system
+7. Document version control system
+8. Advanced reporting and analytics
 
 ### Development Guidelines
 
 #### Code Restrictions 🚨
 - **Do not change the login and authentication** unless explicitly requested
 - **Do not change the dashboard trip layouts** unless explicitly requested  
-- **Do not change the trip quick view modal** unless explicitly requested
+- **Enhanced Quick View Modal is production-ready** - Maintain existing functionality and design patterns
 - **NEVER change trip URLs from trip codes to trip IDs** - Always use the unique trip access code (e.g., AMS_DCI_QA_0825) for URLs, not UUIDs
 
 #### Best Practices
@@ -266,8 +366,18 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - Ensure responsive design across all screen sizes
 - Use Lucide icons exclusively for visual consistency
 - Keep glassmorphic effects subtle and professional
-- "Authentication methos fully implemented with oauth and e-mail"
-- any editing from supabase has to load the current information pre-populated from supabase if it has data, otherwise use a placeholder text
+- "Authentication methods fully implemented with oauth and e-mail"
+- Any editing from Supabase has to load the current information pre-populated from Supabase if it has data, otherwise use a placeholder text
+
+#### Enhanced Modal Development Guidelines
+- **Progressive Save**: Implement auto-save functionality with conflict resolution for all editing interfaces
+- **Real-time Validation**: Provide immediate feedback on form validation and data integrity
+- **Mobile-First Design**: Ensure touch-friendly interfaces with responsive layouts
+- **Accessibility Compliance**: Include keyboard navigation, screen reader support, and high contrast modes
+- **Drag & Drop Standards**: Use React DnD with HTML5 backend for desktop and Touch backend for mobile
+- **State Management**: Utilize `useEnhancedModal` hook pattern for consistent modal state handling
+- **Error Handling**: Implement comprehensive error boundaries and user-friendly error messages
+- **Performance Optimization**: Use lazy loading and efficient re-rendering strategies for large datasets
 
 ## Important Database Notes
 
