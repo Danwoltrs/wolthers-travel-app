@@ -482,16 +482,12 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     }),
   })
 
-  // Debug: Show all activities being processed for this time slot
+  // Debug: Show activities for key time slot
   if (timeSlot.hour === 14 && date.dateString.includes('2025-10-02')) {
-    console.log('🔍 [OutlookCalendar] Processing 14:00 slot on Oct 2, total activities:', activities.length)
     const testActivities = activities.filter(a => a.title?.toLowerCase().includes('test'))
-    console.log('🔍 [OutlookCalendar] Test activities found:', testActivities.map(a => ({
-      id: a.id,
-      title: a.title,
-      date: a.activity_date,
-      time: a.start_time
-    })))
+    if (testActivities.length > 0) {
+      console.log('🔍 [OutlookCalendar] Test activities for 14:00 Oct 2:', testActivities.map(a => a.title))
+    }
   }
 
   // Filter activities for this time slot hour and date
@@ -591,40 +587,8 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       })
     }
     
-    if (isMultiDay) {
-      if (isStartDay) {
-        // First day: only show if activity starts in this hour and within display range
-        return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22
-      } else if (isEndDay) {
-        // Last day: only show if it's the 6 AM slot (start of day display)
-        return timeSlot.hour === 6
-      } else if (isContinuationDay) {
-        // Continuation day: only show if it's the 6 AM slot (start of day display)
-        return timeSlot.hour === 6
-      }
-      return false
-    } else {
-      // Single day activity: check if it starts in this hour and within display range
-      const hourMatches = activityHour === timeSlot.hour
-      const inRange = activityHour >= 6 && activityHour < 22
-      
-      // Enhanced debug for single day activities
-      if (activity.title.toLowerCase().includes('test')) {
-        console.log('🔍 [OutlookCalendar] Single day test activity filter check:', {
-          title: activity.title,
-          startTimeRaw: activity.start_time,
-          activityHour,
-          timeSlotHour: timeSlot.hour,
-          activityDate: activity.activity_date,
-          currentDisplayDate,
-          hourMatches,
-          inRange,
-          finalResult: hourMatches && inRange
-        })
-      }
-      
-      return hourMatches && inRange
-    }
+    // Return the matches result - don't duplicate the logic
+    return matches
   })
 
   const handleSlotClick = () => {
