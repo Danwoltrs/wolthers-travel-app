@@ -179,12 +179,23 @@ export function useActivityManager(tripId: string) {
       console.log('🔄 Create success - replacing temp with real:', tempId, '->', data.id)
 
       // Replace optimistic activity with real one immediately (don't wait for subscription)
-      setActivities(prev => prev.map(activity => 
-        activity.id === tempId ? data : activity
-      ))
+      setActivities(prev => {
+        console.log('🔄 [CreateActivity] Replacing optimistic with real:', {
+          tempId,
+          realId: data.id,
+          activitiesBeforeReplace: prev.length,
+          foundTempActivity: !!prev.find(a => a.id === tempId)
+        })
+        const updated = prev.map(activity => 
+          activity.id === tempId ? data : activity
+        )
+        console.log('🔄 [CreateActivity] Activities after replace:', updated.length)
+        return updated
+      })
       
       // Remove from optimistic tracking after a brief delay to let subscription settle
       setTimeout(() => {
+        console.log('🔄 [CreateActivity] Removing from optimistic tracking:', tempId)
         optimisticOperationsRef.current.delete(tempId)
       }, 200)
 
@@ -530,6 +541,7 @@ export function useActivityManager(tripId: string) {
     loadActivities()
 
     // Set up real-time subscription with improved handling
+    console.log('🔗 [Subscription] Setting up real-time subscription for trip:', tripId)
     const subscription = supabase
       .channel(`activities-${tripId}`)
       .on(
@@ -541,12 +553,26 @@ export function useActivityManager(tripId: string) {
           filter: `trip_id=eq.${tripId}`
         },
         (payload) => {
-          console.log('🔄 Real-time activity update:', payload.eventType, payload)
+          console.log('🔄 [Subscription] Real-time activity update received:', {
+            eventType: payload.eventType,
+            activityId: payload.new?.id || payload.old?.id,
+            title: payload.new?.title || payload.old?.title,
+            date: payload.new?.activity_date || payload.old?.activity_date,
+            time: payload.new?.start_time || payload.old?.start_time
+          })
           
           // Add slight delay to ensure optimistic updates are processed first
           setTimeout(() => {
             if (payload.eventType === 'INSERT') {
               setActivities(prev => {
+                console.log('🔄 [Subscription] INSERT event received:', {
+                  newActivityId: payload.new.id,
+                  title: payload.new.title,
+                  date: payload.new.activity_date,
+                  time: payload.new.start_time,
+                  currentActivitiesCount: prev.length
+                })
+                
                 // Check if we have a temp activity that should be replaced
                 const tempActivity = prev.find(activity => 
                   activity.id.startsWith('temp-') && 
@@ -557,24 +583,29 @@ export function useActivityManager(tripId: string) {
                 
                 if (tempActivity) {
                   // Replace temp activity with real one
-                  console.log('🔄 Replacing temp activity:', tempActivity.id, 'with real:', payload.new.id)
+                  console.log('🔄 [Subscription] Replacing temp activity:', tempActivity.id, 'with real:', payload.new.id)
                   optimisticOperationsRef.current.delete(tempActivity.id)
-                  return prev.map(activity => 
+                  const updated = prev.map(activity => 
                     activity.id === tempActivity.id ? payload.new as Activity : activity
                   )
+                  console.log('🔄 [Subscription] Activities after temp replacement:', updated.length)
+                  return updated
                 }
                 
                 // Check if we already have this real activity
                 const existingActivity = prev.find(activity => activity.id === payload.new.id)
                 if (existingActivity) {
                   // Update existing activity (shouldn't happen for INSERT but handle gracefully)
+                  console.log('🔄 [Subscription] Updating existing activity via INSERT:', payload.new.id)
                   return prev.map(activity => 
                     activity.id === payload.new.id ? payload.new as Activity : activity
                   )
                 } else {
                   // Add new activity (from other users or external sources)
-                  console.log('🔄 Adding new activity from subscription:', payload.new.id)
-                  return [...prev, payload.new as Activity]
+                  console.log('🔄 [Subscription] Adding new activity from subscription:', payload.new.id)
+                  const updated = [...prev, payload.new as Activity]
+                  console.log('🔄 [Subscription] Activities after adding new:', updated.length)
+                  return updated
                 }
               })
             } else if (payload.eventType === 'UPDATE') {
@@ -606,7 +637,9 @@ export function useActivityManager(tripId: string) {
           }, 50) // 50ms delay to let optimistic updates settle
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('🔗 [Subscription] Subscription status changed:', status)
+      })
 
     return () => {
       subscription.unsubscribe()
