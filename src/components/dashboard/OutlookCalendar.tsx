@@ -46,8 +46,8 @@ interface CalendarDay {
 
 const ITEM_TYPE = 'ACTIVITY'
 
-// Generate hourly time slots from 6 AM to 11 PM for UI display
-const TIME_SLOTS: TimeSlot[] = Array.from({ length: 18 }, (_, index) => {
+// Generate hourly time slots from 6 AM to 10 PM for UI display
+const TIME_SLOTS: TimeSlot[] = Array.from({ length: 17 }, (_, index) => {
   const hour = 6 + index
   const time = `${hour.toString().padStart(2, '0')}:00`
   const display = `${hour.toString().padStart(2, '0')}:00`
@@ -141,23 +141,23 @@ const ActivityCard = memo(function ActivityCard({
       if (startHour < 6) {
         // Start before 6 AM, don't show on this day
         return null
-      } else if (startHour >= 23) {
-        // Start at or after 11 PM, show minimal block at 11 PM
-        displayStartTime = '23:00'
-        displayEndTime = '23:00'
-        topOffset = (23 - 6) * 60
+      } else if (startHour >= 22) {
+        // Start at or after 10 PM, show minimal block at 10 PM
+        displayStartTime = '22:00'
+        displayEndTime = '22:00'
+        topOffset = (22 - 6) * 60
         duration = 1
       } else {
-        // Normal start time within display range (6 AM - 11 PM)
+        // Normal start time within display range (6 AM - 10 PM)
         displayStartTime = activity.start_time || '19:00'
-        displayEndTime = '23:00' // Truncate at 11 PM
+        displayEndTime = '22:00' // Truncate at 10 PM
         
         // Position relative to the start of this time slot (0px from slot top)
         // The minutes within the hour determine the offset within the 60px slot
         const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
         topOffset = minuteOffset
         
-        duration = (23 * 60 - timeToMinutes(displayStartTime)) / 15
+        duration = (22 * 60 - timeToMinutes(displayStartTime)) / 15
       }
     } else if (isEndDay) {
       // Last day: show from 6 AM to end time
@@ -167,9 +167,9 @@ const ActivityCard = memo(function ActivityCard({
       displayStartTime = '06:00'
       topOffset = 0
       
-      if (endHour > 23) {
-        // End time is after 11 PM, truncate to 11 PM for display
-        displayEndTime = '23:00'
+      if (endHour > 22) {
+        // End time is after 10 PM, truncate to 10 PM for display
+        displayEndTime = '22:00'
       } else if (endHour < 6) {
         // End time is before 6 AM, don't show on this day
         return null
@@ -179,18 +179,18 @@ const ActivityCard = memo(function ActivityCard({
       }
       duration = Math.max(0, (timeToMinutes(displayEndTime) - 6 * 60) / 15)
     } else {
-      // Continuation day: show full day from 6 AM to 11 PM
+      // Continuation day: show full day from 6 AM to 10 PM
       displayStartTime = '06:00'
-      displayEndTime = '23:00'
+      displayEndTime = '22:00'
       topOffset = 0
-      duration = (23 - 6) * 4 // 17 hours * 4 quarter-hours
+      duration = (22 - 6) * 4 // 16 hours * 4 quarter-hours
     }
   } else {
     // Single day activity
     const startHour = parseInt(activity.start_time?.split(':')[0] || '9')
     const startMinutes = parseInt(activity.start_time?.split(':')[1] || '0')
     
-    if (startHour < 6 || startHour >= 23) {
+    if (startHour < 6 || startHour >= 22) {
       // Activity outside display range, don't show
       return null
     } else {
@@ -263,7 +263,7 @@ const ActivityCard = memo(function ActivityCard({
           totalStartMinutes += 24 * 60
           dayOffset -= 1
         }
-        while (totalStartMinutes > 23 * 60) { // After 11 PM, go to next day
+        while (totalStartMinutes > 22 * 60) { // After 10 PM, go to next day
           totalStartMinutes -= 24 * 60
           dayOffset += 1
         }
@@ -296,7 +296,7 @@ const ActivityCard = memo(function ActivityCard({
           totalEndMinutes += 24 * 60
           dayOffset -= 1
         }
-        while (totalEndMinutes > 23 * 60) { // After 11 PM, go to next day
+        while (totalEndMinutes > 22 * 60) { // After 10 PM, go to next day
           totalEndMinutes -= 24 * 60
           dayOffset += 1
         }
@@ -497,7 +497,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       if (isStartDay) {
         // First day: only show if activity starts in this hour and within display range
         const startHour = parseInt(activity.start_time.split(':')[0])
-        return startHour === timeSlot.hour && startHour >= 6 && startHour < 23
+        return startHour === timeSlot.hour && startHour >= 6 && startHour < 22
       } else if (isEndDay) {
         // Last day: only show if it's the 6 AM slot (start of day display)
         return timeSlot.hour === 6
@@ -509,7 +509,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     } else {
       // Single day activity: check if it starts in this hour and within display range
       const activityHour = parseInt(activity.start_time.split(':')[0])
-      return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 23
+      return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22
     }
   })
 
