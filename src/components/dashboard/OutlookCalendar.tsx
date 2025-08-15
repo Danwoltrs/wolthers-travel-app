@@ -486,6 +486,17 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   const slotActivities = activities.filter(activity => {
     if (!activity.start_time) return false
     
+    // Debug optimistic activities
+    if (activity.id.startsWith('temp-')) {
+      console.log('🔄 [OutlookCalendar] Processing optimistic activity:', {
+        tempId: activity.id,
+        title: activity.title,
+        activityDate: activity.activity_date,
+        currentDisplayDate: date.dateString,
+        startTime: activity.start_time
+      })
+    }
+    
     // Check if this is a multi-day activity
     const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
     const currentDisplayDate = date.dateString
@@ -576,12 +587,14 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       const inRange = activityHour >= 6 && activityHour < 22
       
       // Enhanced debug for single day activities
-      if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02')) {
+      if (activity.title.toLowerCase().includes('test')) {
         console.log('🔍 [OutlookCalendar] Single day test activity filter check:', {
           title: activity.title,
           startTimeRaw: activity.start_time,
           activityHour,
           timeSlotHour: timeSlot.hour,
+          activityDate: activity.activity_date,
+          currentDisplayDate,
           hourMatches,
           inRange,
           finalResult: hourMatches && inRange
