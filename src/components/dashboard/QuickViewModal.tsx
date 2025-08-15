@@ -3,6 +3,7 @@ import { X, Users, Car, Key, Edit3, Calendar, Settings, FileText, DollarSign, Sa
 import type { TripCard as TripCardType } from '@/types'
 import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
 import { useTripDetails } from '@/hooks/useTrips'
+import { useActivityManager } from '@/hooks/useActivityManager'
 import { useEnhancedModal } from '@/hooks/useEnhancedModal'
 import { EnhancedTabNavigation } from './EnhancedTabNavigation'
 import { OverviewTab } from './tabs/OverviewTab'
@@ -152,30 +153,14 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   // Get real trip details from Supabase
   const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(trip.id)
   
-  // Process itinerary items and meeting notes from real data
-  const itineraryItems = tripDetails?.itinerary_items || []
-  const meetings = itineraryItems.filter((item: any) => item.activity_type === 'meeting')
-  const visits = itineraryItems.filter((item: any) => item.activity_type === 'visit')
+  // Get activity data using the activity manager
+  const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = useActivityManager(trip.id || '')
   
-  // Get meeting notes for meetings
-  const meetingsWithNotes = meetings.map((meeting: any) => {
-    // Find associated meeting notes - this will be populated by the backend join
-    const notes = meeting.meeting_notes || []
-    return {
-      ...meeting,
-      notes: notes
-    }
-  })
+  // Get activity statistics for visits and meetings count
+  const activityStats = getActivityStats()
   
-  // Group all activities by date for compact display
-  const groupedActivities = itineraryItems.reduce((acc: any, item: any) => {
-    const date = item.activity_date
-    if (!acc[date]) {
-      acc[date] = []
-    }
-    acc[date].push(item)
-    return acc
-  }, {})
+  // Use the new activity manager to get grouped activities
+  const groupedActivities = getActivitiesByDate()
   
   // Sort activities within each day by time
   Object.keys(groupedActivities).forEach(date => {
@@ -317,7 +302,12 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               )}
               
               {/* Tab Content Area */}
-              <div className="flex-1 overflow-y-auto p-3 md:p-6">
+              <div className="flex-1 overflow-y-auto p-3 md:p-6" ref={(el) => {
+                // Auto-scroll to top when Schedule tab becomes active
+                if (activeTab === 'schedule' && el) {
+                  el.scrollTop = 0
+                }
+              }}>
                 {activeTab === 'overview' && (
                   <OverviewTab 
                     trip={trip} 
@@ -528,7 +518,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               </div>
 
               {/* Meetings & Visits */}
-              {tripLoading ? (
+              {(tripLoading || activitiesLoading) ? (
                 <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
                   <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
                 </div>
@@ -664,7 +654,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {visits.length}
+                      {activityStats.visits}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Visits
@@ -672,7 +662,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {meetings.length}
+                      {activityStats.meetings}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Meetings
@@ -702,7 +692,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 <div className="grid grid-cols-4 gap-4 text-center">
                   <div>
                     <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {visits.length}
+                      {activityStats.visits}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Visits
@@ -710,7 +700,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </div>
                   <div>
                     <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {meetings.length}
+                      {activityStats.meetings}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Meetings

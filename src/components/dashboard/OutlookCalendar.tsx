@@ -54,6 +54,7 @@ const TIME_SLOTS: TimeSlot[] = Array.from({ length: 17 }, (_, index) => {
   return { hour, time, display }
 })
 
+
 const ActivityCard = memo(function ActivityCard({ 
   activity, 
   onEdit,
@@ -74,19 +75,20 @@ const ActivityCard = memo(function ActivityCard({
   
   const [{ isDragging }, drag] = useDrag({
     type: ITEM_TYPE,
-    item: {
-      type: ITEM_TYPE,
-      activity,
-      originalDate: activity.activity_date,
-      originalTime: activity.start_time
-    } as DragItem,
+    item: () => {
+      // This replaces the deprecated 'begin' callback
+      setIsUpdating(true)
+      return {
+        type: ITEM_TYPE,
+        activity,
+        originalDate: activity.activity_date,
+        originalTime: activity.start_time
+      } as DragItem
+    },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
     canDrag: () => !isResizing && !isOptimistic, // Prevent drag when resizing or during optimistic updates
-    begin: () => {
-      setIsUpdating(true)
-    },
     end: () => {
       // Keep updating state for a brief moment to show feedback
       setTimeout(() => setIsUpdating(false), 500)
@@ -569,18 +571,9 @@ export function OutlookCalendar({
 
   // Generate calendar days
   const calendarDays: CalendarDay[] = useMemo(() => {
-    console.log('🗓️ Calendar Days Debug:', {
-      tripId: trip.id,
-      startDate: trip.startDate,
-      startDateISO: trip.startDate.toISOString(),
-      duration: trip.duration
-    })
-    
     return Array.from({ length: trip.duration || 3 }, (_, index) => {
       const date = new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000)
       const dateString = date.toISOString().split('T')[0]
-      
-      console.log(`📅 Day ${index + 1}: ${dateString}`)
       
       return {
         date,
