@@ -98,17 +98,34 @@ export function useActivityManager(tripId: string) {
         }))
       })
       
-      // Debug: Check for any Thursday 4 PM activities
+      // Debug: Check for any Thursday activities and duplicates
       const thursdayActivities = data?.filter((a: any) => a.activity_date?.includes('2025-10-02')) || []
       if (thursdayActivities.length > 0) {
-        console.log('🔍 [useActivityManager] Thursday (Oct 2) activities found:', thursdayActivities.map((a: any) => ({
-          title: a.title,
-          time: a.start_time,
-          date: a.activity_date
-        })))
+        console.log('🔍 [useActivityManager] Thursday (Oct 2) activities found:', thursdayActivities.length, 'activities')
+        
+        // Check for duplicates
+        const titles = thursdayActivities.map((a: any) => a.title)
+        const uniqueTitles = [...new Set(titles)]
+        if (titles.length !== uniqueTitles.length) {
+          console.warn('⚠️ [useActivityManager] Duplicate activities detected!')
+          console.log('All titles:', titles)
+          console.log('Unique titles:', uniqueTitles)
+        }
       }
       
-      setActivities(data || [])
+      // Deduplicate activities by ID before setting
+      const uniqueActivities = data?.reduce((acc: any[], activity: any) => {
+        if (!acc.find(a => a.id === activity.id)) {
+          acc.push(activity)
+        }
+        return acc
+      }, []) || []
+      
+      if ((data?.length || 0) !== uniqueActivities.length) {
+        console.warn('⚠️ [useActivityManager] Removed', (data?.length || 0) - uniqueActivities.length, 'duplicate activities')
+      }
+      
+      setActivities(uniqueActivities)
     } catch (err: any) {
       console.error('Error in loadActivities:', err)
       setError(`Failed to load activities: ${err.message}`)

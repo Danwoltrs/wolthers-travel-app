@@ -122,24 +122,31 @@ export function ScheduleTab({
     try {
       if (editingActivity) {
         // Update existing activity
-        console.log('💾 Updating activity:', editingActivity.id, formData)
+        console.log('💾 [ScheduleTab] Updating activity:', editingActivity.id, formData)
         const result = await updateActivity(editingActivity.id, formData)
         if (result) {
-          console.log('✅ Activity update successful')
+          console.log('✅ [ScheduleTab] Activity update successful')
           setShowActivityEditor(false)
           setEditingActivity(null)
         }
       } else {
         // Create new activity
-        console.log('💾 Creating new activity:', formData)
+        console.log('💾 [ScheduleTab] Creating new activity:', {
+          title: formData.title,
+          date: formData.activity_date,
+          time: formData.start_time
+        })
         const result = await createActivity(formData)
+        console.log('💾 [ScheduleTab] Create result:', !!result)
         if (result) {
-          console.log('✅ Activity creation successful')
+          console.log('✅ [ScheduleTab] Activity creation successful, closing modal')
           setShowActivityEditor(false)
+        } else {
+          console.error('❌ [ScheduleTab] Activity creation returned null/false')
         }
       }
     } catch (error) {
-      console.error('❌ Activity save failed:', error)
+      console.error('❌ [ScheduleTab] Activity save failed:', error)
     }
   }, [editingActivity, formData, updateActivity, createActivity])
 

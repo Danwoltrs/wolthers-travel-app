@@ -501,8 +501,9 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       :
       (activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22)
     
-    if (activity.title.toLowerCase().includes('meeting') && currentDisplayDate.includes('2025-10-02')) {
-      console.log('🔍 [OutlookCalendar] Filtering activity for Thu Oct 2:', {
+    // Reduced logging - only log when we have issues or mismatches
+    if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02') && !matches) {
+      console.log('🔍 [OutlookCalendar] Activity NOT matching filter for Thu Oct 2:', {
         title: activity.title,
         activityDate: activity.activity_date,
         currentDisplayDate,
