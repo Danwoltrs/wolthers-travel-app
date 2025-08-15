@@ -482,6 +482,18 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     }),
   })
 
+  // Debug: Show all activities being processed for this time slot
+  if (timeSlot.hour === 14 && date.dateString.includes('2025-10-02')) {
+    console.log('🔍 [OutlookCalendar] Processing 14:00 slot on Oct 2, total activities:', activities.length)
+    const testActivities = activities.filter(a => a.title?.toLowerCase().includes('test'))
+    console.log('🔍 [OutlookCalendar] Test activities found:', testActivities.map(a => ({
+      id: a.id,
+      title: a.title,
+      date: a.activity_date,
+      time: a.start_time
+    })))
+  }
+
   // Filter activities for this time slot hour and date
   const slotActivities = activities.filter(activity => {
     if (!activity.start_time) return false
@@ -548,7 +560,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       }
     }
     
-    // Debug logging for activities that don't match
+    // Enhanced debug logging for activities that don't match
     if ((activity.title.toLowerCase().includes('test') || activity.title.toLowerCase().includes('flight')) && !matches) {
       console.log('🔍 [OutlookCalendar] Activity NOT matching filter:', {
         title: activity.title,
@@ -565,7 +577,17 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
         isContinuationDay,
         dateMatches: activity.activity_date === currentDisplayDate,
         hourMatches: activityHour === timeSlot.hour,
-        inRange: activityHour >= 6 && activityHour < 22
+        inRange: activityHour >= 6 && activityHour < 22,
+        passedDateFilter: true  // We know it passed date filter to get here
+      })
+    }
+    
+    // Quick debug: Show what the filtering logic returns
+    if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02')) {
+      console.log('🔍 [OutlookCalendar] Test activity final filter result:', {
+        title: activity.title,
+        matches,
+        willBeIncluded: matches
       })
     }
     
