@@ -520,21 +520,38 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       :
       (activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22)
     
-    // Check if activity matches this date first
-    if (activity.activity_date !== currentDisplayDate) {
-      return false
+    // For multi-day activities, check if current date is within the activity's date range
+    if (isMultiDay) {
+      const activityStartDate = new Date(activity.activity_date + 'T00:00:00')
+      const activityEndDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+      const currentDate = new Date(currentDisplayDate + 'T00:00:00')
+      
+      // Check if current date is within the activity's date range
+      if (currentDate < activityStartDate || currentDate > activityEndDate) {
+        return false
+      }
+    } else {
+      // For single-day activities, must match exactly
+      if (activity.activity_date !== currentDisplayDate) {
+        return false
+      }
     }
     
-    // Debug logging for test activities that don't match
-    if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02') && !matches) {
-      console.log('🔍 [OutlookCalendar] Activity NOT matching filter for Thu Oct 2:', {
+    // Debug logging for activities that don't match
+    if ((activity.title.toLowerCase().includes('test') || activity.title.toLowerCase().includes('flight')) && !matches) {
+      console.log('🔍 [OutlookCalendar] Activity NOT matching filter:', {
         title: activity.title,
         activityDate: activity.activity_date,
+        endDate: activity.end_date,
         currentDisplayDate,
         startTime: activity.start_time,
+        endTime: activity.end_time,
         activityHour,
         timeSlotHour: timeSlot.hour,
         isMultiDay,
+        isStartDay,
+        isEndDay,
+        isContinuationDay,
         dateMatches: activity.activity_date === currentDisplayDate,
         hourMatches: activityHour === timeSlot.hour,
         inRange: activityHour >= 6 && activityHour < 22
