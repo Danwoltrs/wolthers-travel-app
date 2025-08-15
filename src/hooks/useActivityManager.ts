@@ -8,7 +8,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Activity } from '@/types'
+// Database Activity type that matches Supabase schema
+export interface Activity {
+  id: string
+  trip_id: string
+  title: string
+  description?: string
+  activity_date: string
+  start_time?: string
+  end_time?: string
+  end_date?: string
+  type: 'meeting' | 'meal' | 'travel' | 'flight' | 'accommodation' | 'event' | 'break' | 'other'
+  location?: string
+  host?: string
+  cost?: number
+  currency?: 'BRL' | 'USD' | 'EUR' | 'GBP' | 'DKK'
+  is_confirmed?: boolean
+  status?: string
+  notes?: string
+  priority_level?: string
+  meeting_id?: string
+  hotel_id?: string
+  flight_id?: string
+  created_at?: string
+  updated_at?: string
+  created_by?: string
+  updated_by?: string
+}
 
 export interface ActivityFormData {
   title: string
@@ -332,6 +358,14 @@ export function useActivityManager(tripId: string) {
       const startDate = new Date(activity.activity_date + 'T00:00:00')
       const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
       
+      console.log(`📅 Processing activity: ${activity.title}`, {
+        activity_date: activity.activity_date,
+        end_date: activity.end_date,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        isMultiDay: startDate.getTime() !== endDate.getTime()
+      })
+      
       // For single-day activities or activities ending same day
       if (startDate.getTime() === endDate.getTime()) {
         const date = activity.activity_date
@@ -339,6 +373,7 @@ export function useActivityManager(tripId: string) {
           grouped[date] = []
         }
         grouped[date].push(activity)
+        console.log(`📍 Added single-day activity to ${date}`)
       } else {
         // For multi-day activities, add to all days they span
         const currentDate = new Date(startDate)
@@ -348,10 +383,17 @@ export function useActivityManager(tripId: string) {
             grouped[dateString] = []
           }
           grouped[dateString].push(activity)
+          console.log(`📍 Added multi-day activity to ${dateString}`)
           currentDate.setDate(currentDate.getDate() + 1)
         }
       }
     })
+    
+    console.log('📋 Final grouped activities:', Object.keys(grouped).map(date => ({
+      date,
+      count: grouped[date].length,
+      activities: grouped[date].map(a => a.title)
+    })))
     
     return grouped
   }, [activities])

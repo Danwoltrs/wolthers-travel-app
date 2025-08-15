@@ -13,8 +13,8 @@ import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Plus, Clock, MapPin, User, Check } from 'lucide-react'
-import type { TripCard, Activity } from '@/types'
-import { useActivityManager, type ActivityFormData } from '@/hooks/useActivityManager'
+import type { TripCard } from '@/types'
+import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 
 interface OutlookCalendarProps {
   trip: TripCard

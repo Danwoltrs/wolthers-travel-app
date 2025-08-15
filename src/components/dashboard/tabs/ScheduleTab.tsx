@@ -7,9 +7,9 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { useActivityManager, type ActivityFormData } from '@/hooks/useActivityManager'
+import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
-import type { TripCard, Activity } from '@/types'
+import type { TripCard } from '@/types'
 
 interface ScheduleTabProps {
   trip: TripCard
