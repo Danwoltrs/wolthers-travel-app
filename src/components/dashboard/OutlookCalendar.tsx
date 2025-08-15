@@ -493,8 +493,27 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
     const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
     
-    // Debug logging for activity filtering
-    const activityHour = parseInt(activity.start_time.split(':')[0])
+    // Debug logging for activity filtering - handle various time formats
+    let activityHour: number
+    try {
+      // Handle different time formats: "18:00", "6:00 PM", etc.
+      if (activity.start_time.includes(':')) {
+        activityHour = parseInt(activity.start_time.split(':')[0])
+      } else {
+        activityHour = parseInt(activity.start_time)
+      }
+      
+      // Handle 12-hour format if PM/AM present
+      if (activity.start_time.toLowerCase().includes('pm') && activityHour !== 12) {
+        activityHour += 12
+      } else if (activity.start_time.toLowerCase().includes('am') && activityHour === 12) {
+        activityHour = 0
+      }
+    } catch (e) {
+      console.warn('Could not parse activity start_time:', activity.start_time)
+      activityHour = 0
+    }
+    
     const matches = isMultiDay ? 
       (isStartDay && activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22) ||
       ((isEndDay || isContinuationDay) && timeSlot.hour === 6)
@@ -525,8 +544,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     if (isMultiDay) {
       if (isStartDay) {
         // First day: only show if activity starts in this hour and within display range
-        const startHour = parseInt(activity.start_time.split(':')[0])
-        return startHour === timeSlot.hour && startHour >= 6 && startHour < 22
+        return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22
       } else if (isEndDay) {
         // Last day: only show if it's the 6 AM slot (start of day display)
         return timeSlot.hour === 6
@@ -537,7 +555,6 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       return false
     } else {
       // Single day activity: check if it starts in this hour and within display range
-      const activityHour = parseInt(activity.start_time.split(':')[0])
       const hourMatches = activityHour === timeSlot.hour
       const inRange = activityHour >= 6 && activityHour < 22
       
@@ -545,6 +562,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02')) {
         console.log('🔍 [OutlookCalendar] Single day test activity filter check:', {
           title: activity.title,
+          startTimeRaw: activity.start_time,
           activityHour,
           timeSlotHour: timeSlot.hour,
           hourMatches,
