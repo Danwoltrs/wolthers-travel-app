@@ -17,7 +17,7 @@ export function useTrips() {
     try {
       const activityCounts: { [tripId: string]: { meetings: number, visits: number, confirmed: number } } = {}
       
-      // Fetch activity counts for each trip using our activities API
+      // Fetch activity counts for each trip using our activities API with cookie authentication
       for (const tripId of tripIds) {
         try {
           const response = await fetch(`/api/activities?tripId=${tripId}`, {
@@ -27,12 +27,17 @@ export function useTrips() {
           
           if (response.ok) {
             const activities = await response.json()
+            // Count different types of activities
             const meetings = activities.filter((a: any) => a.type === 'meeting').length
-            const visits = activities.filter((a: any) => a.type === 'meeting' || a.type === 'event').length
+            const visits = activities.filter((a: any) => 
+              a.type === 'meeting' || a.type === 'visit' || a.type === 'event'
+            ).length
             const confirmed = activities.filter((a: any) => a.is_confirmed).length
             
             activityCounts[tripId] = { meetings, visits, confirmed }
+            console.log(`Activities for trip ${tripId}:`, { meetings, visits, confirmed, total: activities.length })
           } else {
+            console.warn(`Failed to fetch activities for trip ${tripId}: ${response.status}`)
             activityCounts[tripId] = { meetings: 0, visits: 0, confirmed: 0 }
           }
         } catch (err) {
@@ -89,9 +94,9 @@ export function useTrips() {
               wolthersStaff: trip.wolthers_staff || [],
               vehicles: trip.vehicles || [],
               drivers: trip.drivers || [],
-              startDate: new Date(trip.start_date || trip.startDate),
-              endDate: new Date(trip.end_date || trip.endDate),
-              duration: trip.duration || Math.ceil((new Date(trip.end_date || trip.endDate).getTime() - new Date(trip.start_date || trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+              startDate: new Date(trip.start_date + 'T00:00:00'),
+              endDate: new Date(trip.end_date + 'T00:00:00'),
+              duration: trip.duration || Math.ceil((new Date(trip.end_date + 'T00:00:00').getTime() - new Date(trip.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1,
               status: trip.status,
               progress: trip.progress || 0,
               notesCount: trip.notesCount || trip.notes_count || 0,
@@ -290,7 +295,7 @@ export function useTrips() {
             }))
 
             const wolthersStaff = tripParticipants
-              .filter(p => (p.role === 'trip_lead' || p.role === 'coordinator') && p.users)
+              .filter(p => p.users && (p.users.user_type === 'wolthers_staff' || p.users.email?.endsWith('@wolthers.com')))
               .map(p => ({
                 id: p.users?.id,
                 fullName: p.users?.full_name,
@@ -347,9 +352,9 @@ export function useTrips() {
               wolthersStaff,
               vehicles,
               drivers,
-              startDate: new Date(trip.start_date),
-              endDate: new Date(trip.end_date),
-              duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+              startDate: new Date(trip.start_date + 'T00:00:00'),
+              endDate: new Date(trip.end_date + 'T00:00:00'),
+              duration: Math.ceil((new Date(trip.end_date + 'T00:00:00').getTime() - new Date(trip.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1,
               status: trip.status,
               progress: 0, // Will calculate if needed
               notesCount,
@@ -388,9 +393,9 @@ export function useTrips() {
                 wolthersStaff: [],
                 vehicles: [],
                 drivers: [],
-                startDate: new Date(trip.start_date),
-                endDate: new Date(trip.end_date),
-                duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+                startDate: new Date(trip.start_date + 'T00:00:00'),
+                endDate: new Date(trip.end_date + 'T00:00:00'),
+                duration: Math.ceil((new Date(trip.end_date + 'T00:00:00').getTime() - new Date(trip.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1,
                 status: trip.status,
                 progress: 0,
                 notesCount: 0,

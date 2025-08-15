@@ -5,7 +5,7 @@
  * real-time updates, and activity statistics calculations.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Activity } from '@/types'
@@ -16,6 +16,7 @@ export interface ActivityFormData {
   start_time?: string
   end_time?: string
   activity_date: string
+  end_date?: string  // For multi-day activities like flights and hotels
   type: 'meeting' | 'meal' | 'travel' | 'flight' | 'accommodation' | 'event' | 'break' | 'other'
   location?: string
   host?: string
@@ -79,11 +80,30 @@ export function useActivityManager(tripId: string) {
     }
   }, [tripId])
 
-  // Create new activity
+  // Create new activity with optimistic updates
   const createActivity = useCallback(async (activityData: ActivityFormData): Promise<Activity | null> => {
     if (!tripId) return null
 
+    // Generate a temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const optimisticActivity = {
+      id: tempId,
+      ...activityData,
+      trip_id: tripId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      // Set defaults for required fields
+      end_date: activityData.end_date || activityData.activity_date,
+      cost: activityData.cost || 0,
+      currency: activityData.currency || 'BRL',
+      is_confirmed: activityData.is_confirmed || false,
+      status: 'scheduled'
+    } as Activity
+
     try {
+      // Optimistic update - add to UI immediately
+      setActivities(prev => [...prev, optimisticActivity])
+      
       setSaving(true)
       setError(null)
 
@@ -102,14 +122,19 @@ export function useActivityManager(tripId: string) {
       })
 
       if (!response.ok) {
+        // Revert optimistic update on error
+        setActivities(prev => prev.filter(activity => activity.id !== tempId))
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
 
-      // Force refresh to ensure consistency
-      await loadActivities()
+      // Replace optimistic activity with real one
+      setActivities(prev => prev.map(activity => 
+        activity.id === tempId ? data : activity
+      ))
+
       return data
     } catch (err: any) {
       console.error('Error in createActivity:', err)
@@ -120,11 +145,34 @@ export function useActivityManager(tripId: string) {
     }
   }, [tripId])
 
-  // Update existing activity
+  // Update existing activity with optimistic updates
   const updateActivity = useCallback(async (activityId: string, updates: Partial<ActivityFormData>): Promise<Activity | null> => {
     if (!activityId) return null
 
+    // Find the current activity for optimistic update
+    const currentActivity = activities.find(a => a.id === activityId)
+    if (!currentActivity) return null
+
+    // Validate date constraints before applying updates
+    const validatedUpdates = { ...updates }
+    if (validatedUpdates.end_date && validatedUpdates.activity_date && validatedUpdates.end_date < validatedUpdates.activity_date) {
+      console.warn('Fixing invalid end_date that was before activity_date')
+      validatedUpdates.end_date = validatedUpdates.activity_date
+    } else if (validatedUpdates.end_date && currentActivity.activity_date && validatedUpdates.end_date < currentActivity.activity_date) {
+      console.warn('Fixing invalid end_date that was before existing activity_date')
+      validatedUpdates.end_date = currentActivity.activity_date
+    } else if (validatedUpdates.activity_date && currentActivity.end_date && validatedUpdates.activity_date > currentActivity.end_date) {
+      console.warn('Fixing invalid activity_date that was after existing end_date')
+      validatedUpdates.end_date = validatedUpdates.activity_date
+    }
+
     try {
+      // Optimistic update - update UI immediately
+      const optimisticActivity = { ...currentActivity, ...validatedUpdates }
+      setActivities(prev => prev.map(activity => 
+        activity.id === activityId ? optimisticActivity : activity
+      ))
+
       setSaving(true)
       setError(null)
 
@@ -133,19 +181,21 @@ export function useActivityManager(tripId: string) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ activityId, ...updates }),
+        body: JSON.stringify({ activityId, ...validatedUpdates }),
         credentials: 'include'
       })
 
       if (!response.ok) {
+        // Revert optimistic update on error
+        setActivities(prev => prev.map(activity => 
+          activity.id === activityId ? currentActivity : activity
+        ))
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-
-      // Force refresh to ensure consistency
-      await loadActivities()
+      // Real-time subscription will handle the final update
       return data
     } catch (err: any) {
       console.error('Error in updateActivity:', err)
@@ -154,13 +204,88 @@ export function useActivityManager(tripId: string) {
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [activities])
 
-  // Delete activity
+  // Debounced update for drag/resize operations
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const updateActivityDebounced = useCallback(async (activityId: string, updates: Partial<ActivityFormData>, delay = 500): Promise<void> => {
+    if (!activityId) return
+
+    // Find the current activity for optimistic update
+    const currentActivity = activities.find(a => a.id === activityId)
+    if (!currentActivity) return
+
+    // Validate date constraints before applying updates
+    const validatedUpdates = { ...updates }
+    if (validatedUpdates.end_date && validatedUpdates.activity_date && validatedUpdates.end_date < validatedUpdates.activity_date) {
+      console.warn('Fixing invalid end_date that was before activity_date')
+      validatedUpdates.end_date = validatedUpdates.activity_date
+    } else if (validatedUpdates.end_date && currentActivity.activity_date && validatedUpdates.end_date < currentActivity.activity_date) {
+      console.warn('Fixing invalid end_date that was before existing activity_date')
+      validatedUpdates.end_date = currentActivity.activity_date
+    } else if (validatedUpdates.activity_date && currentActivity.end_date && validatedUpdates.activity_date > currentActivity.end_date) {
+      console.warn('Fixing invalid activity_date that was after existing end_date')
+      validatedUpdates.end_date = validatedUpdates.activity_date
+    }
+
+    // Optimistic update - update UI immediately
+    const optimisticActivity = { ...currentActivity, ...validatedUpdates }
+    setActivities(prev => prev.map(activity => 
+      activity.id === activityId ? optimisticActivity : activity
+    ))
+
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
+    // Set new timeout for API call
+    debounceTimeoutRef.current = setTimeout(async () => {
+      try {
+        setError(null)
+
+        const response = await fetch('/api/activities', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ activityId, ...validatedUpdates }),
+          credentials: 'include'
+        })
+
+        if (!response.ok) {
+          // Revert optimistic update on error
+          setActivities(prev => prev.map(activity => 
+            activity.id === activityId ? currentActivity : activity
+          ))
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('Debounced update failed:', errorData.error)
+          setError(`Failed to update activity: ${errorData.error}`)
+        }
+        // Real-time subscription will handle the final update
+      } catch (err: any) {
+        console.error('Error in updateActivityDebounced:', err)
+        setError(`Failed to update activity: ${err.message}`)
+        // Revert optimistic update on error
+        setActivities(prev => prev.map(activity => 
+          activity.id === activityId ? currentActivity : activity
+        ))
+      }
+    }, delay)
+  }, [activities])
+
+  // Delete activity with optimistic updates
   const deleteActivity = useCallback(async (activityId: string): Promise<boolean> => {
     if (!activityId) return false
 
+    // Find the activity for potential rollback
+    const activityToDelete = activities.find(a => a.id === activityId)
+    if (!activityToDelete) return false
+
     try {
+      // Optimistic update - remove from UI immediately
+      setActivities(prev => prev.filter(activity => activity.id !== activityId))
+      
       setSaving(true)
       setError(null)
 
@@ -170,12 +295,13 @@ export function useActivityManager(tripId: string) {
       })
 
       if (!response.ok) {
+        // Revert optimistic update on error
+        setActivities(prev => [...prev, activityToDelete])
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      // Force refresh to ensure consistency
-      await loadActivities()
+      // Real-time subscription will handle the final update
       return true
     } catch (err: any) {
       console.error('Error in deleteActivity:', err)
@@ -184,7 +310,7 @@ export function useActivityManager(tripId: string) {
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [activities])
 
   // Calculate activity statistics
   const getActivityStats = useCallback((): ActivityStats => {
@@ -198,16 +324,35 @@ export function useActivityManager(tripId: string) {
     return stats
   }, [activities])
 
-  // Group activities by date
+  // Group activities by date (including multi-day spanning)
   const getActivitiesByDate = useCallback(() => {
     const grouped: Record<string, Activity[]> = {}
+    
     activities.forEach(activity => {
-      const date = activity.activity_date
-      if (!grouped[date]) {
-        grouped[date] = []
+      const startDate = new Date(activity.activity_date + 'T00:00:00')
+      const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+      
+      // For single-day activities or activities ending same day
+      if (startDate.getTime() === endDate.getTime()) {
+        const date = activity.activity_date
+        if (!grouped[date]) {
+          grouped[date] = []
+        }
+        grouped[date].push(activity)
+      } else {
+        // For multi-day activities, add to all days they span
+        const currentDate = new Date(startDate)
+        while (currentDate <= endDate) {
+          const dateString = currentDate.toISOString().split('T')[0]
+          if (!grouped[dateString]) {
+            grouped[dateString] = []
+          }
+          grouped[dateString].push(activity)
+          currentDate.setDate(currentDate.getDate() + 1)
+        }
       }
-      grouped[date].push(activity)
     })
+    
     return grouped
   }, [activities])
 
@@ -233,13 +378,41 @@ export function useActivityManager(tripId: string) {
           console.log('Real-time activity update:', payload)
           
           if (payload.eventType === 'INSERT') {
-            setActivities(prev => [...prev, payload.new as Activity])
+            setActivities(prev => {
+              // Check if we already have this activity (optimistic or real)
+              const existingActivity = prev.find(activity => activity.id === payload.new.id)
+              
+              if (existingActivity) {
+                // If it's a temp ID from optimistic update, replace it
+                if (existingActivity.id.startsWith('temp-')) {
+                  return prev.map(activity => 
+                    activity.id === existingActivity.id ? payload.new as Activity : activity
+                  )
+                }
+                // If it's a real ID, update it (shouldn't happen for INSERT but just in case)
+                return prev.map(activity => 
+                  activity.id === payload.new.id ? payload.new as Activity : activity
+                )
+              } else {
+                // Add new activity (from other users or external sources)
+                return [...prev, payload.new as Activity]
+              }
+            })
           } else if (payload.eventType === 'UPDATE') {
-            setActivities(prev => prev.map(activity => 
-              activity.id === payload.new.id ? payload.new as Activity : activity
-            ))
+            setActivities(prev => {
+              // Only update if we don't have a temporary version being processed
+              const existingActivity = prev.find(activity => activity.id === payload.new.id)
+              if (existingActivity && !existingActivity.id.startsWith('temp-')) {
+                return prev.map(activity => 
+                  activity.id === payload.new.id ? payload.new as Activity : activity
+                )
+              }
+              return prev
+            })
           } else if (payload.eventType === 'DELETE') {
-            setActivities(prev => prev.filter(activity => activity.id !== payload.old.id))
+            setActivities(prev => prev.filter(activity => 
+              activity.id !== payload.old.id && !activity.id.startsWith('temp-')
+            ))
           }
         }
       )
@@ -247,6 +420,10 @@ export function useActivityManager(tripId: string) {
 
     return () => {
       subscription.unsubscribe()
+      // Clean up debounce timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
     }
   }, [tripId, loadActivities])
 
@@ -257,6 +434,7 @@ export function useActivityManager(tripId: string) {
     saving,
     createActivity,
     updateActivity,
+    updateActivityDebounced,
     deleteActivity,
     getActivityStats,
     getActivitiesByDate,

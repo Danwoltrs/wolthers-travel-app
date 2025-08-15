@@ -33,6 +33,7 @@ export function ScheduleTab({
     start_time: '',
     end_time: '',
     activity_date: '',
+    end_date: '',
     type: 'meeting',
     location: '',
     host: '',
@@ -64,6 +65,7 @@ export function ScheduleTab({
       start_time: activity.start_time || '',
       end_time: activity.end_time || '',
       activity_date: activity.activity_date || '',
+      end_date: activity.end_date || activity.activity_date || '',
       type: activity.type || 'meeting',
       location: activity.location || '',
       host: activity.host || '',
@@ -88,12 +90,14 @@ export function ScheduleTab({
       endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
     }
     
+    const activityDate = date || new Date(trip.startDate).toISOString().split('T')[0]
     setFormData({
       title: '',
       description: '',
       start_time: timeSlot || '',
       end_time: endTime,
-      activity_date: date || new Date(trip.startDate).toISOString().split('T')[0],
+      activity_date: activityDate,
+      end_date: activityDate, // Default to same day, can be extended via UI
       type: 'meeting',
       location: '',
       host: '',
@@ -217,17 +221,39 @@ export function ScheduleTab({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  value={formData.activity_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, activity_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.activity_date}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        activity_date: newStartDate,
+                        // If end_date is before new start_date, update it
+                        end_date: prev.end_date && prev.end_date < newStartDate ? newStartDate : prev.end_date
+                      }))
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    End Date <span className="text-xs text-gray-500">(for multi-day events)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.end_date || formData.activity_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                    min={formData.activity_date}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

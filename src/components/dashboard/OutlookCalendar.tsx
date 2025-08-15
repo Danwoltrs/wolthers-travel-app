@@ -9,7 +9,7 @@
  * - Click-to-add functionality on time slots
  */
 
-import React, { useState, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Plus, Clock, MapPin, User, Check } from 'lucide-react'
@@ -46,7 +46,7 @@ interface CalendarDay {
 
 const ITEM_TYPE = 'ACTIVITY'
 
-// Generate time slots from 6 AM to 10 PM (24-hour format)
+// Generate hourly time slots from 6 AM to 10 PM for UI display
 const TIME_SLOTS: TimeSlot[] = Array.from({ length: 16 }, (_, index) => {
   const hour = 6 + index
   const time = `${hour.toString().padStart(2, '0')}:00`
@@ -54,14 +54,16 @@ const TIME_SLOTS: TimeSlot[] = Array.from({ length: 16 }, (_, index) => {
   return { hour, time, display }
 })
 
-function ActivityCard({ 
+const ActivityCard = memo(function ActivityCard({ 
   activity, 
   onEdit,
-  onResize
+  onResize,
+  displayDate
 }: { 
   activity: Activity
   onEdit: (activity: Activity) => void 
-  onResize?: (activity: Activity, newStartTime: string, newEndTime: string) => void
+  onResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
+  displayDate?: string // The date this card is being displayed on (for multi-day activities)
 }) {
   const [isResizing, setIsResizing] = useState(false)
   const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
@@ -95,8 +97,24 @@ function ActivityCard({
 
   const duration = activity.start_time && activity.end_time ? 
     calculateDuration(activity.start_time, activity.end_time) : 1
+  
+  // Calculate vertical position within the hour slot based on start time minutes
+  const startMinutes = activity.start_time ? parseInt(activity.start_time.split(':')[1]) : 0
+  const topOffset = (startMinutes / 60) * 60 // Position within 60px hour slot
+  
+  // Check if this is a multi-day activity
+  const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
+  const startDate = new Date(activity.activity_date + 'T00:00:00')
+  const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+  const dayDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  
+  // Determine what part of the multi-day activity this card represents
+  const currentDisplayDate = displayDate || activity.activity_date
+  const isStartDay = currentDisplayDate === activity.activity_date
+  const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
+  const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
 
-  // Handle resize functionality
+  // Handle resize functionality with cross-day support
   const handleResizeStart = (type: 'top' | 'bottom', event: React.MouseEvent) => {
     event.stopPropagation()
     event.preventDefault()
@@ -106,43 +124,114 @@ function ActivityCard({
     const startY = event.clientY
     const startTime = activity.start_time || '09:00'
     const endTime = activity.end_time || '10:00'
+    const currentDate = activity.activity_date
+    const currentEndDate = activity.end_date || activity.activity_date
     
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - startY
-      const hoursDelta = Math.round(deltaY / 60) // 60px = 1 hour
+      // Calculate 15-minute increments (15px = 15 minutes, 4 * 15px = 60px = 1 hour)
+      const quarterHoursDelta = Math.round(deltaY / 15)
       
-      if (hoursDelta === 0) return
+      if (quarterHoursDelta === 0) return
+      
+      // Convert time to minutes for easier calculation
+      const timeToMinutes = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number)
+        return hours * 60 + minutes
+      }
+      
+      const minutesToTime = (minutes: number) => {
+        const hours = Math.floor(minutes / 60)
+        const mins = minutes % 60
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+      }
+      
+      // Calculate date offset for cross-day operations
+      const addDaysToDate = (dateString: string, days: number) => {
+        const date = new Date(dateString + 'T00:00:00')
+        date.setDate(date.getDate() + days)
+        return date.toISOString().split('T')[0]
+      }
       
       let newStartTime = startTime
       let newEndTime = endTime
+      let newStartDate = currentDate
+      let newEndDate = currentEndDate
+      
+      const startMinutes = timeToMinutes(startTime)
+      const endMinutes = timeToMinutes(endTime)
       
       if (type === 'top') {
-        // Resize from top (change start time)
-        const startHour = parseInt(startTime.split(':')[0])
-        const newStartHour = Math.max(6, Math.min(22, startHour + hoursDelta))
-        newStartTime = `${newStartHour.toString().padStart(2, '0')}:00`
+        // Resize from top (change start time/date)
+        let totalStartMinutes = startMinutes + quarterHoursDelta * 15
+        let dayOffset = 0
         
-        // Ensure minimum 1 hour duration
-        const endHour = parseInt(endTime.split(':')[0])
-        if (newStartHour >= endHour) {
-          newStartTime = `${Math.max(6, endHour - 1).toString().padStart(2, '0')}:00`
+        // Handle cross-day scenarios
+        while (totalStartMinutes < 6 * 60) { // Before 6 AM, go to previous day
+          totalStartMinutes += 24 * 60
+          dayOffset -= 1
+        }
+        while (totalStartMinutes > 22 * 60) { // After 10 PM, go to next day
+          totalStartMinutes -= 24 * 60
+          dayOffset += 1
+        }
+        
+        newStartTime = minutesToTime(totalStartMinutes)
+        newStartDate = addDaysToDate(currentDate, dayOffset)
+        
+        // Ensure minimum 15-minute duration and proper date ordering
+        const startDateObj = new Date(newStartDate + 'T' + newStartTime)
+        const endDateObj = new Date(newEndDate + 'T' + newEndTime)
+        
+        if (startDateObj >= endDateObj) {
+          // Adjust to maintain minimum duration - end must be after start
+          const adjustedEnd = new Date(startDateObj.getTime() + 15 * 60 * 1000)
+          newEndDate = adjustedEnd.toISOString().split('T')[0]
+          newEndTime = adjustedEnd.toTimeString().substring(0, 5)
+        }
+        
+        // Additional safety check: ensure end_date is never before activity_date
+        if (newEndDate < newStartDate) {
+          newEndDate = newStartDate
         }
       } else {
-        // Resize from bottom (change end time)
-        const endHour = parseInt(endTime.split(':')[0])
-        const newEndHour = Math.max(7, Math.min(22, endHour + hoursDelta))
-        newEndTime = `${newEndHour.toString().padStart(2, '0')}:00`
+        // Resize from bottom (change end time/date) - Cross-day support
+        let totalEndMinutes = endMinutes + quarterHoursDelta * 15
+        let dayOffset = 0
         
-        // Ensure minimum 1 hour duration
-        const startHour = parseInt(startTime.split(':')[0])
-        if (newEndHour <= startHour) {
-          newEndTime = `${Math.min(22, startHour + 1).toString().padStart(2, '0')}:00`
+        // Handle cross-day scenarios
+        while (totalEndMinutes < 6 * 60) { // Before 6 AM, go to previous day
+          totalEndMinutes += 24 * 60
+          dayOffset -= 1
+        }
+        while (totalEndMinutes > 22 * 60) { // After 10 PM, go to next day
+          totalEndMinutes -= 24 * 60
+          dayOffset += 1
+        }
+        
+        newEndTime = minutesToTime(totalEndMinutes)
+        newEndDate = addDaysToDate(currentEndDate, dayOffset)
+        
+        // Ensure minimum 15-minute duration and proper date ordering
+        const startDateObj = new Date(newStartDate + 'T' + newStartTime)
+        const endDateObj = new Date(newEndDate + 'T' + newEndTime)
+        
+        if (endDateObj <= startDateObj) {
+          // Adjust to maintain minimum duration - end must be after start
+          const adjustedEnd = new Date(startDateObj.getTime() + 15 * 60 * 1000)
+          newEndDate = adjustedEnd.toISOString().split('T')[0]
+          newEndTime = adjustedEnd.toTimeString().substring(0, 5)
+        }
+        
+        // Additional safety check: ensure end_date is never before activity_date
+        if (newEndDate < newStartDate) {
+          newEndDate = newStartDate
         }
       }
       
       // Update the activity if we have a resize handler
-      if (onResize && (newStartTime !== startTime || newEndTime !== endTime)) {
-        onResize(activity, newStartTime, newEndTime)
+      if (onResize && (newStartTime !== startTime || newEndTime !== endTime || newStartDate !== currentDate || newEndDate !== currentEndDate)) {
+        onResize(activity, newStartTime, newEndTime, newStartDate, newEndDate)
       }
     }
     
@@ -174,8 +263,13 @@ function ActivityCard({
         ${isResizing ? 'cursor-resizing' : ''}
       `}
       style={{
-        height: `${Math.max(duration * 60 - 4, 40)}px`,
-        minHeight: '40px'
+        height: isContinuationDay ? '960px' : `${Math.max(duration * 15 - 2, 20)}px`, // Full day height for continuation days
+        minHeight: '20px',
+        position: 'absolute',
+        top: isContinuationDay ? '0px' : `${topOffset}px`, // Start at top for continuation days
+        left: '4px',
+        right: '4px',
+        zIndex: 1
       }}
     >
       {/* Top resize handle */}
@@ -203,12 +297,31 @@ function ActivityCard({
         <div className="flex-1 min-w-0">
           <div className="font-medium text-white truncate">
             {activity.title}
+            {isMultiDay && (
+              <span className="ml-1 px-1 py-0.5 bg-white/20 rounded text-xs">
+                {isContinuationDay ? 'cont.' : isEndDay ? 'end' : `${dayDuration}d`}
+              </span>
+            )}
           </div>
           {activity.start_time && activity.end_time && (
             <div className="flex items-center space-x-1 mt-1 text-white/80">
               <Clock className="w-3 h-3" />
               <span className="text-xs">
-                {formatTime(activity.start_time)} - {formatTime(activity.end_time)}
+                {/* Show times differently based on which day we're displaying */}
+                {isStartDay && activity.start_time ? (
+                  `${formatTime(activity.start_time)} - ${isMultiDay ? (activity.end_date === currentDisplayDate ? formatTime(activity.end_time) : '23:59') : formatTime(activity.end_time)}`
+                ) : isEndDay && isMultiDay ? (
+                  `00:00 - ${formatTime(activity.end_time)}`
+                ) : isContinuationDay ? (
+                  '00:00 - 23:59'
+                ) : (
+                  `${formatTime(activity.start_time)} - ${formatTime(activity.end_time)}`
+                )}
+                {isMultiDay && isStartDay && (
+                  <span className="ml-1 text-white/60">
+                    ({new Date(activity.activity_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date((activity.end_date || activity.activity_date) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                  </span>
+                )}
               </span>
             </div>
           )}
@@ -231,9 +344,9 @@ function ActivityCard({
       </div>
     </div>
   )
-}
+})
 
-function TimeSlotComponent({ 
+const TimeSlotComponent = memo(function TimeSlotComponent({ 
   timeSlot, 
   date, 
   activities, 
@@ -248,7 +361,7 @@ function TimeSlotComponent({
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
   onActivityDrop: (item: DragItem, targetDate: string, targetTime: string) => void
-  onActivityResize?: (activity: Activity, newStartTime: string, newEndTime: string) => void
+  onActivityResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
 }) {
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -261,7 +374,7 @@ function TimeSlotComponent({
     }),
   })
 
-  // Filter activities for this specific time slot
+  // Filter activities for this time slot hour (includes any activity starting within this hour)
   const slotActivities = activities.filter(activity => {
     if (!activity.start_time) return false
     const activityHour = parseInt(activity.start_time.split(':')[0])
@@ -290,19 +403,20 @@ function TimeSlotComponent({
           <Plus className="w-4 h-4 text-gray-400" />
         </div>
       )}
-      <div className="space-y-1">
+      <div className="relative h-full">
         {slotActivities.map((activity) => (
           <ActivityCard
-            key={activity.id}
+            key={`${activity.id}-${date.dateString}`}
             activity={activity}
             onEdit={onActivityEdit}
             onResize={onActivityResize}
+            displayDate={date.dateString}
           />
         ))}
       </div>
     </div>
   )
-}
+})
 
 export function OutlookCalendar({ 
   trip, 
@@ -317,6 +431,7 @@ export function OutlookCalendar({
     loading,
     error,
     updateActivity,
+    updateActivityDebounced,
     getActivitiesByDate
   } = useActivityManager(trip.id || '')
 
@@ -347,17 +462,31 @@ export function OutlookCalendar({
 
   const activitiesByDate = getActivitiesByDate()
 
-  // Handle activity resize
+  // Handle activity resize with debouncing and cross-day support
   const handleActivityResize = useCallback(async (
     activity: Activity,
     newStartTime: string,
-    newEndTime: string
+    newEndTime: string,
+    newStartDate?: string,
+    newEndDate?: string
   ) => {
-    await updateActivity(activity.id, {
+    // Prepare update data
+    const updateData: any = {
       start_time: newStartTime,
       end_time: newEndTime
-    })
-  }, [updateActivity])
+    }
+    
+    // Add date fields if they changed (for multi-day activities)
+    if (newStartDate && newStartDate !== activity.activity_date) {
+      updateData.activity_date = newStartDate
+    }
+    if (newEndDate && newEndDate !== (activity.end_date || activity.activity_date)) {
+      updateData.end_date = newEndDate
+    }
+    
+    // Use debounced update for resize operations to prevent excessive API calls
+    await updateActivityDebounced(activity.id, updateData, 300) // 300ms delay for resize operations
+  }, [updateActivityDebounced])
 
   const handleActivityDrop = useCallback(async (
     item: DragItem, 
@@ -366,7 +495,7 @@ export function OutlookCalendar({
   ) => {
     const { activity } = item
     
-    // Check if there's an activity in the target slot
+    // Check if there's an activity in the target slot hour
     const targetActivities = activitiesByDate[targetDate] || []
     const targetSlotActivity = targetActivities.find(a => {
       if (!a.start_time) return false
@@ -381,16 +510,12 @@ export function OutlookCalendar({
         updateActivity(activity.id, {
           activity_date: targetDate,
           start_time: targetTime,
-          end_time: targetTime.replace(/\d{2}:/, (match) => 
-            `${(parseInt(match.slice(0, 2)) + 1).toString().padStart(2, '0')}:`
-          )
+          end_time: addMinutesToTime(targetTime, 60) // Default 1 hour duration
         }),
         updateActivity(targetSlotActivity.id, {
           activity_date: item.originalDate,
           start_time: item.originalTime,
-          end_time: item.originalTime.replace(/\d{2}:/, (match) => 
-            `${(parseInt(match.slice(0, 2)) + 1).toString().padStart(2, '0')}:`
-          )
+          end_time: addMinutesToTime(item.originalTime, 60) // Default 1 hour duration
         })
       ])
     } else {
@@ -398,9 +523,7 @@ export function OutlookCalendar({
       await updateActivity(activity.id, {
         activity_date: targetDate,
         start_time: targetTime,
-        end_time: targetTime.replace(/\d{2}:/, (match) => 
-          `${(parseInt(match.slice(0, 2)) + 1).toString().padStart(2, '0')}:`
-        )
+        end_time: addMinutesToTime(targetTime, 60) // Default 1 hour duration
       })
     }
   }, [activitiesByDate, updateActivity])
@@ -533,8 +656,17 @@ function calculateDuration(startTime: string, endTime: string): number {
   const [startHours, startMinutes] = startTime.split(':').map(Number)
   const [endHours, endMinutes] = endTime.split(':').map(Number)
   
-  const startTotal = startHours + startMinutes / 60
-  const endTotal = endHours + endMinutes / 60
+  const startTotalMinutes = startHours * 60 + startMinutes
+  const endTotalMinutes = endHours * 60 + endMinutes
   
-  return Math.max(endTotal - startTotal, 1) // Minimum 1 hour
+  const durationMinutes = Math.max(endTotalMinutes - startTotalMinutes, 15) // Minimum 15 minutes
+  return durationMinutes / 15 // Return duration in 15-minute units
+}
+
+function addMinutesToTime(time: string, minutes: number): string {
+  const [hours, mins] = time.split(':').map(Number)
+  const totalMinutes = hours * 60 + mins + minutes
+  const newHours = Math.floor(totalMinutes / 60)
+  const newMins = totalMinutes % 60
+  return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`
 }

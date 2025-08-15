@@ -263,7 +263,14 @@ export async function GET(
       )
     }
 
-    // Load itinerary items with location data
+    // Load activities (modern approach) and itinerary items (legacy support)
+    const { data: activitiesData, error: activitiesError } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('trip_id', tripData.id)
+      .order('activity_date', { ascending: true })
+      .order('start_time', { ascending: true })
+
     const { data: itineraryData, error: itineraryError } = await supabase
       .from('itinerary_items')
       .select(`
@@ -282,17 +289,23 @@ export async function GET(
       .eq('trip_id', tripData.id)
       .order('activity_date, start_time')
 
+    if (activitiesError) {
+      console.warn('Error loading activities:', activitiesError)
+    }
     if (itineraryError) {
       console.warn('Error loading itinerary items:', itineraryError)
     }
 
-    // Combine the data
-    tripData.itinerary_items = itineraryData || []
+    // Combine the data - prioritize activities if available, fall back to itinerary_items
+    tripData.itinerary_items = activitiesData && activitiesData.length > 0 ? activitiesData : (itineraryData || [])
+    tripData.activities = activitiesData || []
 
     console.log(`✅ API: Returning trip details for ${user.email}:`, {
       tripId: tripData.id,
       title: tripData.title,
-      itineraryItems: itineraryData?.length || 0
+      activities: activitiesData?.length || 0,
+      itineraryItems: itineraryData?.length || 0,
+      usingActivities: activitiesData && activitiesData.length > 0
     })
 
     return NextResponse.json({
