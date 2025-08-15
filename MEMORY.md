@@ -23,10 +23,29 @@ This document serves as the development memory for the Wolthers Travel App, trac
 - ✅ User management interface with search/filtering
 - ✅ **Trip draft creation and management system**
 - ✅ **Draft deletion functionality** (Fixed 2025-01-13)
+- ✅ **Activity management system with API integration** (Fixed 2025-01-14)
+- ✅ **Drag-to-resize functionality for activity cards** (Added 2025-01-14)
 
 ---
 
 ## 🔧 Recent Major Fixes & Solutions
+
+### Activity Management & Drag-to-Resize Implementation (2025-01-14)
+**Problem**: User requested ability to resize activity durations by dragging activity card edges
+**Requirement**: "be able to drag a meeting like extending it up and down, to increase the time, with a up down arrow, so we can have a meeting changed from 09-10:00 to say 09-11:30"
+**Solution**:
+- Added visual resize handles (top/bottom edges) that appear on hover
+- Implemented mouse event handling to track resize operations
+- Added time constraint logic (minimum 1 hour, 6 AM - 10 PM bounds)
+- Connected resize functionality through component prop chain
+- Integrated with existing updateActivity API for real-time persistence
+- Prevented drag conflicts during resize operations
+
+**Key Technical Details**:
+- Resize handles use `cursor-ns-resize` with opacity transitions
+- Mouse delta calculations (60px = 1 hour) for intuitive resizing
+- State management prevents simultaneous drag and resize operations
+- Full integration with existing drag-and-drop calendar system
 
 ### Draft Deletion Issue (2025-01-13)
 **Problem**: 500 Internal Server Error when deleting trip drafts
@@ -175,5 +194,5 @@ if (!draftFromDrafts) {
 
 ---
 
-*Last Updated: 2025-01-13*  
+*Last Updated: 2025-01-14*  
 *Next Review: When major features are added or issues discovered*
