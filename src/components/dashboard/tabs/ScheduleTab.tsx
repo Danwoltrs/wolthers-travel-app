@@ -119,29 +119,43 @@ export function ScheduleTab({
 
   // Handle activity save
   const handleActivitySave = useCallback(async () => {
-    if (editingActivity) {
-      // Update existing activity
-      const result = await updateActivity(editingActivity.id, formData)
-      if (result) {
-        setShowActivityEditor(false)
-        setEditingActivity(null)
+    try {
+      if (editingActivity) {
+        // Update existing activity
+        console.log('💾 Updating activity:', editingActivity.id, formData)
+        const result = await updateActivity(editingActivity.id, formData)
+        if (result) {
+          console.log('✅ Activity update successful')
+          setShowActivityEditor(false)
+          setEditingActivity(null)
+        }
+      } else {
+        // Create new activity
+        console.log('💾 Creating new activity:', formData)
+        const result = await createActivity(formData)
+        if (result) {
+          console.log('✅ Activity creation successful')
+          setShowActivityEditor(false)
+        }
       }
-    } else {
-      // Create new activity
-      const result = await createActivity(formData)
-      if (result) {
-        setShowActivityEditor(false)
-      }
+    } catch (error) {
+      console.error('❌ Activity save failed:', error)
     }
   }, [editingActivity, formData, updateActivity, createActivity])
 
   // Handle activity delete
   const handleActivityDelete = useCallback(async () => {
     if (editingActivity) {
-      const success = await deleteActivity(editingActivity.id)
-      if (success) {
-        setShowActivityEditor(false)
-        setEditingActivity(null)
+      try {
+        console.log('🗑️ Deleting activity:', editingActivity.id)
+        const success = await deleteActivity(editingActivity.id)
+        if (success) {
+          console.log('✅ Activity deletion successful')
+          setShowActivityEditor(false)
+          setEditingActivity(null)
+        }
+      } catch (error) {
+        console.error('❌ Activity deletion failed:', error)
       }
     }
   }, [editingActivity, deleteActivity])
@@ -163,6 +177,17 @@ export function ScheduleTab({
           <p className="text-sm text-red-600 dark:text-red-400">
             {error}
           </p>
+        </div>
+      )}
+      
+      {saving && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <p className="text-sm text-blue-600 dark:text-blue-400">
+              {editingActivity ? 'Updating activity...' : 'Creating activity...'}
+            </p>
+          </div>
         </div>
       )}
 

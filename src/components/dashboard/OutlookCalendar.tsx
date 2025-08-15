@@ -47,7 +47,7 @@ interface CalendarDay {
 const ITEM_TYPE = 'ACTIVITY'
 
 // Generate hourly time slots from 6 AM to 10 PM for UI display
-const TIME_SLOTS: TimeSlot[] = Array.from({ length: 16 }, (_, index) => {
+const TIME_SLOTS: TimeSlot[] = Array.from({ length: 17 }, (_, index) => {
   const hour = 6 + index
   const time = `${hour.toString().padStart(2, '0')}:00`
   const display = `${hour.toString().padStart(2, '0')}:00`
@@ -58,15 +58,18 @@ const ActivityCard = memo(function ActivityCard({
   activity, 
   onEdit,
   onResize,
-  displayDate
+  displayDate,
+  isOptimistic = false
 }: { 
   activity: Activity
   onEdit: (activity: Activity) => void 
   onResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
   displayDate?: string // The date this card is being displayed on (for multi-day activities)
+  isOptimistic?: boolean // Whether this is an optimistic update
 }) {
   const [isResizing, setIsResizing] = useState(false)
   const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   
   const [{ isDragging }, drag] = useDrag({
@@ -80,7 +83,14 @@ const ActivityCard = memo(function ActivityCard({
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
-    canDrag: () => !isResizing, // Prevent drag when resizing
+    canDrag: () => !isResizing && !isOptimistic, // Prevent drag when resizing or during optimistic updates
+    begin: () => {
+      setIsUpdating(true)
+    },
+    end: () => {
+      // Keep updating state for a brief moment to show feedback
+      setTimeout(() => setIsUpdating(false), 500)
+    }
   })
 
   const getTypeColor = (type: string) => {
@@ -95,13 +105,12 @@ const ActivityCard = memo(function ActivityCard({
     }
   }
 
-  const duration = activity.start_time && activity.end_time ? 
-    calculateDuration(activity.start_time, activity.end_time) : 1
-  
-  // Calculate vertical position within the hour slot based on start time minutes
-  const startMinutes = activity.start_time ? parseInt(activity.start_time.split(':')[1]) : 0
-  const topOffset = (startMinutes / 60) * 60 // Position within 60px hour slot
-  
+  // Helper function to convert time to minutes
+  const timeToMinutes = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number)
+    return hours * 60 + minutes
+  }
+
   // Check if this is a multi-day activity
   const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
   const startDate = new Date(activity.activity_date + 'T00:00:00')
@@ -113,6 +122,87 @@ const ActivityCard = memo(function ActivityCard({
   const isStartDay = currentDisplayDate === activity.activity_date
   const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
   const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
+  
+  
+  // Calculate display times and position based on calendar view (6 AM - 10 PM)
+  let displayStartTime = activity.start_time || '09:00'
+  let displayEndTime = activity.end_time || '10:00'
+  let topOffset = 0
+  let duration = 1
+  
+  if (isMultiDay) {
+    if (isStartDay) {
+      // First day: show from start time, truncate at 10 PM
+      const startHour = parseInt(activity.start_time?.split(':')[0] || '19')
+      const startMinutes = parseInt(activity.start_time?.split(':')[1] || '0')
+      
+      if (startHour < 6) {
+        // Start before 6 AM, don't show on this day
+        return null
+      } else if (startHour >= 22) {
+        // Start at or after 10 PM, show minimal block at 10 PM
+        displayStartTime = '22:00'
+        displayEndTime = '22:00'
+        topOffset = (22 - 6) * 60
+        duration = 1
+      } else {
+        // Normal start time within display range (6 AM - 10 PM)
+        displayStartTime = activity.start_time || '19:00'
+        displayEndTime = '22:00' // Truncate at 10 PM
+        
+        // Calculate position within visible calendar slots only
+        // Each slot is 60px high, starting from 6 AM (slot 0)
+        const slotIndex = startHour - 6  // 6 AM = 0, 7 AM = 1, ... 19:00 = 13, 22:00 = 16
+        const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
+        topOffset = slotIndex * 60 + minuteOffset
+        
+        duration = (22 * 60 - timeToMinutes(displayStartTime)) / 15
+      }
+    } else if (isEndDay) {
+      // Last day: show from 6 AM to end time
+      const endHour = parseInt(activity.end_time?.split(':')[0] || '10')
+      const endMinutes = parseInt(activity.end_time?.split(':')[1] || '0')
+      
+      displayStartTime = '06:00'
+      topOffset = 0
+      
+      if (endHour > 22) {
+        // End time is after 10 PM, truncate to 10 PM for display
+        displayEndTime = '22:00'
+      } else if (endHour < 6) {
+        // End time is before 6 AM, don't show on this day
+        return null
+      } else {
+        // End time is within display range, use actual end time
+        displayEndTime = activity.end_time || '10:00'
+      }
+      duration = Math.max(0, (timeToMinutes(displayEndTime) - 6 * 60) / 15)
+    } else {
+      // Continuation day: show full day from 6 AM to 10 PM
+      displayStartTime = '06:00'
+      displayEndTime = '22:00'
+      topOffset = 0
+      duration = (22 - 6) * 4 // 16 hours * 4 quarter-hours
+    }
+  } else {
+    // Single day activity
+    const startHour = parseInt(activity.start_time?.split(':')[0] || '9')
+    const startMinutes = parseInt(activity.start_time?.split(':')[1] || '0')
+    
+    if (startHour < 6 || startHour >= 22) {
+      // Activity outside display range, don't show
+      return null
+    } else {
+      // Calculate position within visible calendar slots only (6 AM - 10 PM)
+      const slotIndex = startHour - 6  // 6 AM = 0, 7 AM = 1, ... 19:00 = 13, 21:00 = 15
+      const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
+      topOffset = slotIndex * 60 + minuteOffset
+      
+      duration = activity.start_time && activity.end_time ? 
+        calculateDuration(activity.start_time, activity.end_time) : 1
+    }
+  }
+
 
   // Handle resize functionality with cross-day support
   const handleResizeStart = (type: 'top' | 'bottom', event: React.MouseEvent) => {
@@ -120,6 +210,7 @@ const ActivityCard = memo(function ActivityCard({
     event.preventDefault()
     setIsResizing(true)
     setResizeType(type)
+    setIsUpdating(true)
     
     const startY = event.clientY
     const startTime = activity.start_time || '09:00'
@@ -238,12 +329,19 @@ const ActivityCard = memo(function ActivityCard({
     const handleMouseUp = () => {
       setIsResizing(false)
       setResizeType(null)
+      // Keep updating state for a brief moment to show feedback
+      setTimeout(() => setIsUpdating(false), 300)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
     
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
+  }
+
+  // Don't render if activity is outside display range
+  if (duration <= 0) {
+    return null
   }
 
   return (
@@ -259,14 +357,16 @@ const ActivityCard = memo(function ActivityCard({
         relative cursor-pointer rounded-md border-l-4 p-2 text-white text-xs
         transition-all duration-200 hover:shadow-lg group
         ${getTypeColor(activity.type)}
-        ${isDragging ? 'opacity-50 transform rotate-2' : 'opacity-100'}
+        ${isDragging ? 'opacity-50 transform rotate-2' : isOptimistic ? 'opacity-75' : 'opacity-100'}
         ${isResizing ? 'cursor-resizing' : ''}
+        ${isUpdating ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
+        ${isOptimistic ? 'border-dashed' : ''}
       `}
       style={{
-        height: isContinuationDay ? '960px' : `${Math.max(duration * 15 - 2, 20)}px`, // Full day height for continuation days
+        height: `${Math.max(duration * 15 - 2, 20)}px`,
         minHeight: '20px',
         position: 'absolute',
-        top: isContinuationDay ? '0px' : `${topOffset}px`, // Start at top for continuation days
+        top: `${topOffset}px`,
         left: '4px',
         right: '4px',
         zIndex: 1
@@ -297,6 +397,11 @@ const ActivityCard = memo(function ActivityCard({
         <div className="flex-1 min-w-0">
           <div className="font-medium text-white truncate">
             {activity.title}
+            {isOptimistic && (
+              <span className="ml-1 px-1 py-0.5 bg-white/30 rounded text-xs animate-pulse">
+                saving...
+              </span>
+            )}
             {isMultiDay && (
               <span className="ml-1 px-1 py-0.5 bg-white/20 rounded text-xs">
                 {isContinuationDay ? 'cont.' : isEndDay ? 'end' : `${dayDuration}d`}
@@ -307,15 +412,17 @@ const ActivityCard = memo(function ActivityCard({
             <div className="flex items-center space-x-1 mt-1 text-white/80">
               <Clock className="w-3 h-3" />
               <span className="text-xs">
-                {/* Show times differently based on which day we're displaying */}
-                {isStartDay && activity.start_time ? (
-                  `${formatTime(activity.start_time)} - ${isMultiDay ? (activity.end_date === currentDisplayDate ? formatTime(activity.end_time) : '23:59') : formatTime(activity.end_time)}`
-                ) : isEndDay && isMultiDay ? (
-                  `00:00 - ${formatTime(activity.end_time)}`
-                ) : isContinuationDay ? (
-                  '00:00 - 23:59'
+                {/* Show calculated display times for calendar view */}
+                {isMultiDay ? (
+                  isStartDay ? (
+                    `${formatTime(activity.start_time || '00:00')} - ${formatTime(displayEndTime)}`
+                  ) : isEndDay ? (
+                    `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)}`
+                  ) : (
+                    `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)} (cont.)`
+                  )
                 ) : (
-                  `${formatTime(activity.start_time)} - ${formatTime(activity.end_time)}`
+                  `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)}`
                 )}
                 {isMultiDay && isStartDay && (
                   <span className="ml-1 text-white/60">
@@ -374,11 +481,35 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     }),
   })
 
-  // Filter activities for this time slot hour (includes any activity starting within this hour)
+  // Filter activities for this time slot hour and date
   const slotActivities = activities.filter(activity => {
     if (!activity.start_time) return false
-    const activityHour = parseInt(activity.start_time.split(':')[0])
-    return activityHour === timeSlot.hour
+    
+    // Check if this is a multi-day activity
+    const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
+    const currentDisplayDate = date.dateString
+    const isStartDay = currentDisplayDate === activity.activity_date
+    const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
+    const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
+    
+    if (isMultiDay) {
+      if (isStartDay) {
+        // First day: only show if activity starts in this hour and within display range
+        const startHour = parseInt(activity.start_time.split(':')[0])
+        return startHour === timeSlot.hour && startHour >= 6 && startHour < 22
+      } else if (isEndDay) {
+        // Last day: only show if it's the 6 AM slot (start of day display)
+        return timeSlot.hour === 6
+      } else if (isContinuationDay) {
+        // Continuation day: only show if it's the 6 AM slot (start of day display)
+        return timeSlot.hour === 6
+      }
+      return false
+    } else {
+      // Single day activity: check if it starts in this hour and within display range
+      const activityHour = parseInt(activity.start_time.split(':')[0])
+      return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22
+    }
   })
 
   const handleSlotClick = () => {
@@ -411,6 +542,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
             onEdit={onActivityEdit}
             onResize={onActivityResize}
             displayDate={date.dateString}
+            isOptimistic={activity.id.startsWith('temp-')}
           />
         ))}
       </div>
