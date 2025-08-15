@@ -97,6 +97,17 @@ export function useActivityManager(tripId: string) {
           time: a.start_time
         }))
       })
+      
+      // Debug: Check for any Thursday 4 PM activities
+      const thursdayActivities = data?.filter((a: any) => a.activity_date?.includes('2025-10-02')) || []
+      if (thursdayActivities.length > 0) {
+        console.log('🔍 [useActivityManager] Thursday (Oct 2) activities found:', thursdayActivities.map((a: any) => ({
+          title: a.title,
+          time: a.start_time,
+          date: a.activity_date
+        })))
+      }
+      
       setActivities(data || [])
     } catch (err: any) {
       console.error('Error in loadActivities:', err)
@@ -366,34 +377,57 @@ export function useActivityManager(tripId: string) {
 
   // Delete activity with optimistic updates
   const deleteActivity = useCallback(async (activityId: string): Promise<boolean> => {
-    if (!activityId) return false
+    console.log('🗑️ [useActivityManager] deleteActivity called with ID:', activityId)
+    
+    if (!activityId) {
+      console.warn('🗑️ [useActivityManager] No activity ID provided')
+      return false
+    }
 
     // Find the activity for potential rollback
     const activityToDelete = activities.find(a => a.id === activityId)
-    if (!activityToDelete) return false
+    if (!activityToDelete) {
+      console.warn('🗑️ [useActivityManager] Activity not found in local state:', activityId)
+      return false
+    }
+
+    console.log('🗑️ [useActivityManager] Found activity to delete:', {
+      id: activityToDelete.id,
+      title: activityToDelete.title,
+      date: activityToDelete.activity_date,
+      time: activityToDelete.start_time
+    })
 
     try {
       // Track optimistic operation
       optimisticOperationsRef.current.add(activityId)
+      console.log('🗑️ [useActivityManager] Added to optimistic operations tracking')
       
       // Optimistic update - remove from UI immediately
       setActivities(prev => {
-        console.log('🔄 Optimistic delete - removing activity:', activityId)
-        return prev.filter(activity => activity.id !== activityId)
+        console.log('🔄 [useActivityManager] Optimistic delete - removing activity:', activityId)
+        console.log('🔄 [useActivityManager] Activities before delete:', prev.length)
+        const filtered = prev.filter(activity => activity.id !== activityId)
+        console.log('🔄 [useActivityManager] Activities after delete:', filtered.length)
+        return filtered
       })
       
       setSaving(true)
       setError(null)
 
+      console.log('🗑️ [useActivityManager] Making DELETE API call to:', `/api/activities?id=${activityId}`)
       const response = await fetch(`/api/activities?id=${activityId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
 
+      console.log('🗑️ [useActivityManager] DELETE API response status:', response.status)
+
       if (!response.ok) {
+        console.error('🗑️ [useActivityManager] DELETE API failed with status:', response.status)
         // Revert optimistic update on error
         setActivities(prev => {
-          console.log('🔄 Reverting failed delete:', activityId)
+          console.log('🔄 [useActivityManager] Reverting failed delete:', activityId)
           return [...prev, activityToDelete].sort((a, b) => 
             new Date(a.activity_date + ' ' + (a.start_time || '00:00')).getTime() - 
             new Date(b.activity_date + ' ' + (b.start_time || '00:00')).getTime()
@@ -404,16 +438,18 @@ export function useActivityManager(tripId: string) {
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      console.log('🔄 Delete success:', activityId)
+      const responseData = await response.json()
+      console.log('🔄 [useActivityManager] Delete success:', activityId, 'Response:', responseData)
       
       // Remove from optimistic tracking after a brief delay to let subscription settle
       setTimeout(() => {
+        console.log('🗑️ [useActivityManager] Removing from optimistic tracking:', activityId)
         optimisticOperationsRef.current.delete(activityId)
       }, 200)
       
       return true
     } catch (err: any) {
-      console.error('Error in deleteActivity:', err)
+      console.error('❌ [useActivityManager] Error in deleteActivity:', err)
       optimisticOperationsRef.current.delete(activityId)
       setError(`Failed to delete activity: ${err.message}`)
       return false

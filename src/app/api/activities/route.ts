@@ -281,12 +281,15 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  console.log('🗑️ [API] DELETE request received')
   let user: any = null
   
   try {
     // Authentication logic (same as POST)
     const authHeader = request.headers.get('authorization')
     const cookieToken = request.cookies.get('auth-token')?.value
+    
+    console.log('🗑️ [API] Auth check - Header:', !!authHeader, 'Cookie:', !!cookieToken)
     
     let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -308,6 +311,7 @@ export async function DELETE(request: NextRequest) {
 
         if (!userError && userData) {
           user = userData
+          console.log('🗑️ [API] User authenticated via JWT:', userData.email)
         }
       } catch (jwtError) {
         const supabaseClient = createSupabaseServiceClient()
@@ -322,6 +326,7 @@ export async function DELETE(request: NextRequest) {
 
             if (!userError && userData) {
               user = userData
+              console.log('🗑️ [API] User authenticated via Supabase:', userData.email)
             }
           }
         }
@@ -329,6 +334,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (!user) {
+      console.error('🗑️ [API] Authentication failed')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -339,9 +345,14 @@ export async function DELETE(request: NextRequest) {
     const url = new URL(request.url)
     const activityId = url.searchParams.get('id')
 
+    console.log('🗑️ [API] Activity ID from URL:', activityId)
+
     if (!activityId) {
+      console.error('🗑️ [API] No activity ID provided')
       return NextResponse.json({ error: 'Activity ID is required' }, { status: 400 })
     }
+
+    console.log('🗑️ [API] Attempting to delete activity:', activityId)
 
     // Delete the activity
     const { error: deleteError } = await supabase
@@ -350,16 +361,17 @@ export async function DELETE(request: NextRequest) {
       .eq('id', activityId)
 
     if (deleteError) {
-      console.error('Error deleting activity:', deleteError)
+      console.error('🗑️ [API] Supabase delete error:', deleteError)
       return NextResponse.json({ 
         error: 'Failed to delete activity', 
         details: deleteError.message 
       }, { status: 500 })
     }
 
+    console.log('🗑️ [API] Delete successful for activity:', activityId)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('API Error:', error)
+    console.error('🗑️ [API] API Error:', error)
     return NextResponse.json({ 
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

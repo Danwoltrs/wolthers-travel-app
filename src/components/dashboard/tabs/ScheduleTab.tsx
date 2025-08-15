@@ -147,16 +147,26 @@ export function ScheduleTab({
   const handleActivityDelete = useCallback(async () => {
     if (editingActivity) {
       try {
-        console.log('🗑️ Deleting activity:', editingActivity.id)
+        console.log('🗑️ [ScheduleTab] Starting delete for activity:', {
+          id: editingActivity.id,
+          title: editingActivity.title,
+          date: editingActivity.activity_date,
+          time: editingActivity.start_time
+        })
         const success = await deleteActivity(editingActivity.id)
+        console.log('🗑️ [ScheduleTab] Delete operation result:', success)
         if (success) {
-          console.log('✅ Activity deletion successful')
+          console.log('✅ [ScheduleTab] Activity deletion successful, closing editor')
           setShowActivityEditor(false)
           setEditingActivity(null)
+        } else {
+          console.error('❌ [ScheduleTab] Delete operation returned false')
         }
       } catch (error) {
-        console.error('❌ Activity deletion failed:', error)
+        console.error('❌ [ScheduleTab] Activity deletion failed:', error)
       }
+    } else {
+      console.warn('🗑️ [ScheduleTab] No editing activity found for deletion')
     }
   }, [editingActivity, deleteActivity])
 

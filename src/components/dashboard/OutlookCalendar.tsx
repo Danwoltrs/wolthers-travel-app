@@ -493,6 +493,27 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
     const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
     
+    // Debug logging for activity filtering
+    const activityHour = parseInt(activity.start_time.split(':')[0])
+    const matches = isMultiDay ? 
+      (isStartDay && activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22) ||
+      ((isEndDay || isContinuationDay) && timeSlot.hour === 6)
+      :
+      (activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22)
+    
+    if (activity.title.toLowerCase().includes('meeting') && currentDisplayDate.includes('2025-10-02')) {
+      console.log('🔍 [OutlookCalendar] Filtering activity for Thu Oct 2:', {
+        title: activity.title,
+        activityDate: activity.activity_date,
+        currentDisplayDate,
+        startTime: activity.start_time,
+        activityHour,
+        timeSlotHour: timeSlot.hour,
+        isMultiDay,
+        matches
+      })
+    }
+    
     if (isMultiDay) {
       if (isStartDay) {
         // First day: only show if activity starts in this hour and within display range
