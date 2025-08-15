@@ -103,6 +103,18 @@ export function useActivityManager(tripId: string) {
       if (thursdayActivities.length > 0) {
         console.log('🔍 [useActivityManager] Thursday (Oct 2) activities found:', thursdayActivities.length, 'activities')
         
+        // Show test activities with full details
+        const testActivities = thursdayActivities.filter((a: any) => a.title?.toLowerCase().includes('test'))
+        if (testActivities.length > 0) {
+          console.log('🔍 [useActivityManager] Test activities on Thursday:', testActivities.map((a: any) => ({
+            id: a.id,
+            title: a.title,
+            activity_date: a.activity_date,
+            start_time: a.start_time,
+            end_time: a.end_time
+          })))
+        }
+        
         // Check for duplicates
         const titles = thursdayActivities.map((a: any) => a.title)
         const uniqueTitles = [...new Set(titles)]
@@ -160,8 +172,16 @@ export function useActivityManager(tripId: string) {
       
       // Optimistic update - add to UI immediately
       setActivities(prev => {
-        console.log('🔄 Optimistic create - adding activity:', tempId)
-        return [...prev, optimisticActivity]
+        console.log('🔄 [CreateActivity] Optimistic create - adding activity:', {
+          tempId,
+          title: optimisticActivity.title,
+          date: optimisticActivity.activity_date,
+          time: optimisticActivity.start_time,
+          previousCount: prev.length
+        })
+        const updated = [...prev, optimisticActivity]
+        console.log('🔄 [CreateActivity] Activities after optimistic add:', updated.length)
+        return updated
       })
       
       setSaving(true)

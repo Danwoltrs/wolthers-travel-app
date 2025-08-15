@@ -501,7 +501,12 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       :
       (activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22)
     
-    // Reduced logging - only log when we have issues or mismatches
+    // Check if activity matches this date first
+    if (activity.activity_date !== currentDisplayDate) {
+      return false
+    }
+    
+    // Debug logging for test activities that don't match
     if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02') && !matches) {
       console.log('🔍 [OutlookCalendar] Activity NOT matching filter for Thu Oct 2:', {
         title: activity.title,
@@ -511,7 +516,9 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
         activityHour,
         timeSlotHour: timeSlot.hour,
         isMultiDay,
-        matches
+        dateMatches: activity.activity_date === currentDisplayDate,
+        hourMatches: activityHour === timeSlot.hour,
+        inRange: activityHour >= 6 && activityHour < 22
       })
     }
     
@@ -531,7 +538,22 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     } else {
       // Single day activity: check if it starts in this hour and within display range
       const activityHour = parseInt(activity.start_time.split(':')[0])
-      return activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22
+      const hourMatches = activityHour === timeSlot.hour
+      const inRange = activityHour >= 6 && activityHour < 22
+      
+      // Enhanced debug for single day activities
+      if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02')) {
+        console.log('🔍 [OutlookCalendar] Single day test activity filter check:', {
+          title: activity.title,
+          activityHour,
+          timeSlotHour: timeSlot.hour,
+          hourMatches,
+          inRange,
+          finalResult: hourMatches && inRange
+        })
+      }
+      
+      return hourMatches && inRange
     }
   })
 
