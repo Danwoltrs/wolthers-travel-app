@@ -150,14 +150,14 @@ const ActivityCard = memo(function ActivityCard({
       } else {
         // Normal start time within display range (6 AM - 10 PM)
         displayStartTime = activity.start_time || '19:00'
-        displayEndTime = '22:00' // Truncate at 10 PM
+        displayEndTime = '23:00' // Extend to end of calendar for multi-day activities
         
         // Position relative to the start of this time slot (0px from slot top)
         // The minutes within the hour determine the offset within the 60px slot
         const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
         topOffset = minuteOffset
         
-        duration = (22 * 60 - timeToMinutes(displayStartTime)) / 15
+        duration = (23 * 60 - timeToMinutes(displayStartTime)) / 15
       }
     } else if (isEndDay) {
       // Last day: show from 6 AM to end time
@@ -179,11 +179,11 @@ const ActivityCard = memo(function ActivityCard({
       }
       duration = Math.max(0, (timeToMinutes(displayEndTime) - 6 * 60) / 15)
     } else {
-      // Continuation day: show full day from 6 AM to 10 PM
+      // Continuation day: show full day from 6 AM to 11 PM (end of calendar)
       displayStartTime = '06:00'
-      displayEndTime = '22:00'
+      displayEndTime = '23:00'
       topOffset = 0
-      duration = (22 - 6) * 4 // 16 hours * 4 quarter-hours
+      duration = (23 - 6) * 4 // 17 hours * 4 quarter-hours
     }
   } else {
     // Single day activity
@@ -413,14 +413,14 @@ const ActivityCard = memo(function ActivityCard({
             <div className="flex items-center space-x-1 mt-1 text-white/80">
               <Clock className="w-3 h-3" />
               <span className="text-xs">
-                {/* Show calculated display times for calendar view */}
+                {/* Show actual activity times for multi-day, display times for single-day */}
                 {isMultiDay ? (
                   isStartDay ? (
-                    `${formatTime(activity.start_time || '00:00')} - ${formatTime(displayEndTime)}`
+                    `${formatTime(activity.start_time || '00:00')} - ${formatTime(activity.end_time || '00:00')}`
                   ) : isEndDay ? (
-                    `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)}`
+                    `${formatTime(activity.start_time || '00:00')} - ${formatTime(activity.end_time || '00:00')}`
                   ) : (
-                    `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)} (cont.)`
+                    `${formatTime(activity.start_time || '00:00')} - ${formatTime(activity.end_time || '00:00')} (cont.)`
                   )
                 ) : (
                   `${formatTime(displayStartTime)} - ${formatTime(displayEndTime)}`
