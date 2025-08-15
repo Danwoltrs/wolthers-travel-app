@@ -152,11 +152,10 @@ const ActivityCard = memo(function ActivityCard({
         displayStartTime = activity.start_time || '19:00'
         displayEndTime = '22:00' // Truncate at 10 PM
         
-        // Calculate position within visible calendar slots only
-        // Each slot is 60px high, starting from 6 AM (slot 0)
-        const slotIndex = startHour - 6  // 6 AM = 0, 7 AM = 1, ... 19:00 = 13, 22:00 = 16
+        // Position relative to the start of this time slot (0px from slot top)
+        // The minutes within the hour determine the offset within the 60px slot
         const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
-        topOffset = slotIndex * 60 + minuteOffset
+        topOffset = minuteOffset
         
         duration = (22 * 60 - timeToMinutes(displayStartTime)) / 15
       }
@@ -195,10 +194,10 @@ const ActivityCard = memo(function ActivityCard({
       // Activity outside display range, don't show
       return null
     } else {
-      // Calculate position within visible calendar slots only (6 AM - 10 PM)
-      const slotIndex = startHour - 6  // 6 AM = 0, 7 AM = 1, ... 19:00 = 13, 21:00 = 15
+      // Position relative to the start of this time slot (0px from slot top)
+      // The minutes within the hour determine the offset within the 60px slot
       const minuteOffset = (startMinutes / 60) * 60  // Minutes within the hour
-      topOffset = slotIndex * 60 + minuteOffset
+      topOffset = minuteOffset
       
       duration = activity.start_time && activity.end_time ? 
         calculateDuration(activity.start_time, activity.end_time) : 1
