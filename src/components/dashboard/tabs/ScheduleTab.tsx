@@ -225,21 +225,6 @@ export function ScheduleTab({
     setEditingActivity(null)
   }, [])
 
-  // Handle sync calendar (to be called from header)
-  const handleSyncCalendar = useCallback(async () => {
-    await forceRefreshActivities()
-    if (onSyncCalendar) {
-      onSyncCalendar()
-    }
-  }, [forceRefreshActivities, onSyncCalendar])
-
-  // Expose sync function to parent
-  React.useEffect(() => {
-    if (onSyncCalendar) {
-      // Override the parent's sync function with our local handler
-      (window as any).scheduleTabSyncCalendar = handleSyncCalendar
-    }
-  }, [handleSyncCalendar, onSyncCalendar])
 
   // Get activities grouped by date and statistics
   const activitiesByDate = getActivitiesByDate()
@@ -327,6 +312,7 @@ export function ScheduleTab({
           onExtendTrip={handleExtendTrip}
           onActivityCreate={handleNewActivity}
           onActivityEdit={handleActivityEdit}
+          forceRefreshActivities={forceRefreshActivities}
         />
       </div>
 

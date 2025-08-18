@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
 import { useDrag, useDrop } from 'react-dnd'
-import { Plus, Clock, MapPin, User, Check } from 'lucide-react'
+import { Plus, Clock, MapPin, User, Check, RefreshCw } from 'lucide-react'
 import type { TripCard } from '@/types'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
@@ -28,6 +28,7 @@ interface OutlookCalendarProps {
   onExtendTrip: (direction: 'before' | 'after') => void
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
+  forceRefreshActivities?: () => Promise<void>
 }
 
 interface DragItem {
@@ -693,7 +694,8 @@ export function OutlookCalendar({
   getActivitiesByDate,
   onExtendTrip, 
   onActivityCreate, 
-  onActivityEdit 
+  onActivityEdit,
+  forceRefreshActivities
 }: OutlookCalendarProps) {
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null)
 
@@ -840,6 +842,21 @@ export function OutlookCalendar({
               Drag activities to reschedule • Click empty slots to add activities
             </p>
             <div className="flex items-center space-x-2">
+              {/* Sync Calendar Button */}
+              <button
+                onClick={() => {
+                  if (forceRefreshActivities) {
+                    forceRefreshActivities()
+                  }
+                }}
+                disabled={refreshing || !forceRefreshActivities}
+                className="flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium transition-colors bg-golden-400/20 text-golden-400 hover:bg-golden-400/30 hover:text-golden-300 disabled:opacity-50"
+                title="Refresh calendar to sync latest changes"
+              >
+                <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Sync</span>
+              </button>
+              
               {refreshing && (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-3 w-3 border border-golden-400 border-t-transparent"></div>

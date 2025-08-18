@@ -234,23 +234,6 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             </div>
             
             <div className="flex items-center space-x-3">
-              {/* Sync Calendar Button - Only show in Schedule tab editing mode */}
-              {isEditing && activeTab === 'schedule' && (
-                <button
-                  onClick={() => {
-                    // Call the sync function from ScheduleTab
-                    if ((window as any).scheduleTabSyncCalendar) {
-                      (window as any).scheduleTabSyncCalendar()
-                    }
-                  }}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-white/20 text-emerald-700 hover:bg-white/30 hover:text-emerald-600 dark:bg-emerald-800/50 dark:text-golden-400 dark:hover:bg-emerald-800/70"
-                  title="Refresh calendar to sync latest changes"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Sync Calendar</span>
-                </button>
-              )}
-              
               {/* Edit Toggle */}
               {!readOnly && (
                 <button
