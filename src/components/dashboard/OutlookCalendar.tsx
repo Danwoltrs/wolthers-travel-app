@@ -10,14 +10,21 @@
  */
 
 import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
-import { DndProvider, useDrag, useDrop } from 'react-dnd'
-import { HTML5Backend } from 'react-dnd-html5-backend'
+import { useDrag, useDrop } from 'react-dnd'
 import { Plus, Clock, MapPin, User, Check } from 'lucide-react'
 import type { TripCard } from '@/types'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
+import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
 
 interface OutlookCalendarProps {
   trip: TripCard
+  activities: Activity[]
+  loading: boolean
+  error: string | null
+  refreshing: boolean
+  updateActivity: (activityId: string, updates: Partial<ActivityFormData>) => Promise<Activity | null>
+  updateActivityDebounced: (activityId: string, updates: Partial<ActivityFormData>, delay?: number) => Promise<void>
+  getActivitiesByDate: () => Record<string, Activity[]>
   onExtendTrip: (direction: 'before' | 'after') => void
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
@@ -71,29 +78,37 @@ const ActivityCard = memo(function ActivityCard({
   const [isResizing, setIsResizing] = useState(false)
   const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isDragLoading, setIsDragLoading] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   
-  const [{ isDragging }, drag] = useDrag({
-    type: ITEM_TYPE,
-    item: () => {
-      // This replaces the deprecated 'begin' callback
-      setIsUpdating(true)
-      return {
-        type: ITEM_TYPE,
-        activity,
-        originalDate: activity.activity_date,
-        originalTime: activity.start_time
-      } as DragItem
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
+  const [{ isDragging }, drag] = useDrag(
+    () => ({
+      type: ITEM_TYPE,
+      item: () => {
+        // Enhanced drag start with loading state
+        setIsUpdating(true)
+        setIsDragLoading(true)
+        return {
+          type: ITEM_TYPE,
+          activity,
+          originalDate: activity.activity_date,
+          originalTime: activity.start_time
+        } as DragItem
+      },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+      canDrag: () => !isResizing && !isOptimistic, // Prevent drag when resizing or during optimistic updates
+      end: () => {
+        // Enhanced end handling with proper state cleanup
+        setTimeout(() => {
+          setIsUpdating(false)
+          setIsDragLoading(false)
+        }, 800) // Slightly longer for better visual feedback
+      }
     }),
-    canDrag: () => !isResizing && !isOptimistic, // Prevent drag when resizing or during optimistic updates
-    end: () => {
-      // Keep updating state for a brief moment to show feedback
-      setTimeout(() => setIsUpdating(false), 500)
-    }
-  })
+    [activity.id, activity.activity_date, activity.start_time, isResizing, isOptimistic]
+  )
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -360,8 +375,9 @@ const ActivityCard = memo(function ActivityCard({
         ${getTypeColor(activity.type)}
         ${isDragging ? 'opacity-50 transform rotate-2' : isOptimistic ? 'opacity-75' : 'opacity-100'}
         ${isResizing ? 'cursor-resizing' : ''}
-        ${isUpdating ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
+        ${isUpdating || isDragLoading ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
         ${isOptimistic ? 'border-dashed' : ''}
+        ${isDragLoading ? 'animate-pulse' : ''}
       `}
       style={{
         height: `${Math.max(duration * 15 - 2, 20)}px`,
@@ -401,6 +417,11 @@ const ActivityCard = memo(function ActivityCard({
             {isOptimistic && (
               <span className="ml-1 px-1 py-0.5 bg-white/30 rounded text-xs animate-pulse">
                 saving...
+              </span>
+            )}
+            {isDragLoading && !isOptimistic && (
+              <span className="ml-1 px-1 py-0.5 bg-white/40 rounded text-xs animate-pulse">
+                moving...
               </span>
             )}
             {isMultiDay && (
@@ -452,6 +473,21 @@ const ActivityCard = memo(function ActivityCard({
       </div>
     </div>
   )
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.activity.id === nextProps.activity.id &&
+    prevProps.activity.title === nextProps.activity.title &&
+    prevProps.activity.start_time === nextProps.activity.start_time &&
+    prevProps.activity.end_time === nextProps.activity.end_time &&
+    prevProps.activity.activity_date === nextProps.activity.activity_date &&
+    prevProps.activity.end_date === nextProps.activity.end_date &&
+    prevProps.activity.location === nextProps.activity.location &&
+    prevProps.activity.type === nextProps.activity.type &&
+    prevProps.activity.is_confirmed === nextProps.activity.is_confirmed &&
+    prevProps.displayDate === nextProps.displayDate &&
+    prevProps.isOptimistic === nextProps.isOptimistic
+  )
 })
 
 const TimeSlotComponent = memo(function TimeSlotComponent({ 
@@ -471,16 +507,27 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   onActivityDrop: (item: DragItem, targetDate: string, targetTime: string) => void
   onActivityResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
 }) {
-  const [{ isOver, canDrop }, drop] = useDrop({
-    accept: ITEM_TYPE,
-    drop: (item: DragItem) => {
-      onActivityDrop(item, date.dateString, timeSlot.time)
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-      canDrop: monitor.canDrop(),
+  const [isProcessingDrop, setIsProcessingDrop] = useState(false)
+  
+  const [{ isOver, canDrop }, drop] = useDrop(
+    () => ({
+      accept: ITEM_TYPE,
+      drop: async (item: DragItem) => {
+        setIsProcessingDrop(true)
+        try {
+          await onActivityDrop(item, date.dateString, timeSlot.time)
+        } finally {
+          // Clear processing state after a delay for visual feedback
+          setTimeout(() => setIsProcessingDrop(false), 1000)
+        }
+      },
+      collect: (monitor) => ({
+        isOver: monitor.isOver(),
+        canDrop: monitor.canDrop(),
+      }),
     }),
-  })
+    [date.dateString, timeSlot.time, onActivityDrop]
+  )
 
   // Debug: Show activities for key time slot
   if (timeSlot.hour === 14 && date.dateString.includes('2025-10-02')) {
@@ -604,13 +651,18 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
         relative border-b border-gray-200 dark:border-gray-700 min-h-[60px] p-1
         transition-colors duration-200
         ${isOver && canDrop ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}
+        ${isProcessingDrop ? 'bg-blue-100 dark:bg-blue-900/30' : ''}
         ${slotActivities.length === 0 ? 'hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer' : ''}
       `}
       onClick={handleSlotClick}
     >
       {slotActivities.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-          <Plus className="w-4 h-4 text-gray-400" />
+          {isProcessingDrop ? (
+            <div className="animate-spin h-4 w-4 border border-blue-500 border-t-transparent rounded-full" />
+          ) : (
+            <Plus className="w-4 h-4 text-gray-400" />
+          )}
         </div>
       )}
       <div className="relative h-full">
@@ -630,21 +682,19 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
 })
 
 export function OutlookCalendar({ 
-  trip, 
+  trip,
+  activities,
+  loading,
+  error,
+  refreshing,
+  updateActivity,
+  updateActivityDebounced,
+  getActivitiesByDate,
   onExtendTrip, 
   onActivityCreate, 
   onActivityEdit 
 }: OutlookCalendarProps) {
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null)
-
-  const {
-    activities,
-    loading,
-    error,
-    updateActivity,
-    updateActivityDebounced,
-    getActivitiesByDate
-  } = useActivityManager(trip.id || '')
 
   // Generate calendar days
   const calendarDays: CalendarDay[] = useMemo(() => {
@@ -697,6 +747,19 @@ export function OutlookCalendar({
   ) => {
     const { activity } = item
     
+    // Calculate original duration to preserve it
+    const calculateOriginalDuration = (startTime: string, endTime: string): number => {
+      if (!startTime || !endTime) return 60 // Default 1 hour in minutes
+      const [startHours, startMinutes] = startTime.split(':').map(Number)
+      const [endHours, endMinutes] = endTime.split(':').map(Number)
+      const startTotalMinutes = startHours * 60 + startMinutes
+      const endTotalMinutes = endHours * 60 + endMinutes
+      return Math.max(endTotalMinutes - startTotalMinutes, 15) // Minimum 15 minutes
+    }
+    
+    const originalDurationMinutes = calculateOriginalDuration(activity.start_time || '', activity.end_time || '')
+    const newEndTime = addMinutesToTime(targetTime, originalDurationMinutes)
+    
     // Check if there's an activity in the target slot hour
     const targetActivities = activitiesByDate[targetDate] || []
     const targetSlotActivity = targetActivities.find(a => {
@@ -707,25 +770,31 @@ export function OutlookCalendar({
     })
 
     if (targetSlotActivity && targetSlotActivity.id !== activity.id) {
-      // Swap activities
+      // Swap activities - preserve both durations
+      const targetOriginalDurationMinutes = calculateOriginalDuration(
+        targetSlotActivity.start_time || '',
+        targetSlotActivity.end_time || ''
+      )
+      const swapEndTime = addMinutesToTime(item.originalTime, targetOriginalDurationMinutes)
+      
       await Promise.all([
         updateActivity(activity.id, {
           activity_date: targetDate,
           start_time: targetTime,
-          end_time: addMinutesToTime(targetTime, 60) // Default 1 hour duration
+          end_time: newEndTime
         }),
         updateActivity(targetSlotActivity.id, {
           activity_date: item.originalDate,
           start_time: item.originalTime,
-          end_time: addMinutesToTime(item.originalTime, 60) // Default 1 hour duration
+          end_time: swapEndTime
         })
       ])
     } else {
-      // Move activity to new slot
+      // Move activity to new slot - preserve original duration
       await updateActivity(activity.id, {
         activity_date: targetDate,
         start_time: targetTime,
-        end_time: addMinutesToTime(targetTime, 60) // Default 1 hour duration
+        end_time: newEndTime
       })
     }
   }, [activitiesByDate, updateActivity])
@@ -747,13 +816,37 @@ export function OutlookCalendar({
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+    <OptimizedDndProvider>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden relative">
+        {/* Refreshing Overlay */}
+        {refreshing && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-[#1a1a1a]/80 rounded-lg flex items-center justify-center z-30">
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 shadow-lg border border-pearl-200 dark:border-[#2a2a2a]">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600"></div>
+                <p className="text-sm font-medium text-gray-900 dark:text-golden-400">
+                  Updating calendar...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Calendar Header */}
         <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-4 py-2">
-          <p className="text-sm text-golden-400/90 text-center">
-            Drag activities to reschedule • Click empty slots to add activities
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-golden-400/90">
+              Drag activities to reschedule • Click empty slots to add activities
+            </p>
+            <div className="flex items-center space-x-2">
+              {refreshing && (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border border-golden-400 border-t-transparent"></div>
+                  <span className="text-xs text-golden-400/70">Updating...</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Calendar Grid */}
@@ -803,48 +896,50 @@ export function OutlookCalendar({
               </div>
 
               {/* Time Slots Grid */}
-              {TIME_SLOTS.map((timeSlot) => (
-                <div
-                  key={timeSlot.time}
-                  className="grid border-b border-gray-200 dark:border-gray-700"
-                  style={{ 
-                    gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
-                  }}
-                >
-                  {/* Time label */}
-                  <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                      {timeSlot.display}
+              <div className={refreshing ? 'opacity-50 pointer-events-none' : ''}>
+                {TIME_SLOTS.map((timeSlot) => (
+                  <div
+                    key={timeSlot.time}
+                    className="grid border-b border-gray-200 dark:border-gray-700"
+                    style={{ 
+                      gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
+                    }}
+                  >
+                    {/* Time label */}
+                    <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                        {timeSlot.display}
+                      </div>
                     </div>
+
+                    {/* Day columns */}
+                    {calendarDays.map((day) => (
+                      <div
+                        key={`${day.dateString}-${timeSlot.time}`}
+                        className="border-r border-gray-200 dark:border-gray-700"
+                      >
+                        <TimeSlotComponent
+                          timeSlot={timeSlot}
+                          date={day}
+                          activities={activitiesByDate[day.dateString] || []}
+                          onActivityCreate={onActivityCreate}
+                          onActivityEdit={onActivityEdit}
+                          onActivityDrop={handleActivityDrop}
+                          onActivityResize={handleActivityResize}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Empty cell for add day after column */}
+                    <div className="border-r border-gray-200 dark:border-gray-700" />
                   </div>
-
-                  {/* Day columns */}
-                  {calendarDays.map((day) => (
-                    <div
-                      key={`${day.dateString}-${timeSlot.time}`}
-                      className="border-r border-gray-200 dark:border-gray-700"
-                    >
-                      <TimeSlotComponent
-                        timeSlot={timeSlot}
-                        date={day}
-                        activities={activitiesByDate[day.dateString] || []}
-                        onActivityCreate={onActivityCreate}
-                        onActivityEdit={onActivityEdit}
-                        onActivityDrop={handleActivityDrop}
-                        onActivityResize={handleActivityResize}
-                      />
-                    </div>
-                  ))}
-
-                  {/* Empty cell for add day after column */}
-                  <div className="border-r border-gray-200 dark:border-gray-700" />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </DndProvider>
+    </OptimizedDndProvider>
   )
 }
 

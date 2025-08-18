@@ -171,41 +171,7 @@ export function useEnhancedModal(
     updateModalState({ editingMode: mode })
   }, [updateModalState])
 
-  // Form data updates
-  const updateFormData = useCallback((
-    tab: EnhancedModalTab, 
-    updates: Partial<EnhancedModalFormData>
-  ) => {
-    setFormData(prev => ({
-      ...prev,
-      ...updates
-    }))
-
-    // Update unsaved changes state
-    updateModalState({ hasUnsavedChanges: true })
-
-    // Trigger validation if enabled
-    if (validationEnabled) {
-      if (validationTimeoutRef.current) {
-        clearTimeout(validationTimeoutRef.current)
-      }
-      validationTimeoutRef.current = setTimeout(() => {
-        validateTab(tab, updates)
-      }, 300)
-    }
-
-    // Trigger auto-save if enabled
-    if (autoSaveEnabled && modalState.editingMode === 'edit') {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
-      }
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        performAutoSave(tab, updates)
-      }, autoSaveDelay)
-    }
-  }, [modalState.editingMode, validationEnabled, autoSaveEnabled, autoSaveDelay, updateModalState])
-
-  // Validation
+  // Validation - optimized with proper dependencies (moved before updateFormData to fix initialization order)
   const validateTab = useCallback(async (
     tab: EnhancedModalTab, 
     data: Partial<EnhancedModalFormData>
@@ -248,9 +214,9 @@ export function useEnhancedModal(
         }
       })
     }
-  }, [modalState, updateModalState])
+  }, [modalState.loadingState, modalState.validationState, modalState.errorState, updateModalState])
 
-  // Auto-save functionality
+  // Auto-save functionality - optimized dependencies
   const performAutoSave = useCallback(async (
     tab: EnhancedModalTab,
     updates: Partial<EnhancedModalFormData>
@@ -288,7 +254,41 @@ export function useEnhancedModal(
     }
   }, [onSave, formData, modalState.saveStatus.isSaving, updateModalState])
 
-  // Manual save
+  // Form data updates - memoized to prevent unnecessary re-renders
+  const updateFormData = useCallback((
+    tab: EnhancedModalTab, 
+    updates: Partial<EnhancedModalFormData>
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      ...updates
+    }))
+
+    // Update unsaved changes state
+    updateModalState({ hasUnsavedChanges: true })
+
+    // Trigger validation if enabled
+    if (validationEnabled) {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current)
+      }
+      validationTimeoutRef.current = setTimeout(() => {
+        validateTab(tab, updates)
+      }, 300)
+    }
+
+    // Trigger auto-save if enabled
+    if (autoSaveEnabled && modalState.editingMode === 'edit') {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        performAutoSave(tab, updates)
+      }, autoSaveDelay)
+    }
+  }, [modalState.editingMode, validationEnabled, autoSaveEnabled, autoSaveDelay, updateModalState, validateTab, performAutoSave])
+
+  // Manual save - memoized for performance
   const saveFormData = useCallback(async () => {
     if (!onSave || modalState.saveStatus.isSaving) return
 

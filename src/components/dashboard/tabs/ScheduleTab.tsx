@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useCallback } from 'react'
+import { RefreshCw } from 'lucide-react'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import type { TripCard } from '@/types'
@@ -43,17 +44,20 @@ export function ScheduleTab({
     notes: ''
   })
 
-  // Use the activity manager hook
+  // Use the activity manager hook with enhanced refresh capabilities
   const {
     activities,
     loading,
     error,
     saving,
+    refreshing,
     createActivity,
     updateActivity,
+    updateActivityDebounced,
     deleteActivity,
     getActivityStats,
-    getActivitiesByDate
+    getActivitiesByDate,
+    forceRefreshActivities
   } = useActivityManager(trip.id || '')
 
   // Handle activity editing
@@ -117,7 +121,7 @@ export function ScheduleTab({
     // For now, we'll just log the action
   }, [])
 
-  // Handle activity save
+  // Handle activity save with simple loading approach
   const handleActivitySave = useCallback(async () => {
     try {
       if (editingActivity) {
@@ -130,19 +134,18 @@ export function ScheduleTab({
           setEditingActivity(null)
         }
       } else {
-        // Create new activity
+        // Create new activity with loading + refresh
         console.log('💾 [ScheduleTab] Creating new activity:', {
           title: formData.title,
           date: formData.activity_date,
           time: formData.start_time
         })
         const result = await createActivity(formData)
-        console.log('💾 [ScheduleTab] Create result:', !!result)
         if (result) {
           console.log('✅ [ScheduleTab] Activity creation successful, closing modal')
           setShowActivityEditor(false)
         } else {
-          console.error('❌ [ScheduleTab] Activity creation returned null/false')
+          console.error('❌ [ScheduleTab] Activity creation failed')
         }
       }
     } catch (error) {
@@ -150,7 +153,7 @@ export function ScheduleTab({
     }
   }, [editingActivity, formData, updateActivity, createActivity])
 
-  // Handle activity delete
+  // Handle activity delete with simple loading approach
   const handleActivityDelete = useCallback(async () => {
     if (editingActivity) {
       try {
@@ -161,13 +164,12 @@ export function ScheduleTab({
           time: editingActivity.start_time
         })
         const success = await deleteActivity(editingActivity.id)
-        console.log('🗑️ [ScheduleTab] Delete operation result:', success)
         if (success) {
           console.log('✅ [ScheduleTab] Activity deletion successful, closing editor')
           setShowActivityEditor(false)
           setEditingActivity(null)
         } else {
-          console.error('❌ [ScheduleTab] Delete operation returned false')
+          console.error('❌ [ScheduleTab] Delete operation failed')
         }
       } catch (error) {
         console.error('❌ [ScheduleTab] Activity deletion failed:', error)
@@ -188,33 +190,103 @@ export function ScheduleTab({
   const stats = getActivityStats()
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        </div>
-      )}
-      
-      {saving && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-blue-600 dark:text-blue-400">
-              {editingActivity ? 'Updating activity...' : 'Creating activity...'}
+    <div className="space-y-4 relative">
+      {/* Loading Overlay */}
+      {refreshing && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 shadow-xl border border-pearl-200 dark:border-[#2a2a2a]">
+            <div className="flex items-center space-x-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+              <p className="text-lg font-medium text-gray-900 dark:text-golden-400">
+                Updating calendar...
+              </p>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
+              Please wait while we sync your changes
             </p>
           </div>
         </div>
       )}
+      
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+            <button
+              onClick={forceRefreshActivities}
+              className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {saving && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                {editingActivity ? 'Updating activity...' : 'Creating activity...'}
+              </p>
+            </div>
+            <button
+              onClick={forceRefreshActivities}
+              className="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition-colors"
+              title="Refresh calendar manually"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Outlook-Style Calendar */}
-      <OutlookCalendar
-        trip={trip}
-        onExtendTrip={handleExtendTrip}
-        onActivityCreate={handleNewActivity}
-        onActivityEdit={handleActivityEdit}
-      />
+      {/* Calendar Header with Refresh Button */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {activities.length} activities across {stats.days} days
+        </div>
+        <button
+          onClick={forceRefreshActivities}
+          disabled={loading}
+          className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          title="Refresh calendar to sync latest changes"
+        >
+          {loading ? 'Loading...' : 'Sync Calendar'}
+        </button>
+      </div>
+
+      {/* Outlook-Style Calendar with Loading Overlay */}
+      <div className="relative">
+        {refreshing && (
+          <div className="absolute inset-0 bg-white/70 dark:bg-[#1a1a1a]/70 rounded-lg flex items-center justify-center z-10">
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 shadow-lg border border-pearl-200 dark:border-[#2a2a2a]">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+                <p className="text-sm font-medium text-gray-900 dark:text-golden-400">
+                  Syncing calendar...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        <OutlookCalendar
+          trip={trip}
+          activities={activities}
+          loading={loading}
+          error={error}
+          refreshing={refreshing}
+          updateActivity={updateActivity}
+          updateActivityDebounced={updateActivityDebounced}
+          getActivitiesByDate={getActivitiesByDate}
+          onExtendTrip={handleExtendTrip}
+          onActivityCreate={handleNewActivity}
+          onActivityEdit={handleActivityEdit}
+        />
+      </div>
 
       {/* Activity Editor Modal */}
       {showActivityEditor && (
@@ -439,10 +511,10 @@ export function ScheduleTab({
               </button>
               <button
                 onClick={handleActivitySave}
-                disabled={saving || !formData.title.trim() || !formData.activity_date}
+                disabled={saving || refreshing || !formData.title.trim() || !formData.activity_date}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
               >
-                {saving ? 'Saving...' : editingActivity ? 'Update Activity' : 'Add Activity'}
+                {saving || refreshing ? 'Saving...' : editingActivity ? 'Update Activity' : 'Add Activity'}
               </button>
             </div>
           </div>

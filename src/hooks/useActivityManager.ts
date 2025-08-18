@@ -65,6 +65,7 @@ export function useActivityManager(tripId: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false) // New: Loading state for refresh operations
   const { user } = useAuth()
 
   // Load activities via API
@@ -146,45 +147,19 @@ export function useActivityManager(tripId: string) {
     }
   }, [tripId])
 
-  // Create new activity with optimistic updates
+  // Create new activity with simple loading + refresh approach
   const createActivity = useCallback(async (activityData: ActivityFormData): Promise<Activity | null> => {
     if (!tripId) return null
 
-    // Generate a temporary ID for optimistic update
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const optimisticActivity = {
-      id: tempId,
-      ...activityData,
-      trip_id: tripId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      // Set defaults for required fields
-      end_date: activityData.end_date || activityData.activity_date,
-      cost: activityData.cost || 0,
-      currency: activityData.currency || 'BRL',
-      is_confirmed: activityData.is_confirmed || false,
-      status: 'scheduled'
-    } as Activity
-
     try {
-      // Track optimistic operation
-      optimisticOperationsRef.current.add(tempId)
-      
-      // Optimistic update - add to UI immediately
-      setActivities(prev => {
-        console.log('🔄 [CreateActivity] Optimistic create - adding activity:', {
-          tempId,
-          title: optimisticActivity.title,
-          date: optimisticActivity.activity_date,
-          time: optimisticActivity.start_time,
-          previousCount: prev.length
-        })
-        const updated = [...prev, optimisticActivity]
-        console.log('🔄 [CreateActivity] Activities after optimistic add:', updated.length)
-        return updated
+      console.log('📝 [CreateActivity] Starting activity creation:', {
+        title: activityData.title,
+        date: activityData.activity_date,
+        time: activityData.start_time
       })
       
       setSaving(true)
+      setRefreshing(true) // Show loading state
       setError(null)
 
       const newActivity = {
@@ -202,50 +177,28 @@ export function useActivityManager(tripId: string) {
       })
 
       if (!response.ok) {
-        // Revert optimistic update on error
-        setActivities(prev => {
-          console.log('🔄 Reverting failed create:', tempId)
-          return prev.filter(activity => activity.id !== tempId)
-        })
-        optimisticOperationsRef.current.delete(tempId)
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('🔄 Create success - replacing temp with real:', tempId, '->', data.id)
+      console.log('✅ [CreateActivity] API call successful:', data.id)
 
-      // Replace optimistic activity with real one immediately (don't wait for subscription)
-      setActivities(prev => {
-        console.log('🔄 [CreateActivity] Replacing optimistic with real:', {
-          tempId,
-          realId: data.id,
-          activitiesBeforeReplace: prev.length,
-          foundTempActivity: !!prev.find(a => a.id === tempId)
-        })
-        const updated = prev.map(activity => 
-          activity.id === tempId ? data : activity
-        )
-        console.log('🔄 [CreateActivity] Activities after replace:', updated.length)
-        return updated
-      })
+      // Force refresh activities to show the new activity
+      console.log('🔄 [CreateActivity] Refreshing activities to show new activity')
+      await loadActivities()
       
-      // Remove from optimistic tracking after a brief delay to let subscription settle
-      setTimeout(() => {
-        console.log('🔄 [CreateActivity] Removing from optimistic tracking:', tempId)
-        optimisticOperationsRef.current.delete(tempId)
-      }, 200)
-
+      console.log('✅ [CreateActivity] Activity creation and refresh complete')
       return data
     } catch (err: any) {
-      console.error('Error in createActivity:', err)
-      optimisticOperationsRef.current.delete(tempId)
+      console.error('❌ [CreateActivity] Error:', err)
       setError(`Failed to create activity: ${err.message}`)
       return null
     } finally {
       setSaving(false)
+      setRefreshing(false)
     }
-  }, [tripId])
+  }, [tripId, loadActivities])
 
   // Update existing activity with optimistic updates
   const updateActivity = useCallback(async (activityId: string, updates: Partial<ActivityFormData>): Promise<Activity | null> => {
@@ -332,6 +285,7 @@ export function useActivityManager(tripId: string) {
 
   // Debounced update for drag/resize operations
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const cleanupTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set())
   const updateActivityDebounced = useCallback(async (activityId: string, updates: Partial<ActivityFormData>, delay = 500): Promise<void> => {
     if (!activityId) return
 
@@ -423,23 +377,23 @@ export function useActivityManager(tripId: string) {
     }, delay)
   }, [activities])
 
-  // Delete activity with optimistic updates
+  // Delete activity with simple loading + refresh approach
   const deleteActivity = useCallback(async (activityId: string): Promise<boolean> => {
-    console.log('🗑️ [useActivityManager] deleteActivity called with ID:', activityId)
+    console.log('🗑️ [DeleteActivity] Starting activity deletion:', activityId)
     
     if (!activityId) {
-      console.warn('🗑️ [useActivityManager] No activity ID provided')
+      console.warn('🗑️ [DeleteActivity] No activity ID provided')
       return false
     }
 
-    // Find the activity for potential rollback
+    // Find the activity for logging
     const activityToDelete = activities.find(a => a.id === activityId)
     if (!activityToDelete) {
-      console.warn('🗑️ [useActivityManager] Activity not found in local state:', activityId)
+      console.warn('🗑️ [DeleteActivity] Activity not found in local state:', activityId)
       return false
     }
 
-    console.log('🗑️ [useActivityManager] Found activity to delete:', {
+    console.log('🗑️ [DeleteActivity] Found activity to delete:', {
       id: activityToDelete.id,
       title: activityToDelete.title,
       date: activityToDelete.activity_date,
@@ -447,64 +401,42 @@ export function useActivityManager(tripId: string) {
     })
 
     try {
-      // Track optimistic operation
-      optimisticOperationsRef.current.add(activityId)
-      console.log('🗑️ [useActivityManager] Added to optimistic operations tracking')
-      
-      // Optimistic update - remove from UI immediately
-      setActivities(prev => {
-        console.log('🔄 [useActivityManager] Optimistic delete - removing activity:', activityId)
-        console.log('🔄 [useActivityManager] Activities before delete:', prev.length)
-        const filtered = prev.filter(activity => activity.id !== activityId)
-        console.log('🔄 [useActivityManager] Activities after delete:', filtered.length)
-        return filtered
-      })
-      
       setSaving(true)
+      setRefreshing(true) // Show loading state
       setError(null)
 
-      console.log('🗑️ [useActivityManager] Making DELETE API call to:', `/api/activities?id=${activityId}`)
+      console.log('🗑️ [DeleteActivity] Making DELETE API call')
       const response = await fetch(`/api/activities?id=${activityId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
 
-      console.log('🗑️ [useActivityManager] DELETE API response status:', response.status)
+      console.log('🗑️ [DeleteActivity] API response status:', response.status)
 
       if (!response.ok) {
-        console.error('🗑️ [useActivityManager] DELETE API failed with status:', response.status)
-        // Revert optimistic update on error
-        setActivities(prev => {
-          console.log('🔄 [useActivityManager] Reverting failed delete:', activityId)
-          return [...prev, activityToDelete].sort((a, b) => 
-            new Date(a.activity_date + ' ' + (a.start_time || '00:00')).getTime() - 
-            new Date(b.activity_date + ' ' + (b.start_time || '00:00')).getTime()
-          )
-        })
-        optimisticOperationsRef.current.delete(activityId)
+        console.error('🗑️ [DeleteActivity] API call failed with status:', response.status)
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const responseData = await response.json()
-      console.log('🔄 [useActivityManager] Delete success:', activityId, 'Response:', responseData)
+      console.log('✅ [DeleteActivity] API call successful:', responseData)
       
-      // Remove from optimistic tracking after a brief delay to let subscription settle
-      setTimeout(() => {
-        console.log('🗑️ [useActivityManager] Removing from optimistic tracking:', activityId)
-        optimisticOperationsRef.current.delete(activityId)
-      }, 200)
+      // Force refresh activities to reflect the deletion
+      console.log('🔄 [DeleteActivity] Refreshing activities to reflect deletion')
+      await loadActivities()
       
+      console.log('✅ [DeleteActivity] Activity deletion and refresh complete')
       return true
     } catch (err: any) {
-      console.error('❌ [useActivityManager] Error in deleteActivity:', err)
-      optimisticOperationsRef.current.delete(activityId)
+      console.error('❌ [DeleteActivity] Error:', err)
       setError(`Failed to delete activity: ${err.message}`)
       return false
     } finally {
       setSaving(false)
+      setRefreshing(false)
     }
-  }, [activities])
+  }, [activities, loadActivities])
 
   // Calculate activity statistics
   const getActivityStats = useCallback((): ActivityStats => {
@@ -566,141 +498,54 @@ export function useActivityManager(tripId: string) {
     return grouped
   }, [activities])
 
-  // Track optimistic operations to prevent subscription conflicts
+  // Track optimistic operations (simplified)
   const optimisticOperationsRef = useRef<Set<string>>(new Set())
-  const pendingCreatesRef = useRef<Map<string, string>>(new Map()) // tempId -> real id when received
 
-  // Set up real-time subscription
+  // Simplified setup with just initial load - no complex real-time subscriptions
   useEffect(() => {
     if (!tripId) return
 
-    // Initial load
+    console.log('🔄 [useActivityManager] Loading activities for trip:', tripId)
     loadActivities()
 
-    // Set up real-time subscription with improved handling
-    console.log('🔗 [Subscription] Setting up real-time subscription for trip:', tripId)
-    const subscription = supabase
-      .channel(`activities-${tripId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'activities',
-          filter: `trip_id=eq.${tripId}`
-        },
-        (payload) => {
-          console.log('🔄 [Subscription] Real-time activity update received:', {
-            eventType: payload.eventType,
-            activityId: payload.new?.id || payload.old?.id,
-            title: payload.new?.title || payload.old?.title,
-            date: payload.new?.activity_date || payload.old?.activity_date,
-            time: payload.new?.start_time || payload.old?.start_time
-          })
-          
-          // Add slight delay to ensure optimistic updates are processed first
-          setTimeout(() => {
-            if (payload.eventType === 'INSERT') {
-              setActivities(prev => {
-                console.log('🔄 [Subscription] INSERT event received:', {
-                  newActivityId: payload.new.id,
-                  title: payload.new.title,
-                  date: payload.new.activity_date,
-                  time: payload.new.start_time,
-                  currentActivitiesCount: prev.length
-                })
-                
-                // Check if we have a temp activity that should be replaced
-                const tempActivity = prev.find(activity => 
-                  activity.id.startsWith('temp-') && 
-                  activity.title === payload.new.title &&
-                  activity.activity_date === payload.new.activity_date &&
-                  activity.start_time === payload.new.start_time
-                )
-                
-                if (tempActivity) {
-                  // Replace temp activity with real one
-                  console.log('🔄 [Subscription] Replacing temp activity:', tempActivity.id, 'with real:', payload.new.id)
-                  optimisticOperationsRef.current.delete(tempActivity.id)
-                  const updated = prev.map(activity => 
-                    activity.id === tempActivity.id ? payload.new as Activity : activity
-                  )
-                  console.log('🔄 [Subscription] Activities after temp replacement:', updated.length)
-                  return updated
-                }
-                
-                // Check if we already have this real activity
-                const existingActivity = prev.find(activity => activity.id === payload.new.id)
-                if (existingActivity) {
-                  // Update existing activity (shouldn't happen for INSERT but handle gracefully)
-                  console.log('🔄 [Subscription] Updating existing activity via INSERT:', payload.new.id)
-                  return prev.map(activity => 
-                    activity.id === payload.new.id ? payload.new as Activity : activity
-                  )
-                } else {
-                  // Add new activity (from other users or external sources)
-                  console.log('🔄 [Subscription] Adding new activity from subscription:', payload.new.id)
-                  const updated = [...prev, payload.new as Activity]
-                  console.log('🔄 [Subscription] Activities after adding new:', updated.length)
-                  return updated
-                }
-              })
-            } else if (payload.eventType === 'UPDATE') {
-              setActivities(prev => {
-                // Don't apply subscription updates if we have a pending optimistic operation
-                if (optimisticOperationsRef.current.has(payload.new.id)) {
-                  console.log('🔄 Skipping subscription update for optimistic operation:', payload.new.id)
-                  return prev
-                }
-                
-                const existingActivity = prev.find(activity => activity.id === payload.new.id)
-                if (existingActivity) {
-                  console.log('🔄 Updating activity from subscription:', payload.new.id)
-                  return prev.map(activity => 
-                    activity.id === payload.new.id ? payload.new as Activity : activity
-                  )
-                } else {
-                  // Activity doesn't exist locally, add it (might be from another user)
-                  console.log('🔄 Adding updated activity from subscription:', payload.new.id)
-                  return [...prev, payload.new as Activity]
-                }
-              })
-            } else if (payload.eventType === 'DELETE') {
-              setActivities(prev => {
-                console.log('🔄 Removing activity from subscription:', payload.old.id)
-                return prev.filter(activity => activity.id !== payload.old.id)
-              })
-            }
-          }, 50) // 50ms delay to let optimistic updates settle
-        }
-      )
-      .subscribe((status) => {
-        console.log('🔗 [Subscription] Subscription status changed:', status)
-      })
-
     return () => {
-      subscription.unsubscribe()
       // Clean up debounce timeout
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current)
       }
-      // Clear optimistic operations tracking
-      optimisticOperationsRef.current.clear()
-      pendingCreatesRef.current.clear()
+      console.log('🧹 [useActivityManager] Cleanup completed for trip:', tripId)
     }
   }, [tripId, loadActivities])
+
+  // **NEW**: Force refresh activities with UI state verification
+  const forceRefreshActivities = useCallback(async () => {
+    console.log('🔄 [ForceRefresh] Forcing activities refresh')
+    try {
+      await loadActivities()
+      
+      // Additional verification after refresh
+      setTimeout(() => {
+        console.log('🔍 [ForceRefresh] Post-refresh verification complete')
+      }, 200)
+    } catch (error) {
+      console.error('❌ [ForceRefresh] Force refresh failed:', error)
+      setError('Failed to refresh activities. Please try again.')
+    }
+  }, [loadActivities])
 
   return {
     activities,
     loading,
     error,
     saving,
+    refreshing, // New: Expose refreshing state for loading overlays
     createActivity,
     updateActivity,
     updateActivityDebounced,
     deleteActivity,
     getActivityStats,
     getActivitiesByDate,
-    refreshActivities: loadActivities
+    refreshActivities: loadActivities,
+    forceRefreshActivities // **NEW**: Exposed for emergency refresh
   }
 }

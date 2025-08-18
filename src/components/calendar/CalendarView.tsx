@@ -6,10 +6,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { DndProvider } from 'react-dnd'
-import { HTML5Backend } from 'react-dnd-html5-backend'
-import { TouchBackend } from 'react-dnd-touch-backend'
-import { isTouchDevice } from '@/lib/utils'
+import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
 import { CalendarHeader } from './CalendarHeader'
 import { TimeSlot } from './TimeSlot'
 import { ActivityCard } from './ActivityCard'
@@ -144,25 +141,10 @@ export function CalendarView({
     return activities.some(activity => activity.conflicts && activity.conflicts.length > 0)
   }, [getActivitiesForSlot])
 
-  // Determine the appropriate backend based on device type
-  const dndBackend = useMemo(() => {
-    return isTouchDevice() ? TouchBackend : HTML5Backend
-  }, [])
-
-  const dndOptions = useMemo(() => {
-    if (isTouchDevice()) {
-      return {
-        enableMouseEvents: true,
-        delayTouchStart: 200,
-        delayMouseStart: 0,
-        touchSlop: 5
-      }
-    }
-    return {}
-  }, [])
+  // Performance optimizations are now handled by OptimizedDndProvider
 
   return (
-    <DndProvider backend={dndBackend} options={dndOptions}>
+    <OptimizedDndProvider>
       <div className="flex flex-col h-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
         {/* Calendar Header */}
         <CalendarHeader
@@ -282,6 +264,6 @@ export function CalendarView({
           </div>
         )}
       </div>
-    </DndProvider>
+    </OptimizedDndProvider>
   )
 }
