@@ -438,15 +438,64 @@ export function useActivityManager(tripId: string) {
     }
   }, [activities, loadActivities])
 
-  // Calculate activity statistics
+  // Calculate activity statistics based on business rules
   const getActivityStats = useCallback((): ActivityStats => {
+    // Meetings: Only meetings and meals count as meetings (NOT flights, drives, logistics)
+    const meetingActivities = activities.filter(a => 
+      a.type === 'meeting' || a.type === 'meal'
+    )
+    
+    // Visits: Meetings at client/supplier locations (not hotel conferences)
+    // Identify visits by location keywords or specific patterns
+    const visitActivities = activities.filter(a => {
+      // Only consider meetings and meals for visits
+      if (a.type !== 'meeting' && a.type !== 'meal') {
+        return false
+      }
+      
+      // Check location for visit indicators (client/supplier premises)
+      const location = (a.location || '').toLowerCase()
+      const title = (a.title || '').toLowerCase()
+      const description = (a.description || '').toLowerCase()
+      
+      // Visit indicators: company offices, factories, farms, specific locations
+      const visitKeywords = [
+        'cooxupe', 'guaxupe', 'factory', 'farm', 'office', 'headquarters', 
+        'facility', 'plantation', 'mill', 'warehouse', 'roastery', 'roaster',
+        'cooperative', 'fazenda', 'sitio', 'empresa'
+      ]
+      
+      // Hotel/conference indicators (NOT visits)
+      const conferenceKeywords = [
+        'hotel', 'conference', 'convention', 'center', 'ballroom', 
+        'meeting room', 'conference room', 'seminar', 'symposium'
+      ]
+      
+      // Check if it's a conference setting (exclude from visits)
+      const isConference = conferenceKeywords.some(keyword => 
+        location.includes(keyword) || title.includes(keyword) || description.includes(keyword)
+      )
+      
+      if (isConference) {
+        return false
+      }
+      
+      // Check if it's a visit to client/supplier location
+      const isVisit = visitKeywords.some(keyword => 
+        location.includes(keyword) || title.includes(keyword) || description.includes(keyword)
+      )
+      
+      return isVisit
+    })
+    
     const stats = {
       totalActivities: activities.length,
-      meetings: activities.filter(a => a.type === 'meeting').length,
-      visits: activities.filter(a => a.type === 'meeting' || a.type === 'event').length,
+      meetings: meetingActivities.length,
+      visits: visitActivities.length,
       confirmed: activities.filter(a => a.is_confirmed).length,
       days: new Set(activities.map(a => a.activity_date)).size
     }
+    
     return stats
   }, [activities])
 
