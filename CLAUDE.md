@@ -157,6 +157,29 @@ All modals throughout the application must follow the QuickView modal design sys
 - Checkboxes: `dark:bg-[#1a1a1a] dark:border-[#2a2a2a]`
 - Borders: `dark:border-[#2a2a2a]` for separators
 
+#### Quick View Modal Light Mode Color Scheme
+
+**Background Colors:**
+- Modal background: Mustard Yellow (`#F7B731`)
+- Content areas: White (`#FFFFFF`)
+
+**Text Colors:**
+- Title text ("Swiss Coffee Dinner"): Dark Teal (`#006D5B`)
+- Dates & duration: Charcoal (`#333333`)
+- Tab labels: Charcoal (`#333333`) for inactive, Charcoal (`#333333`) for active
+
+**Interactive Elements:**
+- Icons: Teal (`#009B77`) or White (`#FFFFFF`) when on darker elements
+- "View Mode" button: White text (`#FFFFFF`) on Teal background (`#009B77`)
+- "Edit Mode" button: Charcoal text (`#333333`) with hover state Dark Teal (`#006D5B`)
+- Close button: Teal (`#009B77`) with hover state Dark Teal (`#006D5B`)
+
+**Design Goals:**
+- Improved readability and accessibility
+- Professional, clean appearance
+- High contrast for better visibility
+- Consistent with Nordic minimalist aesthetic
+
 #### Enhanced Quick View Modal System
 
 The Enhanced Quick View Modal provides comprehensive trip editing capabilities with a six-tab navigation system and full-screen editing experience.
