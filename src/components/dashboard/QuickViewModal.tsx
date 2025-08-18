@@ -202,14 +202,10 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
           : 'max-w-5xl w-full max-h-[90vh]'
       }`}>
         {/* Header with Title and Edit Toggle */}
-        <div className={`px-3 md:px-6 py-4 relative border-b ${
-          isEditing && activeTab === 'schedule'
-            ? 'bg-emerald-600 dark:bg-[#09261d] border-emerald-500 dark:border-[#0a2e21]'
-            : 'bg-golden-400 dark:bg-[#09261d] border-pearl-200 dark:border-[#0a2e21]'
-        }`}>
+        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full">
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-white dark:text-golden-400">{trip.title}</h2>
+              <h2 className="text-xl font-bold text-emerald-700 dark:text-golden-400">{trip.title}</h2>
               <div className="text-sm text-white/70 dark:text-golden-400/70 font-medium">
                 {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
               </div>
@@ -225,7 +221,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                       (window as any).scheduleTabSyncCalendar()
                     }
                   }}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-white/20 text-white hover:bg-white/30 dark:bg-emerald-800/50 dark:text-golden-400 dark:hover:bg-emerald-800/70"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-white/20 text-emerald-700 hover:bg-white/30 hover:text-emerald-600 dark:bg-emerald-800/50 dark:text-golden-400 dark:hover:bg-emerald-800/70"
                   title="Refresh calendar to sync latest changes"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -239,8 +235,8 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onClick={() => setEditingMode(isEditing ? 'view' : 'edit')}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isEditing 
-                      ? 'bg-white/20 text-white dark:bg-emerald-800/50 dark:text-golden-400' 
-                      : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
+                      ? 'bg-white/20 text-emerald-700 hover:text-emerald-600 dark:bg-emerald-800/50 dark:text-golden-400' 
+                      : 'bg-white/10 text-emerald-700/80 hover:bg-white/20 hover:text-emerald-700 dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
                   }`}
                 >
                   <Edit3 className="w-4 h-4" />
@@ -250,7 +246,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               
               <button
                 onClick={onClose}
-                className="text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors flex-shrink-0"
+                className="text-emerald-700 dark:text-golden-400 hover:text-emerald-600 dark:hover:text-golden-300 transition-colors flex-shrink-0"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -265,7 +261,6 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               validationState={modalState.validationState}
               saveStatus={modalState.saveStatus}
               className="mt-4"
-              scheduleMode={activeTab === 'schedule'}
             />
           )}
         </div>
