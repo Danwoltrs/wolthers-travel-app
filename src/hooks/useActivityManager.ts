@@ -441,9 +441,31 @@ export function useActivityManager(tripId: string) {
   // Calculate activity statistics based on business rules
   const getActivityStats = useCallback((): ActivityStats => {
     // Meetings: Only meetings and meals count as meetings (NOT flights, drives, logistics)
-    const meetingActivities = activities.filter(a => 
-      a.type === 'meeting' || a.type === 'meal'
-    )
+    const meetingActivities = activities.filter(a => {
+      // Exclude flights, travel, accommodation, and logistics regardless of type
+      const title = (a.title || '').toLowerCase()
+      const description = (a.description || '').toLowerCase()
+      
+      // Flight/travel indicators (exclude from meetings)
+      const travelKeywords = [
+        'flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 
+        'departure', 'arrival', 'takeoff', 'landing', 'airport',
+        'drive', 'driving', 'car', 'taxi', 'uber', 'transfer',
+        'check-in', 'check-out', 'hotel', 'accommodation', 'lodging'
+      ]
+      
+      // Check if this is a travel/logistics activity
+      const isTravelActivity = travelKeywords.some(keyword => 
+        title.includes(keyword) || description.includes(keyword)
+      )
+      
+      if (isTravelActivity) {
+        return false
+      }
+      
+      // Only count meetings and meals as meetings
+      return a.type === 'meeting' || a.type === 'meal'
+    })
     
     // Visits: Meetings at client/supplier locations (not hotel conferences)
     // Identify visits by location keywords or specific patterns
@@ -457,6 +479,22 @@ export function useActivityManager(tripId: string) {
       const location = (a.location || '').toLowerCase()
       const title = (a.title || '').toLowerCase()
       const description = (a.description || '').toLowerCase()
+      
+      // Exclude travel/logistics activities from visits (same as meetings)
+      const travelKeywords = [
+        'flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 
+        'departure', 'arrival', 'takeoff', 'landing', 'airport',
+        'drive', 'driving', 'car', 'taxi', 'uber', 'transfer',
+        'check-in', 'check-out', 'hotel', 'accommodation', 'lodging'
+      ]
+      
+      const isTravelActivity = travelKeywords.some(keyword => 
+        title.includes(keyword) || description.includes(keyword)
+      )
+      
+      if (isTravelActivity) {
+        return false
+      }
       
       // Visit indicators: company offices, factories, farms, specific locations
       const visitKeywords = [
