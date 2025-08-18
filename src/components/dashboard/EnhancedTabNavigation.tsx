@@ -118,7 +118,7 @@ export function EnhancedTabNavigation({
               ${
                 isActive
                   ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
-                  : `text-white/70 dark:text-golden-400/70 hover:text-white hover:bg-white/10 
+                  : `text-emerald-600 dark:text-golden-400/70 hover:text-emerald-700 hover:bg-white/10 
                      dark:hover:text-golden-400 dark:hover:bg-emerald-800/40
                      ${hasValidationIssues ? 'bg-red-500/10 dark:bg-red-900/20' : ''}`
               }
