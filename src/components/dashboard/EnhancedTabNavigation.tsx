@@ -29,6 +29,7 @@ interface EnhancedTabNavigationProps {
   validationState: Record<EnhancedModalTab, TabValidationState>
   saveStatus: SaveStatus
   className?: string
+  scheduleMode?: boolean
 }
 
 const TAB_DEFINITIONS = [
@@ -75,7 +76,8 @@ export function EnhancedTabNavigation({
   onTabChange,
   validationState,
   saveStatus,
-  className = ''
+  className = '',
+  scheduleMode = false
 }: EnhancedTabNavigationProps) {
   
   const getTabValidationStatus = (tabId: EnhancedModalTab) => {
@@ -117,7 +119,9 @@ export function EnhancedTabNavigation({
               relative group
               ${
                 isActive
-                  ? 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
+                  ? scheduleMode
+                    ? 'bg-white dark:bg-emerald-800/80 text-emerald-700 dark:text-golden-400 shadow-sm'
+                    : 'bg-white dark:bg-emerald-800/80 text-gray-800 dark:text-golden-400 shadow-sm'
                   : `text-white/70 dark:text-golden-400/70 hover:text-white hover:bg-white/10 
                      dark:hover:text-golden-400 dark:hover:bg-emerald-800/40
                      ${hasValidationIssues ? 'bg-red-500/10 dark:bg-red-900/20' : ''}`

@@ -7,27 +7,28 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { RefreshCw, Trash2 } from 'lucide-react'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import type { TripCard } from '@/types'
-import { cleanupTestActivities } from '@/lib/test-cleanup'
 
 interface ScheduleTabProps {
   trip: TripCard
   tripDetails?: any
   onUpdate: (tab: 'schedule', updates: any) => void
   validationState?: any
+  onSyncCalendar?: () => void
 }
 
 export function ScheduleTab({ 
   trip, 
   tripDetails, 
   onUpdate, 
-  validationState 
+  validationState,
+  onSyncCalendar 
 }: ScheduleTabProps) {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [showActivityEditor, setShowActivityEditor] = useState(false)
+  const [isExtending, setIsExtending] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [formData, setFormData] = useState<ActivityFormData>({
     title: '',
@@ -120,8 +121,7 @@ export function ScheduleTab({
       console.log(`📅 [ScheduleTab] Extending trip ${direction}`)
       
       // Show loading state
-      setRefreshing(true)
-      setError(null)
+      setIsExtending(true)
 
       // Call the extend trip API
       const response = await fetch(`/api/trips/${trip.id}/extend`, {
@@ -155,9 +155,9 @@ export function ScheduleTab({
       console.log('✅ [ScheduleTab] Trip extension and calendar refresh complete')
     } catch (error: any) {
       console.error('❌ [ScheduleTab] Trip extension failed:', error)
-      setError(`Failed to extend trip: ${error.message}`)
+      // Note: Error handling will be managed by useActivityManager
     } finally {
-      setRefreshing(false)
+      setIsExtending(false)
     }
   }, [trip.id, onUpdate, forceRefreshActivities])
 
@@ -225,34 +225,21 @@ export function ScheduleTab({
     setEditingActivity(null)
   }, [])
 
-  // Handle test activity cleanup
-  const handleCleanupTest = useCallback(async () => {
-    if (!trip.id) return
-
-    try {
-      console.log('🧹 [ScheduleTab] Starting test activity cleanup')
-      setRefreshing(true)
-      setError(null)
-
-      const result = await cleanupTestActivities(trip.id)
-      
-      if (result.success) {
-        console.log('✅ [ScheduleTab] Test cleanup successful:', result)
-        
-        // Force refresh activities to reflect the cleanup
-        await forceRefreshActivities()
-        
-        console.log(`✅ [ScheduleTab] Cleaned up ${result.deletedCount} test activities`)
-      } else {
-        throw new Error(result.error || 'Cleanup failed')
-      }
-    } catch (error: any) {
-      console.error('❌ [ScheduleTab] Test cleanup failed:', error)
-      setError(`Failed to cleanup test activities: ${error.message}`)
-    } finally {
-      setRefreshing(false)
+  // Handle sync calendar (to be called from header)
+  const handleSyncCalendar = useCallback(async () => {
+    await forceRefreshActivities()
+    if (onSyncCalendar) {
+      onSyncCalendar()
     }
-  }, [trip.id, forceRefreshActivities])
+  }, [forceRefreshActivities, onSyncCalendar])
+
+  // Expose sync function to parent
+  React.useEffect(() => {
+    if (onSyncCalendar) {
+      // Override the parent's sync function with our local handler
+      (window as any).scheduleTabSyncCalendar = handleSyncCalendar
+    }
+  }, [handleSyncCalendar, onSyncCalendar])
 
   // Get activities grouped by date and statistics
   const activitiesByDate = getActivitiesByDate()
@@ -261,13 +248,13 @@ export function ScheduleTab({
   return (
     <div className="space-y-4 relative">
       {/* Loading Overlay */}
-      {refreshing && (
+      {(refreshing || isExtending) && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
           <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 shadow-xl border border-pearl-200 dark:border-[#2a2a2a]">
             <div className="flex items-center space-x-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
               <p className="text-lg font-medium text-gray-900 dark:text-golden-400">
-                Updating calendar...
+                {isExtending ? 'Extending trip...' : 'Updating calendar...'}
               </p>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
@@ -313,41 +300,16 @@ export function ScheduleTab({
         </div>
       )}
 
-      {/* Calendar Header with Action Buttons */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {activities.length} activities across {stats.days} days
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleCleanupTest}
-            disabled={loading || refreshing}
-            className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-            title="Clean up test activities"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span>Clean Test</span>
-          </button>
-          <button
-            onClick={forceRefreshActivities}
-            disabled={loading}
-            className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-            title="Refresh calendar to sync latest changes"
-          >
-            {loading ? 'Loading...' : 'Sync Calendar'}
-          </button>
-        </div>
-      </div>
 
       {/* Outlook-Style Calendar with Loading Overlay */}
       <div className="relative">
-        {refreshing && (
+        {(refreshing || isExtending) && (
           <div className="absolute inset-0 bg-white/70 dark:bg-[#1a1a1a]/70 rounded-lg flex items-center justify-center z-10">
             <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 shadow-lg border border-pearl-200 dark:border-[#2a2a2a]">
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
                 <p className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  Syncing calendar...
+                  {isExtending ? 'Extending trip...' : 'Syncing calendar...'}
                 </p>
               </div>
             </div>

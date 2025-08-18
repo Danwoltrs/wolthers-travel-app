@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { X, Users, Car, Key, Edit3, Calendar, Settings, FileText, DollarSign, Save, AlertCircle } from 'lucide-react'
+import { X, Users, Car, Key, Edit3, Calendar, Settings, FileText, DollarSign, Save, AlertCircle, RefreshCw } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
 import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
 import { useTripDetails } from '@/hooks/useTrips'
@@ -202,7 +202,11 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
           : 'max-w-5xl w-full max-h-[90vh]'
       }`}>
         {/* Header with Title and Edit Toggle */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
+        <div className={`px-3 md:px-6 py-4 relative border-b ${
+          isEditing && activeTab === 'schedule'
+            ? 'bg-emerald-600 dark:bg-[#09261d] border-emerald-500 dark:border-[#0a2e21]'
+            : 'bg-golden-400 dark:bg-[#09261d] border-pearl-200 dark:border-[#0a2e21]'
+        }`}>
           <div className="flex items-center justify-between w-full">
             <div className="flex-1">
               <h2 className="text-xl font-bold text-white dark:text-golden-400">{trip.title}</h2>
@@ -212,6 +216,23 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             </div>
             
             <div className="flex items-center space-x-3">
+              {/* Sync Calendar Button - Only show in Schedule tab editing mode */}
+              {isEditing && activeTab === 'schedule' && (
+                <button
+                  onClick={() => {
+                    // Call the sync function from ScheduleTab
+                    if ((window as any).scheduleTabSyncCalendar) {
+                      (window as any).scheduleTabSyncCalendar()
+                    }
+                  }}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-white/20 text-white hover:bg-white/30 dark:bg-emerald-800/50 dark:text-golden-400 dark:hover:bg-emerald-800/70"
+                  title="Refresh calendar to sync latest changes"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Sync Calendar</span>
+                </button>
+              )}
+              
               {/* Edit Toggle */}
               {!readOnly && (
                 <button
@@ -244,6 +265,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               validationState={modalState.validationState}
               saveStatus={modalState.saveStatus}
               className="mt-4"
+              scheduleMode={activeTab === 'schedule'}
             />
           )}
         </div>
