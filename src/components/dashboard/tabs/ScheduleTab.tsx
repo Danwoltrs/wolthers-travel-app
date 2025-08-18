@@ -7,10 +7,11 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Trash2 } from 'lucide-react'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import type { TripCard } from '@/types'
+import { cleanupTestActivities } from '@/lib/test-cleanup'
 
 interface ScheduleTabProps {
   trip: TripCard
@@ -114,12 +115,51 @@ export function ScheduleTab({
   }, [trip.startDate])
 
   // Handle trip extension
-  const handleExtendTrip = useCallback((direction: 'before' | 'after') => {
-    // TODO: Implement trip extension logic
-    console.log(`Extending trip ${direction}`)
-    // This would update the trip dates and duration
-    // For now, we'll just log the action
-  }, [])
+  const handleExtendTrip = useCallback(async (direction: 'before' | 'after') => {
+    try {
+      console.log(`📅 [ScheduleTab] Extending trip ${direction}`)
+      
+      // Show loading state
+      setRefreshing(true)
+      setError(null)
+
+      // Call the extend trip API
+      const response = await fetch(`/api/trips/${trip.id}/extend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ direction, days: 1 }),
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ [ScheduleTab] Trip extension successful:', data)
+
+      // Notify parent component to update trip data
+      onUpdate('schedule', {
+        start_date: data.updatedTrip.start_date,
+        end_date: data.updatedTrip.end_date,
+        duration: data.updatedTrip.duration
+      })
+
+      // Force refresh activities to reflect new calendar structure
+      console.log('🔄 [ScheduleTab] Refreshing calendar after trip extension')
+      await forceRefreshActivities()
+      
+      console.log('✅ [ScheduleTab] Trip extension and calendar refresh complete')
+    } catch (error: any) {
+      console.error('❌ [ScheduleTab] Trip extension failed:', error)
+      setError(`Failed to extend trip: ${error.message}`)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [trip.id, onUpdate, forceRefreshActivities])
 
   // Handle activity save with simple loading approach
   const handleActivitySave = useCallback(async () => {
@@ -185,6 +225,35 @@ export function ScheduleTab({
     setEditingActivity(null)
   }, [])
 
+  // Handle test activity cleanup
+  const handleCleanupTest = useCallback(async () => {
+    if (!trip.id) return
+
+    try {
+      console.log('🧹 [ScheduleTab] Starting test activity cleanup')
+      setRefreshing(true)
+      setError(null)
+
+      const result = await cleanupTestActivities(trip.id)
+      
+      if (result.success) {
+        console.log('✅ [ScheduleTab] Test cleanup successful:', result)
+        
+        // Force refresh activities to reflect the cleanup
+        await forceRefreshActivities()
+        
+        console.log(`✅ [ScheduleTab] Cleaned up ${result.deletedCount} test activities`)
+      } else {
+        throw new Error(result.error || 'Cleanup failed')
+      }
+    } catch (error: any) {
+      console.error('❌ [ScheduleTab] Test cleanup failed:', error)
+      setError(`Failed to cleanup test activities: ${error.message}`)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [trip.id, forceRefreshActivities])
+
   // Get activities grouped by date and statistics
   const activitiesByDate = getActivitiesByDate()
   const stats = getActivityStats()
@@ -244,19 +313,30 @@ export function ScheduleTab({
         </div>
       )}
 
-      {/* Calendar Header with Refresh Button */}
+      {/* Calendar Header with Action Buttons */}
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {activities.length} activities across {stats.days} days
         </div>
-        <button
-          onClick={forceRefreshActivities}
-          disabled={loading}
-          className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-          title="Refresh calendar to sync latest changes"
-        >
-          {loading ? 'Loading...' : 'Sync Calendar'}
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleCleanupTest}
+            disabled={loading || refreshing}
+            className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
+            title="Clean up test activities"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>Clean Test</span>
+          </button>
+          <button
+            onClick={forceRefreshActivities}
+            disabled={loading}
+            className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            title="Refresh calendar to sync latest changes"
+          >
+            {loading ? 'Loading...' : 'Sync Calendar'}
+          </button>
+        </div>
       </div>
 
       {/* Outlook-Style Calendar with Loading Overlay */}
