@@ -541,6 +541,8 @@ export function useActivityManager(tripId: string) {
   const getActivitiesByDate = useCallback(() => {
     const grouped: Record<string, Activity[]> = {}
     
+    console.log('🔍 [getActivitiesByDate] Starting grouping with', activities.length, 'activities')
+    
     activities.forEach(activity => {
       const startDate = new Date(activity.activity_date + 'T00:00:00')
       const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')

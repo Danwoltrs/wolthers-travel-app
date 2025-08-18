@@ -604,8 +604,8 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     }
     
     // Enhanced debug logging for activities that don't match
-    if ((activity.title.toLowerCase().includes('test') || activity.title.toLowerCase().includes('flight')) && !matches) {
-      console.log('🔍 [OutlookCalendar] Activity NOT matching filter:', {
+    if ((activity.title.toLowerCase().includes('test') || activity.title.toLowerCase().includes('flight'))) {
+      console.log(`🔍 [OutlookCalendar] Activity ${matches ? 'MATCHES' : 'NOT matching'} filter:`, {
         title: activity.title,
         activityDate: activity.activity_date,
         endDate: activity.end_date,
@@ -621,7 +621,8 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
         dateMatches: activity.activity_date === currentDisplayDate,
         hourMatches: activityHour === timeSlot.hour,
         inRange: activityHour >= 6 && activityHour < 22,
-        passedDateFilter: true  // We know it passed date filter to get here
+        matches,
+        filterResult: matches
       })
     }
     
