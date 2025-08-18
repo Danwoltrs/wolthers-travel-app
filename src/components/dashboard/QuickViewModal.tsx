@@ -194,12 +194,34 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     }
   }
 
+  // Calculate flexible width based on trip duration for schedule mode
+  const getScheduleWidth = () => {
+    if (!isEditing || activeTab !== 'schedule') return 'max-w-5xl w-full max-h-[90vh]'
+    
+    const days = trip.duration || 3
+    
+    // Mobile: always full width
+    // Desktop: scale based on days but respect maximum
+    let widthClass = ''
+    if (days <= 2) {
+      widthClass = 'max-w-3xl lg:max-w-4xl' // Smaller for 1-2 days
+    } else if (days <= 3) {
+      widthClass = 'max-w-4xl lg:max-w-5xl' // Current size for 3 days
+    } else if (days <= 5) {
+      widthClass = 'max-w-5xl lg:max-w-6xl' // Medium for 4-5 days
+    } else if (days <= 7) {
+      widthClass = 'max-w-6xl lg:max-w-[85vw]' // Large for 6-7 days
+    } else {
+      widthClass = 'max-w-[90vw]' // Maximum for 8+ days
+    }
+    
+    return `w-full ${widthClass} h-[95vh]`
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
-        isEditing && activeTab === 'schedule'
-          ? 'max-w-[95vw] xl:max-w-[90vw] w-full h-[95vh]' 
-          : 'max-w-5xl w-full max-h-[90vh]'
+        getScheduleWidth()
       }`}>
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
