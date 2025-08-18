@@ -201,18 +201,18 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     const days = trip.duration || 3
     
     // Mobile: always full width
-    // Desktop: scale based on days but respect maximum
+    // Desktop: scale based on days but respect maximum, accounting for + button padding
     let widthClass = ''
     if (days <= 2) {
-      widthClass = 'max-w-3xl lg:max-w-4xl' // Smaller for 1-2 days
+      widthClass = 'max-w-4xl lg:max-w-5xl' // Slightly larger for padding accommodation
     } else if (days <= 3) {
-      widthClass = 'max-w-4xl lg:max-w-5xl' // Current size for 3 days
+      widthClass = 'max-w-5xl lg:max-w-6xl' // Increased for current 3-day optimal size + padding
     } else if (days <= 5) {
-      widthClass = 'max-w-5xl lg:max-w-6xl' // Medium for 4-5 days
+      widthClass = 'max-w-6xl lg:max-w-7xl' // Medium for 4-5 days + padding
     } else if (days <= 7) {
-      widthClass = 'max-w-6xl lg:max-w-[85vw]' // Large for 6-7 days
+      widthClass = 'max-w-7xl lg:max-w-[88vw]' // Large for 6-7 days + padding
     } else {
-      widthClass = 'max-w-[90vw]' // Maximum for 8+ days
+      widthClass = 'max-w-[92vw]' // Maximum for 8+ days + padding
     }
     
     return `w-full ${widthClass} h-[95vh]`

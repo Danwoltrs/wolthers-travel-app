@@ -851,7 +851,7 @@ export function OutlookCalendar({
         </div>
 
         {/* Calendar Grid */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto px-4 md:px-6">
           <div className="flex justify-center">
             <div className="inline-block min-w-max">
               {/* Day Headers */}
