@@ -67,8 +67,17 @@ export async function POST(
         error: 'Direction is required and must be "before" or "after"' 
       }, { status: 400 })
     }
+    
+    // Validate days parameter
+    if (typeof days !== 'number') {
+      return NextResponse.json({ 
+        error: 'Days must be a number' 
+      }, { status: 400 })
+    }
 
-    console.log('📅 [ExtendTrip] Extending trip:', { tripId, direction, days })
+    const isRemoval = days < 0
+    const absoluteDays = Math.abs(days)
+    console.log(`📅 [ExtendTrip] ${isRemoval ? 'Removing' : 'Adding'} ${absoluteDays} day(s) ${direction} trip:`, { tripId, direction, days })
 
     // Create server-side Supabase client
     const supabase = createSupabaseServiceClient()
@@ -76,7 +85,7 @@ export async function POST(
     // Get current trip data
     const { data: currentTrip, error: tripError } = await supabase
       .from('trips')
-      .select('start_date, end_date, duration')
+      .select('start_date, end_date')
       .eq('id', tripId)
       .single()
 
@@ -95,25 +104,81 @@ export async function POST(
     let newEndDate = new Date(currentEndDate)
     
     if (direction === 'before') {
-      newStartDate.setDate(currentStartDate.getDate() - days)
+      if (isRemoval) {
+        // Remove days from beginning (move start date forward)
+        newStartDate.setDate(currentStartDate.getDate() + absoluteDays)
+      } else {
+        // Add days to beginning (move start date backward)
+        newStartDate.setDate(currentStartDate.getDate() - absoluteDays)
+      }
     } else {
-      newEndDate.setDate(currentEndDate.getDate() + days)
+      if (isRemoval) {
+        // Remove days from end (move end date backward)
+        newEndDate.setDate(currentEndDate.getDate() - absoluteDays)
+      } else {
+        // Add days to end (move end date forward)
+        newEndDate.setDate(currentEndDate.getDate() + absoluteDays)
+      }
     }
     
-    // Calculate new duration
-    const newDuration = Math.ceil((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-
     // Format dates for database
     const newStartDateString = newStartDate.toISOString().split('T')[0]
     const newEndDateString = newEndDate.toISOString().split('T')[0]
 
+    // Validate that trip still has at least one day
+    if (newEndDate <= newStartDate) {
+      return NextResponse.json({ 
+        error: 'Cannot remove days: Trip must have at least one day' 
+      }, { status: 400 })
+    }
+    
+    // If removing days, delete activities that fall outside the new date range
+    if (isRemoval) {
+      const deletedDates: string[] = []
+      
+      if (direction === 'before') {
+        // Removing days from start - collect dates being removed
+        const currentStart = new Date(currentTrip.start_date + 'T00:00:00')
+        for (let i = 0; i < absoluteDays; i++) {
+          const dateToDelete = new Date(currentStart.getTime() + i * 24 * 60 * 60 * 1000)
+          deletedDates.push(dateToDelete.toISOString().split('T')[0])
+        }
+      } else {
+        // Removing days from end - collect dates being removed
+        const currentEnd = new Date(currentTrip.end_date + 'T00:00:00')
+        for (let i = absoluteDays - 1; i >= 0; i--) {
+          const dateToDelete = new Date(currentEnd.getTime() - i * 24 * 60 * 60 * 1000)
+          deletedDates.push(dateToDelete.toISOString().split('T')[0])
+        }
+      }
+      
+      console.log('🗑️ [ExtendTrip] Deleting activities on removed dates:', deletedDates)
+      
+      // Delete activities that fall on removed dates
+      if (deletedDates.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('activities')
+          .delete()
+          .eq('trip_id', tripId)
+          .in('activity_date', deletedDates)
+          
+        if (deleteError) {
+          console.error('Error deleting activities on removed dates:', deleteError)
+          // Continue with trip update even if activity deletion fails
+        } else {
+          console.log('✅ [ExtendTrip] Successfully deleted activities on removed dates')
+        }
+      }
+    }
+    
     console.log('📅 [ExtendTrip] Date calculation:', {
       currentStart: currentTrip.start_date,
       currentEnd: currentTrip.end_date,
-      currentDuration: currentTrip.duration,
       newStart: newStartDateString,
       newEnd: newEndDateString,
-      newDuration
+      direction,
+      days,
+      operation: isRemoval ? 'removal' : 'addition'
     })
 
     // Update trip dates
@@ -122,7 +187,6 @@ export async function POST(
       .update({
         start_date: newStartDateString,
         end_date: newEndDateString,
-        duration: newDuration,
         updated_at: new Date().toISOString()
       })
       .eq('id', tripId)
@@ -137,20 +201,23 @@ export async function POST(
       }, { status: 500 })
     }
 
-    console.log('✅ [ExtendTrip] Successfully extended trip:', {
+    console.log(`✅ [ExtendTrip] Successfully ${isRemoval ? 'removed' : 'added'} ${absoluteDays} day(s):`, {
       tripId,
       direction,
-      daysAdded: days,
-      newDuration: newDuration
+      days,
+      operation: isRemoval ? 'removal' : 'addition',
+      newStartDate: newStartDateString,
+      newEndDate: newEndDateString
     })
 
     return NextResponse.json({
       success: true,
-      message: `Successfully added ${days} day${days > 1 ? 's' : ''} ${direction} the trip`,
+      message: isRemoval 
+        ? `Successfully removed ${absoluteDays} day${absoluteDays > 1 ? 's' : ''} from ${direction === 'before' ? 'the beginning of' : 'the end of'} the trip`
+        : `Successfully added ${absoluteDays} day${absoluteDays > 1 ? 's' : ''} ${direction} the trip`,
       updatedTrip: {
         start_date: newStartDateString,
-        end_date: newEndDateString,
-        duration: newDuration
+        end_date: newEndDateString
       }
     })
 

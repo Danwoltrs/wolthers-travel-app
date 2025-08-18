@@ -148,7 +148,19 @@ export async function GET(request: NextRequest) {
     let isCompanyAdmin = false
     let companyId = null
     
-    if (!isWolthersUser && emailDomain) {
+    if (isWolthersUser) {
+      // For Wolthers staff, get the Wolthers & Associates company ID
+      const { data: wolthersCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('name', 'Wolthers & Associates')
+        .single()
+      
+      if (wolthersCompany) {
+        companyId = wolthersCompany.id
+        console.log('✅ Assigned Wolthers staff to company:', companyId)
+      }
+    } else if (emailDomain) {
       console.log('🔍 Checking if user is a company admin for domain:', emailDomain)
       // Check if there are existing users with this domain who might be company participants
       const { data: existingDomainUsers } = await supabase
@@ -438,7 +450,19 @@ export async function POST(request: NextRequest) {
     let isCompanyAdmin = false
     let companyId = null
     
-    if (!isWolthersUser && emailDomain) {
+    if (isWolthersUser) {
+      // For Wolthers staff, get the Wolthers & Associates company ID
+      const { data: wolthersCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('name', 'Wolthers & Associates')
+        .single()
+      
+      if (wolthersCompany) {
+        companyId = wolthersCompany.id
+        console.log('✅ Assigned Wolthers staff to company (POST):', companyId)
+      }
+    } else if (emailDomain) {
       console.log('🔍 Checking if user is a company admin for domain (POST):', emailDomain)
       // Check if there are existing users with this domain who might be company participants
       const { data: existingDomainUsers } = await supabase

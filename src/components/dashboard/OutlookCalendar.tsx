@@ -11,10 +11,11 @@
 
 import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
 import { useDrag, useDrop } from 'react-dnd'
-import { Plus, Clock, MapPin, User, Check, RefreshCw } from 'lucide-react'
+import { Plus, Minus, Clock, MapPin, User, Check, RefreshCw } from 'lucide-react'
 import type { TripCard } from '@/types'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
+import { calculateDuration } from '@/lib/utils'
 
 interface OutlookCalendarProps {
   trip: TripCard
@@ -26,6 +27,8 @@ interface OutlookCalendarProps {
   updateActivityDebounced: (activityId: string, updates: Partial<ActivityFormData>, delay?: number) => Promise<void>
   getActivitiesByDate: () => Record<string, Activity[]>
   onExtendTrip: (direction: 'before' | 'after') => void
+  onRemoveDay?: () => Promise<void>
+  onRemoveFirstDay?: () => Promise<void>
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
   forceRefreshActivities?: () => Promise<void>
@@ -112,14 +115,26 @@ const ActivityCard = memo(function ActivityCard({
   )
 
   const getTypeColor = (type: string) => {
-    switch (type) {
+    // Debug: Log activity types to help troubleshoot color issues
+    if (activity.title?.toLowerCase().includes('flight')) {
+      console.log('🎨 [OutlookCalendar] Activity color debug:', {
+        title: activity.title,
+        type: type,
+        normalizedType: type?.toLowerCase(),
+        willUseColor: type?.toLowerCase() === 'flight' ? 'purple' : 'fallback'
+      })
+    }
+    
+    switch (type?.toLowerCase()) {
       case 'meeting': return 'bg-blue-500 border-blue-600'
       case 'meal': return 'bg-orange-500 border-orange-600'
       case 'flight': return 'bg-purple-500 border-purple-600'
       case 'accommodation': return 'bg-green-500 border-green-600'
       case 'travel': return 'bg-gray-500 border-gray-600'
       case 'event': return 'bg-indigo-500 border-indigo-600'
-      default: return 'bg-gray-500 border-gray-600'
+      case 'break': return 'bg-yellow-500 border-yellow-600'
+      case 'other': return 'bg-teal-500 border-teal-600'
+      default: return 'bg-emerald-500 border-emerald-600' // Default to brand color
     }
   }
 
@@ -216,7 +231,7 @@ const ActivityCard = memo(function ActivityCard({
       topOffset = minuteOffset
       
       duration = activity.start_time && activity.end_time ? 
-        calculateDuration(activity.start_time, activity.end_time) : 1
+        calculateTimeDuration(activity.start_time, activity.end_time) : 1
     }
   }
 
@@ -373,20 +388,21 @@ const ActivityCard = memo(function ActivityCard({
       className={`
         relative cursor-pointer rounded-md border-l-4 p-2 text-white text-xs
         transition-all duration-200 hover:shadow-lg group
-        ${getTypeColor(activity.type)}
+        ${getTypeColor(activity.type || 'default')}
         ${isDragging ? 'opacity-50 transform rotate-2' : isOptimistic ? 'opacity-75' : 'opacity-100'}
         ${isResizing ? 'cursor-resizing' : ''}
         ${isUpdating || isDragLoading ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
         ${isOptimistic ? 'border-dashed' : ''}
         ${isDragLoading ? 'animate-pulse' : ''}
+        md:!left-[4px] md:!right-[4px]
       `}
       style={{
         height: `${Math.max(duration * 15 - 2, 20)}px`,
         minHeight: '20px',
         position: 'absolute',
         top: `${topOffset}px`,
-        left: '4px',
-        right: '4px',
+        left: '2px',
+        right: '2px',
         zIndex: 1
       }}
     >
@@ -650,7 +666,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     <div
       ref={drop}
       className={`
-        relative border-b border-gray-200 dark:border-gray-700 min-h-[60px] p-1
+        relative border-b border-gray-200 dark:border-gray-700 min-h-[50px] md:min-h-[60px] p-1
         transition-colors duration-200
         ${isOver && canDrop ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}
         ${isProcessingDrop ? 'bg-blue-100 dark:bg-blue-900/30' : ''}
@@ -693,15 +709,17 @@ export function OutlookCalendar({
   updateActivityDebounced,
   getActivitiesByDate,
   onExtendTrip, 
+  onRemoveDay,
+  onRemoveFirstDay,
   onActivityCreate, 
   onActivityEdit,
   forceRefreshActivities
 }: OutlookCalendarProps) {
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null)
 
-  // Generate calendar days
+  // Generate calendar days - moved before usage
   const calendarDays: CalendarDay[] = useMemo(() => {
-    return Array.from({ length: trip.duration || 3 }, (_, index) => {
+    return Array.from({ length: calculateDuration(trip.startDate, trip.endDate) }, (_, index) => {
       const date = new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000)
       const dateString = date.toISOString().split('T')[0]
       
@@ -713,9 +731,90 @@ export function OutlookCalendar({
         monthName: date.toLocaleDateString('en-US', { month: 'short' })
       }
     })
-  }, [trip.startDate, trip.duration])
+  }, [trip.startDate, trip.endDate])
 
   const activitiesByDate = getActivitiesByDate()
+
+  // Handle day removal - moved after calendarDays definition
+  const handleRemoveDay = useCallback(async () => {
+    if (calendarDays.length <= 1) {
+      console.warn('Cannot remove day: Trip must have at least one day')
+      return
+    }
+
+    const lastDay = calendarDays[calendarDays.length - 1]
+    const lastDayActivities = activitiesByDate[lastDay.dateString] || []
+    
+    // Check if the last day has any activities
+    if (lastDayActivities.length > 0) {
+      // Show confirmation dialog or prevent removal
+      const hasConfirmedActivities = lastDayActivities.some(activity => activity.is_confirmed)
+      const activityNames = lastDayActivities.map(a => a.title).join(', ')
+      
+      const confirmMessage = hasConfirmedActivities 
+        ? `The last day contains confirmed activities (${activityNames}). Remove anyway? This will delete all activities on this day.`
+        : `The last day contains activities (${activityNames}). Remove anyway? This will delete all activities on this day.`
+      
+      if (!confirm(confirmMessage)) {
+        return
+      }
+    }
+
+    // Call the removal handler if provided, otherwise use extend trip with negative direction
+    if (onRemoveDay) {
+      await onRemoveDay()
+    } else {
+      // Fallback: use extend trip API with negative days (remove from end)
+      await onExtendTrip('remove-after')
+    }
+  }, [calendarDays, activitiesByDate, onRemoveDay, onExtendTrip])
+
+  // Handle first day removal with smart enable/disable logic
+  const handleRemoveFirstDay = useCallback(async () => {
+    if (calendarDays.length <= 1) {
+      console.warn('Cannot remove day: Trip must have at least one day')
+      return
+    }
+
+    const firstDay = calendarDays[0]
+    const firstDayActivities = activitiesByDate[firstDay.dateString] || []
+    
+    // Check if the first day has any activities
+    if (firstDayActivities.length > 0) {
+      // Show confirmation dialog or prevent removal
+      const hasConfirmedActivities = firstDayActivities.some(activity => activity.is_confirmed)
+      const activityNames = firstDayActivities.map(a => a.title).join(', ')
+      
+      const confirmMessage = hasConfirmedActivities 
+        ? `The first day contains confirmed activities (${activityNames}). Remove anyway? This will delete all activities on this day.`
+        : `The first day contains activities (${activityNames}). Remove anyway? This will delete all activities on this day.`
+      
+      if (!confirm(confirmMessage)) {
+        return
+      }
+    }
+
+    // Call the removal handler if provided
+    if (onRemoveFirstDay) {
+      await onRemoveFirstDay()
+    }
+  }, [calendarDays, activitiesByDate, onRemoveFirstDay])
+
+  // Check if first day can be removed (no activities on first day)
+  const canRemoveFirstDay = useMemo(() => {
+    if (calendarDays.length <= 1) return false
+    const firstDay = calendarDays[0]
+    const firstDayActivities = activitiesByDate[firstDay?.dateString] || []
+    return firstDayActivities.length === 0
+  }, [calendarDays, activitiesByDate])
+
+  // Check if last day can be removed (no activities on last day)
+  const canRemoveLastDay = useMemo(() => {
+    if (calendarDays.length <= 1) return false
+    const lastDay = calendarDays[calendarDays.length - 1]
+    const lastDayActivities = activitiesByDate[lastDay?.dateString] || []
+    return lastDayActivities.length === 0
+  }, [calendarDays, activitiesByDate])
 
   // Handle activity resize with debouncing and cross-day support
   const handleActivityResize = useCallback(async (
@@ -868,73 +967,114 @@ export function OutlookCalendar({
         </div>
 
         {/* Calendar Grid */}
-        <div className="overflow-x-auto px-4 md:px-6">
-          <div className="flex justify-center">
-            <div className="inline-block min-w-max">
+        <div className="overflow-x-auto">
+          <div className="flex justify-center px-2 md:px-4 lg:px-6">
+            <div className="w-full" style={{ minWidth: `${100 + calendarDays.length * 180 + 100}px` }}>
               {/* Day Headers */}
               <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
-                gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
+                gridTemplateColumns: `minmax(80px, 120px) repeat(${calendarDays.length}, 1fr) minmax(80px, 120px)` 
               }}>
                 {/* Time column header */}
-                <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => onExtendTrip('before')}
-                    className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                     title="Add day before trip"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3 h-3 md:w-4 md:h-4" />
                   </button>
                 </div>
 
-                {/* Day columns */}
+                {/* Day columns with responsive layout */}
                 {calendarDays.map((day, index) => (
                   <div
                     key={day.dateString}
-                    className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center"
+                    className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center min-w-[160px] md:min-w-[180px]"
                   >
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {day.dayName}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {day.monthName} {day.dayNumber}
+                    {/* Day header with inline remove buttons */}
+                    <div className="flex items-center justify-between">
+                      {/* Remove first day button - show only on first day if there are 2 or more days */}
+                      {index === 0 && calendarDays.length > 1 ? (
+                        <button
+                          onClick={() => handleRemoveFirstDay()}
+                          disabled={!canRemoveFirstDay}
+                          className={`mr-2 w-5 h-5 md:w-6 md:h-6 flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                            canRemoveFirstDay
+                              ? 'border-red-300 dark:border-red-600 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 text-red-500 dark:text-red-400 cursor-pointer'
+                              : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                          }`}
+                          title={canRemoveFirstDay ? "Remove first day" : "Cannot remove day with activities"}
+                        >
+                          <Minus className="w-2 h-2 md:w-3 md:h-3" />
+                        </button>
+                      ) : (
+                        // Spacer to maintain consistent layout
+                        <div className="w-5 h-5 md:w-6 md:h-6 mr-2 flex-shrink-0" />
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 text-xs md:text-sm lg:text-base truncate">
+                          {day.dayName}
+                        </div>
+                        <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 truncate">
+                          {day.monthName} {day.dayNumber}
+                        </div>
+                      </div>
+                      {/* Remove last day button - show only on last day if there are 2 or more days */}
+                      {index === calendarDays.length - 1 && calendarDays.length > 1 ? (
+                        <button
+                          onClick={() => handleRemoveDay()}
+                          disabled={!canRemoveLastDay}
+                          className={`ml-2 w-5 h-5 md:w-6 md:h-6 flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                            canRemoveLastDay
+                              ? 'border-red-300 dark:border-red-600 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 text-red-500 dark:text-red-400 cursor-pointer'
+                              : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                          }`}
+                          title={canRemoveLastDay ? "Remove last day" : "Cannot remove day with activities"}
+                        >
+                          <Minus className="w-2 h-2 md:w-3 md:h-3" />
+                        </button>
+                      ) : (
+                        // Spacer to maintain consistent layout
+                        <div className="w-5 h-5 md:w-6 md:h-6 ml-2 flex-shrink-0" />
+                      )}
                     </div>
                   </div>
                 ))}
 
                 {/* Add day after button */}
-                <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => onExtendTrip('after')}
-                    className="w-full h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                     title="Add day after trip"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3 h-3 md:w-4 md:h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Time Slots Grid */}
+              {/* Time Slots Grid with responsive layout */}
               <div className={refreshing ? 'opacity-50 pointer-events-none' : ''}>
                 {TIME_SLOTS.map((timeSlot) => (
                   <div
                     key={timeSlot.time}
                     className="grid border-b border-gray-200 dark:border-gray-700"
                     style={{ 
-                      gridTemplateColumns: `120px repeat(${calendarDays.length}, 280px) 120px` 
+                      gridTemplateColumns: `minmax(80px, 120px) repeat(${calendarDays.length}, 1fr) minmax(80px, 120px)` 
                     }}
                   >
                     {/* Time label */}
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                      <div className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         {timeSlot.display}
                       </div>
                     </div>
 
-                    {/* Day columns */}
+                    {/* Day columns with responsive design */}
                     {calendarDays.map((day) => (
                       <div
                         key={`${day.dateString}-${timeSlot.time}`}
-                        className="border-r border-gray-200 dark:border-gray-700"
+                        className="border-r border-gray-200 dark:border-gray-700 min-w-[160px] md:min-w-[180px]"
                       >
                         <TimeSlotComponent
                           timeSlot={timeSlot}
@@ -967,7 +1107,7 @@ function formatTime(time: string): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 }
 
-function calculateDuration(startTime: string, endTime: string): number {
+function calculateTimeDuration(startTime: string, endTime: string): number {
   const [startHours, startMinutes] = startTime.split(':').map(Number)
   const [endHours, endMinutes] = endTime.split(':').map(Number)
   

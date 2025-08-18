@@ -13,47 +13,53 @@ export async function GET(
     
     // Try JWT token authentication first (Microsoft OAuth and Email/Password)
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = extractBearerToken(authHeader)
-      if (token) {
-        // Try custom JWT token first
-        const decoded = verifySessionToken(token)
-        if (decoded) {
-          // Get user from database with service role (bypasses RLS)
-          const supabase = createServerSupabaseClient()
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', decoded.userId)
-            .single()
+      token = extractBearerToken(authHeader)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      // Try custom JWT token first
+      const decoded = verifySessionToken(token)
+      if (decoded) {
+        // Get user from database with service role (bypasses RLS)
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
 
-          if (!userError && userData) {
-            user = userData
-            console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
-          }
-        } else {
-          // If JWT verification fails, try Supabase session token
-          console.log('🔑 JWT verification failed, trying Supabase session...')
-          try {
-            const supabaseClient = createSupabaseServiceClient()
-            const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
-            
-            if (!sessionError && supabaseUser) {
-              // Get full user profile from database
-              const { data: userData, error: userError } = await supabaseClient
-                .from('users')
-                .select('*')
-                .eq('id', supabaseUser.id)
-                .single()
+        if (!userError && userData) {
+          user = userData
+          console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
+        }
+      } else {
+        // If JWT verification fails, try Supabase session token
+        console.log('🔑 JWT verification failed, trying Supabase session...')
+        try {
+          const supabaseClient = createSupabaseServiceClient()
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            // Get full user profile from database
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
 
-              if (!userError && userData) {
-                user = userData
-                console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
-              }
+            if (!userError && userData) {
+              user = userData
+              console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
             }
-          } catch (supabaseError) {
-            console.log('🔑 Supabase authentication also failed:', supabaseError)
           }
+        } catch (supabaseError) {
+          console.log('🔑 Supabase authentication also failed:', supabaseError)
         }
       }
     }

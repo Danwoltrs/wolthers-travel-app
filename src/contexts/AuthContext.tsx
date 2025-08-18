@@ -63,7 +63,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const sessionData = await response.json()
             console.log('📊 Session API response:', { 
               authenticated: sessionData.authenticated,
-              hasUser: !!sessionData.user 
+              hasUser: !!sessionData.user,
+              userEmail: sessionData.user?.email,
+              userType: sessionData.user?.user_type,
+              isGlobalAdmin: sessionData.user?.is_global_admin
             })
             
             if (sessionData.authenticated && sessionData.user) {
@@ -327,18 +330,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const mapUserProfile = (profile: any, authUser: User | null) => {
+    console.log('🔄 mapUserProfile called with:', {
+      email: profile.email,
+      user_type: profile.user_type,
+      is_global_admin: profile.is_global_admin,
+      profileKeys: Object.keys(profile)
+    })
+    
     // Map user_type to our role system
     let role = UserRole.GUEST
     if (profile.is_global_admin) {
       role = UserRole.GLOBAL_ADMIN
+      console.log('🔑 Role mapped to GLOBAL_ADMIN')
     } else if (profile.user_type === 'wolthers_staff') {
       role = UserRole.WOLTHERS_STAFF
+      console.log('🔑 Role mapped to WOLTHERS_STAFF')
     } else if (profile.user_type === 'admin') {
       role = UserRole.COMPANY_ADMIN
+      console.log('🔑 Role mapped to COMPANY_ADMIN')
     } else if (profile.user_type === 'client') {
       role = UserRole.VISITOR
+      console.log('🔑 Role mapped to VISITOR')
     } else if (profile.user_type === 'driver') {
       role = UserRole.DRIVER
+      console.log('🔑 Role mapped to DRIVER')
+    } else {
+      console.log('🔑 No role match found, defaulting to GUEST. user_type:', profile.user_type)
     }
 
     // Create permissions based on database flags

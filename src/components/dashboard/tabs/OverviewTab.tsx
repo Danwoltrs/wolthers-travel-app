@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { Calendar, MapPin, Users, Clock, AlertCircle } from 'lucide-react'
+import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 
@@ -68,7 +69,7 @@ export function OverviewTab({
         </h3>
         <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
           <Clock className="w-3 h-3" />
-          <span>{trip.duration} days</span>
+          <span>{calculateDuration(trip.startDate, trip.endDate)} days</span>
         </div>
       </div>
 
@@ -239,7 +240,7 @@ export function OverviewTab({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {trip.duration}
+                  {calculateDuration(trip.startDate, trip.endDate)}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Days

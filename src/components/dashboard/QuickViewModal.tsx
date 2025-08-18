@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { X, Users, Car, Key, Edit3, Calendar, Settings, FileText, DollarSign, Save, AlertCircle, RefreshCw } from 'lucide-react'
 import type { TripCard as TripCardType } from '@/types'
-import { getTripProgress, getTripStatus, formatDateRange } from '@/lib/utils'
+import { getTripProgress, getTripStatus, formatDateRange, calculateDuration } from '@/lib/utils'
 import { useTripDetails } from '@/hooks/useTrips'
 import { useActivityManager } from '@/hooks/useActivityManager'
 import { useEnhancedModal } from '@/hooks/useEnhancedModal'
@@ -129,10 +129,12 @@ const groupDestinationsByLocation = (destinations: Array<{date: string, location
 
 export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly = false }: QuickViewModalProps) {
   const [showCopyTooltip, setShowCopyTooltip] = useState(false)
+  const [localTrip, setLocalTrip] = useState<TripCardType>(trip)
   
   // Enhanced modal state management
   const {
     modalState,
+    formData,
     setActiveTab,
     setEditingMode,
     updateFormData,
@@ -140,21 +142,40 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     hasUnsavedChanges,
     validationErrors,
     isAutoSaving
-  } = useEnhancedModal(trip, { onSave, autoSaveEnabled: true })
+  } = useEnhancedModal(localTrip, { onSave, autoSaveEnabled: true })
+  
+  // Handle form data updates that affect the trip object
+  const handleTripUpdate = useCallback((tab: string, updates: any) => {
+    updateFormData(tab as any, updates)
+    
+    // If trip dates are being updated, update local trip state
+    if (updates.trip && (updates.trip.startDate || updates.trip.endDate)) {
+      setLocalTrip(prev => ({
+        ...prev,
+        startDate: updates.trip.startDate || prev.startDate,
+        endDate: updates.trip.endDate || prev.endDate
+      }))
+    }
+  }, [updateFormData])
+  
+  // Keep localTrip in sync with prop changes
+  useEffect(() => {
+    setLocalTrip(trip)
+  }, [trip])
   
   const { activeTab, editingMode } = modalState
   const isEditing = editingMode === 'edit'
   
   if (!isOpen) return null
 
-  const progress = getTripProgress(trip.startDate, trip.endDate)
-  const tripStatus = getTripStatus(trip.startDate, trip.endDate)
+  const progress = getTripProgress(localTrip.startDate, localTrip.endDate)
+  const tripStatus = getTripStatus(localTrip.startDate, localTrip.endDate)
   
   // Get real trip details from Supabase
-  const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(trip.id)
+  const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(localTrip.id)
   
   // Get activity data using the activity manager
-  const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = useActivityManager(trip.id || '')
+  const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = useActivityManager(localTrip.id || '')
   
   // Get activity statistics for visits and meetings count
   const activityStats = getActivityStats()
@@ -175,16 +196,16 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   const sortedDates = Object.keys(groupedActivities).sort()
 
   const handleCopyAccessCode = async () => {
-    if (!trip.accessCode) return
+    if (!localTrip.accessCode) return
     try {
-      await navigator.clipboard.writeText(trip.accessCode)
+      await navigator.clipboard.writeText(localTrip.accessCode)
       setShowCopyTooltip(true)
       setTimeout(() => setShowCopyTooltip(false), 2000)
     } catch (err) {
       console.error('Failed to copy access code:', err)
       // Fallback for older browsers
       const textArea = document.createElement('textarea')
-      textArea.value = trip.accessCode || ''
+      textArea.value = localTrip.accessCode || ''
       document.body.appendChild(textArea)
       textArea.select()
       document.execCommand('copy')
@@ -198,7 +219,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   const getScheduleWidth = () => {
     if (!isEditing || activeTab !== 'schedule') return 'max-w-5xl w-full max-h-[90vh]'
     
-    const days = trip.duration || 3
+    const days = calculateDuration(localTrip.startDate, localTrip.endDate)
     
     // Mobile: always full width
     // Desktop: scale based on days but respect maximum, accounting for + button padding
@@ -227,9 +248,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full">
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-emerald-700 dark:text-golden-400">{trip.title}</h2>
+              <h2 className="text-xl font-bold text-emerald-700 dark:text-golden-400">{localTrip.title}</h2>
               <div className="text-sm text-white/70 dark:text-golden-400/70 font-medium">
-                {formatDateRange(trip.startDate, trip.endDate)} | {trip.duration} days
+                {formatDateRange(localTrip.startDate, localTrip.endDate)} | {calculateDuration(localTrip.startDate, localTrip.endDate)} days
               </div>
             </div>
             
@@ -288,7 +309,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         {/* Trip Description */}
         <div className="px-3 md:px-6 py-4 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-            {trip.subject}
+            {localTrip.subject}
           </p>
         </div>
 
@@ -332,54 +353,54 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               }}>
                 {activeTab === 'overview' && (
                   <OverviewTab 
-                    trip={trip} 
+                    trip={localTrip} 
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.overview}
                   />
                 )}
                 
                 {activeTab === 'schedule' && (
                   <ScheduleTab 
-                    trip={trip}
+                    trip={localTrip}
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.schedule}
                   />
                 )}
                 
                 {activeTab === 'participants' && (
                   <ParticipantsTab 
-                    trip={trip}
+                    trip={localTrip}
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.participants}
                   />
                 )}
                 
                 {activeTab === 'logistics' && (
                   <LogisticsTab 
-                    trip={trip}
+                    trip={localTrip}
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.logistics}
                   />
                 )}
                 
                 {activeTab === 'documents' && (
                   <DocumentsTab 
-                    trip={trip}
+                    trip={localTrip}
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.documents}
                   />
                 )}
                 
                 {activeTab === 'expenses' && (
                   <ExpensesTab 
-                    trip={trip}
+                    trip={localTrip}
                     tripDetails={tripDetails}
-                    onUpdate={updateFormData}
+                    onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.expenses}
                   />
                 )}
@@ -394,48 +415,48 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 <div className="md:hidden">
                   <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                     {/* Guest Companies */}
-                    {trip.client.length > 0 && (
+                    {localTrip.client.length > 0 && (
                       <span>
                         <span className="font-medium text-gray-900 dark:text-gray-200">
-                          {trip.client.map(company => company.fantasyName || company.name).join(', ')}:
+                          {localTrip.client.map(company => company.fantasyName || company.name).join(', ')}:
                         </span>
                         {' '}
-                        {trip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
+                        {localTrip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
                       </span>
                     )}
                     
                     {/* Wolthers Staff */}
-                    {trip.wolthersStaff.length > 0 && (
+                    {localTrip.wolthersStaff.length > 0 && (
                       <>
-                        {trip.client.length > 0 && ' | '}
+                        {localTrip.client.length > 0 && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
                           {' '}
-                          {trip.wolthersStaff.map(staff => staff.fullName).join(', ')}
+                          {localTrip.wolthersStaff.map(staff => staff.fullName).join(', ')}
                         </span>
                       </>
                     )}
                     
                     {/* Vehicles */}
-                    {trip.vehicles.length > 0 && (
+                    {localTrip.vehicles.length > 0 && (
                       <>
-                        {(trip.client.length > 0 || trip.wolthersStaff.length > 0) && ' | '}
+                        {(localTrip.client.length > 0 || localTrip.wolthersStaff.length > 0) && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
                           {' '}
-                          {trip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
+                          {localTrip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
                         </span>
                       </>
                     )}
                     
                     {/* Drivers */}
-                    {trip.drivers.length > 0 && (
+                    {localTrip.drivers.length > 0 && (
                       <>
-                        {(trip.client.length > 0 || trip.wolthersStaff.length > 0 || trip.vehicles.length > 0) && ' | '}
+                        {(localTrip.client.length > 0 || localTrip.wolthersStaff.length > 0 || localTrip.vehicles.length > 0) && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
                           {' '}
-                          {trip.drivers.map(driver => driver.fullName).join(', ')}
+                          {localTrip.drivers.map(driver => driver.fullName).join(', ')}
                         </span>
                       </>
                     )}
@@ -446,8 +467,8 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 <div className="hidden md:block">
                   <div className="flex flex-wrap gap-4">
                     {/* Company Cards - Flexible sizing */}
-                    {trip.client.map((company) => {
-                      const companyGuests = trip.guests.find(g => g.companyId === company.id)
+                    {localTrip.client.map((company) => {
+                      const companyGuests = localTrip.guests.find(g => g.companyId === company.id)
                       return (
                         <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
                           <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
@@ -467,7 +488,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     })}
 
                     {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
-                    {(trip.wolthersStaff.length > 0 || trip.vehicles.length > 0 || trip.drivers.length > 0) && (
+                    {(localTrip.wolthersStaff.length > 0 || localTrip.vehicles.length > 0 || localTrip.drivers.length > 0) && (
                       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
                         <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
                           {/* Wolthers Staff */}
@@ -475,9 +496,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                             <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                               Wolthers Staff
                             </h4>
-                            {trip.wolthersStaff.length > 0 ? (
+                            {localTrip.wolthersStaff.length > 0 ? (
                               <div className="space-y-1">
-                                {trip.wolthersStaff.map((staff) => (
+                                {localTrip.wolthersStaff.map((staff) => (
                                   <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
                                     {staff.fullName}
                                   </div>
@@ -495,9 +516,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                             <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                               Vehicles
                             </h4>
-                            {trip.vehicles.length > 0 ? (
+                            {localTrip.vehicles.length > 0 ? (
                               <div className="space-y-1">
-                                {trip.vehicles.map((vehicle) => (
+                                {localTrip.vehicles.map((vehicle) => (
                                   <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
                                     {vehicle.make} {vehicle.model}
                                   </div>
@@ -515,9 +536,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                             <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                               Drivers
                             </h4>
-                            {trip.drivers.length > 0 ? (
+                            {localTrip.drivers.length > 0 ? (
                               <div className="space-y-1">
-                                {trip.drivers.map((driver) => (
+                                {localTrip.drivers.map((driver) => (
                                   <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
                                     {driver.fullName}
                                   </div>
@@ -692,7 +713,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {trip.duration}
+                      {calculateDuration(localTrip.startDate, localTrip.endDate)}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Days
@@ -730,7 +751,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </div>
                   <div>
                     <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {trip.duration}
+                      {calculateDuration(localTrip.startDate, localTrip.endDate)}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       Days

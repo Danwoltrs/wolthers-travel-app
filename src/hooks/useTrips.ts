@@ -36,6 +36,9 @@ export function useTrips() {
             
             activityCounts[tripId] = { meetings, visits, confirmed }
             console.log(`Activities for trip ${tripId}:`, { meetings, visits, confirmed, total: activities.length })
+          } else if (response.status === 404) {
+            console.log(`No activities found for trip ${tripId} (404 - this is normal for new trips)`)
+            activityCounts[tripId] = { meetings: 0, visits: 0, confirmed: 0 }
           } else {
             console.warn(`Failed to fetch activities for trip ${tripId}: ${response.status}`)
             activityCounts[tripId] = { meetings: 0, visits: 0, confirmed: 0 }
@@ -96,7 +99,7 @@ export function useTrips() {
               drivers: trip.drivers || [],
               startDate: new Date(trip.start_date + 'T00:00:00'),
               endDate: new Date(trip.end_date + 'T00:00:00'),
-              duration: trip.duration || Math.ceil((new Date(trip.end_date + 'T00:00:00').getTime() - new Date(trip.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1,
+              duration: Math.ceil((new Date(trip.end_date + 'T00:00:00').getTime() - new Date(trip.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1,
               status: trip.status,
               progress: trip.progress || 0,
               notesCount: trip.notesCount || trip.notes_count || 0,
@@ -137,22 +140,50 @@ export function useTrips() {
             console.log('useTrips: Using Supabase session token for API calls')
           }
           
+          console.log('useTrips: Auth token available:', !!authToken, 'from:', authToken ? (authToken.startsWith('sb-') ? 'Supabase' : 'JWT') : 'none')
+          
           if (!authToken) {
-            throw new Error('No authentication token found')
+            console.warn('useTrips: No authentication token found - API calls may fail')
+            // Continue anyway, credentials: 'include' might be sufficient
           }
 
           console.log('useTrips: Fetching trips via authenticated API...')
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          }
+          
+          if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`
+          }
+          
           const response = await fetch('/api/trips', {
             method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${authToken}`,
-              'Content-Type': 'application/json'
-            }
+            credentials: 'include',
+            headers
           })
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
-            throw new Error(errorData.error || `HTTP ${response.status}`)
+            console.warn('Trips API response not ok:', {
+              status: response.status,
+              statusText: response.statusText,
+              url: response.url,
+              headers: Object.fromEntries(response.headers.entries())
+            })
+            
+            let errorMessage = `HTTP ${response.status}`
+            try {
+              const responseText = await response.text()
+              console.log('Raw trips error response:', responseText)
+              
+              // Try to parse as JSON
+              const errorData = JSON.parse(responseText)
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              // If we can't parse the response as JSON, use the status text or status code
+              errorMessage = response.statusText || errorMessage
+              console.warn('Failed to parse trips error response as JSON:', parseError)
+            }
+            throw new Error(errorMessage)
           }
 
           const result = await response.json()
@@ -522,22 +553,50 @@ export function useTripDetails(tripId: string) {
           console.log('useTripDetails: Using Supabase session token for API calls')
         }
         
+        console.log('useTripDetails: Auth token available:', !!authToken, 'for trip:', tripId)
+        
         if (!authToken) {
-          throw new Error('No authentication token found')
+          console.warn('useTripDetails: No authentication token found - API calls may fail')
+          // Continue anyway, credentials: 'include' might be sufficient
         }
 
         console.log('useTripDetails: Fetching trip details via authenticated API...')
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        }
+        
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`
+        }
+        
         const response = await fetch(`/api/trips/${tripId}`, {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
+          credentials: 'include',
+          headers
         })
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error' }))
-          throw new Error(errorData.error || `HTTP ${response.status}`)
+          console.warn('API response not ok:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            headers: Object.fromEntries(response.headers.entries())
+          })
+          
+          let errorMessage = `HTTP ${response.status}`
+          try {
+            const responseText = await response.text()
+            console.log('Raw error response:', responseText)
+            
+            // Try to parse as JSON
+            const errorData = JSON.parse(responseText)
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } catch (parseError) {
+            // If we can't parse the response as JSON, use the status text or status code
+            errorMessage = response.statusText || errorMessage
+            console.warn('Failed to parse error response as JSON:', parseError)
+          }
+          throw new Error(errorMessage)
         }
 
         const result = await response.json()
@@ -559,6 +618,13 @@ export function useTripDetails(tripId: string) {
 
       } catch (err) {
         console.error('Error fetching trip details:', err)
+        console.error('Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          type: typeof err,
+          tripId,
+          errorObject: err
+        })
         setError(err instanceof Error ? err.message : 'Failed to fetch trip details')
       } finally {
         setLoading(false)

@@ -8,8 +8,16 @@ export async function GET(request: NextRequest) {
     
     // Try JWT token authentication first (Microsoft OAuth)
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {
@@ -32,20 +40,14 @@ export async function GET(request: NextRequest) {
     }
 
     // If JWT failed, try Supabase session authentication (Email/Password)
-    if (!user) {
+    if (!user && token) {
       try {
         const supabaseClient = createSupabaseServiceClient()
         
-        // Try to get session from Supabase auth header
-        let authToken = null
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-          authToken = authHeader.substring(7)
-        }
-        
         // Check if this might be a Supabase session token
-        if (authToken && authToken.includes('.')) {
+        if (token && token.includes('.')) {
           // This looks like a Supabase JWT token, try to verify with Supabase
-          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(authToken)
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
           
           if (!sessionError && supabaseUser) {
             // Get full user profile from database

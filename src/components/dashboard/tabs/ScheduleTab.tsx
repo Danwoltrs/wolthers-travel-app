@@ -9,6 +9,7 @@
 import React, { useState, useCallback } from 'react'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
+import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 
 interface ScheduleTabProps {
@@ -116,12 +117,24 @@ export function ScheduleTab({
   }, [trip.startDate])
 
   // Handle trip extension
-  const handleExtendTrip = useCallback(async (direction: 'before' | 'after') => {
+  const handleExtendTrip = useCallback(async (direction: 'before' | 'after' | 'remove-after' | 'remove-before') => {
     try {
-      console.log(`📅 [ScheduleTab] Extending trip ${direction}`)
+      console.log(`📅 [ScheduleTab] ${direction === 'remove-after' || direction === 'remove-before' ? 'Removing day from' : 'Extending'} trip ${direction}`)
       
       // Show loading state
       setIsExtending(true)
+
+      // Determine API parameters based on direction
+      let apiDirection = direction
+      let days = 1
+      
+      if (direction === 'remove-after') {
+        apiDirection = 'after'
+        days = -1 // Negative days for removal
+      } else if (direction === 'remove-before') {
+        apiDirection = 'before'
+        days = -1 // Negative days for removal
+      }
 
       // Call the extend trip API
       const response = await fetch(`/api/trips/${trip.id}/extend`, {
@@ -129,7 +142,7 @@ export function ScheduleTab({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ direction, days: 1 }),
+        body: JSON.stringify({ direction: apiDirection, days }),
         credentials: 'include'
       })
 
@@ -139,22 +152,27 @@ export function ScheduleTab({
       }
 
       const data = await response.json()
-      console.log('✅ [ScheduleTab] Trip extension successful:', data)
+      console.log(`✅ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} successful:`, data)
 
       // Notify parent component to update trip data
       onUpdate('schedule', {
-        start_date: data.updatedTrip.start_date,
-        end_date: data.updatedTrip.end_date,
-        duration: data.updatedTrip.duration
+        schedule: {
+          startDate: new Date(data.updatedTrip.start_date),
+          endDate: new Date(data.updatedTrip.end_date)
+        },
+        trip: {
+          startDate: new Date(data.updatedTrip.start_date),
+          endDate: new Date(data.updatedTrip.end_date)
+        }
       })
 
       // Force refresh activities to reflect new calendar structure
-      console.log('🔄 [ScheduleTab] Refreshing calendar after trip extension')
+      console.log(`🔄 [ScheduleTab] Refreshing calendar after trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'}`)
       await forceRefreshActivities()
       
-      console.log('✅ [ScheduleTab] Trip extension and calendar refresh complete')
+      console.log(`✅ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} and calendar refresh complete`)
     } catch (error: any) {
-      console.error('❌ [ScheduleTab] Trip extension failed:', error)
+      console.error(`❌ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} failed:`, error)
       // Note: Error handling will be managed by useActivityManager
     } finally {
       setIsExtending(false)
@@ -310,6 +328,8 @@ export function ScheduleTab({
           updateActivityDebounced={updateActivityDebounced}
           getActivitiesByDate={getActivitiesByDate}
           onExtendTrip={handleExtendTrip}
+          onRemoveDay={async () => await handleExtendTrip('remove-after')}
+          onRemoveFirstDay={async () => await handleExtendTrip('remove-before')}
           onActivityCreate={handleNewActivity}
           onActivityEdit={handleActivityEdit}
           forceRefreshActivities={forceRefreshActivities}
@@ -580,7 +600,7 @@ export function ScheduleTab({
         
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-            {trip.duration || 3}
+            {calculateDuration(trip.startDate, trip.endDate)}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
             Days
