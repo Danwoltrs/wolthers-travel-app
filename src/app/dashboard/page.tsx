@@ -214,7 +214,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 xl:pt-40 pb-8 transition-colors duration-300">
       {/* Fixed Add Trip Button fine-tuned positioning */}
-      <div className="fixed left-8 top-[200px] md:top-[180px] lg:top-[200px] xl:top-[220px] z-30 hidden xl:block">
+      <div className="fixed left-[calc(50%-400px-160px)] top-[260px] xl:top-[260px] z-30 hidden xl:block">
         <div
           onClick={handleCreateTrip}
           className={cn(
@@ -226,8 +226,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Mobile Add Trip Button - positioned in content flow */}
-      <div className="xl:hidden px-4 sm:px-6 lg:px-8 mb-6">
+      {/* Mobile Add Trip Button - fixed position below header but behind modals */}
+      <div className="fixed top-[135px] left-[55px] right-[55px] xl:hidden z-20">
         <div
           onClick={handleCreateTrip}
           className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 w-full h-[50px]"
@@ -237,7 +237,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0 mt-[90px] xl:mt-0">
         
         {/* Debug info - temporary */}
         <AuthDebug />
