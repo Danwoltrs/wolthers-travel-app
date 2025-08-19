@@ -287,6 +287,33 @@ The Enhanced Quick View Modal provides comprehensive trip editing capabilities w
 - Consistent spacing and progress indicators
 - Clean typography with proper text truncation
 
+##### Search Input Fields
+**Standard Search Input Pattern** (to prevent icon/text overlap issues):
+```jsx
+{/* Container */}
+<div className="relative">
+  {/* Search Icon */}
+  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+    <Search className="w-4 h-4 text-gray-400" />
+  </div>
+  {/* Input Field */}
+  <input
+    type="text"
+    placeholder="Search name or email"
+    value={searchValue}
+    onChange={(e) => handleSearch(e.target.value)}
+    style={{ paddingLeft: '36px' }}
+    className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+  />
+</div>
+```
+
+**Key Requirements:**
+- Search icon positioned at `left-2` (8px from left edge)
+- Input field uses inline style `paddingLeft: '36px'` for precise spacing
+- Never use Tailwind `pl-` classes for search inputs (causes overlap)
+- Icon calculation: 8px position + 16px icon width + 12px spacing = 36px padding
+
 #### Design Philosophy
 Nordic minimalism meets corporate travel—professional, trustworthy, and visually clean. The forest green anchors the brand while gold accents add warmth and guide attention.
 
@@ -344,6 +371,12 @@ Nordic minimalism meets corporate travel—professional, trustworthy, and visual
 - **Trip Page Layout**: Adjusted mobile spacing - TripHeader uses `mt-36` on mobile and `mt-6` on desktop for proper clearance from navigation bar
 - **Google Maps API Integration**: Complete implementation with geocoding, route planning, and calendar export functionality
 - **Fixed Nested Button Hydration Error**: Resolved HTML validation issues in activity components
+- **✅ REAL-TIME PARTICIPANT SYNCHRONIZATION**: Implemented complete real-time participant management system
+  - **Issue**: Participant changes in edit mode weren't reflected in view mode, causing data inconsistency
+  - **Solution**: Created comprehensive data flow from ParticipantsSection → QuickViewModal → OverviewTab with live participant data
+  - **Features**: Real-time updates, duplicate prevention, save prompts when switching modes, and instant synchronization across all UI components
+  - **Result**: Participants now update instantly across edit mode, view mode, overview tab, and dashboard cards without requiring page refresh
+  - **Status**: ✅ WORKING PERFECTLY - Validated with full add/remove participant workflow
 
 ### Current Project Status
 

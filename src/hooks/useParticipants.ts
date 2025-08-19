@@ -2,7 +2,7 @@
  * Participants management hook with optimistic updates and real-time synchronization
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Database } from '@/types/database'
 import { batchCheckAvailability, PersonAvailability, getMockAvailability } from '@/lib/availability'
 
@@ -105,6 +105,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
   const [loading, setLoading] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasLoadedRef = useRef(false)
   
   const [filters, setFiltersState] = useState<ParticipantFilters>({
     search: '',
@@ -174,7 +175,10 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
   // Load participants from API (for now, use mock data with Wolthers staff)
   const loadParticipants = useCallback(async () => {
     try {
-      setLoading(true)
+      // Only show loading if we haven't loaded before
+      if (!hasLoadedRef.current) {
+        setLoading(true)
+      }
       setError(null)
       
       // Load both trip participants and available Wolthers staff
@@ -269,6 +273,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
         })
       
       setParticipants(mockParticipants)
+      hasLoadedRef.current = true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load participants'
       setError(errorMessage)
@@ -313,15 +318,36 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
 
   // Add participant with optimistic update
   const addParticipant = useCallback(async (newParticipant: Omit<EnhancedParticipant, 'id' | 'isOptimistic'>) => {
-    const optimisticId = `temp-${Date.now()}-${Math.random()}`
-    const optimisticParticipant: EnhancedParticipant = {
-      ...newParticipant,
-      id: optimisticId,
-      isOptimistic: true
+    // Check if participant already exists in the list
+    const existingParticipant = participants.find(p => p.personId === newParticipant.personId)
+    
+    let optimisticId: string
+    if (existingParticipant) {
+      // Update existing participant instead of creating duplicate
+      optimisticId = existingParticipant.id
+      setParticipants(prev => prev.map(p => 
+        p.personId === newParticipant.personId
+          ? { 
+              ...p, 
+              isOptimistic: true,
+              metadata: { 
+                ...p.metadata, 
+                addedToTrip: true,
+                isAlreadyParticipant: true 
+              } 
+            }
+          : p
+      ))
+    } else {
+      // Create new participant entry
+      optimisticId = `temp-${Date.now()}-${Math.random()}`
+      const optimisticParticipant: EnhancedParticipant = {
+        ...newParticipant,
+        id: optimisticId,
+        isOptimistic: true
+      }
+      setParticipants(prev => [...prev, optimisticParticipant])
     }
-
-    // Optimistic update
-    setParticipants(prev => [...prev, optimisticParticipant])
 
     try {
       // Transform participant data to match API expectations
@@ -369,12 +395,30 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
       return savedParticipant
     } catch (err) {
       // Rollback optimistic update
-      setParticipants(prev => prev.filter(p => p.id !== optimisticId))
+      if (existingParticipant) {
+        // Revert metadata for existing participant
+        setParticipants(prev => prev.map(p => 
+          p.id === optimisticId
+            ? { 
+                ...p, 
+                isOptimistic: false,
+                metadata: { 
+                  ...p.metadata, 
+                  addedToTrip: false,
+                  isAlreadyParticipant: false 
+                } 
+              }
+            : p
+        ))
+      } else {
+        // Remove new participant that failed to save
+        setParticipants(prev => prev.filter(p => p.id !== optimisticId))
+      }
       const errorMessage = err instanceof Error ? err.message : 'Failed to add participant'
       setError(errorMessage)
       throw err
     }
-  }, [tripId])
+  }, [tripId, participants])
 
   // Remove participant with optimistic update
   const removeParticipant = useCallback(async (participantId: string) => {
@@ -561,9 +605,11 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
     setError(null)
   }, [])
 
-  // Load participants on mount
+  // Load participants on mount - only when we haven't loaded yet
   useEffect(() => {
-    loadParticipants()
+    if (!hasLoadedRef.current) {
+      loadParticipants()
+    }
   }, [loadParticipants])
 
   // Refresh availability when participants change

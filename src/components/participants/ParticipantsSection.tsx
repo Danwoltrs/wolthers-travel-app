@@ -8,17 +8,26 @@ import { Users, Building, UserPlus, RotateCcw, AlertCircle } from 'lucide-react'
 import { useParticipants, ParticipantRole } from '@/hooks/useParticipants'
 import { ParticipantsToolbar } from './ParticipantsToolbar'
 import { ParticipantRow } from './ParticipantRow'
+import { EnhancedGuestInvitationModal } from './EnhancedGuestInvitationModal'
 
 interface ParticipantsSectionProps {
   tripId: string
   tripDateRange: { start: string; end: string }
   className?: string
+  onParticipantStatsChange?: (stats: { 
+    total: number; 
+    staff: number; 
+    guests: number;
+    staffMembers: Array<{ id: string; fullName: string }>;
+    guestMembers: Array<{ id: string; fullName: string }>;
+  }) => void
 }
 
 type TabType = 'staff' | 'company' | 'external'
 
-export function ParticipantsSection({ tripId, tripDateRange, className = '' }: ParticipantsSectionProps) {
+export function ParticipantsSection({ tripId, tripDateRange, className = '', onParticipantStatsChange }: ParticipantsSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('staff')
+  const [showGuestInvitationModal, setShowGuestInvitationModal] = useState(false)
 
   const {
     filteredParticipants,
@@ -54,6 +63,26 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
         return []
     }
   }, [activeTab, availableStaff, companyReps, externalGuests])
+
+  // Notify parent of participant stats changes
+  React.useEffect(() => {
+    if (onParticipantStatsChange) {
+      const addedStaff = availableStaff.filter(p => p.metadata?.addedToTrip)
+      const addedCompanyReps = companyReps.filter(p => p.metadata?.addedToTrip)
+      const addedExternalGuests = externalGuests.filter(p => p.metadata?.addedToTrip)
+      
+      const staffCount = addedStaff.length
+      const guestCount = addedCompanyReps.length + addedExternalGuests.length
+      
+      onParticipantStatsChange({
+        total: staffCount + guestCount,
+        staff: staffCount,
+        guests: guestCount,
+        staffMembers: addedStaff.map(p => ({ id: p.id, fullName: p.fullName })),
+        guestMembers: [...addedCompanyReps, ...addedExternalGuests].map(p => ({ id: p.id, fullName: p.fullName }))
+      })
+    }
+  }, [availableStaff, companyReps, externalGuests, onParticipantStatsChange])
 
   // Tab configuration
   const tabs = [
@@ -113,6 +142,19 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
       }
     } catch (err) {
       console.error('Failed to toggle participant:', err)
+    }
+  }
+
+  // Handle guest invitation sent
+  const handleGuestInvitationSent = () => {
+    // Refresh participants to show any updates
+    refreshAvailability()
+  }
+
+  // Handle add guest button click
+  const handleAddGuestClick = () => {
+    if (activeTab === 'company' || activeTab === 'external') {
+      setShowGuestInvitationModal(true)
     }
   }
 
@@ -176,7 +218,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
       )}
 
       {/* Content Section */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-sm border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col flex-1">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-sm border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col flex-1 min-h-[400px]">
         {/* Toolbar */}
         <ParticipantsToolbar
           filters={filters}
@@ -193,7 +235,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
 
         {/* Participants List */}
         <div className="divide-y divide-gray-100 dark:divide-[#2a2a2a] flex-1 overflow-y-auto">
-          {loading && currentTabParticipants.length === 0 ? (
+          {loading && activeTab === 'staff' ? (
             <div className="px-4 md:px-6 py-12 text-center">
               <div className="text-gray-500 dark:text-gray-400">Loading participants...</div>
             </div>
@@ -208,19 +250,36 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
               />
             ))
           ) : (
-            /* Empty State - Only show for company and external, staff should always load from API */
+            /* Empty State with Add Guest Button for company and external tabs */
             <div className="px-4 md:px-6 py-12 text-center">
               <currentTab.emptyState.icon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                {activeTab === 'staff' ? 'Loading staff members...' : currentTab.emptyState.title}
+                {currentTab.emptyState.title}
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                {activeTab === 'staff' ? 'Please wait while we load Wolthers staff members' : currentTab.emptyState.description}
+              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto mb-6">
+                {currentTab.emptyState.description}
               </p>
+              {(activeTab === 'company' || activeTab === 'external') && (
+                <button
+                  onClick={handleAddGuestClick}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add {activeTab === 'company' ? 'Company Guest' : 'External Guest'}</span>
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Enhanced Guest Invitation Modal */}
+      <EnhancedGuestInvitationModal
+        isOpen={showGuestInvitationModal}
+        onClose={() => setShowGuestInvitationModal(false)}
+        tripId={tripId}
+        onInvitationSent={handleGuestInvitationSent}
+      />
 
     </div>
   )

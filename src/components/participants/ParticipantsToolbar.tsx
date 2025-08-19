@@ -74,7 +74,7 @@ export function ParticipantsToolbar({
 
             {/* Search Input */}
             <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <Search className="w-4 h-4 text-gray-400" />
               </div>
               <input
@@ -82,7 +82,8 @@ export function ParticipantsToolbar({
                 placeholder="Search name or email"
                 value={filters.search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-12 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                style={{ paddingLeft: '36px' }}
+                className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
               />
             </div>
 

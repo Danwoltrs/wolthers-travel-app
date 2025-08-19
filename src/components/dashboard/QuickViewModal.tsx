@@ -130,6 +130,13 @@ const groupDestinationsByLocation = (destinations: Array<{date: string, location
 export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly = false }: QuickViewModalProps) {
   const [showCopyTooltip, setShowCopyTooltip] = useState(false)
   const [localTrip, setLocalTrip] = useState<TripCardType>(trip)
+  const [liveParticipantStats, setLiveParticipantStats] = useState({ 
+    total: trip.wolthersStaff.length, 
+    staff: trip.wolthersStaff.length, 
+    guests: trip.guests.length,
+    staffMembers: trip.wolthersStaff.map(staff => ({ id: staff.id, fullName: staff.fullName })),
+    guestMembers: trip.guests.map(guest => ({ id: guest.id, fullName: guest.name }))
+  })
   
   // Enhanced modal state management
   const {
@@ -144,6 +151,19 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     isAutoSaving
   } = useEnhancedModal(localTrip, { onSave, autoSaveEnabled: true })
   
+  // Update localTrip.wolthersStaff when live participant data changes
+  React.useEffect(() => {
+    setLocalTrip(prev => ({
+      ...prev,
+      wolthersStaff: liveParticipantStats.staffMembers.map(staff => ({
+        id: staff.id,
+        fullName: staff.fullName,
+        email: '', // We don't have email in the live data, but it's needed for the type
+        role: 'staff' as any
+      }))
+    }))
+  }, [liveParticipantStats.staffMembers])
+
   // Handle form data updates that affect the trip object
   const handleTripUpdate = useCallback((tab: string, updates: any) => {
     updateFormData(tab as any, updates)
@@ -165,6 +185,32 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   
   const { activeTab, editingMode } = modalState
   const isEditing = editingMode === 'edit'
+  
+  // Handle mode switching with save prompt
+  const handleModeSwitch = useCallback(() => {
+    if (isEditing && hasUnsavedChanges) {
+      // Ask user if they want to save changes before switching to view mode
+      const shouldSave = window.confirm(
+        "You have unsaved changes. Do you want to save them before switching to view mode?"
+      )
+      
+      if (shouldSave) {
+        // Save and then switch to view mode
+        saveFormData().then(() => {
+          setEditingMode('view')
+        }).catch(() => {
+          // If save fails, stay in edit mode
+          console.error('Failed to save changes')
+        })
+      } else {
+        // Switch without saving
+        setEditingMode('view')
+      }
+    } else {
+      // No unsaved changes, just switch mode
+      setEditingMode(isEditing ? 'view' : 'edit')
+    }
+  }, [isEditing, hasUnsavedChanges, saveFormData, setEditingMode])
   
   if (!isOpen) return null
 
@@ -258,7 +304,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
               {/* Edit Toggle */}
               {!readOnly && (
                 <button
-                  onClick={() => setEditingMode(isEditing ? 'view' : 'edit')}
+                  onClick={handleModeSwitch}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isEditing 
                       ? 'bg-[#009B77] text-white hover:bg-[#008066] dark:bg-emerald-800/50 dark:text-golden-400' 
@@ -357,6 +403,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     tripDetails={tripDetails}
                     onUpdate={handleTripUpdate}
                     validationState={modalState.validationState.overview}
+                    liveParticipantStats={liveParticipantStats}
                   />
                 )}
                 
@@ -376,6 +423,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                       start: localTrip.startDate instanceof Date ? localTrip.startDate.toISOString().split('T')[0] : localTrip.startDate, 
                       end: localTrip.endDate instanceof Date ? localTrip.endDate.toISOString().split('T')[0] : localTrip.endDate 
                     }}
+                    onParticipantStatsChange={setLiveParticipantStats}
                   />
                 )}
                 
@@ -427,13 +475,13 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     )}
                     
                     {/* Wolthers Staff */}
-                    {localTrip.wolthersStaff.length > 0 && (
+                    {liveParticipantStats.staffMembers.length > 0 && (
                       <>
                         {localTrip.client.length > 0 && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
                           {' '}
-                          {localTrip.wolthersStaff.map(staff => staff.fullName).join(', ')}
+                          {liveParticipantStats.staffMembers.map(staff => staff.fullName).join(', ')}
                         </span>
                       </>
                     )}
@@ -441,7 +489,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     {/* Vehicles */}
                     {localTrip.vehicles.length > 0 && (
                       <>
-                        {(localTrip.client.length > 0 || localTrip.wolthersStaff.length > 0) && ' | '}
+                        {(localTrip.client.length > 0 || liveParticipantStats.staffMembers.length > 0) && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
                           {' '}
@@ -453,7 +501,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     {/* Drivers */}
                     {localTrip.drivers.length > 0 && (
                       <>
-                        {(localTrip.client.length > 0 || localTrip.wolthersStaff.length > 0 || localTrip.vehicles.length > 0) && ' | '}
+                        {(localTrip.client.length > 0 || liveParticipantStats.staffMembers.length > 0 || localTrip.vehicles.length > 0) && ' | '}
                         <span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
                           {' '}
@@ -489,7 +537,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     })}
 
                     {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
-                    {(localTrip.wolthersStaff.length > 0 || localTrip.vehicles.length > 0 || localTrip.drivers.length > 0) && (
+                    {(liveParticipantStats.staffMembers.length > 0 || localTrip.vehicles.length > 0 || localTrip.drivers.length > 0) && (
                       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
                         <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
                           {/* Wolthers Staff */}
@@ -497,9 +545,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                             <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
                               Wolthers Staff
                             </h4>
-                            {localTrip.wolthersStaff.length > 0 ? (
+                            {liveParticipantStats.staffMembers.length > 0 ? (
                               <div className="space-y-1">
-                                {localTrip.wolthersStaff.map((staff) => (
+                                {liveParticipantStats.staffMembers.map((staff) => (
                                   <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
                                     {staff.fullName}
                                   </div>
@@ -821,12 +869,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    if (hasUnsavedChanges && !confirm('You have unsaved changes. Are you sure you want to exit editing mode?')) {
-                      return
-                    }
-                    setEditingMode('view')
-                  }}
+                  onClick={handleModeSwitch}
                   className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}

@@ -16,13 +16,21 @@ interface OverviewTabProps {
   tripDetails?: any
   onUpdate: (tab: 'overview', updates: any) => void
   validationState: TabValidationState
+  liveParticipantStats?: { 
+    total: number; 
+    staff: number; 
+    guests: number;
+    staffMembers: Array<{ id: string; fullName: string }>;
+    guestMembers: Array<{ id: string; fullName: string }>;
+  }
 }
 
 export function OverviewTab({ 
   trip, 
   tripDetails, 
   onUpdate, 
-  validationState 
+  validationState,
+  liveParticipantStats
 }: OverviewTabProps) {
   const [formData, setFormData] = useState({
     title: trip.title,
@@ -248,7 +256,7 @@ export function OverviewTab({
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {trip.wolthersStaff.length}
+                  {liveParticipantStats?.staff ?? trip.wolthersStaff.length}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Staff

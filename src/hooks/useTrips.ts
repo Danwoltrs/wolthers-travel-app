@@ -56,7 +56,8 @@ export function useTrips() {
     }
   }
 
-  useEffect(() => {
+  // Define fetchTrips outside useEffect so refetch can access it
+  const fetchTrips = React.useCallback(async () => {
     // Don't fetch if not authenticated
     if (!isAuthenticated || !session || !user) {
       console.log('useTrips: Skipping fetch - auth state:', { 
@@ -71,10 +72,9 @@ export function useTrips() {
       return
     }
 
-    const fetchTrips = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    try {
+      setLoading(true)
+      setError(null)
         
         // Debug authentication context
         console.log('useTrips: Starting fetch with user:', user.email, 'role:', user.role)
@@ -481,7 +481,9 @@ export function useTrips() {
       } finally {
         setLoading(false)
       }
-    }
+  }, [isAuthenticated, session, user])
+
+  useEffect(() => {
 
     fetchTrips()
 
@@ -522,7 +524,7 @@ export function useTrips() {
   // Create a refetch function
   const refetch = React.useCallback(() => {
     fetchTrips()
-  }, [isAuthenticated, session, user])
+  }, [fetchTrips])
 
   return { trips, loading, error, isOffline, refetch }
 }
@@ -533,10 +535,17 @@ export function useTripDetails(tripId: string) {
   const [error, setError] = useState<string | null>(null)
   const [actualTripId, setActualTripId] = useState<string | null>(null)
   
-  const { session } = useAuth()
+  const { session, isAuthenticated, user } = useAuth()
 
   useEffect(() => {
     if (!tripId) return
+    
+    // Don't fetch if not authenticated
+    if (!isAuthenticated || !user) {
+      console.log('useTripDetails: Skipping fetch - not authenticated')
+      setLoading(false)
+      return
+    }
 
     const fetchTripDetails = async () => {
       try {
@@ -599,11 +608,18 @@ export function useTripDetails(tripId: string) {
           throw new Error(errorMessage)
         }
 
-        const result = await response.json()
-        const tripData = result.trip
+        let result
+        try {
+          result = await response.json()
+        } catch (jsonError) {
+          console.error('Failed to parse response as JSON:', jsonError)
+          throw new Error('Server returned invalid response format')
+        }
+        
+        const tripData = result?.trip
 
         if (!tripData) {
-          throw new Error('Trip not found')
+          throw new Error('Trip not found in response')
         }
 
         // Store the actual trip ID for any future operations
@@ -618,14 +634,25 @@ export function useTripDetails(tripId: string) {
 
       } catch (err) {
         console.error('Error fetching trip details:', err)
-        console.error('Error details:', {
-          message: err instanceof Error ? err.message : 'Unknown error',
-          stack: err instanceof Error ? err.stack : undefined,
-          type: typeof err,
-          tripId,
-          errorObject: err
-        })
-        setError(err instanceof Error ? err.message : 'Failed to fetch trip details')
+        
+        let errorMessage = 'Failed to fetch trip details'
+        if (err instanceof Error) {
+          errorMessage = err.message
+          console.error('Error details:', {
+            message: err.message,
+            stack: err.stack,
+            type: typeof err,
+            tripId
+          })
+        } else {
+          console.error('Non-Error object thrown:', {
+            type: typeof err,
+            tripId,
+            errorValue: err
+          })
+        }
+        
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }
@@ -639,7 +666,7 @@ export function useTripDetails(tripId: string) {
     return () => {
       // Cleanup would go here if needed
     }
-  }, [tripId])
+  }, [tripId, isAuthenticated, user])
 
   return { trip, loading, error }
 }

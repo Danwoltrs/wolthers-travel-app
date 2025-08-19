@@ -178,6 +178,8 @@ export default function Dashboard() {
 
   const closeModal = () => {
     setSelectedTrip(null)
+    // Refetch trip data to get updated participant information
+    refetch()
   }
 
   // Handle loading and error states within the main render to maintain hooks order
