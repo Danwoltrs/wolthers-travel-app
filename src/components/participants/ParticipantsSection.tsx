@@ -9,6 +9,7 @@ import { useParticipants, ParticipantRole } from '@/hooks/useParticipants'
 import { ParticipantsToolbar } from './ParticipantsToolbar'
 import { ParticipantRow } from './ParticipantRow'
 import { EnhancedGuestInvitationModal } from './EnhancedGuestInvitationModal'
+import { InvitationsTable } from './InvitationsTable'
 
 interface ParticipantsSectionProps {
   tripId: string
@@ -34,6 +35,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
     availableStaff,
     companyReps,
     externalGuests,
+    pendingInvitations,
     filters,
     setFilters,
     stats,
@@ -252,16 +254,28 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
               />
             ))
           ) : (
-            /* Empty State */
-            <div className="px-4 md:px-6 py-12 text-center">
-              <currentTab.emptyState.icon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                {currentTab.emptyState.title}
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                {currentTab.emptyState.description}
-              </p>
-            </div>
+            /* Show invitations table for company and external guests, or empty state for staff */
+            activeTab === 'company' || activeTab === 'external' ? (
+              <InvitationsTable 
+                invitations={pendingInvitations.filter(inv => 
+                  activeTab === 'company' 
+                    ? inv.invitation_type === 'company_guest'
+                    : inv.invitation_type === 'external_guest'
+                )}
+                className="flex-1"
+              />
+            ) : (
+              /* Empty State for Staff */
+              <div className="px-4 md:px-6 py-12 text-center">
+                <currentTab.emptyState.icon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  {currentTab.emptyState.title}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                  {currentTab.emptyState.description}
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>

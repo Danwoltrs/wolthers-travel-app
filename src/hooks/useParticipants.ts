@@ -58,6 +58,23 @@ export interface UseParticipantsOptions {
   enableRealtime?: boolean
 }
 
+export interface PendingInvitation {
+  id: string
+  guest_email: string
+  guest_name: string
+  guest_company?: string
+  guest_title?: string
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+  sent_at: string
+  email_sent_count: number
+  last_email_sent_at?: string
+  invitation_type: 'company_guest' | 'external_guest'
+  invited_by: string
+  invited_by_user?: {
+    full_name: string
+  }
+}
+
 export interface UseParticipantsReturn {
   // Data
   participants: EnhancedParticipant[]
@@ -65,6 +82,7 @@ export interface UseParticipantsReturn {
   availableStaff: EnhancedParticipant[]
   companyReps: EnhancedParticipant[]
   externalGuests: EnhancedParticipant[]
+  pendingInvitations: PendingInvitation[]
   
   // Filters
   filters: ParticipantFilters
@@ -112,6 +130,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
   const { tripId, tripDateRange, enableRealtime = true } = options
   
   const [participants, setParticipants] = useState<EnhancedParticipant[]>([])
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -216,8 +235,13 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
       
       if (participantsResponse.ok) {
         const participantsData = await participantsResponse.json()
-        // API returns {success: true, staff: [...], guests: []} format
+        // API returns {success: true, staff: [...], guests: [], pendingInvitations: []} format
         existingParticipants = participantsData.staff || []
+        
+        // Set pending invitations data
+        if (participantsData.pendingInvitations) {
+          setPendingInvitations(participantsData.pendingInvitations)
+        }
       }
       
       // Check which staff are already participants
@@ -637,6 +661,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
     availableStaff,
     companyReps,
     externalGuests,
+    pendingInvitations,
     
     // Filters
     filters,
