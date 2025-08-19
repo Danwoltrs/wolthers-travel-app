@@ -2,22 +2,42 @@
  * Clean, minimal table showing all pending and accepted guest invitations
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { 
   UserCheck,
   UserX, 
   Send,
   Clock,
-  Mail
+  Mail,
+  RefreshCcw
 } from 'lucide-react'
 import { PendingInvitation } from '@/hooks/useParticipants'
 
 interface InvitationsTableProps {
   invitations: PendingInvitation[]
   className?: string
+  onResendInvitation?: (invitation: PendingInvitation) => Promise<void>
 }
 
-export function InvitationsTable({ invitations, className = '' }: InvitationsTableProps) {
+export function InvitationsTable({ invitations, className = '', onResendInvitation }: InvitationsTableProps) {
+  const [resendingIds, setResendingIds] = useState<Set<string>>(new Set())
+
+  const handleResendInvitation = async (invitation: PendingInvitation) => {
+    if (!onResendInvitation || resendingIds.has(invitation.id)) return
+    
+    setResendingIds(prev => new Set(prev).add(invitation.id))
+    
+    try {
+      await onResendInvitation(invitation)
+    } finally {
+      setResendingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(invitation.id)
+        return newSet
+      })
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
@@ -87,6 +107,9 @@ export function InvitationsTable({ invitations, className = '' }: InvitationsTab
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Status
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-[#1a1a1a] divide-y divide-gray-200 dark:divide-[#2a2a2a]">
@@ -134,6 +157,28 @@ export function InvitationsTable({ invitations, className = '' }: InvitationsTab
                     {getStatusIcon(invitation.status)}
                     {getStatusText(invitation.status)}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {invitation.status === 'pending' && onResendInvitation && (
+                    <button
+                      onClick={() => handleResendInvitation(invitation)}
+                      disabled={resendingIds.has(invitation.id)}
+                      className="flex items-center space-x-1 px-3 py-1 text-xs bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Send reminder email"
+                    >
+                      {resendingIds.has(invitation.id) ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border border-amber-700 dark:border-amber-300 border-t-transparent"></div>
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCcw className="w-3 h-3" />
+                          <span>Resend</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

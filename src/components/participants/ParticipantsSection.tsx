@@ -153,6 +153,42 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
     refreshAvailability()
   }
 
+  // Handle resending invitation
+  const handleResendInvitation = async (invitation: any) => {
+    try {
+      const response = await fetch('/api/guests/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          tripId,
+          guestEmail: invitation.guest_email,
+          guestName: invitation.guest_name,
+          guestCompany: invitation.guest_company,
+          guestTitle: invitation.guest_title,
+          guestPhone: invitation.guest_phone,
+          message: `Reminder: You previously received an invitation for this trip.`,
+          invitationType: invitation.invitation_type,
+          isReminder: true
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to resend invitation')
+      }
+
+      // Refresh participants to show updated reminder count
+      refreshAvailability()
+    } catch (error) {
+      console.error('Failed to resend invitation:', error)
+      // You could add toast notification here
+      throw error
+    }
+  }
+
   // Handle add guest button click
   const handleAddGuestClick = () => {
     if (activeTab === 'company' || activeTab === 'external') {
@@ -263,6 +299,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
                     : inv.invitation_type === 'external_guest'
                 )}
                 className="flex-1"
+                onResendInvitation={handleResendInvitation}
               />
             ) : (
               /* Empty State for Staff */
