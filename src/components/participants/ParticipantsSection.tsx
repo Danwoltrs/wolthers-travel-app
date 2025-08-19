@@ -9,6 +9,7 @@ import { useParticipants, ParticipantRole } from '@/hooks/useParticipants'
 import { ParticipantsToolbar } from './ParticipantsToolbar'
 import { ParticipantRow } from './ParticipantRow'
 import { EnhancedGuestInvitationModal } from './EnhancedGuestInvitationModal'
+import { CompanySelectionModal } from './CompanySelectionModal'
 import { InvitationsTable } from './InvitationsTable'
 
 interface ParticipantsSectionProps {
@@ -29,6 +30,7 @@ type TabType = 'staff' | 'company' | 'external'
 export function ParticipantsSection({ tripId, tripDateRange, className = '', onParticipantStatsChange }: ParticipantsSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('staff')
   const [showGuestInvitationModal, setShowGuestInvitationModal] = useState(false)
+  const [showCompanySelectionModal, setShowCompanySelectionModal] = useState(false)
 
   const {
     filteredParticipants,
@@ -108,8 +110,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
       color: 'violet',
       emptyState: {
         icon: Building,
-        title: 'No company representatives yet',
-        description: 'Add client company representatives to this trip'
+        title: 'No companies selected yet',
+        description: 'Select companies and their staff to invite to this trip'
       }
     },
     { 
@@ -121,7 +123,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
       emptyState: {
         icon: UserPlus,
         title: 'No external guests yet',
-        description: 'Add external guests and contractors'
+        description: 'Add outsider guests joining Wolthers trips'
       }
     }
   ]
@@ -170,7 +172,7 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
           guestTitle: invitation.guest_title,
           guestPhone: invitation.guest_phone,
           message: `Reminder: You previously received an invitation for this trip.`,
-          invitationType: invitation.invitation_type,
+          invitationType: activeTab === 'external' ? 'company_guest' : 'external_guest', // Swapped logic
           isReminder: true
         })
       })
@@ -191,7 +193,9 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
 
   // Handle add guest button click
   const handleAddGuestClick = () => {
-    if (activeTab === 'company' || activeTab === 'external') {
+    if (activeTab === 'company') {
+      setShowCompanySelectionModal(true)
+    } else if (activeTab === 'external') {
       setShowGuestInvitationModal(true)
     }
   }
@@ -295,8 +299,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
               <InvitationsTable 
                 invitations={pendingInvitations.filter(inv => 
                   activeTab === 'company' 
-                    ? inv.invitation_type === 'company_guest'
-                    : inv.invitation_type === 'external_guest'
+                    ? inv.invitation_type === 'external_guest' // Company tab now shows external guest invitations
+                    : inv.invitation_type === 'company_guest'  // External tab now shows company guest invitations
                 )}
                 className="flex-1"
                 onResendInvitation={handleResendInvitation}
@@ -317,10 +321,18 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
         </div>
       </div>
 
-      {/* Enhanced Guest Invitation Modal */}
+      {/* Enhanced Guest Invitation Modal - for External Guests */}
       <EnhancedGuestInvitationModal
         isOpen={showGuestInvitationModal}
         onClose={() => setShowGuestInvitationModal(false)}
+        tripId={tripId}
+        onInvitationSent={handleGuestInvitationSent}
+      />
+
+      {/* Company Selection Modal - for Company Guests */}
+      <CompanySelectionModal
+        isOpen={showCompanySelectionModal}
+        onClose={() => setShowCompanySelectionModal(false)}
         tripId={tripId}
         onInvitationSent={handleGuestInvitationSent}
       />

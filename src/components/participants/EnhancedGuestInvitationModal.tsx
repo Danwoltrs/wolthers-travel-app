@@ -159,7 +159,7 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
           guestTitle: formData.guestTitle?.trim() || undefined,
           guestPhone: formData.guestPhone?.trim() || undefined,
           message: formData.message?.trim() || undefined,
-          invitationType: 'company_guest',
+          invitationType: 'company_guest', // External guests still use company_guest type (swapped logic)
           isReminder: isReminderMode
         })
       })
@@ -245,7 +245,7 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
         
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] text-white dark:text-golden-400 px-6 py-4 border-b border-pearl-200 dark:border-[#0a2e21] flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Invite Company Guest</h2>
+          <h2 className="text-lg font-semibold">Invite External Guest</h2>
           <button 
             onClick={handleClose}
             disabled={loading}
