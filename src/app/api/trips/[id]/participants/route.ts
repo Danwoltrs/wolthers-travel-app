@@ -398,7 +398,7 @@ export async function GET(
       .select(`
         user_id,
         role,
-        users (
+        users!trip_participants_user_id_fkey (
           id,
           full_name,
           email
