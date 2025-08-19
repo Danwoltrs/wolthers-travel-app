@@ -43,14 +43,21 @@ function AcceptInvitationContent() {
       }
 
       try {
-        const response = await fetch(`/api/guests/accept?token=${token}`)
+        const response = await fetch(`/api/guests/accept?token=${token}`, {
+          credentials: 'include' // Include cookies to check if user is already logged in
+        })
         const result = await response.json()
 
         if (!response.ok) {
-          throw new Error(result.error || 'Invalid invitation')
+          // Check if this is because user is already authenticated as staff
+          if (response.status === 404 && result.error?.includes('Invalid or expired invitation')) {
+            setError('This invitation link may be invalid, expired, or you may already be logged in as a staff member. If you are a Wolthers staff member, please access the trip directly from the dashboard.')
+          } else {
+            throw new Error(result.error || 'Invalid invitation')
+          }
+        } else {
+          setInvitation(result.invitation)
         }
-
-        setInvitation(result.invitation)
       } catch (error) {
         console.error('Failed to validate invitation:', error)
         setError(error instanceof Error ? error.message : 'Failed to validate invitation')
@@ -122,6 +129,8 @@ function AcceptInvitationContent() {
   }
 
   if (error) {
+    const isStaffAlreadyLoggedIn = error.includes('staff member')
+    
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
@@ -129,16 +138,34 @@ function AcceptInvitationContent() {
             <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
           </div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Invalid Invitation
+            {isStaffAlreadyLoggedIn ? 'Already Logged In' : 'Invalid Invitation'}
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
-          <Button
-            onClick={() => window.location.href = '/'}
-            variant="outline"
-            className="w-full"
-          >
-            Go to Homepage
-          </Button>
+          <div className="space-y-3">
+            {isStaffAlreadyLoggedIn ? (
+              <Button
+                onClick={() => window.location.href = '/dashboard'}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Go to Dashboard
+              </Button>
+            ) : (
+              <Button
+                onClick={() => window.location.href = '/'}
+                variant="outline"
+                className="w-full"
+              >
+                Go to Homepage
+              </Button>
+            )}
+            <Button
+              onClick={() => window.location.href = '/auth/logout'}
+              variant="outline"
+              className="w-full"
+            >
+              Sign Out & Try Again
+            </Button>
+          </div>
         </div>
       </div>
     )

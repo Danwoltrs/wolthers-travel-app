@@ -96,16 +96,31 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get invitation details
+    // Get invitation details with trip and invited by user info
     const { data: invitation, error: invitationError } = await supabase
-      .from('active_guest_invitations')
-      .select('*')
+      .from('guest_invitations')
+      .select(`
+        *,
+        trips!guest_invitations_trip_id_fkey (
+          id,
+          title,
+          start_date,
+          end_date,
+          access_code
+        ),
+        invited_by_user:users!guest_invitations_invited_by_fkey (
+          full_name
+        )
+      `)
       .eq('invitation_token', token)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString()) // Only non-expired invitations
       .single()
 
     if (invitationError || !invitation) {
+      console.error('Invitation validation error:', invitationError)
       return NextResponse.json(
-        { error: 'Invalid or expired invitation' },
+        { error: invitationError?.code === 'PGRST116' ? 'Invalid or expired invitation' : 'Failed to validate invitation' },
         { status: 404 }
       )
     }
@@ -118,10 +133,10 @@ export async function GET(request: NextRequest) {
         guest_email: invitation.guest_email,
         guest_company: invitation.guest_company,
         guest_title: invitation.guest_title,
-        trip_title: invitation.trip_title,
-        trip_start_date: invitation.trip_start_date,
-        trip_end_date: invitation.trip_end_date,
-        invited_by_name: invitation.invited_by_name,
+        trip_title: invitation.trips?.title,
+        trip_start_date: invitation.trips?.start_date,
+        trip_end_date: invitation.trips?.end_date,
+        invited_by_name: invitation.invited_by_user?.full_name,
         invitation_message: invitation.invitation_message,
         expires_at: invitation.expires_at
       }
