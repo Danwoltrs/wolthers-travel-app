@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Mail, User, Building, Phone, MessageSquare, Send, AlertCircle, Search, Clock, Users } from 'lucide-react'
+import { X, Mail, User, Building, Phone, MessageSquare, Send, AlertCircle, Search, Clock, Users, RefreshCw, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface GuestInvitationModalProps {
@@ -18,6 +18,13 @@ interface GuestInvitationData {
   guestTitle?: string
   guestPhone?: string
   message?: string
+}
+
+interface ExistingInvitation {
+  id: string
+  sent_at: string
+  email_sent_count: number
+  expires_at: string
 }
 
 interface SavedGuest {
@@ -58,6 +65,11 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  
+  // Reminder state
+  const [existingInvitation, setExistingInvitation] = useState<ExistingInvitation | null>(null)
+  const [isReminderMode, setIsReminderMode] = useState(false)
+  const [canSendReminder, setCanSendReminder] = useState(false)
 
   // Search for saved guests
   useEffect(() => {
@@ -94,6 +106,13 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
   const handleInputChange = (field: keyof GuestInvitationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
+    
+    // Reset reminder states when email changes
+    if (field === 'guestEmail') {
+      setExistingInvitation(null)
+      setIsReminderMode(false)
+      setCanSendReminder(false)
+    }
   }
 
   const handleGuestSelect = (guest: SavedGuest) => {
@@ -106,6 +125,11 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
       guestPhone: guest.phone || '',
       message: ''
     })
+    // Reset reminder states when selecting a new guest
+    setExistingInvitation(null)
+    setIsReminderMode(false)
+    setCanSendReminder(false)
+    setError(null)
     setMode('new') // Switch to form mode with pre-filled data
   }
 
@@ -135,13 +159,22 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
           guestTitle: formData.guestTitle?.trim() || undefined,
           guestPhone: formData.guestPhone?.trim() || undefined,
           message: formData.message?.trim() || undefined,
-          invitationType: 'company_guest'
+          invitationType: 'company_guest',
+          isReminder: isReminderMode
         })
       })
 
       const result = await response.json()
 
       if (!response.ok) {
+        // Handle 409 conflict - existing invitation
+        if (response.status === 409 && result.canSendReminder) {
+          setExistingInvitation(result.existingInvitation)
+          setCanSendReminder(true)
+          setIsReminderMode(false)
+          setError(null)
+          return
+        }
         throw new Error(result.error || 'Failed to send invitation')
       }
 
@@ -177,8 +210,25 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
         setSearchTerm('')
         setError(null)
         setSuccess(false)
+        setExistingInvitation(null)
+        setIsReminderMode(false)
+        setCanSendReminder(false)
       }, 300)
     }
+  }
+
+  const handleSendReminder = () => {
+    setIsReminderMode(true)
+    setExistingInvitation(null)
+    setCanSendReminder(false)
+    setError(null)
+  }
+
+  const handleCancelReminder = () => {
+    setIsReminderMode(false)
+    setExistingInvitation(null)
+    setCanSendReminder(false)
+    setError(null)
   }
 
   const formatLastTrip = (dateStr?: string) => {
@@ -213,10 +263,13 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                 <Send className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
-                Invitation Sent!
+                {isReminderMode ? 'Reminder Sent!' : 'Invitation Sent!'}
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                The guest invitation has been sent successfully.
+                {isReminderMode 
+                  ? 'The reminder has been sent successfully.' 
+                  : 'The guest invitation has been sent successfully.'
+                }
               </p>
             </div>
           ) : (
@@ -251,6 +304,78 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                 <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md mb-6">
                   <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                   <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Existing Invitation Notice */}
+              {existingInvitation && canSendReminder && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">
+                        Invitation Already Sent
+                      </h4>
+                      <div className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                        <p>
+                          <strong>Email:</strong> {formData.guestEmail}
+                        </p>
+                        <p>
+                          <strong>Originally sent:</strong> {new Date(existingInvitation.sent_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        <p>
+                          <strong>Reminders sent:</strong> {existingInvitation.email_sent_count - 1}
+                        </p>
+                        <p>
+                          <strong>Expires:</strong> {new Date(existingInvitation.expires_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 mt-4">
+                        <Button
+                          onClick={handleSendReminder}
+                          disabled={loading}
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
+                          size="sm"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Send Reminder
+                        </Button>
+                        <Button
+                          onClick={handleCancelReminder}
+                          variant="outline"
+                          size="sm"
+                          className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Reminder Mode Notice */}
+              {isReminderMode && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-6">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <p className="text-blue-700 dark:text-blue-300 text-sm font-medium">
+                      Sending reminder to {formData.guestEmail}
+                    </p>
+                  </div>
+                  <p className="text-blue-600 dark:text-blue-400 text-xs mt-1 ml-6">
+                    You can customize the message below before sending the reminder.
+                  </p>
                 </div>
               )}
 
@@ -495,17 +620,29 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className={`flex-1 ${isReminderMode 
+                        ? 'bg-amber-600 hover:bg-amber-700' 
+                        : 'bg-emerald-600 hover:bg-emerald-700'
+                      } text-white`}
                     >
                       {loading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                          Sending...
+                          {isReminderMode ? 'Sending Reminder...' : 'Sending...'}
                         </>
                       ) : (
                         <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Send Invitation
+                          {isReminderMode ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Send Reminder
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-2" />
+                              Send Invitation
+                            </>
+                          )}
                         </>
                       )}
                     </Button>

@@ -231,6 +231,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
           availabilityLoading={availabilityLoading}
           onRefreshAvailability={refreshAvailability}
           currentRole={activeTab === 'staff' ? 'staff' : activeTab === 'company' ? 'company_rep' : 'external'}
+          showAddGuestButton={activeTab === 'company' || activeTab === 'external'}
+          onAddGuest={handleAddGuestClick}
         />
 
         {/* Participants List */}
@@ -250,24 +252,15 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
               />
             ))
           ) : (
-            /* Empty State with Add Guest Button for company and external tabs */
+            /* Empty State */
             <div className="px-4 md:px-6 py-12 text-center">
               <currentTab.emptyState.icon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                 {currentTab.emptyState.title}
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto mb-6">
+              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                 {currentTab.emptyState.description}
               </p>
-              {(activeTab === 'company' || activeTab === 'external') && (
-                <button
-                  onClick={handleAddGuestClick}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium transition-colors"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Add {activeTab === 'company' ? 'Company Guest' : 'External Guest'}</span>
-                </button>
-              )}
             </div>
           )}
         </div>

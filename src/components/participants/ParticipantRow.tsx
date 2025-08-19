@@ -8,7 +8,11 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
-  MapPin
+  MapPin,
+  Mail,
+  UserCheck,
+  UserX,
+  Send
 } from 'lucide-react'
 import { EnhancedParticipant, ParticipantRole, ParticipantAvailability } from '@/hooks/useParticipants'
 import { getAvailabilityClasses, getAvailabilityTooltip } from '@/lib/availability'
@@ -64,13 +68,50 @@ export function ParticipantRow({
 
           {/* Name and Location */}
           <div className="flex items-center space-x-2">
-            <span className={`font-medium ${
-              isConflicted 
-                ? 'text-gray-400 dark:text-gray-500' 
-                : 'text-gray-900 dark:text-gray-100'
-            }`}>
-              {participant.fullName}
-            </span>
+            <div className="flex flex-col">
+              <span className={`font-medium ${
+                isConflicted 
+                  ? 'text-gray-400 dark:text-gray-500' 
+                  : 'text-gray-900 dark:text-gray-100'
+              }`}>
+                {participant.fullName}
+              </span>
+              
+              {/* Invitation Info for Company Guests */}
+              {participant.metadata?.invitation && (participant.role === 'company_rep' || participant.role === 'external') && (
+                <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="flex items-center space-x-1">
+                    <Mail className="w-3 h-3" />
+                    <span>Invited by {participant.metadata.invitation.invitedByName}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{new Date(participant.metadata.invitation.sentAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    {participant.metadata.invitation.status === 'accepted' ? (
+                      <>
+                        <UserCheck className="w-3 h-3 text-emerald-500" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Accepted</span>
+                      </>
+                    ) : participant.metadata.invitation.status === 'declined' ? (
+                      <>
+                        <UserX className="w-3 h-3 text-red-500" />
+                        <span className="text-red-600 dark:text-red-400">Declined</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3 h-3 text-amber-500" />
+                        <span className="text-amber-600 dark:text-amber-400">Pending</span>
+                        {participant.metadata.invitation.emailSentCount > 1 && (
+                          <span className="text-gray-400">({participant.metadata.invitation.emailSentCount} emails)</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             
             {participant.location && (
               <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">

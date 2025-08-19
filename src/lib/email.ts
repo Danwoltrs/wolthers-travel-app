@@ -111,24 +111,18 @@ function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
         </div>
         
         <!-- Trip Details Card -->
-        <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-radius: 12px; padding: 32px; margin-bottom: 32px; color: white;">
-          <h2 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 600; color: white;">${data.tripTitle}</h2>
+        <div style="background: #f8fffe; border: 1px solid #d1fae5; border-radius: 12px; padding: 32px; margin-bottom: 32px;">
+          <h2 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 600; color: #065f46;">${data.tripTitle}</h2>
           
-          <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 16px; font-size: 16px;">📅</div>
-            <div>
-              <div style="font-weight: 500; margin-bottom: 4px;">Travel Dates</div>
-              <div style="opacity: 0.9; font-size: 16px;">${formatDate(data.tripStartDate)} - ${formatDate(data.tripEndDate)}</div>
-            </div>
+          <div style="margin-bottom: 20px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 16px;">Travel Dates</div>
+            <div style="color: #374151; font-size: 16px; line-height: 1.4;">${formatDate(data.tripStartDate)} - ${formatDate(data.tripEndDate)}</div>
           </div>
           
           ${data.companyName ? `
-          <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 16px; font-size: 16px;">🏢</div>
-            <div>
-              <div style="font-weight: 500; margin-bottom: 4px;">Company</div>
-              <div style="opacity: 0.9; font-size: 16px;">${data.companyName}</div>
-            </div>
+          <div style="margin-bottom: 20px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 16px;">Company</div>
+            <div style="color: #374151; font-size: 16px; line-height: 1.4;">${data.companyName}</div>
           </div>
           ` : ''}
         </div>

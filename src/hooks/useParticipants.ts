@@ -31,6 +31,16 @@ export interface EnhancedParticipant {
   metadata?: {
     isAlreadyParticipant?: boolean
     addedToTrip?: boolean
+    invitation?: {
+      id: string
+      invitedBy: string
+      invitedByName: string
+      sentAt: string
+      status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+      acceptedAt?: string
+      emailSentCount: number
+      lastEmailSentAt?: string
+    }
     [key: string]: any
   }
 }

@@ -12,6 +12,7 @@ interface GuestInvitationRequest {
   guestPhone?: string
   message?: string
   invitationType?: 'company_guest' | 'external_guest'
+  isReminder?: boolean
 }
 
 export async function POST(request: NextRequest) {
@@ -84,7 +85,8 @@ export async function POST(request: NextRequest) {
       guestTitle, 
       guestPhone, 
       message, 
-      invitationType = 'company_guest' 
+      invitationType = 'company_guest',
+      isReminder = false
     } = body
 
     // Validate required fields
@@ -137,17 +139,98 @@ export async function POST(request: NextRequest) {
     // Check if invitation already exists for this email and trip
     const { data: existingInvitation } = await supabase
       .from('guest_invitations')
-      .select('id, status')
+      .select('id, status, invitation_token, sent_at, email_sent_count, expires_at')
       .eq('trip_id', tripId)
       .eq('guest_email', guestEmail)
       .eq('status', 'pending')
       .single()
 
     if (existingInvitation) {
-      return NextResponse.json(
-        { error: 'An invitation has already been sent to this email for this trip' },
-        { status: 409 }
-      )
+      if (!isReminder) {
+        return NextResponse.json(
+          { 
+            error: 'An invitation has already been sent to this email for this trip',
+            canSendReminder: true,
+            existingInvitation: {
+              id: existingInvitation.id,
+              sent_at: existingInvitation.sent_at,
+              email_sent_count: existingInvitation.email_sent_count,
+              expires_at: existingInvitation.expires_at
+            }
+          },
+          { status: 409 }
+        )
+      }
+
+      // Handle reminder case
+      const { data: updatedInvitation, error: updateError } = await supabase
+        .from('guest_invitations')
+        .update({
+          last_email_sent_at: new Date().toISOString(),
+          email_sent_count: (existingInvitation.email_sent_count || 1) + 1,
+          invitation_message: message, // Update with new message if provided
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingInvitation.id)
+        .select()
+        .single()
+
+      if (updateError || !updatedInvitation) {
+        console.error('Failed to update invitation for reminder:', updateError)
+        return NextResponse.json(
+          { error: 'Failed to send reminder' },
+          { status: 500 }
+        )
+      }
+
+      // Send reminder email using existing token
+      const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://trips.wolthers.com'}/accept-invitation?token=${existingInvitation.invitation_token}`
+      
+      const emailResult = await sendGuestInvitationEmail({
+        to: guestEmail,
+        guestName,
+        tripTitle: trip.title,
+        tripStartDate: trip.start_date,
+        tripEndDate: trip.end_date,
+        invitedBy: user.full_name,
+        invitationToken: existingInvitation.invitation_token,
+        tripId,
+        acceptUrl,
+        companyName: guestCompany,
+        message
+      })
+
+      if (!emailResult.success) {
+        return NextResponse.json(
+          { error: 'Failed to send reminder email', details: emailResult.error },
+          { status: 500 }
+        )
+      }
+
+      console.log(`✅ Guest invitation reminder sent successfully:`, {
+        invitationId: existingInvitation.id,
+        guestEmail,
+        guestName,
+        tripTitle: trip.title,
+        invitedBy: user.full_name,
+        reminderCount: updatedInvitation.email_sent_count
+      })
+
+      return NextResponse.json({
+        success: true,
+        isReminder: true,
+        invitation: {
+          id: existingInvitation.id,
+          guest_email: guestEmail,
+          guest_name: guestName,
+          invitation_token: existingInvitation.invitation_token,
+          status: 'pending',
+          sent_at: updatedInvitation.last_email_sent_at,
+          expires_at: existingInvitation.expires_at,
+          email_sent_count: updatedInvitation.email_sent_count,
+          original_sent_at: existingInvitation.sent_at
+        }
+      })
     }
 
     // Generate invitation token
@@ -169,7 +252,9 @@ export async function POST(request: NextRequest) {
         invitation_type: invitationType,
         status: 'pending',
         sent_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+        email_sent_count: 1,
+        last_email_sent_at: new Date().toISOString()
       })
       .select()
       .single()
@@ -222,6 +307,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      isReminder: false,
       invitation: {
         id: invitation.id,
         guest_email: guestEmail,
@@ -229,7 +315,9 @@ export async function POST(request: NextRequest) {
         invitation_token: invitationToken,
         status: 'pending',
         sent_at: invitation.sent_at,
-        expires_at: invitation.expires_at
+        expires_at: invitation.expires_at,
+        email_sent_count: 1,
+        original_sent_at: invitation.sent_at
       }
     })
 

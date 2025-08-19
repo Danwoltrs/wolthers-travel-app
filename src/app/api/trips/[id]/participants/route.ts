@@ -411,7 +411,70 @@ export async function GET(
       console.error('Error fetching staff participants:', staffError)
     }
 
-    // Get guest participants from step_data
+    // Get guest participants with invitation information
+    const { data: guestParticipants, error: guestError } = await supabase
+      .from('trip_participants')
+      .select(`
+        id,
+        user_id,
+        role,
+        guest_email,
+        guest_name,
+        guest_company,
+        guest_title,
+        guest_phone,
+        invited_by,
+        created_at,
+        guest_invitations!inner (
+          id,
+          status,
+          sent_at,
+          accepted_at,
+          declined_at,
+          email_sent_count,
+          last_email_sent_at
+        ),
+        invited_by_user:users!trip_participants_invited_by_fkey (
+          full_name
+        )
+      `)
+      .eq('trip_id', tripId)
+      .in('role', ['client_representative', 'external_guest'])
+
+    if (guestError) {
+      console.error('Error fetching guest participants:', guestError)
+    }
+
+    // Also get pending invitations that haven't been accepted yet
+    const { data: pendingInvitations, error: invitationError } = await supabase
+      .from('guest_invitations')
+      .select(`
+        id,
+        guest_email,
+        guest_name,
+        guest_company,
+        guest_title,
+        guest_phone,
+        status,
+        sent_at,
+        accepted_at,
+        declined_at,
+        email_sent_count,
+        last_email_sent_at,
+        invitation_type,
+        invited_by,
+        invited_by_user:users!guest_invitations_invited_by_fkey (
+          full_name
+        )
+      `)
+      .eq('trip_id', tripId)
+      .eq('status', 'pending')
+
+    if (invitationError) {
+      console.error('Error fetching pending invitations:', invitationError)
+    }
+
+    // Get trip step_data for any additional guests
     const { data: trip, error: tripError } = await supabase
       .from('trips')
       .select('step_data')
@@ -422,12 +485,14 @@ export async function GET(
       console.error('Error fetching trip data:', tripError)
     }
 
-    const guests = trip?.step_data?.guests || []
+    const stepDataGuests = trip?.step_data?.guests || []
 
     return NextResponse.json({
       success: true,
       staff: staffParticipants || [],
-      guests: guests
+      guests: guestParticipants || [],
+      pendingInvitations: pendingInvitations || [],
+      stepDataGuests: stepDataGuests
     })
 
   } catch (error) {

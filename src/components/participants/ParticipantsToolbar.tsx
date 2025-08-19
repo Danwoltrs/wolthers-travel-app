@@ -28,6 +28,8 @@ interface ParticipantsToolbarProps {
   availabilityLoading: boolean
   onRefreshAvailability: () => void
   currentRole: ParticipantRole
+  onAddGuest?: () => void
+  showAddGuestButton?: boolean
 }
 
 export function ParticipantsToolbar({
@@ -40,7 +42,9 @@ export function ParticipantsToolbar({
   onBulkAction,
   availabilityLoading,
   onRefreshAvailability,
-  currentRole
+  currentRole,
+  onAddGuest,
+  showAddGuestButton = false
 }: ParticipantsToolbarProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [showBulkActions, setShowBulkActions] = useState(false)
@@ -180,6 +184,18 @@ export function ParticipantsToolbar({
                 </div>
               )}
             </div>
+
+            {/* Add Company Guest Button */}
+            {showAddGuestButton && onAddGuest && (
+              <button
+                onClick={onAddGuest}
+                className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Company Guest</span>
+                <span className="sm:hidden">Add Guest</span>
+              </button>
+            )}
           </div>
 
           {/* Right Section: Actions */}
