@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
           user_id,
           company_id,
           role,
-          users (id, full_name, email),
+          users!trip_participants_user_id_fkey (id, full_name, email),
           companies (id, name, fantasy_name)
         ),
         trip_vehicles (
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
           .from('trip_participants')
           .select(`
             trip_id,
-            users!inner(email)
+            users!trip_participants_user_id_fkey!inner(email)
           `)
           .like('users.email', `%@${userDomain}`)
         
