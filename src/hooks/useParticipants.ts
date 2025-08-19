@@ -202,13 +202,14 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
       
       if (participantsResponse.ok) {
         const participantsData = await participantsResponse.json()
-        existingParticipants = Array.isArray(participantsData) ? participantsData : []
+        // API returns {success: true, staff: [...], guests: []} format
+        existingParticipants = participantsData.staff || []
       }
       
       // Check which staff are already participants
       const existingParticipantIds = new Set(
         Array.isArray(existingParticipants) 
-          ? existingParticipants.map((p: any) => p.user_id || p.personId)
+          ? existingParticipants.map((p: any) => p.user_id || p.users?.id || p.personId)
           : []
       )
       
@@ -224,7 +225,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
           return true
         })
         .map((staff: any) => {
-          const isAlreadyParticipant = existingParticipantIds.has(staff.id) || staff.full_name.toLowerCase().includes('daniel') // Mock Daniel as added
+          const isAlreadyParticipant = existingParticipantIds.has(staff.id)
           
           // All staff should be available since there's only one trip in the system
           // Only Daniel is already on this trip, everyone else is available
