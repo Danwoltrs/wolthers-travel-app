@@ -5,6 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { Mail, Calendar, Building, MapPin, Check, AlertCircle, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+// Force dynamic rendering to avoid prerender issues with useSearchParams
+export const dynamic = 'force-dynamic'
+
 interface InvitationDetails {
   id: string
   guest_name: string
