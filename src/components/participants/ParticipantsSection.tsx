@@ -163,11 +163,6 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '' }: P
         </div>
       </div>
 
-      {/* Helper Text */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Trip dates: {new Date(tripDateRange.start).toLocaleDateString()} - {new Date(tripDateRange.end).toLocaleDateString()} • 
-        Check the boxes to add/remove staff from this trip
-      </div>
 
       {/* Error Display */}
       {error && (
