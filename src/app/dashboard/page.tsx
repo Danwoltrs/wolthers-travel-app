@@ -214,7 +214,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 xl:pt-40 pb-8 transition-colors duration-300">
       {/* Fixed Add Trip Button fine-tuned positioning */}
-      <div className="fixed left-[calc(max(2rem,(100vw-80rem)/2)+2rem+30px)] top-[calc(160px+72px+24px+2px)] md:top-[calc(120px+72px+24px+2px)] lg:top-[calc(140px+72px+24px+2px)] xl:top-[calc(160px+72px+24px+2px)] z-30 hidden xl:block">
+      <div className="fixed left-8 top-[200px] md:top-[180px] lg:top-[200px] xl:top-[220px] z-30 hidden xl:block">
         <div
           onClick={handleCreateTrip}
           className={cn(
