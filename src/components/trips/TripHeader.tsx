@@ -26,10 +26,7 @@ export default function TripHeader({ trip, tripData }: TripHeaderProps) {
   )
   
   const wolthersStaff = participants.filter((p: any) => 
-    p.role === 'trip_lead' || 
-    p.role === 'coordinator' ||
-    p.role === 'business_development' ||
-    p.role === 'account_manager'
+    p.users && (p.users.user_type === 'wolthers_staff' || p.users.email?.endsWith('@wolthers.com'))
   )
   
   // Extract guest names grouped by company
