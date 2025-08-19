@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Send reminder email using existing token
-      const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://trips.wolthers.com'}/accept-invitation?token=${existingInvitation.invitation_token}`
+      const acceptUrl = `https://trips.wolthers.com/accept-invitation?token=${existingInvitation.invitation_token}`
       
       const emailResult = await sendGuestInvitationEmail({
         to: guestEmail,
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send invitation email
-    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://trips.wolthers.com'}/accept-invitation?token=${invitationToken}`
+    const acceptUrl = `https://trips.wolthers.com/accept-invitation?token=${invitationToken}`
     
     const emailResult = await sendGuestInvitationEmail({
       to: guestEmail,
