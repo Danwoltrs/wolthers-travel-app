@@ -4,74 +4,56 @@ import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/s
 
 export async function GET(request: NextRequest) {
   try {
-    let user: any = null
+    // Use the same authentication logic as the session API
+    const authToken = request.cookies.get('auth-token')?.value
     
-    // Try JWT token authentication first (Microsoft OAuth)
-    const authHeader = request.headers.get('authorization')
-    const cookieToken = request.cookies.get('auth-token')?.value
-    
-    let token = null
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7)
-    } else if (cookieToken) {
-      token = cookieToken
-    }
-    
-    if (token) {
-      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
-
-      try {
-        const decoded = verify(token, secret) as any
-        // Get user from database with service role (bypasses RLS)
-        const supabase = createServerSupabaseClient()
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', decoded.userId)
-          .single()
-
-        if (!userError && userData) {
-          user = userData
-          console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
-        }
-      } catch (jwtError) {
-        console.log('🔑 JWT verification failed, trying Supabase session...')
-      }
-    }
-
-    // If JWT failed, try Supabase session authentication (Email/Password)
-    if (!user && token) {
-      try {
-        const supabaseClient = createSupabaseServiceClient()
-        
-        // Check if this might be a Supabase session token
-        if (token && token.includes('.')) {
-          // This looks like a Supabase JWT token, try to verify with Supabase
-          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
-          
-          if (!sessionError && supabaseUser) {
-            // Get full user profile from database
-            const { data: userData, error: userError } = await supabaseClient
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .single()
-
-            if (!userError && userData) {
-              user = userData
-              console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
-            }
-          }
-        }
-      } catch (supabaseError) {
-        console.log('🔑 Supabase authentication also failed:', supabaseError)
-      }
-    }
-    
-    // If both methods failed, return unauthorized
-    if (!user) {
+    if (!authToken) {
+      console.log('🔑 Trips API: No auth-token cookie found')
       return NextResponse.json(
         { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Verify the JWT token (same as session API)
+    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    let user: any = null
+    
+    try {
+      const decoded = verify(authToken, secret) as any
+      console.log('🔑 Trips API: JWT Token decoded successfully:', { userId: decoded.userId })
+      
+      // Get user from database
+      const supabase = createServerSupabaseClient()
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.userId)
+        .single()
+
+      if (userError) {
+        console.log('🔑 Trips API: Database query failed:', userError)
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 401 }
+        )
+      }
+      
+      if (!userData) {
+        console.log('🔑 Trips API: No user data found')
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 401 }
+        )
+      }
+
+      user = userData
+      console.log('🔑 Trips API: Successfully authenticated user:', user.email)
+      
+    } catch (jwtError) {
+      console.log('🔑 Trips API: JWT verification failed:', jwtError.message)
+      return NextResponse.json(
+        { error: 'Invalid token' },
         { status: 401 }
       )
     }
