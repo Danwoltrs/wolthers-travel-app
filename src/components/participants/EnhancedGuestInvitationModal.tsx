@@ -259,7 +259,7 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                 <div>
                   {/* Search Input */}
                   <div className="relative mb-4">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                       <Search className="w-4 h-4 text-gray-400" />
                     </div>
                     <input
@@ -267,7 +267,8 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Search by name, email, or company..."
-                      className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      style={{ paddingLeft: '36px' }}
+                      className="w-full pr-3 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                       disabled={loading}
                     />
                   </div>
@@ -363,14 +364,15 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                       Guest Name *
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <User className="w-4 h-4 text-gray-400" />
                       </div>
                       <input
                         type="text"
                         value={formData.guestName}
                         onChange={(e) => handleInputChange('guestName', e.target.value)}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        style={{ paddingLeft: '36px' }}
+                        className="w-full pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                         placeholder="Enter guest name"
                         required
                         disabled={loading}
@@ -384,14 +386,15 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                       Email Address *
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <Mail className="w-4 h-4 text-gray-400" />
                       </div>
                       <input
                         type="email"
                         value={formData.guestEmail}
                         onChange={(e) => handleInputChange('guestEmail', e.target.value)}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        style={{ paddingLeft: '36px' }}
+                        className="w-full pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                         placeholder="guest@company.com"
                         required
                         disabled={loading}
@@ -406,14 +409,15 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                         Company
                       </label>
                       <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                           <Building className="w-4 h-4 text-gray-400" />
                         </div>
                         <input
                           type="text"
                           value={formData.guestCompany}
                           onChange={(e) => handleInputChange('guestCompany', e.target.value)}
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          style={{ paddingLeft: '36px' }}
+                          className="w-full pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                           placeholder="Company name"
                           disabled={loading}
                         />
@@ -441,14 +445,15 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                       Phone Number
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                         <Phone className="w-4 h-4 text-gray-400" />
                       </div>
                       <input
                         type="tel"
                         value={formData.guestPhone}
                         onChange={(e) => handleInputChange('guestPhone', e.target.value)}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        style={{ paddingLeft: '36px' }}
+                        className="w-full pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                         placeholder="+1 (555) 123-4567"
                         disabled={loading}
                       />
@@ -461,14 +466,15 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
                       Personal Message (Optional)
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-3 pointer-events-none">
+                      <div className="absolute left-2 top-3 pointer-events-none">
                         <MessageSquare className="w-4 h-4 text-gray-400" />
                       </div>
                       <textarea
                         value={formData.message}
                         onChange={(e) => handleInputChange('message', e.target.value)}
                         rows={3}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                        style={{ paddingLeft: '36px' }}
+                        className="w-full pr-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none transition-colors"
                         placeholder="Add a personal message to the invitation..."
                         disabled={loading}
                       />
