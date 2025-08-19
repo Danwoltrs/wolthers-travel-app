@@ -92,7 +92,7 @@ export async function GET(
             user_id,
             company_id,
             role,
-            users (id, full_name, email),
+            users!trip_participants_user_id_fkey (id, full_name, email),
             companies (id, name, fantasy_name)
           ),
           trip_vehicles (
@@ -170,7 +170,7 @@ export async function GET(
             user_id,
             company_id,
             role,
-            users (id, full_name, email),
+            users!trip_participants_user_id_fkey (id, full_name, email),
             companies (id, name, fantasy_name)
           ),
           trip_vehicles (
