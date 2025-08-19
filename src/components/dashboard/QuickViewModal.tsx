@@ -7,7 +7,7 @@ import { useActivityManager } from '@/hooks/useActivityManager'
 import { useEnhancedModal } from '@/hooks/useEnhancedModal'
 import { EnhancedTabNavigation } from './EnhancedTabNavigation'
 import { OverviewTab } from './tabs/OverviewTab'
-import { ParticipantsTab } from './tabs/ParticipantsTab'
+import { ParticipantsSection } from '@/components/participants'
 import { LogisticsTab } from './tabs/LogisticsTab'
 import { ScheduleTab } from './tabs/ScheduleTab'
 import { DocumentsTab } from './tabs/DocumentsTab'
@@ -370,11 +370,12 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                 )}
                 
                 {activeTab === 'participants' && (
-                  <ParticipantsTab 
-                    trip={localTrip}
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.participants}
+                  <ParticipantsSection 
+                    tripId={localTrip.id}
+                    tripDateRange={{ 
+                      start: localTrip.startDate instanceof Date ? localTrip.startDate.toISOString().split('T')[0] : localTrip.startDate, 
+                      end: localTrip.endDate instanceof Date ? localTrip.endDate.toISOString().split('T')[0] : localTrip.endDate 
+                    }}
                   />
                 )}
                 

@@ -18,7 +18,7 @@ interface ParticipantUpdateRequest {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let user: any = null
   
@@ -78,7 +78,7 @@ export async function PATCH(
       )
     }
 
-    const tripId = params.id
+    const { id: tripId } = await params
     const body: ParticipantUpdateRequest = await request.json()
     const { staff, guests, action } = body
 
@@ -256,14 +256,141 @@ export async function PATCH(
   }
 }
 
+// POST endpoint to add a single participant
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let user: any = null
+  
+  try {
+    // Authentication logic
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        // Try Supabase session authentication
+        const supabaseClient = createServerSupabaseClient()
+        
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const { id: tripId } = await params
+    const participant = await request.json()
+
+    const supabase = createServerSupabaseClient()
+
+    // Add participant to trip_participants table with conflict handling
+    const now = new Date().toISOString()
+    
+    // First check if participant already exists
+    const { data: existingParticipant } = await supabase
+      .from('trip_participants')
+      .select('*')
+      .eq('trip_id', tripId)
+      .eq('user_id', participant.personId)
+      .single()
+    
+    if (existingParticipant) {
+      // Participant already exists, return success with existing data
+      return NextResponse.json({
+        success: true,
+        participant: existingParticipant,
+        message: 'Participant already on trip'
+      })
+    }
+    
+    const { data: newParticipant, error: insertError } = await supabase
+      .from('trip_participants')
+      .insert({
+        trip_id: tripId,
+        user_id: participant.personId,
+        company_id: participant.companyId || '840783f4-866d-4bdb-9b5d-5d0facf62db0',
+        role: participant.role || 'staff',
+        is_partial: false,
+        created_at: now,
+        updated_at: now
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('Failed to add participant:', insertError)
+      return NextResponse.json(
+        { error: 'Failed to add participant', details: insertError.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      participant: newParticipant
+    })
+
+  } catch (error) {
+    console.error('Add participant error:', error)
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
+
 // GET endpoint to fetch current participants
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createServerSupabaseClient()
-    const tripId = params.id
+    const { id: tripId } = await params
 
     // Get staff participants
     const { data: staffParticipants, error: staffError } = await supabase
@@ -311,3 +438,4 @@ export async function GET(
     )
   }
 }
+
