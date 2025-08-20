@@ -41,76 +41,62 @@ export default function CompaniesPage() {
 
         {/* Dashboard Content */}
         <div className="p-8 space-y-8">
-          {/* Page Title */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-golden-400">
-              {sectionTitles[selectedSection]} Analytics
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Comprehensive travel activity analysis and trends
-            </p>
-          </div>
-
           {/* Charts Container */}
           <div className="space-y-8">
             {/* Charts Side by Side on Large Screens */}
             <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
-              {/* Enhanced Heatmap */}
-              <EnhancedHeatmap 
-                selectedSection={selectedSection}
-              />
+              {/* Left Column: Heatmap + Stats Cards */}
+              <div className="space-y-6">
+                {/* Enhanced Heatmap */}
+                <EnhancedHeatmap 
+                  selectedSection={selectedSection}
+                />
 
-              {/* Travel Trends Chart */}
-              <TravelTrendsChart 
-                selectedSection={selectedSection}
-                className="xl:flex-1 xl:min-w-0"
-              />
+                {/* Stats Cards under Heatmap */}
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Total Trips Card */}
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+                      Total Trips (2025)
+                    </h3>
+                    <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+                      {selectedSection === 'wolthers' ? '127' : 
+                       selectedSection === 'importers' ? '89' : '56'}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      +{selectedSection === 'wolthers' ? '23' : 
+                         selectedSection === 'importers' ? '15' : '8'}% from last year
+                    </p>
+                  </div>
+
+                  {/* Total Trip Costs Card */}
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+                      Total Trip Costs (2025)
+                    </h3>
+                    <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+                      ${selectedSection === 'wolthers' ? '284,500' : 
+                         selectedSection === 'importers' ? '156,300' : '98,750'}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      +{selectedSection === 'wolthers' ? '18' : 
+                         selectedSection === 'importers' ? '12' : '9'}% from last year
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Travel Trends Chart */}
+              <div className="xl:flex-1 xl:min-w-0">
+                <TravelTrendsChart 
+                  selectedSection={selectedSection}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Additional Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                Active Entities
-              </h3>
-              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                {selectedSection === 'wolthers' ? '4' : 
-                 selectedSection === 'importers' ? '12' : '8'}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                {selectedSection === 'wolthers' ? 'Staff members' : 
-                 selectedSection === 'importers' ? 'Companies' : 'Cooperatives'}
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                Total Trips (2025)
-              </h3>
-              <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                {selectedSection === 'wolthers' ? '127' : 
-                 selectedSection === 'importers' ? '89' : '56'}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                +{selectedSection === 'wolthers' ? '23' : 
-                   selectedSection === 'importers' ? '15' : '8'}% from last year
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                Peak Activity
-              </h3>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                Week {selectedSection === 'wolthers' ? '15' : 
-                      selectedSection === 'importers' ? '22' : '18'}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Busiest week of the year
-              </p>
-            </div>
-          </div>
+          {/* Divider */}
+          <div className="h-px bg-gray-200 dark:bg-gray-700"></div>
         </div>
       </div>
     </div>

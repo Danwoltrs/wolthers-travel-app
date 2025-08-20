@@ -284,21 +284,6 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex justify-center space-x-6 mt-6 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-amber-500 rounded"></div>
-            <span className="text-gray-700 dark:text-gray-300">Roasters</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-emerald-500 rounded"></div>
-            <span className="text-gray-700 dark:text-gray-300">Importers</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-            <span className="text-gray-700 dark:text-gray-300">Conventions</span>
-          </div>
-        </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
