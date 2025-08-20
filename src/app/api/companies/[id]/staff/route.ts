@@ -6,11 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { companyId } = params
+    const { id: companyId } = params
     
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')

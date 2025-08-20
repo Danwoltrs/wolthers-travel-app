@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Statistics Preview</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .preview-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .feature-card {
+            border: 2px solid #059669;
+            border-radius: 8px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        }
+        .feature-title {
+            color: #059669;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .metric-label {
+            font-size: 0.8em;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h1 style="color: #059669; margin-bottom: 10px;">Company Statistics & Analytics</h1>
+        <p style="color: #6b7280; margin-bottom: 30px;">Phase 4 Implementation - Comprehensive travel insights and performance metrics</p>
+        
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">47</div>
+                <div class="metric-label">Total Trips</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">$485K</div>
+                <div class="metric-label">Total Spend</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">23</div>
+                <div class="metric-label">Meetings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">$10.3K</div>
+                <div class="metric-label">Avg Cost/Trip</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">8</div>
+                <div class="metric-label">Locations</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">12</div>
+                <div class="metric-label">Staff</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">4.2</div>
+                <div class="metric-label">Avg Days</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">+23.5%</div>
+                <div class="metric-label">YoY Growth</div>
+            </div>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature-card">
+                <div class="feature-title">📊 Interactive Charts</div>
+                <ul>
+                    <li>Custom canvas-based charts (line, bar, area, pie, donut)</li>
+                    <li>Hover interactions with detailed tooltips</li>
+                    <li>Trend indicators with percentage changes</li>
+                    <li>Responsive design with proper dark mode</li>
+                    <li>Performance metrics and summary statistics</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-title">🗺️ Travel Activity Heatmap</div>
+                <ul>
+                    <li>Monthly activity intensity visualization</li>
+                    <li>Interactive month selection with details</li>
+                    <li>Top destination rankings with costs</li>
+                    <li>Year-over-year growth indicators</li>
+                    <li>Geographic distribution analytics</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-title">📈 Performance Analytics</div>
+                <ul>
+                    <li>Quarterly and monthly trend analysis</li>
+                    <li>Cost breakdown by category (flights, hotels, etc.)</li>
+                    <li>Location distribution with visit frequency</li>
+                    <li>Staff engagement and utilization metrics</li>
+                    <li>ROI and efficiency calculations</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-title">⚡ Advanced Features</div>
+                <ul>
+                    <li>Real-time data filtering (monthly/quarterly/yearly)</li>
+                    <li>Metric-specific views (trips only, costs only)</li>
+                    <li>Loading states with skeleton animations</li>
+                    <li>Mobile-optimized responsive grids</li>
+                    <li>Consistent design system integration</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-title">🎨 Design System Compliance</div>
+                <ul>
+                    <li>Nordic minimalist aesthetic</li>
+                    <li>Forest green and golden color palette</li>
+                    <li>Proper dark mode support</li>
+                    <li>Glassmorphic effects and gradients</li>
+                    <li>Consistent with existing modal patterns</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-title">🔧 Technical Excellence</div>
+                <ul>
+                    <li>TypeScript with strict typing</li>
+                    <li>Custom hooks for data management</li>
+                    <li>Mock data generators for demo</li>
+                    <li>Modular component architecture</li>
+                    <li>Canvas-based chart rendering for performance</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-radius: 8px; border: 2px solid #059669;">
+            <h3 style="color: #059669; margin-top: 0;">🚀 Implementation Status</h3>
+            <p style="color: #374151; margin-bottom: 16px;"><strong>✅ COMPLETED:</strong> All Phase 4 statistics and heatmap features have been successfully implemented!</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <div>✅ CompanyStatisticsTab.tsx - Enhanced</div>
+                <div>✅ StatisticsChart.tsx - Created</div>
+                <div>✅ CompanyTravelHeatmap.tsx - Created</div>
+                <div>✅ Interactive tooltips and hover states</div>
+                <div>✅ Responsive design and dark mode</div>
+                <div>✅ Mock data generation</div>
+                <div>✅ Performance analytics</div>
+                <div>✅ Design system integration</div>
+            </div>
+            
+            <p style="color: #374151; margin-top: 16px; margin-bottom: 0;"><strong>Ready for use!</strong> Access the statistics tab in any company detail modal to see the comprehensive analytics dashboard.</p>
+        </div>
+    </div>
+</body>
+</html>

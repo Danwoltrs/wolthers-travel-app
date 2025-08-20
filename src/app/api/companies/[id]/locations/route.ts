@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 interface CompanyLocationParams {
   params: Promise<{
-    companyId: string
+    id: string
   }>
 }
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, segmentData: CompanyLocationPara
   
   try {
     // Await the params since they're now a Promise in Next.js 15
-    const { companyId } = await segmentData.params
+    const { id: companyId } = await segmentData.params
     
     if (!companyId) {
       return NextResponse.json(
