@@ -72,6 +72,11 @@ The **context-manager** serves as the central nervous system for multi-agent coo
 - `npm run db:stop` - Stop Supabase local development environment
 - `npm run db:reset` - Reset the database to initial state
 
+### Session Recovery Commands
+- See `TOMORROW-SESSION.md` for complete session recovery guide
+- Priority testing: Dashboard → Trip → Statistics tab (interactive charts!)
+- Database fix: `npx supabase start` then `npx supabase db reset --local`
+
 ## Architecture
 
 This is a Next.js 15 application with TypeScript, built for travel itinerary management. Key architectural components:
