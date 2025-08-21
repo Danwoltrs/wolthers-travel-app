@@ -30,9 +30,10 @@ interface HeatmapData {
 interface EnhancedHeatmapProps {
   selectedSection: 'wolthers' | 'importers' | 'exporters'
   className?: string
+  staffData?: any[] // Real staff data from API
 }
 
-export default function EnhancedHeatmap({ selectedSection, className = '' }: EnhancedHeatmapProps) {
+export default function EnhancedHeatmap({ selectedSection, className = '', staffData = [] }: EnhancedHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([2025]))
   const [isLoading, setIsLoading] = useState(true)
@@ -47,15 +48,26 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
     setCurrentWeek(weekNumber)
   }, [])
 
-  // Mock data generator based on section
-  const generateMockData = (section: string): HeatmapData => {
+  // Data generator based on section - uses real staff names for Wolthers
+  const generateData = (section: string): HeatmapData => {
     const currentYear = new Date().getFullYear()
     const yearlyData = new Map<number, YearData>()
     
     let entities: string[] = []
     switch (section) {
       case 'wolthers':
-        entities = ['Daniel W', 'Tom H', 'Svenn L', 'Rasmus N']
+        // Use real staff names if available, otherwise fallback to generic names
+        if (staffData && staffData.length > 0) {
+          entities = staffData.map((member: any) => {
+            // Extract first name and last initial from full name
+            const nameParts = (member.full_name || 'Unknown User').split(' ')
+            const firstName = nameParts[0]
+            const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : ''
+            return `${firstName} ${lastInitial}`.trim()
+          })
+        } else {
+          entities = ['Daniel W', 'Tom S', 'Svenn W', 'Rasmus W']
+        }
         break
       case 'importers':
         entities = ['Nordic Coffee Works', 'Global Bean Imports', 'European Roasters Ltd']
@@ -118,11 +130,11 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
   useEffect(() => {
     setIsLoading(true)
     setTimeout(() => {
-      const data = generateMockData(selectedSection)
+      const data = generateData(selectedSection)
       setHeatmapData(data)
       setIsLoading(false)
     }, 300)
-  }, [selectedSection])
+  }, [selectedSection, staffData])
 
   const toggleYear = (year: number) => {
     setExpandedYears(prev => {

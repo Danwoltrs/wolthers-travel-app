@@ -7,6 +7,7 @@ interface CompanyTravelHeatmapProps {
   companyId: string
   year?: number
   className?: string
+  staffData?: any[] // Real staff data from API
 }
 
 interface LocationVisit {
@@ -39,8 +40,8 @@ interface HeatmapData {
   yearOverYearGrowth: number
 }
 
-// Mock data generator - in real app this would come from API
-const generateMockHeatmapData = (companyId: string, year: number): HeatmapData => {
+// Data generator - uses real staff names when available
+const generateHeatmapData = (companyId: string, year: number, staffData: any[]): HeatmapData => {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -74,7 +75,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
       lastVisit: '2025-03-15',
       totalCost: 125000,
       averageDuration: 4.2,
-      visitors: ['Daniel Wolthers', 'Tom Hansen', 'Svenn Larsen']
+      visitors: staffData.length > 0 ? staffData.slice(0, 3).map((s: any) => s.full_name || 'Unknown') : ['Daniel Wolthers', 'Tom Sullivan', 'Svenn Wolthers']
     },
     {
       location: 'Medellín, Colombia',
@@ -84,7 +85,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
       lastVisit: '2025-02-28',
       totalCost: 95000,
       averageDuration: 3.8,
-      visitors: ['Daniel Wolthers', 'Rasmus Nielsen']
+      visitors: staffData.length > 0 ? staffData.slice(0, 2).map((s: any) => s.full_name || 'Unknown') : ['Daniel Wolthers', 'Rasmus Wolthers']
     },
     {
       location: 'Addis Ababa, Ethiopia',
@@ -94,7 +95,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
       lastVisit: '2025-01-20',
       totalCost: 145000,
       averageDuration: 5.5,
-      visitors: ['Daniel Wolthers', 'Tom Hansen']
+      visitors: staffData.length > 0 ? staffData.slice(0, 2).map((s: any) => s.full_name || 'Unknown') : ['Daniel Wolthers', 'Tom Sullivan']
     },
     {
       location: 'São Paulo, Brazil',
@@ -104,7 +105,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
       lastVisit: '2024-12-10',
       totalCost: 87000,
       averageDuration: 3.5,
-      visitors: ['Svenn Larsen', 'Rasmus Nielsen']
+      visitors: staffData.length > 0 ? staffData.slice(2, 4).map((s: any) => s.full_name || 'Unknown') : ['Svenn Wolthers', 'Rasmus Wolthers']
     },
     {
       location: 'Nairobi, Kenya',
@@ -114,7 +115,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
       lastVisit: '2024-11-05',
       totalCost: 78000,
       averageDuration: 4.8,
-      visitors: ['Daniel Wolthers']
+      visitors: staffData.length > 0 ? [staffData[0]?.full_name || 'Daniel Wolthers'] : ['Daniel Wolthers']
     }
   ]
 
@@ -129,7 +130,7 @@ const generateMockHeatmapData = (companyId: string, year: number): HeatmapData =
   }
 }
 
-export default function CompanyTravelHeatmap({ companyId, year = 2025, className = '' }: CompanyTravelHeatmapProps) {
+export default function CompanyTravelHeatmap({ companyId, year = 2025, className = '', staffData = [] }: CompanyTravelHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
@@ -140,14 +141,14 @@ export default function CompanyTravelHeatmap({ companyId, year = 2025, className
       setIsLoading(true)
       // In real app, this would be an API call
       setTimeout(() => {
-        const data = generateMockHeatmapData(companyId, year)
+        const data = generateHeatmapData(companyId, year, staffData)
         setHeatmapData(data)
         setIsLoading(false)
       }, 800)
     }
 
     fetchData()
-  }, [companyId, year])
+  }, [companyId, year, staffData])
 
   if (isLoading) {
     return (

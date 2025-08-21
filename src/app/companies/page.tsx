@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
+import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
 import EnhancedHeatmap from '@/components/companies/charts/EnhancedHeatmap'
 import TravelTrendsChart from '@/components/companies/charts/TravelTrendsChart'
@@ -11,11 +12,26 @@ import MobileDocumentView from '@/components/documents/MobileDocumentView'
 import { useDocumentFinder } from '@/hooks/useDocumentFinder'
 import { isMobileDevice } from '@/lib/utils'
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
+
 export default function CompaniesPage() {
   const [selectedSection, setSelectedSection] = useState<'wolthers' | 'importers' | 'exporters'>('wolthers')
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Fetch real Wolthers staff data
+  const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
+    '/api/users/wolthers-staff',
+    fetcher
+  )
+  
+  // Fetch real statistics data
+  const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR(
+    '/api/users/stats',
+    fetcher
+  )
 
   // Use the DocumentFinder hook for document management
   const { state, actions } = useDocumentFinder()
@@ -117,9 +133,10 @@ export default function CompaniesPage() {
             <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
               {/* Left Column: Heatmap + Stats Cards */}
               <div className="space-y-6">
-                {/* Enhanced Heatmap */}
+                {/* Enhanced Heatmap - Pass real staff data for visitor names */}
                 <EnhancedHeatmap 
                   selectedSection={selectedSection}
+                  staffData={staffData?.staff || []}
                 />
 
                 {/* Stats Cards under Heatmap */}
@@ -130,12 +147,26 @@ export default function CompaniesPage() {
                       Total Trips (2025)
                     </h3>
                     <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
-                      {selectedSection === 'wolthers' ? '127' : 
-                       selectedSection === 'importers' ? '89' : '56'}
+                      {statsLoading ? (
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-16 rounded"></div>
+                      ) : statsError ? (
+                        'Error'
+                      ) : selectedSection === 'wolthers' ? (
+                        statsData?.data?.trips?.total || 0
+                      ) : selectedSection === 'importers' ? (
+                        '0' // Will be updated when importer data is available
+                      ) : (
+                        '0' // Will be updated when exporter data is available
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      +{selectedSection === 'wolthers' ? '23' : 
-                         selectedSection === 'importers' ? '15' : '8'}% from last year
+                      {statsLoading ? (
+                        'Loading...'
+                      ) : statsError ? (
+                        'Error loading data'
+                      ) : (
+                        'Real data from database'
+                      )}
                     </p>
                   </div>
 
@@ -145,12 +176,26 @@ export default function CompaniesPage() {
                       Total Trip Costs (2025)
                     </h3>
                     <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
-                      ${selectedSection === 'wolthers' ? '284,500' : 
-                         selectedSection === 'importers' ? '156,300' : '98,750'}
+                      {statsLoading ? (
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-24 rounded"></div>
+                      ) : statsError ? (
+                        'Error'
+                      ) : selectedSection === 'wolthers' ? (
+                        `$${(statsData?.data?.trips?.totalSpent || 0).toLocaleString()}`
+                      ) : selectedSection === 'importers' ? (
+                        '$0' // Will be updated when importer data is available
+                      ) : (
+                        '$0' // Will be updated when exporter data is available
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      +{selectedSection === 'wolthers' ? '18' : 
-                         selectedSection === 'importers' ? '12' : '9'}% from last year
+                      {statsLoading ? (
+                        'Loading...'
+                      ) : statsError ? (
+                        'Error loading data'
+                      ) : (
+                        'Real data from database'
+                      )}
                     </p>
                   </div>
                 </div>
@@ -180,53 +225,71 @@ export default function CompaniesPage() {
                 
                 {selectedSection === 'wolthers' && (
                   <div className="space-y-4">
-                    {/* Daniel Wolthers */}
-                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white font-medium">
-                        DW
+                    {staffLoading ? (
+                      // Loading skeleton
+                      <div className="space-y-4">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                            <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
+                            <div className="flex-1">
+                              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-32 mb-2 animate-pulse"></div>
+                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-1 animate-pulse"></div>
+                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-40 animate-pulse"></div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Daniel Wolthers</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Managing Director</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">daniel@wolthers.com</p>
+                    ) : staffError ? (
+                      <div className="text-center text-red-500 dark:text-red-400 py-8">
+                        Error loading staff: {staffError.message || 'Failed to load staff data'}
                       </div>
-                    </div>
-
-                    {/* Tom Hansen */}
-                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white font-medium">
-                        TH
+                    ) : !staffData?.staff || staffData.staff.length === 0 ? (
+                      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                        No Wolthers staff found
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Tom Hansen</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Senior Consultant</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">tom@wolthers.com</p>
-                      </div>
-                    </div>
-
-                    {/* Svenn Larsen */}
-                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                        SL
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Svenn Larsen</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Coffee Specialist</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">svenn@wolthers.com</p>
-                      </div>
-                    </div>
-
-                    {/* Rasmus Nielsen */}
-                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                        RN
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Rasmus Nielsen</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Quality Analyst</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">rasmus@wolthers.com</p>
-                      </div>
-                    </div>
+                    ) : (
+                      // Real staff data
+                      staffData.staff.map((member: any, index: number) => {
+                        // Generate initials from full name
+                        const initials = member.full_name
+                          ?.split(' ')
+                          .map((n: string) => n[0])
+                          .join('')
+                          .toUpperCase() || 'UN';
+                        
+                        // Generate avatar colors based on index for visual variety
+                        const avatarColors = [
+                          'bg-emerald-500',
+                          'bg-amber-500', 
+                          'bg-blue-500',
+                          'bg-purple-500',
+                          'bg-rose-500',
+                          'bg-indigo-500'
+                        ];
+                        const avatarColor = avatarColors[index % avatarColors.length];
+                        
+                        return (
+                          <div key={member.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                            <div className={`w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center text-white font-medium`}>
+                              {initials}
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                                {member.full_name || 'Unknown User'}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {member.user_type === 'admin' ? 'Managing Director' : 
+                                 member.user_type === 'wolthers_staff' ? 'Staff Member' : 
+                                 member.user_type || 'Team Member'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500">
+                                {member.email}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
 
