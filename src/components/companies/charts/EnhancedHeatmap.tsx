@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import useSWR from 'swr'
 
 interface WeekData {
   count: number
@@ -30,14 +31,27 @@ interface HeatmapData {
 interface EnhancedHeatmapProps {
   selectedSection: 'wolthers' | 'importers' | 'exporters'
   className?: string
-  staffData?: any[] // Real staff data from API
 }
 
-export default function EnhancedHeatmap({ selectedSection, className = '', staffData = [] }: EnhancedHeatmapProps) {
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
+
+export default function EnhancedHeatmap({ selectedSection, className = '' }: EnhancedHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([2025]))
-  const [isLoading, setIsLoading] = useState(true)
   const [currentWeek, setCurrentWeek] = useState<number>(0)
+
+  const sectionTitles = {
+    wolthers: 'Wolthers Staff Travel Activity',
+    importers: 'Importer/Roaster Activity',
+    exporters: 'Exporter/Producer/Coop Activity'
+  }
+
+  // Fetch real travel data
+  const { data: travelData, error, isLoading } = useSWR(
+    '/api/charts/travel-data',
+    fetcher
+  )
 
   // Calculate current week
   useEffect(() => {
@@ -48,93 +62,65 @@ export default function EnhancedHeatmap({ selectedSection, className = '', staff
     setCurrentWeek(weekNumber)
   }, [])
 
-  // Data generator based on section - uses real staff names for Wolthers
-  const generateData = (section: string): HeatmapData => {
-    const currentYear = new Date().getFullYear()
+  // Process real travel data for heatmap
+  useEffect(() => {
+    if (!travelData?.heatmapData) {
+      setHeatmapData(null)
+      return
+    }
+
+    const { heatmapData: rawData } = travelData
+    
+    // If no data or section is not 'wolthers', show empty state
+    if (rawData.totalTrips === 0 || selectedSection !== 'wolthers') {
+      setHeatmapData({
+        yearlyData: new Map(),
+        currentYear: new Date().getFullYear(),
+        type: selectedSection,
+        expandedYears
+      })
+      return
+    }
+
+    // Convert the raw data back to Maps for consistency with existing code
     const yearlyData = new Map<number, YearData>()
     
-    let entities: string[] = []
-    switch (section) {
-      case 'wolthers':
-        // Use real staff names if available, otherwise fallback to generic names
-        if (staffData && staffData.length > 0) {
-          entities = staffData.map((member: any) => {
-            // Extract first name and last initial from full name
-            const nameParts = (member.full_name || 'Unknown User').split(' ')
-            const firstName = nameParts[0]
-            const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : ''
-            return `${firstName} ${lastInitial}`.trim()
-          })
-        } else {
-          entities = ['Daniel W', 'Tom S', 'Svenn W', 'Rasmus W']
-        }
-        break
-      case 'importers':
-        entities = ['Nordic Coffee Works', 'Global Bean Imports', 'European Roasters Ltd']
-        break
-      case 'exporters':
-        entities = ['Antigua Coffee Co-op', 'Colombian Premium', 'Guatemala Export Group']
-        break
-    }
-
-    // Generate data for last 5 years
-    for (let year = currentYear - 4; year <= currentYear; year++) {
-      const yearEntities = new Map<string, EntityData>()
-      let yearTotalTrips = 0
-      let busiestWeekCount = 0
-
-      entities.forEach(entityName => {
+    Object.entries(rawData.yearlyData).forEach(([yearStr, yearData]: [string, any]) => {
+      const year = parseInt(yearStr)
+      const entities = new Map<string, EntityData>()
+      
+      Object.entries(yearData.entities).forEach(([entityName, entityData]: [string, any]) => {
         const weeks = new Map<number, WeekData>()
-        let entityTotalTrips = 0
-
-        // Generate realistic trip patterns
-        for (let week = 1; week <= 52; week++) {
-          // Higher activity in harvest seasons (weeks 10-24, 35-48)
-          const isHighSeason = (week >= 10 && week <= 24) || (week >= 35 && week <= 48)
-          const baseProbability = isHighSeason ? 0.3 : 0.1
-          const tripCount = Math.random() < baseProbability ? Math.floor(Math.random() * 3) + 1 : 0
-          
-          if (tripCount > 0) {
-            weeks.set(week, {
-              count: tripCount,
-              level: Math.min(tripCount, 4)
-            })
-            entityTotalTrips += tripCount
-            busiestWeekCount = Math.max(busiestWeekCount, tripCount)
-          }
-        }
-
-        yearEntities.set(entityName, {
-          name: entityName,
-          weeks,
-          totalTrips: entityTotalTrips
+        
+        Object.entries(entityData.weeks).forEach(([weekStr, weekData]: [string, any]) => {
+          weeks.set(parseInt(weekStr), {
+            count: weekData.count,
+            level: weekData.level
+          })
         })
-        yearTotalTrips += entityTotalTrips
+        
+        entities.set(entityName, {
+          name: entityData.name,
+          weeks,
+          totalTrips: entityData.totalTrips
+        })
       })
-
+      
       yearlyData.set(year, {
-        entities: yearEntities,
-        totalTrips: yearTotalTrips,
-        busiestWeekCount
+        entities,
+        totalTrips: yearData.totalTrips,
+        busiestWeekCount: yearData.busiestWeekCount
       })
-    }
+    })
 
-    return {
+    setHeatmapData({
       yearlyData,
-      currentYear,
-      type: section,
+      currentYear: new Date().getFullYear(),
+      type: selectedSection,
       expandedYears
-    }
-  }
+    })
 
-  useEffect(() => {
-    setIsLoading(true)
-    setTimeout(() => {
-      const data = generateData(selectedSection)
-      setHeatmapData(data)
-      setIsLoading(false)
-    }, 300)
-  }, [selectedSection, staffData])
+  }, [travelData, selectedSection, expandedYears])
 
   const toggleYear = (year: number) => {
     setExpandedYears(prev => {
@@ -352,12 +338,35 @@ export default function EnhancedHeatmap({ selectedSection, className = '', staff
     )
   }
 
-  if (!heatmapData) return null
+  if (error) {
+    return (
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+        <div className="text-center py-8">
+          <p className="text-red-500 dark:text-red-400">Error loading heatmap data</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {error.message || 'Failed to fetch travel data'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-  const sectionTitles = {
-    wolthers: 'Wolthers Staff Travel Activity',
-    importers: 'Importer/Roaster Activity',
-    exporters: 'Exporter/Producer/Coop Activity'
+  if (!heatmapData || (heatmapData.yearlyData.size === 0 && selectedSection !== 'wolthers')) {
+    return (
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-golden-400 mb-6">
+          {sectionTitles[selectedSection]}
+        </h2>
+        <div className="text-center py-12">
+          <p className="text-gray-500 dark:text-gray-400">No travel data available</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            {selectedSection === 'wolthers' 
+              ? 'Travel activity will appear here as trips are created'
+              : `${sectionTitles[selectedSection]} data will be available in the future`}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { TrendingUp } from 'lucide-react'
+import useSWR from 'swr'
 
 interface TrendPoint {
   year: number
@@ -15,63 +16,65 @@ interface TravelTrendsChartProps {
   className?: string
 }
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
+
 export default function TravelTrendsChart({ selectedSection, className = '' }: TravelTrendsChartProps) {
   const [trendData, setTrendData] = useState<TrendPoint[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 
-  // Generate mock trend data
-  const generateTrendData = (section: string): TrendPoint[] => {
-    const currentYear = new Date().getFullYear()
-    const data: TrendPoint[] = []
+  // Fetch real travel data
+  const { data: travelData, error, isLoading } = useSWR(
+    '/api/charts/travel-data',
+    fetcher
+  )
 
-    for (let year = currentYear - 4; year <= currentYear; year++) {
-      let roasters, importers, conventions
-
-      switch (section) {
-        case 'wolthers':
-          // Wolthers facilitates all types of trips
-          roasters = Math.floor(Math.random() * 15) + 10
-          importers = Math.floor(Math.random() * 12) + 8
-          conventions = Math.floor(Math.random() * 8) + 3
-          break
-        case 'importers':
-          // Importers have higher activity, lower conventions
-          roasters = Math.floor(Math.random() * 20) + 15
-          importers = Math.floor(Math.random() * 25) + 20
-          conventions = Math.floor(Math.random() * 5) + 2
-          break
-        case 'exporters':
-          // Exporters mainly receive visits
-          roasters = Math.floor(Math.random() * 8) + 5
-          importers = Math.floor(Math.random() * 10) + 8
-          conventions = Math.floor(Math.random() * 3) + 1
-          break
-        default:
-          roasters = importers = conventions = 0
-      }
-
-      data.push({
-        year,
-        roasters,
-        importers,
-        conventions
-      })
+  // Process real travel data for trends
+  useEffect(() => {
+    if (!travelData?.trendsData) {
+      setTrendData([])
+      return
     }
 
-    return data
-  }
+    const { trendsData } = travelData
+    
+    // For non-wolthers sections, show empty data for now
+    if (selectedSection !== 'wolthers' || trendsData.totalTrips === 0) {
+      setTrendData([])
+      return
+    }
 
-  useEffect(() => {
-    setIsLoading(true)
-    setTimeout(() => {
-      const data = generateTrendData(selectedSection)
-      setTrendData(data)
-      setIsLoading(false)
-    }, 200)
-  }, [selectedSection])
+    // Convert monthly data to yearly aggregates
+    const yearlyMap = new Map<number, { conventions: number, inland: number, other: number }>()
+    
+    trendsData.monthlyData.forEach((monthData: any) => {
+      // Extract year from month string (e.g., "Aug 2025" -> 2025)
+      const year = new Date(monthData.month).getFullYear()
+      
+      if (!yearlyMap.has(year)) {
+        yearlyMap.set(year, { conventions: 0, inland: 0, other: 0 })
+      }
+      
+      const yearData = yearlyMap.get(year)!
+      yearData.conventions += monthData.conventions
+      yearData.inland += monthData.inland
+      yearData.other += monthData.other
+    })
+
+    // Convert to TrendPoint format
+    const processedData: TrendPoint[] = Array.from(yearlyMap.entries())
+      .map(([year, data]) => ({
+        year,
+        roasters: data.other, // Map 'other' trips to roasters for visualization
+        importers: data.inland, // Map 'inland' to importers  
+        conventions: data.conventions
+      }))
+      .sort((a, b) => a.year - b.year)
+
+    setTrendData(processedData)
+  }, [travelData, selectedSection])
 
   if (isLoading) {
     return (
@@ -79,6 +82,48 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
         <div className="animate-pulse space-y-4">
           <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
           <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+        <div className="text-center py-8">
+          <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <p className="text-red-500 dark:text-red-400">Error loading travel trends</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {error.message || 'Failed to fetch travel data'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (trendData.length === 0) {
+    const sectionTitles = {
+      wolthers: 'Travel Coordination Trends',
+      importers: 'Import/Roasting Activity Trends', 
+      exporters: 'Export/Production Visit Trends'
+    }
+
+    return (
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+        <div className="flex items-center gap-3 mb-6">
+          <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
+            {sectionTitles[selectedSection]}
+          </h3>
+        </div>
+        <div className="text-center py-12">
+          <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400">No travel trends data</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            {selectedSection === 'wolthers' 
+              ? 'Travel trends will appear here as more trips are created'
+              : `${sectionTitles[selectedSection]} will be available in the future`}
+          </p>
         </div>
       </div>
     )

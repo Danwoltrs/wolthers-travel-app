@@ -181,7 +181,36 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
         </div>
       </div>
 
-      {/* Summary Statistics */}
+      {/* Main Statistics Cards */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Total Trips Card */}
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+            Total Trips (2025)
+          </h3>
+          <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+            {summary.totalTrips}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Actual trips from database
+          </p>
+        </div>
+
+        {/* Total Trip Costs Card */}
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+            Total Trip Costs (2025)
+          </h3>
+          <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+            {formatCurrency(summary.totalCost)}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Actual costs from database
+          </p>
+        </div>
+      </div>
+
+      {/* Detailed Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4">
           <div className="flex items-center gap-2">
@@ -192,7 +221,7 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
             {summary.conventions}
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-400">
-            {((summary.conventions / summary.totalTrips) * 100).toFixed(0)}% of trips
+            {summary.totalTrips > 0 ? ((summary.conventions / summary.totalTrips) * 100).toFixed(0) : 0}% of trips
           </div>
         </div>
 
@@ -205,7 +234,7 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
             {summary.inland}
           </div>
           <div className="text-xs text-green-600 dark:text-green-400">
-            {((summary.inland / summary.totalTrips) * 100).toFixed(0)}% of trips
+            {summary.totalTrips > 0 ? ((summary.inland / summary.totalTrips) * 100).toFixed(0) : 0}% of trips
           </div>
         </div>
 

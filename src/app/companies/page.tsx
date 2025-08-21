@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
 import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
-import RealTripHeatmap from '@/components/companies/charts/RealTripHeatmap'
+import EnhancedHeatmap from '@/components/companies/charts/EnhancedHeatmap'
+import TravelTrendsChart from '@/components/companies/charts/TravelTrendsChart'
 import RealTravelTrends from '@/components/companies/charts/RealTravelTrends'
 import CropDashboard from '@/components/documents/CropDashboard'
 import DocumentFinder from '@/components/documents/DocumentFinder'
@@ -24,12 +25,6 @@ export default function CompaniesPage() {
   // Fetch real Wolthers staff data
   const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
     '/api/users/wolthers-staff',
-    fetcher
-  )
-  
-  // Fetch real statistics data
-  const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR(
-    '/api/users/stats',
     fetcher
   )
 
@@ -131,86 +126,26 @@ export default function CompaniesPage() {
           <div className="space-y-8">
             {/* Charts Side by Side on Large Screens */}
             <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
-              {/* Left Column: Heatmap + Stats Cards */}
-              <div className="space-y-6">
-                {/* Real Trip Heatmap - Shows actual trip data from database */}
-                <RealTripHeatmap 
+              {/* Left Column: Heatmap */}
+              <div className="xl:flex-1">
+                {/* Enhanced Heatmap - Visual travel activity grid */}
+                <EnhancedHeatmap 
                   selectedSection={selectedSection}
                 />
-
-                {/* Stats Cards under Heatmap */}
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Total Trips Card */}
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
-                      Total Trips (2025)
-                    </h3>
-                    <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
-                      {statsLoading ? (
-                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-16 rounded"></div>
-                      ) : statsError ? (
-                        'Error'
-                      ) : selectedSection === 'wolthers' ? (
-                        statsData?.data?.trips?.total || 0
-                      ) : selectedSection === 'importers' ? (
-                        '0' // Will be updated when importer data is available
-                      ) : (
-                        '0' // Will be updated when exporter data is available
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {statsLoading ? (
-                        'Loading...'
-                      ) : statsError ? (
-                        'Error loading data'
-                      ) : selectedSection === 'wolthers' ? (
-                        'Actual trips from database'
-                      ) : (
-                        'No data available yet'
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Total Trip Costs Card */}
-                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
-                      Total Trip Costs (2025)
-                    </h3>
-                    <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
-                      {statsLoading ? (
-                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-24 rounded"></div>
-                      ) : statsError ? (
-                        'Error'
-                      ) : selectedSection === 'wolthers' ? (
-                        `$${(statsData?.data?.trips?.totalSpent || 0).toLocaleString()}`
-                      ) : selectedSection === 'importers' ? (
-                        '$0' // Will be updated when importer data is available
-                      ) : (
-                        '$0' // Will be updated when exporter data is available
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {statsLoading ? (
-                        'Loading...'
-                      ) : statsError ? (
-                        'Error loading data'
-                      ) : selectedSection === 'wolthers' ? (
-                        'Actual trips from database'
-                      ) : (
-                        'No data available yet'
-                      )}
-                    </p>
-                  </div>
-                </div>
               </div>
 
-              {/* Right Column: Real Travel Trends Chart */}
+              {/* Right Column: Travel Coordination Trends */}
               <div className="xl:flex-1 xl:min-w-0">
-                <RealTravelTrends 
+                <TravelTrendsChart 
                   selectedSection={selectedSection}
                 />
               </div>
             </div>
+
+            {/* Real Travel Trends with Stats Cards - Below Charts */}
+            <RealTravelTrends 
+              selectedSection={selectedSection}
+            />
           </div>
 
           {/* Divider */}
