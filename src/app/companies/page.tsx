@@ -122,39 +122,22 @@ export default function CompaniesPage() {
 
         {/* Dashboard Content */}
         <div className="p-8 space-y-8">
-          {/* Charts Container */}
-          <div className="space-y-8">
-            {/* Charts Side by Side on Large Screens */}
-            <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
-              {/* Left Column: Heatmap */}
-              <div className="xl:flex-1">
-                {/* Enhanced Heatmap - Visual travel activity grid */}
-                <EnhancedHeatmap 
-                  selectedSection={selectedSection}
-                />
-              </div>
-
-              {/* Right Column: Travel Coordination Trends */}
-              <div className="xl:flex-1 xl:min-w-0">
-                <TravelTrendsChart 
-                  selectedSection={selectedSection}
-                />
-              </div>
-            </div>
-
-            {/* Real Travel Trends with Stats Cards - Below Charts */}
-            <RealTravelTrends 
-              selectedSection={selectedSection}
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="h-px bg-gray-200 dark:bg-gray-700"></div>
-
-          {/* Bottom Section: Contacts & Documents */}
-          <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
-            {/* Left Column: Contacts */}
-            <div className="xl:w-1/3">
+          {/* Two Column Layout: Dynamic Left + Flexible Right */}
+          <div className="flex flex-col xl:flex-row xl:gap-6 xl:items-start space-y-8 xl:space-y-0">
+            
+            {/* Left Column: Heatmap-driven width with synchronized components */}
+            <div className="flex-shrink-0 space-y-6">
+              {/* Enhanced Heatmap - MASTER WIDTH COMPONENT */}
+              <EnhancedHeatmap 
+                selectedSection={selectedSection}
+              />
+              
+              {/* Real Travel Trends - Matches heatmap width */}
+              <RealTravelTrends 
+                selectedSection={selectedSection}
+              />
+              
+              {/* Wolthers Staff */}
               <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
                   {selectedSection === 'wolthers' ? 'Wolthers Staff' : 
@@ -244,8 +227,14 @@ export default function CompaniesPage() {
               </div>
             </div>
 
-            {/* Right Column: Document Management with Finder-Style Interface */}
-            <div className="xl:flex-1 flex flex-col space-y-6">
+            {/* Right Column: Fill remaining space */}
+            <div className="flex-1 min-w-0 flex flex-col space-y-6">
+              {/* Travel Coordination Trends at top */}
+              <TravelTrendsChart 
+                selectedSection={selectedSection}
+              />
+              
+              {/* Document Management System below */}
               {/* Error Display */}
               {error && (
                 <ErrorDisplay 

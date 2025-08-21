@@ -167,57 +167,57 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
   }
 
   return (
-    <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 space-y-6 ${className}`}>
+    <div className={`w-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 space-y-4 ${className}`}>
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="flex items-center gap-2">
+        <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-golden-400">
             Real Travel Trends
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Based on {summary.totalTrips} actual trips • 2025 data
           </p>
         </div>
       </div>
 
-      {/* Main Statistics Cards */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* Main Statistics Cards - Compact */}
+      <div className="flex gap-3">
         {/* Total Trips Card */}
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+        <div className="bg-white dark:bg-[#1a1a1a] rounded border border-pearl-200 dark:border-[#2a2a2a] p-3 flex-1">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-golden-400 mb-1">
             Total Trips (2025)
           </h3>
-          <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
             {summary.totalTrips}
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             Actual trips from database
           </p>
         </div>
 
         {/* Total Trip Costs Card */}
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-2">
+        <div className="bg-white dark:bg-[#1a1a1a] rounded border border-pearl-200 dark:border-[#2a2a2a] p-3 flex-1">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-golden-400 mb-1">
             Total Trip Costs (2025)
           </h3>
-          <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatCurrency(summary.totalCost)}
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             Actual costs from database
           </p>
         </div>
       </div>
 
-      {/* Detailed Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span className="text-sm text-blue-700 dark:text-blue-300">Conventions</span>
+      {/* Detailed Statistics - Compact */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded p-2">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            <span className="text-xs text-blue-700 dark:text-blue-300">Conventions</span>
           </div>
-          <div className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
+          <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
             {summary.conventions}
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-400">
@@ -225,12 +225,12 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-green-600 dark:text-green-400" />
-            <span className="text-sm text-green-700 dark:text-green-300">Inland Trips</span>
+        <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded p-2">
+          <div className="flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-green-600 dark:text-green-400" />
+            <span className="text-xs text-green-700 dark:text-green-300">Inland Trips</span>
           </div>
-          <div className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
+          <div className="text-lg font-bold text-green-900 dark:text-green-100">
             {summary.inland}
           </div>
           <div className="text-xs text-green-600 dark:text-green-400">
@@ -238,12 +238,12 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <span className="text-sm text-amber-700 dark:text-amber-300">Total Spent</span>
+        <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded p-2">
+          <div className="flex items-center gap-1">
+            <DollarSign className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs text-amber-700 dark:text-amber-300">Total Spent</span>
           </div>
-          <div className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">
+          <div className="text-lg font-bold text-amber-900 dark:text-amber-100">
             {formatCurrency(summary.totalCost)}
           </div>
           <div className="text-xs text-amber-600 dark:text-amber-400">
@@ -251,12 +251,12 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span className="text-sm text-purple-700 dark:text-purple-300">Avg Cost</span>
+        <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded p-2">
+          <div className="flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+            <span className="text-xs text-purple-700 dark:text-purple-300">Avg Cost</span>
           </div>
-          <div className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
+          <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
             {formatCurrency(summary.avgTripCost)}
           </div>
           <div className="text-xs text-purple-600 dark:text-purple-400">
@@ -265,12 +265,12 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
         </div>
       </div>
 
-      {/* Monthly Breakdown */}
+      {/* Monthly Breakdown - Side by Side */}
       {trendData.length > 0 && (
-        <div className="space-y-4">
-          <h4 className="font-medium text-gray-900 dark:text-golden-400">Monthly Breakdown</h4>
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-golden-400">Monthly Breakdown</h4>
           
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
             {trendData.map((month, index) => {
               const totalTrips = month.conventions + month.inland + month.other
               const isCurrentMonth = month.month.includes('Aug') // Highlight current activity
@@ -278,37 +278,35 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
               return (
                 <div
                   key={month.month}
-                  className={`p-4 rounded-lg border ${
+                  className={`p-2 rounded border ${
                     isCurrentMonth 
                       ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' 
                       : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h5 className={`font-medium ${
-                        isCurrentMonth ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-900 dark:text-gray-100'
-                      }`}>
-                        {month.month}
-                        {isCurrentMonth && (
-                          <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white rounded-full text-xs">
-                            Active
-                          </span>
-                        )}
-                      </h5>
-                      <p className={`text-sm ${
-                        isCurrentMonth ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'} • {formatCurrency(month.totalCost)}
-                      </p>
-                    </div>
+                  <div>
+                    <h5 className={`text-sm font-medium ${
+                      isCurrentMonth ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-900 dark:text-gray-100'
+                    }`}>
+                      {month.month}
+                      {isCurrentMonth && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-emerald-600 text-white rounded-full text-xs">
+                          Active
+                        </span>
+                      )}
+                    </h5>
+                    <p className={`text-xs ${
+                      isCurrentMonth ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'} • {formatCurrency(month.totalCost)}
+                    </p>
                   </div>
 
                   {/* Trip type breakdown */}
-                  <div className="flex gap-4 text-sm">
+                  <div className="flex gap-2 text-xs mt-1">
                     {month.conventions > 0 && (
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-blue-500" />
+                        <Calendar className="w-2.5 h-2.5 text-blue-500" />
                         <span className="text-gray-600 dark:text-gray-400">
                           {month.conventions} convention{month.conventions !== 1 ? 's' : ''}
                         </span>
@@ -316,17 +314,9 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
                     )}
                     {month.inland > 0 && (
                       <div className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-green-500" />
+                        <MapPin className="w-2.5 h-2.5 text-green-500" />
                         <span className="text-gray-600 dark:text-gray-400">
                           {month.inland} inland trip{month.inland !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    )}
-                    {month.other > 0 && (
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 text-gray-500" />
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {month.other} other trip{month.other !== 1 ? 's' : ''}
                         </span>
                       </div>
                     )}
@@ -339,7 +329,7 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
       )}
 
       {/* Data Source Note */}
-      <div className="text-xs text-center text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="text-xs text-center text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
         Real data from {summary.totalTrips} trips • No fake statistics • Updated automatically
       </div>
     </div>
