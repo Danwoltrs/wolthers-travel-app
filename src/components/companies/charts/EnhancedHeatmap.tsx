@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import useSWR from 'swr'
 
@@ -215,7 +215,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
     ))
   }
 
-  const renderHeatmapSquares = (entityData: EntityData, viewMode: 'weeks' | 'months' | 'quarters') => {
+  const renderHeatmapSquares = (entityData: EntityData, viewMode: 'weeks' | 'summary') => {
     if (viewMode === 'weeks') {
       // Create a single row of 52 weeks for each person
       const weekSquares = []
@@ -229,7 +229,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
         weekSquares.push(
           <div
             key={week}
-            className={`w-2.5 h-2.5 ${getIntensityColor(level)} hover:ring-1 hover:ring-emerald-500 cursor-pointer transition-all`}
+            className={`w-2.5 h-2.5 ${getIntensityColor(level)} hover:ring-1 hover:ring-emerald-500 cursor-pointer transition-all flex-shrink-0`}
             style={{ 
               borderRadius: '2px',
               marginRight: '2px',
@@ -243,89 +243,85 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
       return <div className="flex">{weekSquares}</div>
     }
     
-    if (viewMode === 'months') {
-      const monthlyData = new Map<number, number>()
-      // Aggregate weekly data into months
-      for (let week = 1; week <= 52; week++) {
-        const month = Math.floor((week - 1) / 4.33) // Approximate weeks per month
-        const weekData = entityData.weeks.get(week)
-        if (weekData) {
-          monthlyData.set(month, (monthlyData.get(month) || 0) + weekData.count)
-        }
-      }
-
-      const squares = []
-      for (let month = 0; month < 12; month++) {
-        const count = monthlyData.get(month) || 0
-        const level = Math.min(Math.floor(count / 2), 4)
-        
-        squares.push(
+    if (viewMode === 'summary') {
+      // Show one square per person/company with total activity level
+      const totalTrips = entityData.totalTrips || 0
+      const level = Math.min(Math.floor(totalTrips / 2), 4) // Scale total trips to intensity level
+      
+      return (
+        <div className="flex">
           <div
-            key={month}
-            className={`w-6 h-6 ${getIntensityColor(level)} hover:ring-1 hover:ring-emerald-500 cursor-pointer transition-all`}
+            className={`w-6 h-6 ${getIntensityColor(level)} hover:ring-1 hover:ring-emerald-500 cursor-pointer transition-all flex-shrink-0`}
             style={{ 
               borderRadius: '2px',
               margin: '1px'
             }}
-            title={`Month ${month + 1}: ${count} trip${count !== 1 ? 's' : ''}`}
+            title={`${entityData.name}: ${totalTrips} trip${totalTrips !== 1 ? 's' : ''} total`}
           />
-        )
-      }
-      return <div className="flex gap-px">{squares}</div>
-    }
-
-    if (viewMode === 'quarters') {
-      const quarterlyData = [0, 0, 0, 0]
-      // Aggregate weekly data into quarters
-      for (let week = 1; week <= 52; week++) {
-        const quarter = Math.floor((week - 1) / 13) // 13 weeks per quarter
-        const weekData = entityData.weeks.get(week)
-        if (weekData) {
-          quarterlyData[quarter] += weekData.count
-        }
-      }
-
-      const squares = []
-      quarterlyData.forEach((count, quarter) => {
-        const level = Math.min(Math.floor(count / 4), 4)
-        
-        squares.push(
-          <div
-            key={quarter}
-            className={`w-8 h-8 ${getIntensityColor(level)} hover:ring-1 hover:ring-emerald-500 cursor-pointer transition-all flex-1`}
-            style={{ 
-              borderRadius: '2px',
-              margin: '1px'
-            }}
-            title={`Q${quarter + 1}: ${count} trip${count !== 1 ? 's' : ''}`}
-          />
-        )
-      })
-      return <div className="flex gap-px">{squares}</div>
+        </div>
+      )
     }
 
     return null
   }
 
-  // Responsive breakpoints
-  const getViewMode = (): 'weeks' | 'months' | 'quarters' => {
+  // Container overflow detection and responsive breakpoints
+  const getViewMode = (containerRef?: React.RefObject<HTMLDivElement>): 'weeks' | 'summary' => {
+    // For now, let's default to weeks and only switch to summary on very tiny screens
     if (typeof window !== 'undefined') {
       const width = window.innerWidth
-      if (width < 768) return 'quarters' // mobile
-      if (width < 1024) return 'months' // tablet
-      return 'weeks' // desktop
+      return width >= 400 ? 'weeks' : 'summary' // Only summary on very small mobile phones
     }
+    
     return 'weeks'
   }
 
-  const [viewMode, setViewMode] = useState<'weeks' | 'months' | 'quarters'>('weeks')
+  const [viewMode, setViewMode] = useState<'weeks' | 'summary'>('weeks')
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleResize = () => setViewMode(getViewMode())
-    handleResize() // Set initial value
+    const handleResize = () => {
+      const newViewMode = getViewMode(containerRef)
+      if (newViewMode !== viewMode) {
+        setViewMode(newViewMode)
+      }
+    }
+    
+    // Use ResizeObserver for better container size detection
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Add a small delay to prevent rapid firing
+      setTimeout(handleResize, 10)
+    })
+    
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+    
+    // Also listen to window resize as fallback
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    
+    // Set initial value after a short delay to ensure container is rendered
+    const timer = setTimeout(handleResize, 200)
+    
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', handleResize)
+      clearTimeout(timer)
+    }
+  }, []) // Remove viewMode dependency to prevent infinite loops
+
+  // Also update when heatmap data changes (affects layout)
+  useEffect(() => {
+    if (heatmapData && containerRef.current) {
+      const timer = setTimeout(() => {
+        const newViewMode = getViewMode(containerRef)
+        if (newViewMode !== viewMode) {
+          setViewMode(newViewMode)
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [heatmapData]) // Remove viewMode dependency
 
   if (isLoading) {
     return (
@@ -370,23 +366,38 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
   }
 
   return (
-    <div className={`inline-block bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+    <div 
+      ref={containerRef}
+      className={`w-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}
+      style={{ 
+        maxWidth: '100%',
+        overflow: 'hidden', // Prevent content from extending outside container
+        minWidth: 0 // Allow shrinking
+      }}
+    >
       <h2 className="text-xl font-semibold text-gray-900 dark:text-golden-400 mb-6">
         {sectionTitles[selectedSection]}
       </h2>
       
-      {/* Container with fixed width to match chart content */}
-      <div className="inline-block">
+      {/* Container with constrained width to prevent overflow */}
+      <div className="w-full overflow-hidden">
         <div className="space-y-0.5">
-          {/* Single Month Header at Top */}
-          <div className="flex items-center gap-2" style={{ marginBottom: '2px' }}>
-            <div className="w-48 text-xs text-gray-500 dark:text-gray-400">Month</div>
-            <div className="flex">
-              {viewMode === 'weeks' && renderMonthHeaders()}
-              {viewMode === 'months' && renderMonthHeaders()}
-              {viewMode === 'quarters' && renderQuarters()}
+          {/* Header - only show for weeks view */}
+          {viewMode === 'weeks' && (
+            <div className="flex items-center gap-2" style={{ marginBottom: '2px' }}>
+              <div className="w-48 text-xs text-gray-500 dark:text-gray-400">Month</div>
+              <div className="flex">
+                {renderMonthHeaders()}
+              </div>
             </div>
-          </div>
+          )}
+          
+          {viewMode === 'summary' && (
+            <div className="flex items-center gap-2" style={{ marginBottom: '2px' }}>
+              <div className="w-48 text-xs text-gray-500 dark:text-gray-400">Activity</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+            </div>
+          )}
 
         {/* Years List */}
         {Array.from(heatmapData.yearlyData.keys())
@@ -462,7 +473,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
             )
           })}
 
-          {/* Week Numbers - only show for desktop view */}
+          {/* Week Numbers - only show for weeks view */}
           {viewMode === 'weeks' && (
             <div className="flex items-center gap-2 mt-1">
               <div className="w-48 text-xs text-gray-500 dark:text-gray-400">Week</div>
