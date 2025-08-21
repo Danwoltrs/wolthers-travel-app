@@ -4,8 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
 import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
-import EnhancedHeatmap from '@/components/companies/charts/EnhancedHeatmap'
-import TravelTrendsChart from '@/components/companies/charts/TravelTrendsChart'
+import RealTripHeatmap from '@/components/companies/charts/RealTripHeatmap'
+import RealTravelTrends from '@/components/companies/charts/RealTravelTrends'
 import CropDashboard from '@/components/documents/CropDashboard'
 import DocumentFinder from '@/components/documents/DocumentFinder'
 import MobileDocumentView from '@/components/documents/MobileDocumentView'
@@ -133,10 +133,9 @@ export default function CompaniesPage() {
             <div className="flex flex-col xl:flex-row xl:gap-8 xl:items-start space-y-8 xl:space-y-0">
               {/* Left Column: Heatmap + Stats Cards */}
               <div className="space-y-6">
-                {/* Enhanced Heatmap - Pass real staff data for visitor names */}
-                <EnhancedHeatmap 
+                {/* Real Trip Heatmap - Shows actual trip data from database */}
+                <RealTripHeatmap 
                   selectedSection={selectedSection}
-                  staffData={staffData?.staff || []}
                 />
 
                 {/* Stats Cards under Heatmap */}
@@ -164,8 +163,10 @@ export default function CompaniesPage() {
                         'Loading...'
                       ) : statsError ? (
                         'Error loading data'
+                      ) : selectedSection === 'wolthers' ? (
+                        'Actual trips from database'
                       ) : (
-                        'Real data from database'
+                        'No data available yet'
                       )}
                     </p>
                   </div>
@@ -193,17 +194,19 @@ export default function CompaniesPage() {
                         'Loading...'
                       ) : statsError ? (
                         'Error loading data'
+                      ) : selectedSection === 'wolthers' ? (
+                        'Actual trips from database'
                       ) : (
-                        'Real data from database'
+                        'No data available yet'
                       )}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Travel Trends Chart */}
+              {/* Right Column: Real Travel Trends Chart */}
               <div className="xl:flex-1 xl:min-w-0">
-                <TravelTrendsChart 
+                <RealTravelTrends 
                   selectedSection={selectedSection}
                 />
               </div>
@@ -278,11 +281,6 @@ export default function CompaniesPage() {
                                 {member.full_name || 'Unknown User'}
                               </h4>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {member.user_type === 'admin' ? 'Managing Director' : 
-                                 member.user_type === 'wolthers_staff' ? 'Staff Member' : 
-                                 member.user_type || 'Team Member'}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500">
                                 {member.email}
                               </p>
                             </div>

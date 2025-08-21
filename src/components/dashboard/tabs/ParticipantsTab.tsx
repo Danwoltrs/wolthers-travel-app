@@ -193,8 +193,8 @@ export function ParticipantsTab({
                       
                       <div className="flex items-center space-x-3">
                         {/* Role Badge */}
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor('trip_lead')}`}>
-                          Staff
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor('participant')}`}>
+                          Wolthers Staff
                         </span>
                         
                         {/* Availability Status */}
