@@ -43,57 +43,9 @@ export function ExpensesTab({
   const [selectedCurrency, setSelectedCurrency] = useState('DKK')
   const [dateFilter, setDateFilter] = useState('all')
 
-  // Mock expense data
-  const mockExpenses = [
-    {
-      id: '1',
-      description: 'Flight tickets CPH-GRU-CPH',
-      amount: 12500,
-      currency: 'DKK',
-      category: 'transportation',
-      date: '2024-01-10',
-      status: 'approved',
-      submittedBy: 'Daniel Wolthers',
-      receipt: true,
-      billable: true
-    },
-    {
-      id: '2',
-      description: 'Hotel accommodation - Santos Plaza',
-      amount: 3200,
-      currency: 'DKK',
-      category: 'accommodation',
-      date: '2024-01-12',
-      status: 'pending',
-      submittedBy: 'Tom Nielsen',
-      receipt: true,
-      billable: true
-    },
-    {
-      id: '3',
-      description: 'Client dinner - Churrascaria',
-      amount: 850,
-      currency: 'DKK',
-      category: 'meals',
-      date: '2024-01-15',
-      status: 'approved',
-      submittedBy: 'Daniel Wolthers',
-      receipt: false,
-      billable: false
-    },
-    {
-      id: '4',
-      description: 'Local transportation - Taxi/Uber',
-      amount: 320,
-      currency: 'DKK',
-      category: 'transportation',
-      date: '2024-01-15',
-      status: 'draft',
-      submittedBy: 'Daniel Wolthers',
-      receipt: false,
-      billable: true
-    }
-  ]
+  // Real expense data would come from API call to /api/trips/${trip.id}/expenses
+  // For now, show empty state until real expenses are implemented
+  const mockExpenses: any[] = []
 
   const expenseCategories = [
     { id: 'transportation', label: 'Transportation', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
@@ -145,8 +97,8 @@ export function ExpensesTab({
     }).format(amount)
   }
 
-  // Calculate totals
-  const totalBudget = 25000 // Mock budget
+  // Calculate totals from trip data
+  const totalBudget = trip.estimatedBudget || 0
   const totalExpenses = mockExpenses.reduce((sum, expense) => sum + expense.amount, 0)
   const approvedExpenses = mockExpenses.filter(e => e.status === 'approved').reduce((sum, expense) => sum + expense.amount, 0)
   const pendingExpenses = mockExpenses.filter(e => e.status === 'pending').reduce((sum, expense) => sum + expense.amount, 0)
@@ -369,59 +321,69 @@ export function ExpensesTab({
 
           {/* Expenses List */}
           <div className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
-            {mockExpenses.map((expense) => (
-              <div key={expense.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-[#111111]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                      <Receipt className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            {mockExpenses.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <Receipt className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400 mb-2">No expenses recorded yet</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  Click "Add Expense" to start tracking trip costs
+                </p>
+              </div>
+            ) : (
+              mockExpenses.map((expense) => (
+                <div key={expense.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-[#111111]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                        <Receipt className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {expense.description}
+                        </div>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-3 h-3" />
+                            <span>{new Date(expense.date).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <User className="w-3 h-3" />
+                            <span>{expense.submittedBy}</span>
+                          </div>
+                          {expense.receipt && (
+                            <div className="flex items-center space-x-1">
+                              <FileText className="w-3 h-3 text-emerald-500" />
+                              <span className="text-emerald-600 dark:text-emerald-400">Receipt</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {expense.description}
-                      </div>
-                      <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{new Date(expense.date).toLocaleDateString()}</span>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {formatCurrency(expense.amount, expense.currency)}
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <User className="w-3 h-3" />
-                          <span>{expense.submittedBy}</span>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(expense.category)}`}>
+                            {expenseCategories.find(c => c.id === expense.category)?.label}
+                          </span>
                         </div>
-                        {expense.receipt && (
-                          <div className="flex items-center space-x-1">
-                            <FileText className="w-3 h-3 text-emerald-500" />
-                            <span className="text-emerald-600 dark:text-emerald-400">Receipt</span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(expense.amount, expense.currency)}
-                      </div>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(expense.category)}`}>
-                          {expenseCategories.find(c => c.id === expense.category)?.label}
+                      
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(expense.status)}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(expense.status)}`}>
+                          {expense.status}
                         </span>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(expense.status)}
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(expense.status)}`}>
-                        {expense.status}
-                      </span>
-                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}

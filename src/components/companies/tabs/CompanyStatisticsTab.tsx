@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   BarChart3, TrendingUp, Calendar, DollarSign, Users, MapPin, 
   Clock, Target, PieChart, LineChart, TrendingDown, Filter
 } from 'lucide-react'
 import StatisticsChart from '../charts/StatisticsChart'
 import CompanyTravelHeatmap from '../charts/CompanyTravelHeatmap'
+import { useCompanyStatistics } from '@/hooks/useCompanyStatistics'
 import type { ChartDataPoint } from '../charts/StatisticsChart'
 
 interface CompanyStatisticsTabProps {
@@ -30,92 +31,35 @@ interface CompanyStats {
   staffEngagement: ChartDataPoint[]
 }
 
-// Mock data generator for comprehensive statistics
-const generateMockStats = (companyId: string): CompanyStats => {
-  const currentYear = new Date().getFullYear()
-  
+// This component now uses the useCompanyStatistics hook which pulls real data
+// from Supabase and provides intelligent fallbacks when no data exists
+const generateEmptyStats = (): CompanyStats => {
   return {
-    totalTrips: 47,
-    totalSpend: 485000,
-    totalMeetings: 23,
-    avgCostPerTrip: 10319,
-    uniqueLocations: 8,
-    uniqueStaff: 12,
-    avgTripDuration: 4.2,
-    lastTripDate: '2025-03-15',
-    yearOverYearGrowth: 23.5,
-    
-    quarterlyTrends: [
-      { label: 'Q1 2024', value: 8, trend: 12.5 },
-      { label: 'Q2 2024', value: 15, trend: 25.0 },
-      { label: 'Q3 2024', value: 12, trend: -8.3 },
-      { label: 'Q4 2024', value: 18, trend: 33.3 },
-      { label: 'Q1 2025', value: 11, trend: 15.4 }
-    ],
-    
-    costBreakdown: [
-      { label: 'Flights', value: 195000, percentage: 40.2, color: '#059669' },
-      { label: 'Hotels', value: 125000, percentage: 25.8, color: '#F59E0B' },
-      { label: 'Meals', value: 85000, percentage: 17.5, color: '#7C3AED' },
-      { label: 'Ground Transport', value: 48000, percentage: 9.9, color: '#EF4444' },
-      { label: 'Other', value: 32000, percentage: 6.6, color: '#3B82F6' }
-    ],
-    
-    locationDistribution: [
-      { label: 'Guatemala', value: 18, percentage: 38.3, color: '#059669' },
-      { label: 'Colombia', value: 12, percentage: 25.5, color: '#F59E0B' },
-      { label: 'Ethiopia', value: 8, percentage: 17.0, color: '#7C3AED' },
-      { label: 'Brazil', value: 6, percentage: 12.8, color: '#EF4444' },
-      { label: 'Kenya', value: 3, percentage: 6.4, color: '#3B82F6' }
-    ],
-    
-    monthlyTrends: [
-      { label: 'Jan', value: 2, trend: -12.5 },
-      { label: 'Feb', value: 4, trend: 33.3 },
-      { label: 'Mar', value: 5, trend: 25.0 },
-      { label: 'Apr', value: 6, trend: 20.0 },
-      { label: 'May', value: 4, trend: -16.7 },
-      { label: 'Jun', value: 7, trend: 40.0 },
-      { label: 'Jul', value: 3, trend: -28.6 },
-      { label: 'Aug', value: 5, trend: 25.0 },
-      { label: 'Sep', value: 4, trend: -11.1 },
-      { label: 'Oct', value: 6, trend: 33.3 },
-      { label: 'Nov', value: 5, trend: -9.1 },
-      { label: 'Dec', value: 6, trend: 15.4 }
-    ],
-    
-    staffEngagement: [
-      { label: 'Daniel Wolthers', value: 18, percentage: 38.3 },
-      { label: 'Tom Hansen', value: 12, percentage: 25.5 },
-      { label: 'Svenn Larsen', value: 8, percentage: 17.0 },
-      { label: 'Rasmus Nielsen', value: 6, percentage: 12.8 },
-      { label: 'Others', value: 3, percentage: 6.4 }
-    ]
+    totalTrips: 0,
+    totalSpend: 0,
+    totalMeetings: 0,
+    avgCostPerTrip: 0,
+    uniqueLocations: 0,
+    uniqueStaff: 0,
+    avgTripDuration: 0,
+    lastTripDate: new Date().toISOString(),
+    yearOverYearGrowth: 0,
+    quarterlyTrends: [],
+    costBreakdown: [],
+    locationDistribution: [],
+    monthlyTrends: [],
+    staffEngagement: []
   }
 }
 
 export default function CompanyStatisticsTab({ companyId }: CompanyStatisticsTabProps) {
-  const [stats, setStats] = useState<CompanyStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly')
   const [selectedMetric, setSelectedMetric] = useState<'trips' | 'cost' | 'all'>('all')
 
-  useEffect(() => {
-    // Simulate API call
-    const fetchStats = async () => {
-      setIsLoading(true)
-      // In real app, this would be an API call
-      setTimeout(() => {
-        const mockStats = generateMockStats(companyId)
-        setStats(mockStats)
-        setIsLoading(false)
-      }, 1000)
-    }
+  // Use the real statistics hook
+  const { stats, loading, error } = useCompanyStatistics(companyId)
 
-    fetchStats()
-  }, [companyId])
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
@@ -135,7 +79,29 @@ export default function CompanyStatisticsTab({ companyId }: CompanyStatisticsTab
     )
   }
 
-  if (!stats) return null
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg p-4">
+          <p className="text-red-600 dark:text-red-400">Error loading statistics: {error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!stats) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800/50 rounded-lg p-8 text-center">
+          <BarChart3 className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-gray-400">No statistics available</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            Start creating trips to see company statistics
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {

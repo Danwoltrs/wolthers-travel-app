@@ -269,13 +269,11 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
           // Only Daniel is already on this trip, everyone else is available
           const availabilityStatus: ParticipantAvailability = 'available'
           
-          // Mock location assignment based on staff member
-          const getLocation = (name: string) => {
-            const lowerName = name.toLowerCase()
-            if (lowerName.includes('daniel') || lowerName.includes('rasmus')) return 'Brazil'
-            if (lowerName.includes('svenn')) return 'Colombia'
-            if (lowerName.includes('tom')) return 'Guatemala'
-            return 'Brazil' // Default
+          // Location should come from user data or trip context, not hardcoded names
+          const getLocation = () => {
+            // TODO: Get location from user profile or trip context
+            // For now, return null to avoid hardcoded assumptions
+            return null
           }
           
           // No conflicts since everyone is available - there's only one trip in the system
@@ -293,7 +291,7 @@ export function useParticipants(options: UseParticipantsOptions): UseParticipant
             availabilityDetails: undefined,
             companyId: staff.company_id,
             companyName: 'Wolthers & Associates',
-            location: getLocation(staff.full_name),
+            location: getLocation(),
             conflictingTripName,
             isStaff: true,
             canEdit: true,

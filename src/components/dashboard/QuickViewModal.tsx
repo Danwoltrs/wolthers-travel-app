@@ -325,16 +325,14 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             </div>
           </div>
           
-          {/* Enhanced Tab Navigation */}
-          {isEditing && (
-            <EnhancedTabNavigation
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              validationState={modalState.validationState}
-              saveStatus={modalState.saveStatus}
-              className="mt-4"
-            />
-          )}
+          {/* Enhanced Tab Navigation - Always shown */}
+          <EnhancedTabNavigation
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            validationState={modalState.validationState}
+            saveStatus={modalState.saveStatus}
+            className="mt-4"
+          />
         </div>
 
         {/* Progress Bar */}
@@ -361,465 +359,110 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
         {/* Content Area - Scrollable */}
         <div className="flex-1 overflow-hidden">
-          {isEditing ? (
-            /* Editing Mode - Enhanced Tabs */
-            <div className="h-full flex flex-col">
-              {/* Auto-save Status Bar */}
-              {(hasUnsavedChanges || isAutoSaving) && (
-                <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {isAutoSaving ? (
-                        <>
-                          <div className="animate-spin h-3 w-3 border border-amber-500 border-t-transparent rounded-full"></div>
-                          <span className="text-xs text-amber-700 dark:text-amber-300">Auto-saving changes...</span>
-                        </>
-                      ) : hasUnsavedChanges ? (
-                        <>
-                          <AlertCircle className="h-3 w-3 text-amber-500" />
-                          <span className="text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>
-                        </>
-                      ) : null}
-                    </div>
-                    {modalState.lastSaved && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Last saved: {modalState.lastSaved.toLocaleTimeString()}
-                      </span>
-                    )}
+          {/* Tabbed Interface - Always shown */}
+          <div className="h-full flex flex-col">
+            {/* Auto-save Status Bar - Only in edit mode */}
+            {isEditing && (hasUnsavedChanges || isAutoSaving) && (
+              <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {isAutoSaving ? (
+                      <>
+                        <div className="animate-spin h-3 w-3 border border-amber-500 border-t-transparent rounded-full"></div>
+                        <span className="text-xs text-amber-700 dark:text-amber-300">Auto-saving changes...</span>
+                      </>
+                    ) : hasUnsavedChanges ? (
+                      <>
+                        <AlertCircle className="h-3 w-3 text-amber-500" />
+                        <span className="text-xs text-amber-700 dark:text-amber-300">Unsaved changes</span>
+                      </>
+                    ) : null}
                   </div>
+                  {modalState.lastSaved && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Last saved: {modalState.lastSaved.toLocaleTimeString()}
+                    </span>
+                  )}
                 </div>
+              </div>
+            )}
+            
+            {/* Tab Content Area */}
+            <div className="flex-1 overflow-y-auto p-3 md:p-6" ref={(el) => {
+              // Auto-scroll to top when Schedule tab becomes active
+              if (activeTab === 'schedule' && el) {
+                el.scrollTop = 0
+              }
+            }}>
+              {activeTab === 'overview' && (
+                <OverviewTab 
+                  trip={localTrip} 
+                  tripDetails={tripDetails}
+                  onUpdate={handleTripUpdate}
+                  validationState={modalState.validationState.overview}
+                  liveParticipantStats={liveParticipantStats}
+                  mode={editingMode}
+                  activityStats={getActivityStats()}
+                  groupedActivities={groupedActivities}
+                  activitiesLoading={activitiesLoading}
+                  tripError={tripError}
+                  sortedDates={sortedDates}
+                />
               )}
               
-              {/* Tab Content Area */}
-              <div className="flex-1 overflow-y-auto p-3 md:p-6" ref={(el) => {
-                // Auto-scroll to top when Schedule tab becomes active
-                if (activeTab === 'schedule' && el) {
-                  el.scrollTop = 0
-                }
-              }}>
-                {activeTab === 'overview' && (
-                  <OverviewTab 
-                    trip={localTrip} 
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.overview}
-                    liveParticipantStats={liveParticipantStats}
-                  />
-                )}
-                
-                {activeTab === 'schedule' && (
-                  <ScheduleTab 
-                    trip={localTrip}
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.schedule}
-                  />
-                )}
-                
-                {activeTab === 'participants' && (
-                  <ParticipantsSection 
-                    tripId={localTrip.id}
-                    tripDateRange={{ 
-                      start: localTrip.startDate instanceof Date ? localTrip.startDate.toISOString().split('T')[0] : localTrip.startDate, 
-                      end: localTrip.endDate instanceof Date ? localTrip.endDate.toISOString().split('T')[0] : localTrip.endDate 
-                    }}
-                    onParticipantStatsChange={setLiveParticipantStats}
-                  />
-                )}
-                
-                {activeTab === 'logistics' && (
-                  <LogisticsTab 
-                    trip={localTrip}
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.logistics}
-                  />
-                )}
-                
-                {activeTab === 'documents' && (
-                  <DocumentsTab 
-                    trip={localTrip}
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.documents}
-                  />
-                )}
-                
-                {activeTab === 'expenses' && (
-                  <ExpensesTab 
-                    trip={localTrip}
-                    tripDetails={tripDetails}
-                    onUpdate={handleTripUpdate}
-                    validationState={modalState.validationState.expenses}
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            /* View Mode - Show Regular Content */
-            <div className="overflow-y-auto p-3 md:p-6 space-y-6">
-              {/* Dynamic Layout - Companies and Staff */}
-              <div className="space-y-4">
-                {/* Mobile: Simple text layout */}
-                <div className="md:hidden">
-                  <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {/* Guest Companies */}
-                    {localTrip.client.length > 0 && (
-                      <span>
-                        <span className="font-medium text-gray-900 dark:text-gray-200">
-                          {localTrip.client.map(company => company.fantasyName || company.name).join(', ')}:
-                        </span>
-                        {' '}
-                        {localTrip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
-                      </span>
-                    )}
-                    
-                    {/* Wolthers Staff */}
-                    {liveParticipantStats.staffMembers.length > 0 && (
-                      <>
-                        {localTrip.client.length > 0 && ' | '}
-                        <span>
-                          <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
-                          {' '}
-                          {liveParticipantStats.staffMembers.map(staff => staff.fullName).join(', ')}
-                        </span>
-                      </>
-                    )}
-                    
-                    {/* Vehicles */}
-                    {localTrip.vehicles.length > 0 && (
-                      <>
-                        {(localTrip.client.length > 0 || liveParticipantStats.staffMembers.length > 0) && ' | '}
-                        <span>
-                          <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
-                          {' '}
-                          {localTrip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
-                        </span>
-                      </>
-                    )}
-                    
-                    {/* Drivers */}
-                    {localTrip.drivers.length > 0 && (
-                      <>
-                        {(localTrip.client.length > 0 || liveParticipantStats.staffMembers.length > 0 || localTrip.vehicles.length > 0) && ' | '}
-                        <span>
-                          <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
-                          {' '}
-                          {localTrip.drivers.map(driver => driver.fullName).join(', ')}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Desktop: Flexible Card Layout */}
-                <div className="hidden md:block">
-                  <div className="flex flex-wrap gap-4">
-                    {/* Company Cards - Flexible sizing */}
-                    {localTrip.client.map((company) => {
-                      const companyGuests = localTrip.guests.find(g => g.companyId === company.id)
-                      return (
-                        <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                            {company.fantasyName || company.name}
-                          </h4>
-                          {companyGuests && (
-                            <div className="space-y-1">
-                              {companyGuests.names.map((name, index) => (
-                                <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
-                                  {name}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-
-                    {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
-                    {(liveParticipantStats.staffMembers.length > 0 || localTrip.vehicles.length > 0 || localTrip.drivers.length > 0) && (
-                      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
-                        <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
-                          {/* Wolthers Staff */}
-                          <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                              Wolthers Staff
-                            </h4>
-                            {liveParticipantStats.staffMembers.length > 0 ? (
-                              <div className="space-y-1">
-                                {liveParticipantStats.staffMembers.map((staff) => (
-                                  <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                    {staff.fullName}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                No staff
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Vehicles */}
-                          <div className="pl-6">
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                              Vehicles
-                            </h4>
-                            {localTrip.vehicles.length > 0 ? (
-                              <div className="space-y-1">
-                                {localTrip.vehicles.map((vehicle) => (
-                                  <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                    {vehicle.make} {vehicle.model}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                No vehicles
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Drivers */}
-                          <div className="pl-6">
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                              Drivers
-                            </h4>
-                            {localTrip.drivers.length > 0 ? (
-                              <div className="space-y-1">
-                                {localTrip.drivers.map((driver) => (
-                                  <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
-                                    {driver.fullName}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                No drivers
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Separator Line */}
-                <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
-              </div>
-
-              {/* Meetings & Visits */}
-              {(tripLoading || activitiesLoading) ? (
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
-                </div>
-              ) : tripError ? (
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-                  <div className="text-sm text-red-500">Error loading meeting details</div>
-                </div>
-              ) : sortedDates.length === 0 ? (
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
-                </div>
-              ) : (
-            <>
-              {/* Small screens: Full width list layout */}
-              <div className="block sm:hidden space-y-3">
-                {sortedDates.map((date, dayIndex) => {
-                  const dayActivities = groupedActivities[date]
-                  const dayDate = new Date(date)
-                  
-                  return (
-                    <div key={date}>
-                      {/* Day Header - Full Width */}
-                      <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-3 py-3 -mx-3">
-                        <h3 className="font-medium text-sm">
-                          Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
-                            weekday: 'short',
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
-                        </h3>
-                      </div>
-                      
-                      {/* Activities - Full Width */}
-                      <div className="-mx-3">
-                        {dayActivities.map((item: any, itemIndex: number) => {
-                          const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
-                          const isEven = itemIndex % 2 === 0
-                          
-                          return (
-                            <div 
-                              key={item.id} 
-                              className={`px-3 py-3 ${
-                                isEven 
-                                  ? 'bg-gray-50 dark:bg-[#1a1a1a]' 
-                                  : 'bg-gray-100 dark:bg-[#242424]'
-                              }`}
-                            >
-                              <div className="flex gap-3">
-                                <span className="text-gray-500 dark:text-gray-400 font-mono text-xs min-w-[2.5rem]">
-                                  {startTime}
-                                </span>
-                                <span className="text-gray-400 text-xs">-</span>
-                                <div className="flex-1">
-                                  <p className="text-gray-900 dark:text-gray-200 text-sm font-medium leading-tight">
-                                    {item.title}
-                                  </p>
-                                  {item.host && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      Host: {item.host}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Desktop: Table layout */}
-              <div className="hidden sm:block bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
-                <div className="space-y-0">
-                  {sortedDates.map((date, dayIndex) => {
-                    const dayActivities = groupedActivities[date]
-                    const dayDate = new Date(date)
-                    
-                    return (
-                      <div key={date} className="border-b border-gray-200 dark:border-[#2a2a2a] last:border-b-0">
-                        {/* Day Header - Centered */}
-                        <div className="px-4 py-2 bg-emerald-800 dark:bg-emerald-900 text-center">
-                          <div className="text-sm font-medium text-golden-400">
-                            Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
-                              weekday: 'short',
-                              month: 'short', 
-                              day: 'numeric' 
-                            })}
-                          </div>
-                        </div>
-                        
-                        {/* Activities for the Day */}
-                        <div className="px-4 py-4 space-y-3">
-                          {dayActivities.map((item: any, itemIndex: number) => {
-                            const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
-                            const endTime = item.end_time ? item.end_time.slice(0, 5) : ''
-                            const timeRange = startTime && endTime ? `${startTime}-${endTime}` : startTime
-                            
-                            return (
-                              <div key={item.id} className="grid grid-cols-12 gap-4 items-start text-sm">
-                                {/* Time */}
-                                <div className="col-span-2 text-gray-500 dark:text-gray-400 font-mono text-xs">
-                                  {timeRange}
-                                </div>
-                                
-                                {/* Activity */}
-                                <div className="col-span-10">
-                                  <div className="flex items-center gap-2">
-                                    {item.is_confirmed && (
-                                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                                    )}
-                                    <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                      {item.title}
-                                    </span>
-                                  </div>
-                                  {item.host && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      Host: {item.host}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                
-                {/* Summary Stats */}
-                <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {activityStats.visits}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Visits
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {activityStats.meetings}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Meetings
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {calculateDuration(localTrip.startDate, localTrip.endDate)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Days
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                      {trip.notesCount || 0}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Notes
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Small screens: Summary Stats */}
-              <div className="block sm:hidden bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] mt-4 p-4">
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {activityStats.visits}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Visits
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {activityStats.meetings}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Meetings
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {calculateDuration(localTrip.startDate, localTrip.endDate)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Days
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                      {trip.notesCount || 0}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      Notes
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
+              {activeTab === 'schedule' && (
+                <ScheduleTab 
+                  trip={localTrip}
+                  tripDetails={tripDetails}
+                  onUpdate={handleTripUpdate}
+                  validationState={modalState.validationState.schedule}
+                  mode={editingMode}
+                />
+              )}
+              
+              {activeTab === 'participants' && (
+                <ParticipantsSection 
+                  tripId={localTrip.id}
+                  tripDateRange={{ 
+                    start: localTrip.startDate instanceof Date ? localTrip.startDate.toISOString().split('T')[0] : localTrip.startDate, 
+                    end: localTrip.endDate instanceof Date ? localTrip.endDate.toISOString().split('T')[0] : localTrip.endDate 
+                  }}
+                  onParticipantStatsChange={setLiveParticipantStats}
+                  mode={editingMode}
+                />
+              )}
+              
+              {activeTab === 'logistics' && (
+                <LogisticsTab 
+                  trip={localTrip}
+                  tripDetails={tripDetails}
+                  onUpdate={handleTripUpdate}
+                  validationState={modalState.validationState.logistics}
+                  mode={editingMode}
+                />
+              )}
+              
+              {activeTab === 'documents' && (
+                <DocumentsTab 
+                  trip={localTrip}
+                  tripDetails={tripDetails}
+                  onUpdate={handleTripUpdate}
+                  validationState={modalState.validationState.documents}
+                  mode={editingMode}
+                />
+              )}
+              
+              {activeTab === 'expenses' && (
+                <ExpensesTab 
+                  trip={localTrip}
+                  tripDetails={tripDetails}
+                  onUpdate={handleTripUpdate}
+                  validationState={modalState.validationState.expenses}
+                  mode={editingMode}
+                />
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Enhanced Footer */}

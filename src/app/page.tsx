@@ -390,19 +390,42 @@ export default function LoginPage() {
     }
   }
 
-  const handleDevAccountSelect = (account: any) => {
+  const handleDevAccountSelect = async (account: any) => {
     console.log('Quick login as:', account.email, account.role)
     setEmail(account.email)
     setIsLoading(true)
     
-    // Route based on role
-    setTimeout(() => {
-      if (account.role === UserRole.GUEST) {
-        router.push('/guest/trips')
+    try {
+      // Call dev-login API to set authentication cookie
+      const response = await fetch('/api/auth/dev-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies
+        body: JSON.stringify({
+          email: account.email,
+          role: account.role
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        console.log('🔧 Dev login successful:', result.user.email)
+        
+        // Force auth context to refresh
+        window.location.reload()
       } else {
-        router.push('/dashboard')
+        console.error('🔧 Dev login failed:', result.error)
+        setError(result.error || 'Dev login failed')
+        setIsLoading(false)
       }
-    }, 500)
+    } catch (error) {
+      console.error('🔧 Dev login error:', error)
+      setError('Dev login failed')
+      setIsLoading(false)
+    }
   }
 
   const handleForgotPassword = () => {

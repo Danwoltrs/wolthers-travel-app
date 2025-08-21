@@ -33,21 +33,11 @@ export default function CompaniesSidebar({ selectedSection, onSectionChange }: C
   const [isExportersExpanded, setIsExportersExpanded] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
 
-  // Mock data - in real app this would come from API
-  const wolthersLabs = [
-    { id: 'santos', name: 'Santos Office', country: 'Colombia' },
-    { id: 'guatemala', name: 'Guatemala Lab', country: 'Guatemala' }
-  ]
-
-  const importersRoasters = [
-    { id: '1', name: 'Nordic Coffee Works', type: 'Roaster' },
-    { id: '2', name: 'Global Bean Imports', type: 'Importer' }
-  ]
-
-  const exportersCoops = [
-    { id: '1', name: 'Antigua Coffee Co-op', type: 'Cooperative' },
-    { id: '2', name: 'Colombian Premium Exports', type: 'Exporter' }
-  ]
+  // Real data would come from API calls to /api/companies/... endpoints
+  // For now, show empty state until data is loaded
+  const wolthersLabs: any[] = []
+  const importersRoasters: any[] = []
+  const exportersCoops: any[] = []
 
   const handleAddNew = (type: string) => {
     // TODO: Open modal for adding new entity

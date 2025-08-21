@@ -314,10 +314,8 @@ export function useCompanyStatistics(companyId: string) {
           performanceRating: totalTrips > 20 ? 'excellent' : totalTrips > 10 ? 'good' : 'average'
         },
         competitorComparison: [
-          { name: 'Nordic Coffee Partners', trips: 41, spend: 380000, efficiency: 88.5, trend: 12.3 },
-          { name: 'Arctic Bean Traders', trips: 35, spend: 295000, efficiency: 82.1, trend: -5.7 },
-          { name: 'European Coffee Alliance', trips: 52, spend: 510000, efficiency: 75.8, trend: 8.9 },
-          { name: 'Scandic Roasters Group', trips: 29, spend: 265000, efficiency: 91.2, trend: 15.6 }
+          // Real competitor data would come from industry benchmarks
+          // For now, show placeholder data indicating this feature needs real data
         ],
         marketPosition: {
           rank: totalTrips > 30 ? 2 : totalTrips > 15 ? 3 : 5,

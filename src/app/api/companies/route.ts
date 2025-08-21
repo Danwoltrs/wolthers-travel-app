@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
 
     if (types) {
       const typeArray = types.split(',')
-      query = query.in('client_type', typeArray)
+      // Handle both client_type and category fields for filtering
+      query = query.or(`client_type.in.(${typeArray.join(',')}),category.in.(${typeArray.join(',')})`)
     }
 
     if (category) {

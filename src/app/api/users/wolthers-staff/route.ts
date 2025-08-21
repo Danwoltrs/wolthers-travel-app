@@ -1,74 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(request: NextRequest) {
   try {
-    let user: any = null
+    // Use the same authentication logic as working APIs (coffee-supply pattern)
+    const authToken = request.cookies.get('auth-token')?.value
     
-    // Authentication logic (same as other protected routes)
-    const authHeader = request.headers.get('authorization')
-    const cookieToken = request.cookies.get('auth-token')?.value
-    
-    // Try Authorization header first, then cookie
-    let token = null
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7)
-    } else if (cookieToken) {
-      token = cookieToken
-    }
-    
-    if (token) {
-      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
-
-      try {
-        const decoded = verify(token, secret) as any
-        const supabase = createServerSupabaseClient()
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', decoded.userId)
-          .single()
-
-        if (!userError && userData) {
-          user = userData
-        }
-      } catch (jwtError) {
-        // Try Supabase session authentication
-        const supabaseClient = createServerSupabaseClient()
-        
-        if (token && token.includes('.')) {
-          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
-          
-          if (!sessionError && supabaseUser) {
-            const { data: userData, error: userError } = await supabaseClient
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .single()
-
-            if (!userError && userData) {
-              user = userData
-            }
-          }
-        }
-      }
-    }
-    
-    if (!user) {
+    if (!authToken) {
+      console.log('🔑 Wolthers Staff API: No auth-token cookie found')
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
+    // Verify the JWT token (same as working APIs)
+    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    let user: any = null
+    
+    try {
+      const decoded = verify(authToken, secret) as any
+      console.log('🔑 Wolthers Staff API: JWT Token decoded successfully:', { userId: decoded.userId })
+      
+      // Get user from database using service role client (bypasses RLS)
+      const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey)
+      const { data: userData, error: userError } = await serviceSupabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.userId)
+        .single()
+
+      if (userError) {
+        console.log('🔑 Wolthers Staff API: Database query failed:', userError)
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 401 }
+        )
+      }
+      
+      if (!userData) {
+        console.log('🔑 Wolthers Staff API: No user data found')
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 401 }
+        )
+      }
+
+      user = userData
+      console.log('🔑 Wolthers Staff API: Successfully authenticated user:', user.email)
+      
+    } catch (jwtError) {
+      console.log('🔑 Wolthers Staff API: JWT verification failed:', jwtError.message)
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
     console.log(`🔍 Wolthers staff API called by: ${user.email}`)
     
-    // Use service role client to bypass RLS
-    const supabase = createServerSupabaseClient()
+    // Use service role client to bypass RLS (reuse the same client)
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey)
     
     // Get all users with company information using service role
-    const { data: allUsers, error: allUsersError } = await supabase
+    const { data: allUsers, error: allUsersError } = await serviceSupabase
       .from('users')
       .select(`
         id, 
