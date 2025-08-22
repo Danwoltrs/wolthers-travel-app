@@ -127,7 +127,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
     // Update the expanded years state to include years with data
     setExpandedYears(autoExpandedYears)
 
-  }, [travelData, selectedSection, expandedYears])
+  }, [travelData, selectedSection])
 
   const toggleYear = (year: number) => {
     setExpandedYears(prev => {
