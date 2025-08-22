@@ -150,7 +150,7 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
   }
 
   return (
-    <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
+    <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 lg:p-6 ${className}`} style={{ minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />

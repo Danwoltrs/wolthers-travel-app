@@ -137,7 +137,7 @@ export default function CompaniesPage() {
         {/* Dashboard Content */}
         <div className="p-8 space-y-8 lg:p-8 pl-16 lg:pl-8">
           {/* Two Column Layout: Balanced Responsive Layout */}
-          <div className="flex flex-col lg:flex-row gap-6 items-start space-y-6 lg:space-y-0">
+          <div className="flex flex-col 2xl:flex-row gap-6 items-start space-y-6 2xl:space-y-0">
             
             {/* Left Column: Added 20px to ensure weeks 51-52 are visible */}
             <div className="w-full space-y-6 min-w-0" style={{ maxWidth: '800px' }}>
@@ -242,7 +242,7 @@ export default function CompaniesPage() {
             </div>
 
             {/* Right Column: Full flexible width to fill remaining space */}
-            <div className="w-full lg:flex-1 min-w-0 flex flex-col space-y-6">
+            <div className="w-full 2xl:flex-1 min-w-0 flex flex-col space-y-6">
               {/* Travel Coordination Trends at top */}
               <TravelTrendsChart 
                 selectedSection={selectedSection}

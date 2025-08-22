@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { 
   Home, Building, User, LogOut, ChevronDown, 
-  Plus, Coffee, TreePine, Sun, Moon, Users
+  Plus, Coffee, TreePine, Sun, Moon, Users, Menu, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -22,9 +22,18 @@ const CarIcon = ({ className }: { className?: string }) => (
 interface CompaniesSidebarProps {
   selectedSection: 'wolthers' | 'importers' | 'exporters'
   onSectionChange: (section: 'wolthers' | 'importers' | 'exporters') => void
+  isCollapsed?: boolean
+  onToggle?: () => void
+  className?: string
 }
 
-export default function CompaniesSidebar({ selectedSection, onSectionChange }: CompaniesSidebarProps) {
+export default function CompaniesSidebar({ 
+  selectedSection, 
+  onSectionChange, 
+  isCollapsed = false, 
+  onToggle, 
+  className = '' 
+}: CompaniesSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { user, signOut } = useAuth()
   const [isUserExpanded, setIsUserExpanded] = useState(false)
@@ -45,7 +54,30 @@ export default function CompaniesSidebar({ selectedSection, onSectionChange }: C
   }
 
   return (
-    <div className="w-80 bg-emerald-900 dark:bg-emerald-950 border-r border-emerald-800 dark:border-emerald-900 h-screen flex flex-col">
+    <>
+      {/* Mobile Toggle Button - Only visible on small screens */}
+      <button
+        onClick={onToggle}
+        className="fixed top-4 left-4 z-50 lg:hidden p-2 bg-emerald-900 hover:bg-emerald-800 text-white rounded-lg shadow-lg transition-colors"
+      >
+        {isCollapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
+      </button>
+
+      {/* Mobile Backdrop */}
+      {!isCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed lg:relative inset-y-0 left-0 z-40 w-80 bg-emerald-900 dark:bg-emerald-950 border-r border-emerald-800 dark:border-emerald-900 h-screen flex flex-col transition-transform duration-300 ease-in-out",
+        "lg:translate-x-0", // Always visible on large screens
+        isCollapsed ? "-translate-x-full" : "translate-x-0", // Mobile: slide in/out
+        className
+      )}>
       {/* Logo at Top */}
       <div className="p-6 pb-10 flex justify-center">
         <Link href="/" className="block">
@@ -354,6 +386,7 @@ export default function CompaniesSidebar({ selectedSection, onSectionChange }: C
         isOpen={showUserModal} 
         onClose={() => setShowUserModal(false)} 
       />
-    </div>
+      </div>
+    </>
   )
 }

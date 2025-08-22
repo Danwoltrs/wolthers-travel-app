@@ -167,7 +167,7 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
   }
 
   return (
-    <div className={`w-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 space-y-4 ${className}`}>
+    <div className={`w-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 lg:p-6 space-y-4 ${className}`} style={{ minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div className="flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />

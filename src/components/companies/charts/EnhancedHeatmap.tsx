@@ -376,7 +376,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
     const verticalGap = 1
     
     // Calculate exact space needed for 52 weeks
-    const weeklyWidth = 52 * squareSize + 51 * gap  // 52 squares = 571px
+    const weeklyWidth = 52 * squareSize + 51 * gap + 20  // 52 squares = 591px (added 20px buffer)
     
     if (typeof window !== 'undefined' && containerRef?.current) {
       const containerWidth = containerRef.current.offsetWidth
