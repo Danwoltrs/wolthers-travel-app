@@ -381,10 +381,10 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
     if (typeof window !== 'undefined' && containerRef?.current) {
       const containerWidth = containerRef.current.offsetWidth
       
-      // Optimize name column width to fit in 720px container
-      // Container - squares - padding = available for names
-      const availableForNames = containerWidth - weeklyWidth - 20 // 20px for padding
-      const nameColumnWidth = Math.max(100, Math.min(150, availableForNames))
+      // Optimize name column width to fit in 780px container - tighter fit
+      // Container - squares - padding = available for names  
+      const availableForNames = containerWidth - weeklyWidth - 30 // 30px for padding and margins
+      const nameColumnWidth = Math.max(130, Math.min(170, availableForNames))
       
       console.log(`🔍 Container: ${containerWidth}px, Weekly needs: ${weeklyWidth}px, Names: ${nameColumnWidth}px`)
       
@@ -397,11 +397,11 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
       }
     }
     
-    // Default fallback
-    return { mode: 'weekly' as const, squareSize: 10, gap: 1, nameColumnWidth: 130, verticalGap: 1 }
+    // Default fallback - tighter fit
+    return { mode: 'weekly' as const, squareSize: 10, gap: 1, nameColumnWidth: 150, verticalGap: 1 }
   }
 
-  const [fixedSizing, setFixedSizing] = useState({ mode: 'weekly' as const, squareSize: 10, gap: 1, nameColumnWidth: 130, verticalGap: 1 })
+  const [fixedSizing, setFixedSizing] = useState({ mode: 'weekly' as const, squareSize: 10, gap: 1, nameColumnWidth: 150, verticalGap: 1 })
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

@@ -139,8 +139,8 @@ export default function CompaniesPage() {
           {/* Two Column Layout: Balanced Responsive Layout */}
           <div className="flex flex-col lg:flex-row gap-6 items-start space-y-6 lg:space-y-0">
             
-            {/* Left Column: Fixed max width of 770px */}
-            <div className="w-full space-y-6 min-w-0" style={{ maxWidth: '770px' }}>
+            {/* Left Column: Added 20px to ensure weeks 51-52 are visible */}
+            <div className="w-full space-y-6 min-w-0" style={{ maxWidth: '800px' }}>
               {/* Enhanced Heatmap - MASTER WIDTH COMPONENT */}
               <EnhancedHeatmap 
                 selectedSection={selectedSection}
