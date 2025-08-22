@@ -21,6 +21,7 @@ export default function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Mobile sidebar starts collapsed
   
   // Fetch real Wolthers staff data
   const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
@@ -33,7 +34,14 @@ export default function CompaniesPage() {
 
   // Check for mobile device on mount and window resize
   useEffect(() => {
-    const checkDevice = () => setIsMobile(isMobileDevice())
+    const checkDevice = () => {
+      const mobile = isMobileDevice()
+      setIsMobile(mobile)
+      // Ensure sidebar is collapsed on mobile by default
+      if (mobile) {
+        setSidebarCollapsed(true)
+      }
+    }
     checkDevice()
     window.addEventListener('resize', checkDevice)
     return () => window.removeEventListener('resize', checkDevice)
@@ -41,6 +49,10 @@ export default function CompaniesPage() {
 
   const handleSectionChange = (section: 'wolthers' | 'importers' | 'exporters') => {
     setSelectedSection(section)
+    // Auto-close sidebar on mobile when section changes
+    if (isMobile) {
+      setSidebarCollapsed(true)
+    }
   }
 
   // Handle crop information document clicks
@@ -105,12 +117,14 @@ export default function CompaniesPage() {
       <CompaniesSidebar 
         selectedSection={selectedSection}
         onSectionChange={handleSectionChange}
+        isCollapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto lg:ml-0">
         {/* Breadcrumb Navigation */}
-        <div className="sticky top-0 z-10 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 dark:border-slate-800 px-8 py-4">
+        <div className="sticky top-0 z-10 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 dark:border-slate-800 px-8 py-4 lg:px-8 pl-16 lg:pl-8">
           <nav className="flex items-center space-x-2 text-sm text-amber-300 dark:text-amber-400">
             <span>Companies</span>
             <span>/</span>
@@ -121,12 +135,12 @@ export default function CompaniesPage() {
         </div>
 
         {/* Dashboard Content */}
-        <div className="p-8 space-y-8">
-          {/* Two Column Layout: Dynamic Left + Flexible Right */}
-          <div className="flex flex-col xl:flex-row xl:gap-6 xl:items-start space-y-8 xl:space-y-0">
+        <div className="p-8 space-y-8 lg:p-8 pl-16 lg:pl-8">
+          {/* Two Column Layout: Balanced Responsive Layout */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start space-y-6 lg:space-y-0">
             
-            {/* Left Column: Heatmap-driven width with synchronized components */}
-            <div className="flex-shrink-0 space-y-6">
+            {/* Left Column: Fixed max width of 770px */}
+            <div className="w-full space-y-6 min-w-0" style={{ maxWidth: '770px' }}>
               {/* Enhanced Heatmap - MASTER WIDTH COMPONENT */}
               <EnhancedHeatmap 
                 selectedSection={selectedSection}
@@ -227,8 +241,8 @@ export default function CompaniesPage() {
               </div>
             </div>
 
-            {/* Right Column: Fill remaining space */}
-            <div className="flex-1 min-w-0 flex flex-col space-y-6">
+            {/* Right Column: Full flexible width to fill remaining space */}
+            <div className="w-full lg:flex-1 min-w-0 flex flex-col space-y-6">
               {/* Travel Coordination Trends at top */}
               <TravelTrendsChart 
                 selectedSection={selectedSection}
