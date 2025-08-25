@@ -25,7 +25,7 @@ interface TrendPoint {
 }
 
 interface RealTravelTrendsProps {
-  selectedSection: 'wolthers' | 'importers' | 'exporters'
+  selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
 }
 

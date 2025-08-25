@@ -29,7 +29,7 @@ interface HeatmapData {
 }
 
 interface EnhancedHeatmapProps {
-  selectedSection: 'wolthers' | 'importers' | 'exporters'
+  selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
 }
 

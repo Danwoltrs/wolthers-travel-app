@@ -20,11 +20,13 @@ const CarIcon = ({ className }: { className?: string }) => (
 )
 
 interface CompaniesSidebarProps {
-  selectedSection: 'wolthers' | 'importers' | 'exporters'
-  onSectionChange: (section: 'wolthers' | 'importers' | 'exporters') => void
+  selectedSection: 'wolthers' | 'buyers' | 'suppliers'
+  onSectionChange: (section: 'wolthers' | 'buyers' | 'suppliers') => void
   isCollapsed?: boolean
   onToggle?: () => void
   className?: string
+  onAddBuyer?: () => void
+  onAddSupplier?: () => void
 }
 
 export default function CompaniesSidebar({ 
@@ -32,25 +34,39 @@ export default function CompaniesSidebar({
   onSectionChange, 
   isCollapsed = false, 
   onToggle, 
-  className = '' 
+  className = '',
+  onAddBuyer,
+  onAddSupplier 
 }: CompaniesSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { user, signOut } = useAuth()
   const [isUserExpanded, setIsUserExpanded] = useState(false)
   const [isWolthersExpanded, setIsWolthersExpanded] = useState(false)
-  const [isImportersExpanded, setIsImportersExpanded] = useState(false)
-  const [isExportersExpanded, setIsExportersExpanded] = useState(false)
+  const [isBuyersExpanded, setIsBuyersExpanded] = useState(false)
+  const [isSuppliersExpanded, setIsSuppliersExpanded] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
 
   // Real data would come from API calls to /api/companies/... endpoints
   // For now, show empty state until data is loaded
   const wolthersLabs: any[] = []
-  const importersRoasters: any[] = []
-  const exportersCoops: any[] = []
+  const buyers: any[] = []
+  const suppliers: any[] = []
 
   const handleAddNew = (type: string) => {
-    // TODO: Open modal for adding new entity
-    console.log(`Add new ${type}`)
+    switch (type) {
+      case 'buyer':
+        onAddBuyer?.()
+        break
+      case 'supplier':
+        onAddSupplier?.()
+        break
+      case 'lab':
+        // TODO: Handle lab creation
+        console.log('Add new lab')
+        break
+      default:
+        console.log(`Add new ${type}`)
+    }
   }
 
   return (
@@ -278,36 +294,36 @@ export default function CompaniesSidebar({
         <div className="h-px bg-emerald-700/30"></div>
       </div>
 
-      {/* Importers/Roasters Button */}
+      {/* Buyers Button */}
       <div className="px-6 mb-4">
         <button
           onClick={() => {
-            onSectionChange('importers')
-            setIsImportersExpanded(!isImportersExpanded)
+            onSectionChange('buyers')
+            setIsBuyersExpanded(!isBuyersExpanded)
           }}
           className={cn(
             "relative w-full flex items-center justify-between px-2 py-3 transition-all duration-200",
-            selectedSection === 'importers'
+            selectedSection === 'buyers'
               ? "text-white"
               : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30"
           )}
         >
           <div className="flex items-center gap-3">
             <Coffee className="w-5 h-5" />
-            <span className="font-medium">Importers/Roasters</span>
+            <span className="font-medium">Buyers</span>
           </div>
           <ChevronDown className={cn(
             "w-4 h-4 transition-transform",
-            isImportersExpanded && "rotate-180"
+            isBuyersExpanded && "rotate-180"
           )} />
-          {selectedSection === 'importers' && (
+          {selectedSection === 'buyers' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400"></div>
           )}
         </button>
 
-        {isImportersExpanded && (
+        {isBuyersExpanded && (
           <div className="mt-2 ml-4 space-y-1">
-            {importersRoasters.map((company) => (
+            {buyers.map((company) => (
               <div
                 key={company.id}
                 className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
@@ -317,11 +333,11 @@ export default function CompaniesSidebar({
               </div>
             ))}
             <button
-              onClick={() => handleAddNew('importer/roaster')}
+              onClick={() => handleAddNew('buyer')}
               className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200"
             >
               <Plus className="w-3 h-3" />
-              <span>Add new roaster/importer</span>
+              <span>Add new buyer</span>
             </button>
           </div>
         )}
@@ -332,36 +348,36 @@ export default function CompaniesSidebar({
         <div className="h-px bg-emerald-700/30"></div>
       </div>
 
-      {/* Exporters/Producers/Coops Button */}
+      {/* Suppliers Button */}
       <div className="px-6 mb-4">
         <button
           onClick={() => {
-            onSectionChange('exporters')
-            setIsExportersExpanded(!isExportersExpanded)
+            onSectionChange('suppliers')
+            setIsSuppliersExpanded(!isSuppliersExpanded)
           }}
           className={cn(
             "relative w-full flex items-center justify-between px-2 py-3 transition-all duration-200",
-            selectedSection === 'exporters'
+            selectedSection === 'suppliers'
               ? "text-white"
               : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30"
           )}
         >
           <div className="flex items-center gap-3">
             <TreePine className="w-5 h-5" />
-            <span className="font-medium">Exporters/Producers/Coops</span>
+            <span className="font-medium">Suppliers</span>
           </div>
           <ChevronDown className={cn(
             "w-4 h-4 transition-transform",
-            isExportersExpanded && "rotate-180"
+            isSuppliersExpanded && "rotate-180"
           )} />
-          {selectedSection === 'exporters' && (
+          {selectedSection === 'suppliers' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400"></div>
           )}
         </button>
 
-        {isExportersExpanded && (
+        {isSuppliersExpanded && (
           <div className="mt-2 ml-4 space-y-1">
-            {exportersCoops.map((company) => (
+            {suppliers.map((company) => (
               <div
                 key={company.id}
                 className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
@@ -371,11 +387,11 @@ export default function CompaniesSidebar({
               </div>
             ))}
             <button
-              onClick={() => handleAddNew('exporter/producer/coop')}
+              onClick={() => handleAddNew('supplier')}
               className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200"
             >
               <Plus className="w-3 h-3" />
-              <span>Add new exporter/producer</span>
+              <span>Add new supplier</span>
             </button>
           </div>
         )}

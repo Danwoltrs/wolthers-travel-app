@@ -1,4 +1,4 @@
-export type CompanyType = 'roaster_dealer' | 'exporter_coop' | 'service_provider'
+export type CompanyType = 'buyer' | 'supplier' | 'service_provider'
 
 export type RoleType = 'owner' | 'executive' | 'manager' | 'staff' | 'consultant'
 

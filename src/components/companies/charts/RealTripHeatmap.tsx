@@ -5,7 +5,7 @@ import { MapPin, Calendar, TrendingUp, Users } from 'lucide-react'
 import useSWR from 'swr'
 
 interface RealTripHeatmapProps {
-  selectedSection: 'wolthers' | 'importers' | 'exporters'
+  selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
 }
 

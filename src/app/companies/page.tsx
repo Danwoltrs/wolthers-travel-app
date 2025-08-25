@@ -10,6 +10,9 @@ import RealTravelTrends from '@/components/companies/charts/RealTravelTrends'
 import CropDashboard from '@/components/documents/CropDashboard'
 import DocumentFinder from '@/components/documents/DocumentFinder'
 import MobileDocumentView from '@/components/documents/MobileDocumentView'
+import BuyersPanel from '@/components/companies/BuyersPanel'
+import SuppliersPanel from '@/components/companies/SuppliersPanel'
+import AddCompanyModal from '@/components/companies/AddCompanyModal'
 import { useDocumentFinder } from '@/hooks/useDocumentFinder'
 import { isMobileDevice } from '@/lib/utils'
 
@@ -17,11 +20,13 @@ import { isMobileDevice } from '@/lib/utils'
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
 export default function CompaniesPage() {
-  const [selectedSection, setSelectedSection] = useState<'wolthers' | 'importers' | 'exporters'>('wolthers')
+  const [selectedSection, setSelectedSection] = useState<'wolthers' | 'buyers' | 'suppliers'>('wolthers')
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Mobile sidebar starts collapsed
+  const [showAddBuyerModal, setShowAddBuyerModal] = useState(false)
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
   
   // Fetch real Wolthers staff data
   const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
@@ -47,7 +52,7 @@ export default function CompaniesPage() {
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
-  const handleSectionChange = (section: 'wolthers' | 'importers' | 'exporters') => {
+  const handleSectionChange = (section: 'wolthers' | 'buyers' | 'suppliers') => {
     setSelectedSection(section)
     // Auto-close sidebar on mobile when section changes
     if (isMobile) {
@@ -107,8 +112,8 @@ export default function CompaniesPage() {
 
   const sectionTitles = {
     wolthers: 'Wolthers & Associates',
-    importers: 'Importers/Roasters',
-    exporters: 'Exporters/Producers/Coops'
+    buyers: 'Buyers',
+    suppliers: 'Suppliers'
   }
 
   return (
@@ -119,6 +124,8 @@ export default function CompaniesPage() {
         onSectionChange={handleSectionChange}
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onAddBuyer={() => setShowAddBuyerModal(true)}
+        onAddSupplier={() => setShowAddSupplierModal(true)}
       />
 
       {/* Main Content Area */}
@@ -155,7 +162,7 @@ export default function CompaniesPage() {
               <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
                   {selectedSection === 'wolthers' ? 'Wolthers Staff' : 
-                   selectedSection === 'importers' ? 'Importer Contacts' : 'Exporter Contacts'}
+                   selectedSection === 'buyers' ? 'Buyer Contacts' : 'Supplier Contacts'}
                 </h3>
                 
                 {selectedSection === 'wolthers' && (
@@ -223,20 +230,12 @@ export default function CompaniesPage() {
                   </div>
                 )}
 
-                {selectedSection === 'importers' && (
-                  <div className="space-y-4">
-                    <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      Importer contact information will be displayed here
-                    </div>
-                  </div>
+                {selectedSection === 'buyers' && (
+                  <BuyersPanel />
                 )}
 
-                {selectedSection === 'exporters' && (
-                  <div className="space-y-4">
-                    <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      Exporter contact information will be displayed here
-                    </div>
-                  </div>
+                {selectedSection === 'suppliers' && (
+                  <SuppliersPanel />
                 )}
               </div>
             </div>
@@ -364,6 +363,19 @@ export default function CompaniesPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Company Modals */}
+      <AddCompanyModal
+        isOpen={showAddBuyerModal}
+        onClose={() => setShowAddBuyerModal(false)}
+        companyType="buyer"
+      />
+      
+      <AddCompanyModal
+        isOpen={showAddSupplierModal}
+        onClose={() => setShowAddSupplierModal(false)}
+        companyType="supplier"
+      />
     </div>
   )
 }

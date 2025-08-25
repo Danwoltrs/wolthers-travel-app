@@ -70,6 +70,7 @@ const locationTypes = [
 
 export default function CompanyLocationsTab({ companyId, editMode }: CompanyLocationsTabProps) {
   const [locations, setLocations] = useState<CompanyLocation[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<CompanyLocation | null>(null)
   const [formData, setFormData] = useState<LocationFormData>(defaultLocation)
@@ -77,41 +78,32 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
   const [mapCenter, setMapCenter] = useState({ lat: 52.3676, lng: 4.9041 }) // Amsterdam center
   const [geocoding, setGeocoding] = useState(false)
 
-  // Mock data for now - will be replaced with API calls
   useEffect(() => {
-    // Simulate loading locations
-    const mockLocations: CompanyLocation[] = [
-      {
-        id: '1',
-        company_id: companyId,
-        location_name: 'Amsterdam Headquarters',
-        address_line_1: 'Herengracht 123',
-        address_line_2: null,
-        city: 'Amsterdam',
-        state_province: 'North Holland',
-        postal_code: '1015 BG',
-        country: 'Netherlands',
-        location_type: 'headquarters',
-        is_primary_location: true,
-        is_meeting_location: true,
-        phone: '+31 20 123 4567',
-        email: 'amsterdam@company.com',
-        contact_person: 'Jan de Vries',
-        meeting_room_capacity: 20,
-        has_presentation_facilities: true,
-        has_catering: true,
-        parking_availability: 'Limited street parking',
-        accessibility_notes: 'Wheelchair accessible',
-        latitude: 52.3718, 
-        longitude: 4.8948,
-        notes: 'Main office with full conference facilities',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        created_by: null,
-        updated_by: null
+    const fetchLocations = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch(`/api/companies/${companyId}/locations?meeting_only=false`, {
+          credentials: 'include'
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setLocations(data.locations || [])
+        } else {
+          console.error('Failed to fetch locations:', await response.text())
+          setLocations([])
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error)
+        setLocations([])
+      } finally {
+        setIsLoading(false)
       }
-    ]
-    setLocations(mockLocations)
+    }
+
+    if (companyId) {
+      fetchLocations()
+    }
   }, [companyId])
 
   const handleAddLocation = () => {
@@ -120,25 +112,25 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
     setIsFormOpen(true)
   }
 
-  const handleEditLocation = (location: CompanyLocation) => {
+  const handleEditLocation = (location: any) => {
     setEditingLocation(location)
     setFormData({
-      location_name: location.location_name,
-      address_line_1: location.address_line_1,
+      location_name: location.location_name || '',
+      address_line_1: location.address_line_1 || '',
       address_line_2: location.address_line_2 || '',
-      city: location.city,
+      city: location.city || '',
       state_province: location.state_province || '',
       postal_code: location.postal_code || '',
-      country: location.country,
-      location_type: location.location_type,
-      is_primary_location: location.is_primary_location,
-      is_meeting_location: location.is_meeting_location,
+      country: location.country || '',
+      location_type: location.location_type || 'office',
+      is_primary_location: location.is_primary_location || false,
+      is_meeting_location: location.is_meeting_location || true,
       phone: location.phone || '',
       email: location.email || '',
       contact_person: location.contact_person || '',
-      meeting_room_capacity: location.meeting_room_capacity,
-      has_presentation_facilities: location.has_presentation_facilities,
-      has_catering: location.has_catering,
+      meeting_room_capacity: location.meeting_room_capacity || null,
+      has_presentation_facilities: location.has_presentation_facilities || false,
+      has_catering: location.has_catering || false,
       parking_availability: location.parking_availability || '',
       accessibility_notes: location.accessibility_notes || '',
       notes: location.notes || '',
@@ -184,19 +176,21 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
   }
 
   const handleSaveLocation = async () => {
-    // TODO: API call to save location
+    // TODO: Implement location save functionality
     console.log('Saving location:', formData)
+    alert('Location save functionality will be implemented soon')
     setIsFormOpen(false)
   }
 
   const handleDeleteLocation = async (locationId: string) => {
     if (confirm('Are you sure you want to delete this location?')) {
-      // TODO: API call to delete location
+      // TODO: Implement location delete functionality
       console.log('Deleting location:', locationId)
+      alert('Location delete functionality will be implemented soon')
     }
   }
 
-  const openInGoogleMaps = (location: CompanyLocation) => {
+  const openInGoogleMaps = (location: any) => {
     if (location.latitude && location.longitude) {
       const url = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
       window.open(url, '_blank')
@@ -225,11 +219,27 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
       </div>
 
       {/* Locations List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {locations.map((location) => (
-          <div
-            key={location.id}
-            className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6"
+      {isLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
+              <div className="animate-pulse">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {locations.map((location) => (
+            <div
+              key={location.id}
+              className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
@@ -249,7 +259,7 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
                       ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                       : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                   }`}>
-                    {locationTypes.find(t => t.value === location.location_type)?.label}
+                    {locationTypes.find(t => t.value === location.location_type)?.label || location.location_type}
                   </span>
                 </div>
                 <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
@@ -334,7 +344,8 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
             )}
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Map View */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">

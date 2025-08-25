@@ -12,7 +12,7 @@ interface TrendPoint {
 }
 
 interface TravelTrendsChartProps {
-  selectedSection: 'wolthers' | 'importers' | 'exporters'
+  selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
 }
 
@@ -46,32 +46,16 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
       return
     }
 
-    // Convert monthly data to yearly aggregates
-    const yearlyMap = new Map<number, { conventions: number, inland: number, other: number }>()
-    
-    trendsData.monthlyData.forEach((monthData: any) => {
-      // Extract year from month string (e.g., "Aug 2025" -> 2025)
+    // Use real monthly data directly without artificial aggregation
+    const processedData: TrendPoint[] = trendsData.monthlyData.map((monthData: any) => {
       const year = new Date(monthData.month).getFullYear()
-      
-      if (!yearlyMap.has(year)) {
-        yearlyMap.set(year, { conventions: 0, inland: 0, other: 0 })
-      }
-      
-      const yearData = yearlyMap.get(year)!
-      yearData.conventions += monthData.conventions
-      yearData.inland += monthData.inland
-      yearData.other += monthData.other
-    })
-
-    // Convert to TrendPoint format
-    const processedData: TrendPoint[] = Array.from(yearlyMap.entries())
-      .map(([year, data]) => ({
+      return {
         year,
-        roasters: data.other, // Map 'other' trips to roasters for visualization
-        importers: data.inland, // Map 'inland' to importers  
-        conventions: data.conventions
-      }))
-      .sort((a, b) => a.year - b.year)
+        roasters: monthData.other,
+        importers: monthData.inland,
+        conventions: monthData.conventions
+      }
+    })
 
     setTrendData(processedData)
   }, [travelData, selectedSection])
@@ -177,7 +161,7 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
             <span>{maxValue}</span>
             <span>{Math.floor(maxValue * 0.75)}</span>
             <span>{Math.floor(maxValue * 0.5)}</span>
-            <span>{Math.floor(maxValue * 0.25)}</span>
+            {Math.floor(maxValue * 0.25) > 0 && <span>{Math.floor(maxValue * 0.25)}</span>}
             <span>0</span>
           </div>
 
@@ -207,14 +191,21 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
                 const chartWidth = 100
                 const chartHeight = 100
                 
+                // Create a map of actual data by month
+                const monthDataMap = new Map()
+                travelData.trendsData.monthlyData.forEach((data: any) => {
+                  const monthName = new Date(data.month).toLocaleDateString('en-US', { month: 'short' })
+                  monthDataMap.set(monthName, data)
+                })
+                
                 const points = months.map((month, index) => {
-                  const yearData = trendData[index % trendData.length] || { roasters: 0, importers: 0, conventions: 0 }
-                  const monthMultiplier = 0.5 + Math.sin((index * Math.PI) / 6) * 0.5
+                  // Use real data if available, otherwise 0
+                  const monthData = monthDataMap.get(month) || { roasters: 0, importers: 0, conventions: 0, other: 0, inland: 0 }
                   
                   const x = (index * chartWidth) / (months.length - 1)
-                  const roastersY = chartHeight - ((yearData.roasters * monthMultiplier) / maxValue) * chartHeight
-                  const importersY = chartHeight - ((yearData.importers * monthMultiplier) / maxValue) * chartHeight
-                  const conventionsY = chartHeight - ((yearData.conventions * monthMultiplier) / maxValue) * chartHeight
+                  const roastersY = chartHeight - ((monthData.other || 0) / maxValue) * chartHeight
+                  const importersY = chartHeight - ((monthData.inland || 0) / maxValue) * chartHeight
+                  const conventionsY = chartHeight - ((monthData.conventions || 0) / maxValue) * chartHeight
                   
                   return { 
                     x, 
@@ -223,9 +214,9 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
                     conventionsY: Math.max(conventionsY, 0), 
                     month, 
                     index,
-                    roastersValue: Math.floor(yearData.roasters * monthMultiplier),
-                    importersValue: Math.floor(yearData.importers * monthMultiplier),
-                    conventionsValue: Math.floor(yearData.conventions * monthMultiplier)
+                    roastersValue: monthData.other || 0,
+                    importersValue: monthData.inland || 0,
+                    conventionsValue: monthData.conventions || 0
                   }
                 })
                 
@@ -278,6 +269,7 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
                       strokeWidth="2"
                       vectorEffect="non-scaling-stroke"
                     />
+                    
                   </>
                 )
               })()}
@@ -297,12 +289,18 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
                   {months[hoveredMonth]}
                 </div>
                 {(() => {
-                  const yearData = trendData[hoveredMonth % trendData.length] || { roasters: 0, importers: 0, conventions: 0 }
-                  const monthMultiplier = 0.5 + Math.sin((hoveredMonth * Math.PI) / 6) * 0.5
+                  const monthName = months[hoveredMonth]
+                  const monthDataMap = new Map()
+                  travelData.trendsData.monthlyData.forEach((data: any) => {
+                    const dataMonthName = new Date(data.month).toLocaleDateString('en-US', { month: 'short' })
+                    monthDataMap.set(dataMonthName, data)
+                  })
                   
-                  const roastersValue = Math.floor(yearData.roasters * monthMultiplier)
-                  const importersValue = Math.floor(yearData.importers * monthMultiplier)
-                  const conventionsValue = Math.floor(yearData.conventions * monthMultiplier)
+                  const monthData = monthDataMap.get(monthName) || { other: 0, inland: 0, conventions: 0 }
+                  
+                  const roastersValue = monthData.other || 0
+                  const importersValue = monthData.inland || 0
+                  const conventionsValue = monthData.conventions || 0
                   
                   return (
                     <div className="space-y-1">
@@ -334,19 +332,19 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
         <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-              {trendData.reduce((sum, d) => sum + d.roasters, 0)}
+              {travelData?.trendsData?.tripsByType?.other || 0}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Roaster Visits</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Total Other Trips</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {trendData.reduce((sum, d) => sum + d.importers, 0)}
+              {travelData?.trendsData?.tripsByType?.in_land || 0}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Importer Visits</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Total Inland Trips</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {trendData.reduce((sum, d) => sum + d.conventions, 0)}
+              {travelData?.trendsData?.tripsByType?.convention || 0}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Total Convention Trips</div>
           </div>
