@@ -1,0 +1,163 @@
+-- Bulk import of all remaining legacy clients
+INSERT INTO public.legacy_clients (
+    legacy_client_id, descricao, descricao_fantasia, endereco, numero, complemento,
+    bairro, cidade, pais, uf, cep, telefone1, telefone2, telefone3, telefone4,
+    email, email_contratos, pessoa, grupo1, grupo2, referencias, obs,
+    documento1, documento2, documento3, ativo, id_usuario, id_usuario_ultimo,
+    logo, logo_altura, logo_largura, auto_size
+) VALUES
+(1802, 'COCAPI - COOP. AGROP. ILICINEA', 'COCAPI', 'Avenida Felicidade Vilela', '117', NULL, NULL, 'Ilicinea', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'CL', 'VE', NULL, NULL, '34.292.849/0003-60', NULL, '003.587.079-006', true, 2, 2, NULL, NULL, NULL, NULL),
+(547, 'COCARI - COOP. DOS CAFEIC. DE MANDAGUARI', 'COCARI', 'RUA LORD LOVAT', '420', NULL, NULL, 'MANDAGUARI', 'MANDAGUARI', 'PR', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '78.956.968/0001-83', NULL, '70.200.457-81', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(754, 'COCARIVE - Cooperativa Regional dos Cafeicultores do Vale do Rio Verde Ltda.', 'COCARIVE', 'Rua João Nogueira, 92', NULL, 'Carmo de Minas, MG - Brasil', NULL, NULL, NULL, NULL, NULL, '35 3334.1144', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'CEP.: 37472-000
+ 
+Mr. Wellington Carlos Pereira
+
+Cooperativa Regional dos Cafeicultores do Vale do Rio Verde', '19.424.159/0001-61', NULL, '141.069.037.0008', true, NULL, 7, NULL, NULL, NULL, NULL),
+(936, 'COEXCAFÉ - COOP. EXPORTES DE CAFÉ SUL DE MINAS', 'COEXCAFE', 'AVENIDA RUI BARBOSA', '318', 'SALA 06', NULL, 'VARGINHA', 'VARGINHA', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '07.801.221/0001-08', NULL, '001.011.745-0065', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(950, 'COFFEE AMÉRICA COMÉRCIO E EXPORTAÇÃO LTDA', 'C.A', 'ROD. BR 262, KM 37 - S/N', NULL, NULL, NULL, 'MANHUAÇU', 'MANHUAÇU', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'ATLANTICA', '10.260.706/0001-46', NULL, '001.084.644-0032', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(450, 'COLUMBIA AGROPECUÁRIA LTDA', NULL, 'ROD. MARECHAL RONDON', 'KM 262,5', NULL, NULL, 'BOTUCATU', 'BOTUCATU', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: ALVARO', '50.997.543/0001-01', NULL, '224.028.556.118', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1275, 'COMCAFE COMERCIAL COQUEIRAL DE CAFE, CEREAIS E SACARIAS LTDA', 'COMCAFE', 'Rua Cel. Joao Borges', '07  e 11', NULL, 'centro', 'Coqueiral', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '11.351.719/0001-93', NULL, '001.504.631-0023', true, 2, 2, NULL, NULL, NULL, NULL),
+(777, 'COMERCIAL AGRICOLA PONTE  FORTE LTDA', 'PONTE FORTE', 'AVENIDA SÃO JOÃO', '105-B', NULL, NULL, 'MATIPÓ', 'MATIPÓ', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'MINAS COMISSARIA', '04.995.748/0001-22', NULL, '409.169.100-0026', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(204, 'COMERCIAL BENEFICIADORA DE CAFÉ LTDA', NULL, 'RUA JOSÉ LEÔNCIO DO NASCIMENTO', '18', NULL, NULL, 'SANTO ANTONIO D', 'SANTO ANTONIO D', 'MG', '37.262-000', '(35) 8631304', NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: MIRIAM', '20.694.816/0001-70', NULL, '599.108.275.0069', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(747, 'COMERCIAL DE CAFÉ ARABICA', 'ARABICA', 'AV. RUI BARBOSA', '621', 'SALA 02', NULL, 'PATROCINIO', 'PATROCINIO', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'ASSOCAFE', '05.006.672/0004-70', NULL, '481.203.851-0177', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(232, 'COMERCIAL DE CAFÉ E CEREAIS NR LTDA', NULL, 'AV. JOÃO PINHEIRO', '6410', 'BORTOLAN', NULL, 'POÇOS DE CALDAS', 'POÇOS DE CALDAS', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO:', '57.934.366/0003-17', NULL, '518.826.065.0007', false, NULL, NULL, NULL, NULL, NULL, NULL),
+(861, 'COMERCIAL F.J.B. BARONI', 'COMERCIAL', 'AV. DR. JOSE JUSTINIANO DOS REIS', '1135', NULL, NULL, 'VARINHA', 'VARINHA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '07.155.547/0001-05', NULL, '707.208.859-0057', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1204, 'Comercial Industrial Branco Peres de Café Ltda.', 'Branco Peres', 'Rua da Consolação,', '3741', NULL, NULL, 'São Paulo -', 'Brazil', 'SP', '01416-001', '(11) 3065-7100', NULL, '(11) 3065-7101', NULL, NULL, 'olavo@brancoperes.com.br', 'J', 'CL', 'VE', 'Mr. Olavo Aguiar - celular: (11) 9 8373-2002', 'www.brancoperes.com.br
+
+Escritório de Santos 
+Endereço: Rua XV de Novembro 41, cjs. 37/38/41
+Tel. (13) 3219-5656
+Paulo Cesar Matavello Martins (Logistica)
+bppaulo@brancoperes.com.br
+CNPJ 43.008.036/0009-81
+
+
+Rubens Melo (Classificador)  
+anderson.rocha@brancoperes.com.br 
+
+NFiscal - Varginha
+Av. Oswaldo Gontijo, 20
+Varginha - MG
+CNPJ 43.008.036/0010-15
+IE 707.579.508.0099', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1016, 'Comercial Mineira S.A.', 'Com. Mineira', 'Av. Alvarez Cabral', '1707', '4º andar', 'Santo Augustinho', 'Belo Horizonte', NULL, 'MG', '30170-001', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'Ms. Mariana Caetano
+
+seguem os dados para emissão de Nota Fiscal:
+
+Razão Social: COMERCIAL MINEIRA S/A
+CNPJ: 17.167.727/0001-60
+Endereço: FAZENDA SÃO LOURENÇO
+BR 365 KM 362, ENTRADA DE BOM SUCESSO
+ZONA RURAL
+VARJÃO DE MINAS - MG
+CEP: 38794-000
+PR: 860/0093 
+
+Os dados para cobrança são: 
+
+COMERCIAL MINEIRA S/A
+Av. Álvares Cabral, 1707
+Cep. 30170-0001
+Belo Horizonte - MG', '17.167.727/0001-60', 'PRural : 860/0093', NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1018, 'COMERCIAL YAMAMOTO S/A.', 'YAMAMOTO', 'AV. PAULISTA, - ANDARCONJ. 221 -', '949', '22', NULL, 'SAO PAULO', NULL, 'SP', NULL, '0112830833', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'COMERCIAL YAMAMOTO S/A.
+YAMAMOTO
+ARMANDO S. MATUY', NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(517, 'COMÉRCIO IND. DE CAFÉ TOMÉ LTDA', 'CAFE TOME', 'RUA BARÃO DO RIO BRANCO', '150', NULL, NULL, 'ALTONIA', 'ALTONIA', 'PR', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '75.008.367/0001-50', NULL, '83.601.688-25', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1425, 'COMERICAL NOVA ERA LTDA - ME', 'NOVA ERA', 'Av. Castelo Branco', '19.309', 'sala 01', 'Liberdade', 'Cacoal', NULL, 'RO', '76.967-491', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '17.32.624/0001-99', NULL, '000000374.413-2', true, 2, 2, NULL, NULL, NULL, NULL),
+(1019, 'COMEXIM LTDA', 'COMEXIM', 'R. DO COMERCIO', '55', '2 ANDAR', 'CENTRO', 'SANTOS', NULL, 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'CL', 'VE', NULL, 'COMIS. EXP. IMPORT. COMEXIM LTD
+COMEXIM
+TRADING DEPARTMENT
+
+
+Nova Razao Social 
+Comexim Ltda', '58.150.087/0011-35', NULL, '633.417.778.118', true, NULL, 2, NULL, NULL, NULL, NULL),
+(857, 'Comexim Ltda.', 'Comexim', 'Rua do Comércio, 55', '2° floor, Centro', NULL, NULL, 'Santos, SP', '- Brazil', NULL, '11010-141', '(13) 4009-3200', NULL, '(13) 4009-3225', NULL, 'Luiz@comexim.com.br', 'Luiz@comexim.com.br', 'J', 'CL', 'VE', NULL, 'Rua do Comércio, 55
+2° floor, Centro
+Santos/São Paulo BR
+Postal Code 11010-141
+Phone: 55 (13) 4009-3200', '58.150.087/0011-35', '2502658', '633.417.778.118', true, NULL, 7, NULL, NULL, NULL, NULL),
+(118, 'COMISSARIA DE CAFE NOVA AMERICA LTDA', NULL, 'RUA DR. JOSE MAMBRINI', '605', NULL, NULL, 'SÃO SEBASTIÃO D', 'SÃO SEBASTIÃO D', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: ANT. MARIA', '49.181.472/0003-49', NULL, '647.432.767.0010', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1115, 'Comissária Exp. E Imp. Comexim Ltda', 'Comexim', 'Rod. MG 290, km 54,3', NULL, 'CP 53', 'Córrego da Gralha', 'Ouro Fino', 'Brasil', 'MG', NULL, '35 34412500', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '58.150.087/0005-97', NULL, NULL, true, NULL, 7, NULL, NULL, NULL, NULL),
+(1023, 'COML INDL BRANCO PERES DE CAFE Ltda', 'BRANCO PERES', 'RUA FREI GASPAR', '25', '2 ANDAR', 'CENTRO', 'SANTOS', NULL, 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'COML INDL BRANCO PERES DE CAFE
+BRANCO PERES
+SR. WALDIR ARIANO
+
+
+Nota fiscal
+
+Coml Indl Branco Peres de Café Ltda
+Av Oswaldo Gontijo, 20 
+Parque Boa Vista - Varginha - MG
+Cep 37030-120
+
+CNPJ 43.008.036/0010-15
+IE  707.579.508.0099', NULL, NULL, NULL, true, NULL, 4, NULL, NULL, NULL, NULL),
+(1026, 'COML. BENEFICIADORA DE CAFE LTDA', 'COML. BENEFECIADORA', 'RUA ANTONIO JOAQUIM', '71', NULL, NULL, 'SANTO ANTONIO DO AMPARO', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1832, 'Complex Coffee Trading S.A.', 'Campanet S.A.', 'Calle Cesar Cortinas 2037', NULL, 'Montivedeo, Uruguay', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', NULL, 'VE', 'July 03rd, 2024', 'Complex Coffee Trading S.A.
+Calle Cesar Cortinas 2037
+Montivedeo, Uruguay
+
+Bradesco Bank
+Account Title: COMPLEX COFFEE TRADING S.A
+ACC. #: 137304269
+ABA #: 067009044
+SWIFT: BFLBUS3M
+Bank: Bradesco Bank
+Address:3011 Ponce de Leon Blvd, PH1 
+Coral Gables, FL 33134', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1602, 'Complex Investments SA', 'Complex Investments SA', '35A Regent St', NULL, 'Belize City - Belize', NULL, 'P.O. Box 1777', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'RE', 'VE', NULL, 'Endereço
+35A Regent Street, P.O.Box 1777, EX, Brasil
+
+Atividade econômica principal (Classificação Nacional de. Atividades Econômicas)
+- Sociedades de crédito, financiamento e investimento - financeiras (6436100).
+
+Situação atual segundo a Receita Federal
+Ativa - Empresa Domiciliada No Exterior
+
+Natureza jurídica
+- Empresa Domiciliada no Exterior (2216).', '09.314.811/0001-31', NULL, NULL, true, 7, 15, NULL, NULL, NULL, NULL),
+(1045, 'COND. FAZENDA RIO VERDE (GUSTAVO GOMES FERNANDES)', 'FAZ. RIO VERDE', 'CONCEIÇÃO DO RIO VERDE - MINAS GERAIS', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'COND. FAZENDA RIO VERDE (GUSTAVO GOMES FERNANDES)
+FAZENDA RIO VERDE
+GUSTAVO', NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1773, 'CONDOMINIO O´COFFEE', 'CONDOMINIO O ´ COFFEE', 'ROD. Joao Pedro Diniz Km 05', NULL, NULL, NULL, 'Pedregulho', NULL, 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'ALDA
+ALAIDE QUERCIA', '08.150.068/0003-20', NULL, '518.010.944.112', true, 2, 2, NULL, NULL, NULL, NULL),
+(1623, 'CONGONHAS AGRONEGOCIOS LTDA', 'CONGONHAS', 'Faz. Congonhas', NULL, NULL, NULL, 'Ibia', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '21.083.816/0001-04', NULL, '002435.195-0013', true, 2, 2, NULL, NULL, NULL, NULL),
+(119, 'CONSUMER COMERCIO EXPORTACAO LTDA', NULL, 'AV. ALAMEDA DO CAFÉ', '282', NULL, NULL, 'VARGINHA', 'VARGINHA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO:', '25.288.143/0001-71', NULL, '707.579.514.0075', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1384, 'Coocafé - Cooperativa dos Cafeicultores da Região de Lajinha.', 'Coocafé - Cooperativa dos Cafeicultores da Região de Lajinha.', 'Corrêgo do Areado, S/N', NULL, NULL, NULL, 'Areado, Lajinha - MG', NULL, NULL, NULL, '(33) 3344-1260', NULL, NULL, NULL, NULL, NULL, 'J', NULL, 'VE', NULL, 'E-mail: 
+Presidente da COOCAFE
+fernando.cerqueira@coocafe.com.br  
+Exportações
+heliane@coocafe.com.br
+Degustador
+silas@coocafe.com.br
+
+specialtycoffee@coocafe.com.br
+
+FLO ID Coocafé - 3589
+
+CEP.: 36980-000', '21.025.069/0001-40', NULL, NULL, true, 7, 8, NULL, NULL, NULL, NULL),
+(1457, 'COOCASSE-COOP. DOS CAFEIC.SAO SEBASTIAO DA ESTRELA LTDA', 'COOCASSE', 'Rua Rivalino Antonio de Barros,', '22', 'Sao Sebastiao da Estrela', NULL, 'Sto Antonio do Amparo', NULL, 'MG', '37262-0000', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'fabricio@coocasse.com.br 
+financeiro@coocasse.com.br 
+fiscal@coocasse.com.br', '12.789.414/0001-20', NULL, '001.686.249-0036', true, 2, 2, NULL, NULL, NULL, NULL),
+(1324, 'COOP. AGRICOLA ALTO RIO GRANDE', 'CAARG', NULL, NULL, NULL, NULL, 'Lavras', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'CL', 'VE', NULL, NULL, NULL, NULL, NULL, true, 2, 2, NULL, NULL, NULL, NULL),
+(115, 'COOP. AGROP. DE JACUTINGA LTDA', 'JACU', 'RUA SANTO ANTONIO', '125', NULL, NULL, 'JACUTINGA', 'JACUTINGA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO:', '21.429.865/0002-29', NULL, '349.068.393.0162', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1267, 'COOP. AGROP. VALE DO SAPUCAI LTDA - COOPERVASS', 'COOPVERVASS', 'Av. Tiradentes', '362', NULL, 'Inconfidentes', 'Sao Goncalo do Sapucai', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '24.662.298/0010-54', NULL, '620.099.634.0998', true, 2, 2, NULL, NULL, NULL, NULL),
+(915, 'COOP. AGROPECUÁRIA DE BOA ESPERANÇA LTDA', 'ESPERANÇA', 'AVENIDA ESMERALDA', 'S/N', NULL, NULL, 'BOA ESPERANÇA', 'BOA ESPERANÇA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CNPJ DA CONTA: 18.780.254/0001-35', '18.780.254/0007-20', NULL, '071.095.344-0513', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(879, 'Coop. Cafeic do Cerrado Núcleo Carmo do Paranaíba LTDA.', 'COOCACER CARMO', 'Rua Governador Valadares', '1553', NULL, 'B. Paraíso', 'Carmo do Paranaíba', 'Brazil', 'MG', '38840-000', '(34) 3851-2995', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, 'ISMAEL', '04.773.010/0002-00', NULL, NULL, true, NULL, 2, NULL, NULL, NULL, NULL),
+(732, 'COOP. CAFEIC. DA REGIÃO DE LAGINHA LTDA - COOCAFE', 'LAGINHA', 'CORREGO DO BARRA GRANDE', 'S/N', NULL, NULL, 'IRUPI', NULL, 'ES', '29398-000', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '21.025.069/0012-00', NULL, '082.06652-3', true, NULL, 2, NULL, NULL, NULL, NULL),
+(1499, 'COOP. CAFEIC. E AGROP. DE IBIRACI LTDA', 'COOP. CAFEIC. E AGROP. DE IBIRACI LTDA', 'Rua Ayksa Ramos', '51', NULL, 'centro', 'Ibiraci', NULL, 'MG', '37990-000', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '04.486.184/0001-00', NULL, '297.132.908-0074', true, 2, 2, NULL, NULL, NULL, NULL),
+(1124, 'COOP. CAFÉS DO ALTO PARANAIBA LTDA', 'COOP. ALTO PARANAIBA', 'Av. Bela Vista', '81', NULL, NULL, 'Carmo do Paranaiba', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '10.977.386/0001-40', NULL, '001.295.304-0099', true, NULL, 2, NULL, NULL, NULL, NULL),
+(1358, 'COOP. DE CAFE DO ALTO PARANAIBA LTDA', 'COOPERCOFFEE', 'Av. Bela Vista', '81', NULL, NULL, 'Carmo do Paranaiba', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '10.977.386/0001-40', NULL, '001.295.304-0099', true, 2, 2, NULL, NULL, NULL, NULL),
+(357, 'COOP. DE CAFEICULTORES DA ZONA DE VARGINHA LTDA', NULL, 'RUA JOÃO ALVES DE MIRANDA', NULL, NULL, 'VILA PAIVA', 'VARGINHA', 'VARGINHA', 'MG', '37.018-200', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO:', '25.863.341/0001-11', NULL, '707.047.486/0028', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(590, 'COOP. DE ESPIRITO SANTO DO PINHAL', 'COOP. PINHAL', 'RUA VEREADOR ESTEVO DE FELIPE', '1305', NULL, 'MATADOURO', 'ESP.STO DO PINHAL', NULL, 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '54.226.501/0001-10', NULL, '530.002.576.118', true, NULL, 2, NULL, NULL, NULL, NULL),
+(940, 'COOP. DE PROD. DE CAFÉS FINOS DO SUL DE MINAS LTDA', 'FINOS', 'RUA PIAUI', '55', NULL, NULL, 'S.S. DO PARAISO', 'S.S. DO PARAISO', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, NULL, '10.863.852/0001-66', NULL, '001,198,741,00-09', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1294, 'COOP. DOS AGRICULTORES DE TRES PONTAS LTDA', 'COATI', 'Rua Dr. Domingos Monteiro de Rezende', '70', 'centro', NULL, 'Tres Pontas', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '13.909.863/0001-28', NULL, '001.798.467-0067', true, 2, 2, NULL, NULL, NULL, NULL),
+(1057, 'Coop. dos Agricultores Familiares de Poço Fundo e Reg. LTDA', 'COOPFAM', 'Rua Antônio Candido de Souza,', '49', NULL, NULL, 'Poço Fundo -', NULL, 'MG', '37757-000', '(35) 32831055', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', 'comercializacao@coopfam.com.br
+compras@coopfam.com.br', 'Endereço antigo:
+Rua Odete dos Anjos Ferreira, 43
+Poço Fundo - MG - CEP 37757-000', '062384840001-98', NULL, '5173025540073', true, NULL, 24, NULL, NULL, NULL, NULL),
+(21, 'COOP. DOS CAFEIC. DA REGIAO DE CARATINGA LTDA', NULL, 'AV. PRES. TANCREDO NEVES', '1474A', NULL, 'ESPLANADA', 'CARATINGA', 'CARATINGA', 'MG', '35.300-036', '(33) 3212711', NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: PAULO', '25.881.970/0001-74', NULL, '134.630.382.0095', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(166, 'COOP. DOS CAFEIC. DA REGIÃO DE GARÇA', NULL, 'AV. GENERAL ASTOLFO MENDES', '650', NULL, NULL, 'PATROCINIO', 'PATROCINIO', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: DAVID', '48.204.135/0015-09', NULL, '481.397.159.0297', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1278, 'COOP. DOS CAFEIC. DA ZONA DE TRES PONTAS', 'TRES PONTAS', 'Av. Urbano Garcia Neto', '680', 'Sta Margarida', NULL, 'Tres Pontas', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'VE', NULL, NULL, '25.266.685/0008-10', NULL, '694.078.489-0525', true, 2, 2, NULL, NULL, NULL, NULL),
+(358, 'COOP. DOS CAFEIC. DA ZONA DE VARGINHA LTDA', 'VGA', 'RUA JOÃO ALVES DE MIRANDA', 'S/N', NULL, NULL, 'VARGINHA', 'VARGINHA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO:', '25.863.341/0001-11', NULL, '707.047.486-0028', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(176, 'COOP. DOS CAFEIC. DE CAMPOS GERAIS E CAMPO DO MEIO', NULL, 'AV. Dr. Alfredo Barbalho Cavalcante', '505', NULL, NULL, 'CAMPOS GERAIS', NULL, 'MG', '37160-000', '35-3853-0300', NULL, NULL, NULL, NULL, NULL, 'J', 'VE', 'VE', NULL, 'CONTATO: vendascafe@coopercam.com.br', '16.832.651/0002-69', NULL, '116.359.834-0180', true, NULL, 2, NULL, NULL, NULL, NULL);

@@ -31,12 +31,13 @@ interface HeatmapData {
 interface EnhancedHeatmapProps {
   selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
+  companyId?: string
 }
 
 // Fetcher function for SWR
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function EnhancedHeatmap({ selectedSection, className = '' }: EnhancedHeatmapProps) {
+export default function EnhancedHeatmap({ selectedSection, className = '', companyId }: EnhancedHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([2021, 2022, 2023, 2024, 2025]))
   const [currentWeek, setCurrentWeek] = useState<number>(0)
@@ -49,7 +50,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '' }: Enh
 
   // Fetch real travel data
   const { data: travelData, error, isLoading } = useSWR(
-    '/api/charts/travel-data',
+    companyId ? `/api/charts/travel-data?companyId=${companyId}` : '/api/charts/travel-data',
     fetcher
   )
 

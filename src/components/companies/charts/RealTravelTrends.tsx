@@ -27,11 +27,12 @@ interface TrendPoint {
 interface RealTravelTrendsProps {
   selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
+  companyId?: string
 }
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function RealTravelTrends({ selectedSection, className = '' }: RealTravelTrendsProps) {
+export default function RealTravelTrends({ selectedSection, className = '', companyId }: RealTravelTrendsProps) {
   const [trendData, setTrendData] = useState<TrendPoint[]>([])
   const [summary, setSummary] = useState({
     totalTrips: 0,
@@ -40,10 +41,13 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
     inland: 0,
     avgTripCost: 0
   })
+  
+  // Hide costs when viewing company-specific data (companyId is provided)
+  const showCosts = !companyId
 
   // Fetch real trips data
   const { data: tripsData, error, isLoading } = useSWR<{ trips: TripData[] }>(
-    '/api/trips/real-data',
+    companyId ? `/api/trips/real-data?companyId=${companyId}` : '/api/trips/real-data',
     fetcher
   )
 
@@ -196,22 +200,24 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
           </p>
         </div>
 
-        {/* Total Trip Costs Card */}
-        <div className="bg-white dark:bg-[#1a1a1a] rounded border border-pearl-200 dark:border-[#2a2a2a] p-3 flex-1">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-golden-400 mb-1">
-            Total Trip Costs (2025)
-          </h3>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(summary.totalCost)}
+        {/* Total Trip Costs Card (hidden for external company viewers) */}
+        {showCosts && (
+          <div className="bg-white dark:bg-[#1a1a1a] rounded border border-pearl-200 dark:border-[#2a2a2a] p-3 flex-1">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-golden-400 mb-1">
+              Total Trip Costs (2025)
+            </h3>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(summary.totalCost)}
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Actual costs from database
+            </p>
           </div>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            Actual costs from database
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Detailed Statistics - Compact */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className={`grid gap-2 ${showCosts ? 'grid-cols-4' : 'grid-cols-2'}`}>
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded p-2">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400" />
@@ -238,31 +244,37 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded p-2">
-          <div className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-            <span className="text-xs text-amber-700 dark:text-amber-300">Total Spent</span>
+        {/* Total Spent Card (hidden for external company viewers) */}
+        {showCosts && (
+          <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded p-2">
+            <div className="flex items-center gap-1">
+              <DollarSign className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+              <span className="text-xs text-amber-700 dark:text-amber-300">Total Spent</span>
+            </div>
+            <div className="text-lg font-bold text-amber-900 dark:text-amber-100">
+              {formatCurrency(summary.totalCost)}
+            </div>
+            <div className="text-xs text-amber-600 dark:text-amber-400">
+              This year
+            </div>
           </div>
-          <div className="text-lg font-bold text-amber-900 dark:text-amber-100">
-            {formatCurrency(summary.totalCost)}
-          </div>
-          <div className="text-xs text-amber-600 dark:text-amber-400">
-            This year
-          </div>
-        </div>
+        )}
 
-        <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded p-2">
-          <div className="flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-            <span className="text-xs text-purple-700 dark:text-purple-300">Avg Cost</span>
+        {/* Avg Cost Card (hidden for external company viewers) */}
+        {showCosts && (
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded p-2">
+            <div className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+              <span className="text-xs text-purple-700 dark:text-purple-300">Avg Cost</span>
+            </div>
+            <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
+              {formatCurrency(summary.avgTripCost)}
+            </div>
+            <div className="text-xs text-purple-600 dark:text-purple-400">
+              Per trip
+            </div>
           </div>
-          <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
-            {formatCurrency(summary.avgTripCost)}
-          </div>
-          <div className="text-xs text-purple-600 dark:text-purple-400">
-            Per trip
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Monthly Breakdown - Side by Side */}
@@ -298,7 +310,7 @@ export default function RealTravelTrends({ selectedSection, className = '' }: Re
                     <p className={`text-xs ${
                       isCurrentMonth ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'
                     }`}>
-                      {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'} • {formatCurrency(month.totalCost)}
+                      {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'}{showCosts && ` • ${formatCurrency(month.totalCost)}`}
                     </p>
                   </div>
 

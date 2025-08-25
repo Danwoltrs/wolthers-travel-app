@@ -14,12 +14,13 @@ interface TrendPoint {
 interface TravelTrendsChartProps {
   selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
+  companyId?: string
 }
 
 // Fetcher function for SWR
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function TravelTrendsChart({ selectedSection, className = '' }: TravelTrendsChartProps) {
+export default function TravelTrendsChart({ selectedSection, className = '', companyId }: TravelTrendsChartProps) {
   const [trendData, setTrendData] = useState<TrendPoint[]>([])
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null)
@@ -27,7 +28,7 @@ export default function TravelTrendsChart({ selectedSection, className = '' }: T
 
   // Fetch real travel data
   const { data: travelData, error, isLoading } = useSWR(
-    '/api/charts/travel-data',
+    companyId ? `/api/charts/travel-data?companyId=${companyId}` : '/api/charts/travel-data',
     fetcher
   )
 

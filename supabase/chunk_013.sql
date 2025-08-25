@@ -1,0 +1,146 @@
+-- Bulk import of all remaining legacy clients
+INSERT INTO public.legacy_clients (
+    legacy_client_id, descricao, descricao_fantasia, endereco, numero, complemento,
+    bairro, cidade, pais, uf, cep, telefone1, telefone2, telefone3, telefone4,
+    email, email_contratos, pessoa, grupo1, grupo2, referencias, obs,
+    documento1, documento2, documento3, ativo, id_usuario, id_usuario_ultimo,
+    logo, logo_altura, logo_largura, auto_size
+) VALUES
+(126, 'SAO BRAZ IND. COM. DE ALIMENTOS S/A', NULL, 'ROD. BR 230', 'KM 13,2', NULL, NULL, 'CABEDELO', 'CABEDELO', 'PB', '58.310-000', '(35) 2141621', NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: ANDRE', '08.811.226/0019-03', NULL, '16.072.630-1', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1578, 'SÃO PEDRO COMÉRCIO EXP. E IMP. DE CAFÉ LTDA.', 'SÃO PEDRO COMÉRCIO EXP. E IMP. DE CAFÉ LTDA.', 'Sitio Sao Sebastiao', 'S/N', 'SL 02', 'SERRA DOS LIMA', 'Andradas', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '10.489.928/0001-35', NULL, '001.100.348-0012', true, 2, 2, NULL, NULL, NULL, NULL),
+(1095, 'Sara Lee Cafés do Brasil', 'Sara Lee', 'Rua XV de Novembro,', '41', NULL, 'Centro', 'Santos', NULL, NULL, '11010-151', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '02.333.707/0052-95', NULL, '633.641.631.119', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(112, 'SARA LEE CAFÉS DO BRASIL LTDA', 'SARA LEE', 'AV. JOSÉ BENASSI, LOTE GLB3C', '1000', NULL, 'PQ INDUSTRIAL', 'JUNDIAI', 'JUNDIAI', 'SP', '13213-085', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '02.333.707/0049-90', NULL, '407.433.546-110', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(900, 'SARA LEE CAFÉS DO BRASIL LTDA', 'SARA', 'RUA DOUTOR JOSÉ MAMBRINI', '605', 'SALA 02', NULL, 'SÃO SEBASTIÃO DO PARAISO', 'SÃO SEBASTIÃO DO PARAISO', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '02.333.707/0013-89', NULL, '647.734.657.009-6', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(473, 'SARA LEE CAFÉS DO BRASIL LTDA', 'SARAR', 'AV. CAFÉ DO PONTO', '479', NULL, 'JD. DOS CAMARGOS', 'BARUERI', 'BARUERI', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '02.333.707/0001-45', NULL, '206.007.782.111', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(961, 'SARA LEE CAFÉS DO BRASIL LTDA', 'SARA LEE', 'RUA MARIA NAZARETH PRADO', '225', NULL, 'INDUSTRIAL', 'VARGINHA', NULL, 'MG', '37026-520', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '02.333.707/0045-66', NULL, '707.734.657-0228', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1129, 'Sara Lee Cafés do Brasil Ltda', 'Sara Lee', 'Av. Querobino Mourão Filho', '643', NULL, 'Bela Vista', 'Piumhi', NULL, 'MG', '37.925-000', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '02.333.707/0059-61', NULL, '647.734657.0584', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(502, 'SAUL CHAGAS', 'SAUL CHAGAS', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'F', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1097, 'SCH - SWISS COFFEE HOUSE S.A.', 'SWISS COFFEE', 'ROUTE DE BOIS GENOUD', NULL, '41023 CRISSIER', NULL, 'SWITZERLAND', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(654, 'SENDAS COMERCIO EXTERIOR S/A', 'SENDAS', 'RUA XV DE NOVEMBRO', '51', NULL, NULL, 'SANTOS', 'SANTOS', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '02.452.569/0107-71', '1479575', '633.584.061.110', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(32, 'SENDAS COMERCIO EXTERIOR S/A', 'SENDAS', 'RUA COM. MANOEL SENDAS', '500', NULL, 'PARQUE MARIELA', 'VARGINHA', 'VARGINHA', 'MG', '37030-010', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '02.452.569/0106-90', NULL, '707.170.51300-20', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(573, 'SENDAS COMÉRCIO EXTERIOR S/A', 'SENDAS', 'ROD. PRES. DUTRA', '4674', NULL, NULL, 'S.JOÃO  MERITI', 'S.JOÃO  MERITI', 'RJ', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '02.452.569/0001-13', NULL, '77.364.650', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(504, 'SERRAS DE MINAS', 'SERRAS DE MINAS', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1877, 'Shanghai Cooway Trading Co., Ltd.', 'Shanghai Cooway', 'No.602, Building 23, Lane 1333', NULL, 'Xin Long Road, Minhang District', NULL, 'Shanghai, China.', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', 'Mrs Ruby Chen', 'Shanghai Cooway Trading Co. Ltd.
+Unit 206 Building 23# no. 1333 Xin Long Road Min 
+Hang Area Shanghai City China
+
+No.602, Building 23, Lane 1333, 
+Xinlong Road, Minhang District, Shanghai', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1876, 'Shanghai Wenyao Coffee Co., Ltd.', 'Shanghai Wenyao Coffee Co., Ltd.', 'No.2268 Hanghe Road, Pudong New District,', NULL, 'Shanghai, China.', NULL, 'Post code: 201317', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', 'Mr. Qijun Ren', 'Shanghai Wenyao Coffee Co., Ltd.
+Address: No.2268 Hanghe Road, Pudong New District, 
+Shanghai, China.
+Post code: 201317', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1501, 'SIA Lofbergs Baltic', 'SIA Lofbergs Baltic', 'Ziemelu Iela 53, Kekava, Kekavas pag.,', NULL, 'Kekavas nov., LV-2123', NULL, 'Latvia', NULL, NULL, NULL, '+371 67307222', NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, 'Bank
+Svenska Handelsbanken AB Latvijas filiale
+Bank code
+HANDLV22
+Account
+LV57HAND0008300006052 (EUR)
+LV94HAND0008300006065 (USD)
+VAT LV40003830061
+Lofbergs baltic SIA informs, that as of March 29th, 2021, 
+the legal address and the location address of Lofbergs Baltic SIA is:
+
+ZIEMELU IELA 53,
+KEKAVA, KEKAVAS PAG., KEKAVAS NOV.
+LV-2123 - LATVIA
+
+Please note, our location haven''t change, changes made only
+in the address.', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1120, 'Simon Levelt B.V.', 'Simon Levelt', 'A. Hofmanweg 3', NULL, NULL, '2031 BH Haarlem,', NULL, 'The Netherlands', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '�w�\t1�iG�%�\u000e�\u0000�&\/��+����W��\u0000�P{4z\u0007�%�\u000e�\u0000�&\/��(�\u0000�����$��\u0000}�y�&G��q�G��^��\u0000\u0001A���?�x;����ﴣ�\u0012�\u0007Г\u0017�������\r7F��`�xc�;H?��L�8�ر��2j���''h��\u0000���\u0007\u0004�;\u000f�K<\u001d�\u0000BL_��Q�\u0000\tg���I���J�u\r2[+{k�', NULL, 'CL', 'CO', NULL, 'OLD Bank Instructions (Nov 3rd, 2014)
+
+Rabobank Nederland,  Afdeling Trade Services, UH-P 3002 
+Gildenkwartier 199 , 3511 DH Utrecht, The Netherlands
+BIC/SWIF T: RABONL2U
+IBAN: NL91RABO0158180585     
+
+FLO ID 252
+
+Todos os documentos enviar in trust...
+mas se não der,...
+
+Bank Instructions (May 20th, 2019)
+Rabobank  
+Telephone + 0031 (030) 216 3600
+trade.servicedesk@rabobank.nl
+www.rabobank.nl/trade
+Postal address: UL 3.01, postbus 17100, 3500 HG Utrecht 
+Office address: UL 3.01, Leidseveer 50, 3511 SB Utrecht', NULL, NULL, NULL, true, NULL, 15, '����\u0000\u0010JFIF\u0000\u0001\u0001\u0001\u0001', NULL, NULL, false),
+(875, 'SLC  AGRICOLA', 'SLC', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'F', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(505, 'SOC. AGRICOLA MONTE ALEGRE', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1416, 'Socadec S.A.', 'Socadec S.A.', '13 Route de Florissant,', NULL, '1206 Geneve - Switzerland', NULL, NULL, NULL, NULL, NULL, '41 22 707 06 66', NULL, NULL, '33 7 61 39 91 9', NULL, 'trade-gv@touton.com', 'J', 'RE', 'CO', NULL, 'Contact: Mr. François Deslandes
+mobil +33 7 61 39 91 98', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(335, 'SOCAM PRODUTOS ALIMENTICIOS LTDA', 'SOCAN', 'RUA SENADOR MOZART', '251', 'DT.INDUSTRIAL', 'ACAR''TI', 'RIO DE JANEIRO', 'RIO DE JANEIRO', 'RJ', '21.530-210', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: JR', '30.044.846/0001-94', NULL, '81.916.047', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(872, 'SOCAN PRODUTOS ALIMENTICIOS LTDA', 'SOCAN', 'RUA SENADOR MOZART LAGO', '251', NULL, NULL, 'RIO DE JANEIRO', 'RIO DE JANEIRO', 'RJ', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '30.044.846/0001-94', NULL, '81.916.047', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(80, 'SOCIEDADE EXP. DE CAFE PIUMHI LTDA', NULL, 'RUA GETULIO VARGAS', '1528', NULL, NULL, 'PIUMHI', 'PIUMHI', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '67.438.390/0002-38', NULL, '515.969.497.0053', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(135, 'SOCIEDADE EXP. DE CAFÉ PIUMHI LTDA', NULL, 'RUA FREI GASPAR', '24/26', NULL, 'CENTRO', 'SANTOS', 'SANTOS', 'SP', NULL, '2196412', NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: AECIO', '67.438.390/0001-57', NULL, '633.295.938.110', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(883, 'SOCOPA - SOCIEDADE CORRETORA PAULISTA S/A', 'SOCOPA', 'AV. BRIGADEIRO FARIA LIMA', '1355', '6º ANDAR', NULL, 'SÃO PAULO', 'SÃO PAULO', 'SP', '04551-060', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '62.285.390/0001-40', NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(575, 'SOPEX DO BRASIL LTDA', 'SOPEX', 'RUA DO COMERCIO', '26', '38', 'CENTRO', 'SANTOS', 'SANTOS', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '04.742.877/0001-09', NULL, '633.577.580.114', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1098, 'Starbucks Coffee Trading Company', NULL, 'Rue du Grand-Chene', '1003', '1-3', NULL, 'Lausanne - Switzerland', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1820, 'SUCAFINA BRASIL COM. E EXP. LTDA', 'SUCAFINA', 'Rua Quinze de Novembro', '59', NULL, NULL, 'Santos', NULL, 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'CL', 'CO', NULL, NULL, '07.146.352/0001-07', NULL, '633.619.194.119', true, 2, 2, NULL, NULL, NULL, NULL),
+(1804, 'SUCDEN DO BRASIL LTDA', 'Sucden do Brasil Ltda', 'Alameda do Café', '85', NULL, NULL, 'Varginha', NULL, 'MG', '37026-400', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '00.308.337/0007-56', NULL, '38080980055', true, 2, 2, NULL, NULL, NULL, NULL),
+(456, 'SUMATRA CAFÉS BRASIL S/A', NULL, 'AV. XV DE AGOSTO', '1855', NULL, 'DO SALTO', 'SOCORRO', 'SOCORRO', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'DHL 654323423', '52.681.616/0021-12', NULL, '668.027.248-112', true, NULL, 2, NULL, NULL, NULL, NULL),
+(1789, 'SURITA COMERCIO E EXPORTAÇAO DE CAFÉ LTDA', 'SURITA COMERCIO E EXPORTAÇAO DE CAFÉ LTDA', 'Rua do Comercio do Cafe', '344', NULL, NULL, 'Varginha', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '19.588.076/0001-08', NULL, '002.296.366-0065', true, 2, 2, NULL, NULL, NULL, NULL),
+(503, 'SWISS COFFEE HOUSE DO BRASIL LTDA', 'SCH', 'AV. PRINCESA DO SUL - LOTE A - SALA 2', '1500', NULL, NULL, 'VARGINHA', 'VARGINHA', 'MG', '37062-180', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '04.615.073/0002-20', NULL, '707.155.954-0070', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(523, 'SWISS COFFEE HOUSE DO BRASIL LTDA', 'SCH', 'RUA FREI GASPAR, CONJ. 23', '22', NULL, 'CENTRO', 'SANTOS', 'SANTOS', 'SP', '11010-091', '319-2572', NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '04.615.073/0001-49', NULL, '633.574.925.118', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(506, 'TALBEN CAFÉ', 'TALBEN CAFÉ', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(721, 'TAVARES COMERCIO DE CAFE LTDA', 'TAVARES', 'RUA TOMAZ JEFFERSON', '916', 'SALA 4', NULL, 'CONTAGEM', 'CONTAGEM', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, NULL, '04.316.561/0001-55', NULL, '186.118257-0014', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1218, 'Tong Teik Pte Ltd.', 'Tong Teik Pte Ltd.', '7 Temasek Boulevard,', '20-02', NULL, NULL, 'Suntec Tower One -', 'Singapore', NULL, '038987', '65 6332 2282', NULL, '65 6332 3788', NULL, NULL, 'info@tongteik.com.sg', 'J', 'CL', 'CO', NULL, 'Member of RCMA Commodities Asia Group:
+
+Tong Teik Pte Ltd.
+7 Temasek Boulevard, 20-02
+Suntec Tower One - Singapore 038987
+
+To our partner in HCMC: 
+Tong Teik, Representative Office in HCMC, Vietnam
+58 Vo Van Tan Street, District 3, HCMC.
+Tel: + 84 8 39 333 506, ext: 107, Fax: + 84 8 39 333 505
+Attn: Quynh - Email: quynh.nguyen@tongteik.com.sg', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(1638, 'Top of the Crop N.V.', '"Top of the Crop"', 'Grotesteenweg 74,', NULL, NULL, NULL, '2600 Antwerpen, Belgium.', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', 'Jean Heylen - mobile +32 474 442844', 'Kristyna Rihova
+E-mail: kristyna@topofthecrop.coffee
+Mobile: +32 486104807
+
+New 07/8/2020:
+Top of the Crop
+Grotesteenweg 74,
+2600 Antwerpen, Belgium.
+VAT: BE 0741.671.007
+
+Old address:
+Pelikaanstraat 3 bus 2020
+2018 Antwerpen
+
+Net Cash Against Documents upon first receipt
+Banking details: ING Bank
+IBAN: BE17 3631 9797 5121
+SWIFT: BBRUBEBB
+
+Bank Deatails 04/04 (must, however, confirm with TOTC)
+NG Belgium NV
+Doc. Trade Dept
+Lange Gasthuisstraat 20
+B-2000 Antwerp - Belgium
+Swift Code: Bbru Be Bb 200
+Contact persons: Rik Van Den Heuvel - tel +32 3.224.24.74 / Kristin Janssens - tel +32 3.224.24.17
+Pascal Rihoux - tel +32.3 224.24.40', NULL, NULL, NULL, true, 7, 15, NULL, NULL, NULL, NULL),
+(1562, 'TORREFAÇÃO  DE CAFÉ PRAIA GRANDE LTDA ME', 'TORREFAÇÃO  DE CAFÉ PRAIA GRANDE LTDA ME', 'RUA OTACILIA  DA LUZ BRASIL', '88', NULL, 'VILA MIRIM', 'PRAIA GRANDE', NULL, 'SP', '11717 300', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, NULL, '59.883.801/0001-95', NULL, '558 046 179 118', true, 2, 2, NULL, NULL, NULL, NULL),
+(892, 'TORREFAÇÃO CAFÉ DUBON LTDA', 'DUBON', 'AV. BENJAMIN CONSTAN,', '66', NULL, NULL, 'VARGINHA', 'VARGINHA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'JR', '25.860.362/0001-83', NULL, '707.03858800-66', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(22, 'TORREFACAO E MOAGEM DE CAFE APORE LTDA', NULL, 'RUA AURIO F. DE FARIA', '1231', NULL, NULL, 'JALES', 'JALES', 'SP', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: MARCO', '50.544.925/0001-82', NULL, '396.000.853.111', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1213, 'Tostadores Reunidos S.A.', 'Tostadores Reunidos', 'C/ GRAL. Álvarez de Castro - 20 /', '28010', 'piso 1 izda', NULL, 'Madrid -', 'Spain', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, 'Bank Details (as of Sep 6th):
+
+ATT DON SANTIAGO NIEVES
+
+CAJA LABORAL POPULAR
+Paseo de la Castellana, 167
+28046 MADRID', NULL, NULL, NULL, true, 7, 15, NULL, NULL, NULL, NULL),
+(853, 'TOTAL ALIMENTOS S/A', 'TOTAL', 'ROD. FERNÃO DIAS', 'KM 699', NULL, NULL, 'TRÊS CORAÇÕES', 'TRÊS CORAÇÕES', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'VOLCAFE', '18.631.739/0001-67', NULL, '693.177.591.0072', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(1510, 'Touton Genève SA', 'Touton Genève SA', '13 Route de Florissant', NULL, '1206 Genève', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CL', 'CO', NULL, 'Touton Genève SA
+13 ROUTE DE FLORISSANT, 1206 
+GENEVE SWITZERLAND, 
+TEL 410227070665, ATN.- FELIPE VELIZ', NULL, NULL, NULL, true, 7, 7, NULL, NULL, NULL, NULL),
+(277, 'TRÊS MARIAS EXPORTAÇÃO E IMPORTAÇÃO LTDA', NULL, 'FAZENDA DO PENEDO', NULL, 'BLOCO A SALA 1', NULL, 'VARGINHA', 'VARGINHA', 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: GELÉIA', '02.766.349/0002-45', NULL, '707.995.158.0093', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(117, 'TRISTÃO CIA. COM. EXTERIOR', 'TRSITÃO', 'AV. JOSÉ RIBEIRO TRISTÃO', '505', NULL, NULL, 'VARGINHA', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '27.001.247/0037-90', NULL, '707.042.801.0491', true, NULL, 2, NULL, NULL, NULL, NULL),
+(230, 'TRISTÃO CIA. COM. EXTERIOR', 'TRI', 'RUA DO COMÉRCIO', '26', 'SALA 18', 'CENTRO', 'SANTOS', 'SANTOS', 'SP', NULL, '3219-5335', NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO: JUNIOR', '27.001.247/0002-60', '1446113', '633.574.758.111', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(344, 'TRISTÃO CIA. DE COMÉRCIO EXTERIOR', NULL, 'RUA CLOVIS MACHADO', '176', '8º ANDAR', 'ENSEADA DO SUÁ', 'VITÓRIA', 'VITÓRIA', 'ES', '29.050-900', NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '27.001.247/0001-89', NULL, '080.250.047-5', true, NULL, NULL, NULL, NULL, NULL, NULL),
+(781, 'TULIO HENRIQUE JUNQUEIRA', 'TULIO', NULL, NULL, NULL, NULL, NULL, NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'F', 'CO', 'CO', NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, 'UNICAFE - CIA. DE COMERCIO EXTERIOR', 'UNICAFE', 'AV. PRINCESA DO SUL', '2025', NULL, NULL, 'VARGINHA', NULL, 'MG', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'J', 'CO', 'CO', NULL, 'CONTATO:', '28.154.680/0011-99', NULL, '707.100.333.0186', true, NULL, 2, NULL, NULL, NULL, NULL);

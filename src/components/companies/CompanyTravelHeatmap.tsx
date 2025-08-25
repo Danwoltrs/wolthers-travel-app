@@ -16,6 +16,7 @@ interface Trip {
 interface CompanyTravelHeatmapProps {
   companyId: string
   trips?: any
+  showCosts?: boolean // Hide costs when company users view their own dashboard
 }
 
 interface MonthData {
@@ -26,7 +27,7 @@ interface MonthData {
   participantCount: number
 }
 
-export default function CompanyTravelHeatmap({ companyId, trips }: CompanyTravelHeatmapProps) {
+export default function CompanyTravelHeatmap({ companyId, trips, showCosts = true }: CompanyTravelHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<MonthData[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<'year' | '6months'>('year')
 

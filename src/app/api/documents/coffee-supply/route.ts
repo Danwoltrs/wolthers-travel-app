@@ -77,8 +77,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
     
-    // Trip-specific filtering parameters
+    // Context-specific filtering parameters
     const tripId = searchParams.get('tripId') || searchParams.get('trip_id')
+    const companyId = searchParams.get('companyId') || searchParams.get('company_id')
     const includeGeneral = searchParams.get('include_general') === 'true'
     
     // Filters
@@ -95,7 +96,8 @@ export async function GET(request: NextRequest) {
           sortDirection, 
           limit, 
           offset, 
-          tripId, 
+          tripId,
+          companyId, 
           includeAll: includeGeneral 
         })
       
@@ -115,6 +117,7 @@ export async function GET(request: NextRequest) {
           dateFrom,
           dateTo,
           tripId,
+          companyId,
           includeGeneral
         })
       
@@ -126,20 +129,23 @@ export async function GET(request: NextRequest) {
           offset,
           fileTypes,
           categories,
-          tripId
+          tripId,
+          companyId
         })
       
       case 'crop-dashboard':
         return await getCropInformation(serviceSupabase, { 
           limit, 
           urgencyLevels,
-          tripId 
+          tripId,
+          companyId 
         })
       
       case 'statistics':
         return await getDocumentStatistics(serviceSupabase, { 
           supplierId,
-          tripId 
+          tripId,
+          companyId 
         })
       
       default:
@@ -163,10 +169,112 @@ async function getSuppliers(
     limit: number; 
     offset: number;
     tripId?: string | null;
+    companyId?: string | null;
     includeAll?: boolean;
   }
 ) {
   try {
+    // Company-specific filtering: show related companies based on category
+    if (options.companyId) {
+      // First get the company to determine its category
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id, name, category')
+        .eq('id', options.companyId)
+        .single()
+
+      if (companyError) {
+        console.error('Error fetching company for document filtering:', companyError)
+        return NextResponse.json({ error: 'Database error when fetching company', details: companyError.message }, { status: 500 })
+      }
+      
+      if (!company) {
+        console.log('Company not found for ID:', options.companyId)
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      }
+
+      // Based on company category, determine what related companies to show
+      let relatedCompaniesQuery = supabase.from('companies').select(`
+        id, name, fantasy_name, category, created_at
+      `)
+
+      if (company.category === 'buyer') {
+        // Buyers see supplier folders (exporters, cooperatives, producers)
+        relatedCompaniesQuery = relatedCompaniesQuery.in('category', ['supplier', 'exporter', 'cooperative', 'producer'])
+      } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(company.category)) {
+        // Suppliers see buyer folders (importers, roasters)
+        relatedCompaniesQuery = relatedCompaniesQuery.in('category', ['buyer', 'importer', 'roaster'])
+      } else {
+        // Service providers see all companies they work with
+        relatedCompaniesQuery = relatedCompaniesQuery.neq('category', 'service_provider')
+      }
+
+      const { data: relatedCompanies, error: relatedError } = await relatedCompaniesQuery
+        .order(options.sortBy === 'name' ? 'name' : options.sortBy, { 
+          ascending: options.sortDirection === 'asc' 
+        })
+        .range(options.offset, options.offset + options.limit - 1)
+
+      if (relatedError) {
+        console.error('Error fetching related companies:', relatedError)
+        return NextResponse.json({ error: 'Failed to fetch related companies', details: relatedError.message }, { status: 500 })
+      }
+
+      // Transform to supplier format for the frontend
+      const suppliers = await Promise.all(
+        relatedCompanies?.map(async (relatedCompany: any) => {
+          // Get document count where this company shared documents with the viewing company
+          const { count } = await supabase
+            .from('company_files')
+            .select('*', { count: 'exact', head: true })
+            .eq('company_id', relatedCompany.id)
+            // TODO: Add permission logic here based on company relationships
+
+          return {
+            id: relatedCompany.id,
+            name: relatedCompany.name,
+            path: `/documents/${relatedCompany.name.toLowerCase().replace(/\s+/g, '-')}`,
+            supplierId: relatedCompany.id,
+            itemCount: count || 0,
+            documentCount: count || 0,
+            folderCount: 1,
+            totalSize: 0,
+            lastModified: new Date(relatedCompany.created_at),
+            createdDate: new Date(relatedCompany.created_at),
+            subFolders: [], // Simplified for now to avoid async issues
+            recentDocuments: [],
+            supplierInfo: {
+              id: relatedCompany.id,
+              name: relatedCompany.fantasy_name || relatedCompany.name,
+              country: 'Unknown',
+              contactPerson: '',
+              email: '',
+              relationshipStatus: 'active',
+              supplierType: relatedCompany.category || 'cooperative',
+              certifications: [],
+              primaryCrops: ['arabica'],
+              qualityGrade: 'specialty'
+            },
+            // Company-specific metadata
+            relationshipType: company.category === 'buyer' ? 'supplier' : 'buyer',
+            viewingCompany: company.id,
+            accessLevel: company.category === 'buyer' ? 'full' : 'restricted'
+          }
+        }) || []
+      )
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          suppliers,
+          total: suppliers.length,
+          context: 'company-filtered',
+          viewingCompany: company,
+          relationshipType: company.category === 'buyer' ? 'suppliers' : 'buyers'
+        }
+      })
+    }
+
     // Use the new database function for trip-aware supplier filtering
     if (options.tripId) {
       const { data: companies, error: companiesError } = await supabase
@@ -355,10 +463,187 @@ async function getDocuments(
     dateFrom?: string | null
     dateTo?: string | null
     tripId?: string | null
+    companyId?: string | null
     includeGeneral?: boolean
   }
 ) {
   try {
+    // Company-specific document filtering: apply permission-based access
+    if (options.companyId) {
+      // Get the viewing company to determine access permissions
+      const { data: viewingCompany, error: companyError } = await supabase
+        .from('companies')
+        .select('id, name, category')
+        .eq('id', options.companyId)
+        .single()
+
+      if (companyError || !viewingCompany) {
+        console.error('Error fetching viewing company:', companyError)
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      }
+
+      // Build the query based on company category and permissions
+      let query = supabase
+        .from('company_files')
+        .select(`
+          id,
+          file_name,
+          file_size,
+          mime_type,
+          storage_path,
+          category,
+          description,
+          tags,
+          trip_id,
+          created_at,
+          updated_at,
+          uploaded_by_id,
+          companies:company_id (
+            id,
+            name,
+            fantasy_name,
+            category
+          ),
+          users:uploaded_by_id (
+            id,
+            full_name,
+            email
+          )
+        `)
+        .eq('is_archived', false)
+
+      // Apply company-specific permission filtering
+      if (viewingCompany.category === 'buyer') {
+        // Buyers see:
+        // 1. All files from suppliers (files suppliers shared during meetings)
+        // 2. ALL meeting notes from meetings they attended
+        if (options.supplierId) {
+          // When viewing a specific supplier folder
+          query = query.eq('company_id', options.supplierId)
+          // TODO: Add logic to filter only files that can be shared with this buyer
+        } else {
+          // Show files from all supplier companies
+          const { data: supplierCompanies } = await supabase
+            .from('companies')
+            .select('id')
+            .in('category', ['supplier', 'exporter', 'cooperative', 'producer'])
+          
+          const supplierIds = supplierCompanies?.map(c => c.id) || []
+          if (supplierIds.length > 0) {
+            query = query.in('company_id', supplierIds)
+          }
+        }
+      } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(viewingCompany.category)) {
+        // Suppliers see:
+        // 1. Files they shared during meetings
+        // 2. Trip notes from meetings they attended
+        if (options.supplierId) {
+          // When viewing a specific buyer folder, show files they shared with this buyer
+          query = query.eq('company_id', options.companyId) // Show files from viewing company
+          // TODO: Add logic to filter only files shared with the specific buyer
+        } else {
+          // Show only files from their own company
+          query = query.eq('company_id', options.companyId)
+        }
+      }
+
+      // Apply other filters
+      if (options.year) {
+        const startOfYear = new Date(options.year, 0, 1).toISOString();
+        const endOfYear = new Date(options.year + 1, 0, 1).toISOString();
+        query = query.gte('created_at', startOfYear).lt('created_at', endOfYear)
+      }
+
+      if (options.category) {
+        query = query.eq('category', options.category)
+      }
+
+      if (options.searchQuery) {
+        query = query.textSearch('file_name', options.searchQuery)
+      }
+
+      if (options.fileTypes.length > 0) {
+        query = query.in('mime_type', options.fileTypes)
+      }
+
+      if (options.categories.length > 0) {
+        query = query.in('category', options.categories)
+      }
+
+      if (options.dateFrom) {
+        query = query.gte('created_at', options.dateFrom)
+      }
+
+      if (options.dateTo) {
+        query = query.lte('created_at', options.dateTo)
+      }
+
+      // Apply sorting
+      const sortColumn = options.sortBy === 'dateModified' ? 'updated_at' : 
+                        options.sortBy === 'size' ? 'file_size' :
+                        options.sortBy === 'kind' ? 'mime_type' : 'file_name'
+
+      query = query.order(sortColumn, { ascending: options.sortDirection === 'asc' })
+        .range(options.offset, options.offset + options.limit - 1)
+
+      const { data: documents, error } = await query
+
+      if (error) {
+        console.error('Error fetching company documents:', error)
+        return NextResponse.json({ error: 'Failed to fetch company documents' }, { status: 500 })
+      }
+
+      // Transform to frontend format
+      const transformedDocuments = documents?.map((doc: any) => ({
+        id: doc.id,
+        name: doc.file_name,
+        path: doc.storage_path,
+        supplier: doc.companies?.fantasy_name || doc.companies?.name || 'Unknown',
+        supplierId: doc.companies?.id || '',
+        year: new Date(doc.created_at).getFullYear(),
+        size: doc.file_size,
+        lastModified: new Date(doc.updated_at || doc.created_at),
+        createdDate: new Date(doc.created_at),
+        createdBy: doc.users?.full_name || 'Unknown',
+        createdById: doc.uploaded_by_id,
+        kind: getFileKind(doc.mime_type, doc.file_name),
+        extension: getFileExtension(doc.file_name),
+        mimeType: doc.mime_type,
+        isNew: isNewDocument(doc.created_at),
+        isShared: false,
+        tags: doc.tags || [],
+        metadata: {
+          category: doc.category,
+          description: doc.description,
+          tags: doc.tags || [],
+          version: '1.0',
+          // Company-specific metadata
+          viewingCompany: options.companyId,
+          ownerCompany: doc.companies?.id,
+          accessLevel: viewingCompany.category === 'buyer' ? 'full' : 'restricted'
+        },
+        accessLevel: viewingCompany.category === 'buyer' ? 'team' : 'public',
+        downloadUrl: `/api/documents/coffee-supply/${doc.id}/download`,
+        previewUrl: null,
+        thumbnailUrl: null
+      })) || []
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          documents: transformedDocuments,
+          total: transformedDocuments.length,
+          context: 'company-filtered',
+          viewingCompany,
+          accessPermissions: {
+            canViewAll: viewingCompany.category === 'buyer',
+            canViewMeetingNotes: true,
+            canViewSharedFiles: true
+          }
+        }
+      })
+    }
+
     // Use the new database function for trip-aware document filtering when tripId is provided
     if (options.tripId) {
       const { data: documents, error } = await supabase
@@ -566,6 +851,7 @@ async function searchDocuments(
     fileTypes: string[]
     categories: string[]
     tripId?: string | null
+    companyId?: string | null
   }
 ) {
   try {
@@ -646,7 +932,7 @@ async function searchDocuments(
 
 async function getCropInformation(
   supabase: any,
-  options: { limit: number; urgencyLevels: string[]; tripId?: string | null }
+  options: { limit: number; urgencyLevels: string[]; tripId?: string | null; companyId?: string | null }
 ) {
   try {
     // Query actual crop information from database using the correct table structure
@@ -749,7 +1035,7 @@ async function getCropInformation(
 
 async function getDocumentStatistics(
   supabase: any,
-  options: { supplierId?: string | null; tripId?: string | null }
+  options: { supplierId?: string | null; tripId?: string | null; companyId?: string | null }
 ) {
   try {
     let query = supabase

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
 import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
+import { useAuth } from '@/contexts/AuthContext'
 import EnhancedHeatmap from '@/components/companies/charts/EnhancedHeatmap'
 import TravelTrendsChart from '@/components/companies/charts/TravelTrendsChart'
 import RealTravelTrends from '@/components/companies/charts/RealTravelTrends'
@@ -13,6 +14,8 @@ import MobileDocumentView from '@/components/documents/MobileDocumentView'
 import BuyersPanel from '@/components/companies/BuyersPanel'
 import SuppliersPanel from '@/components/companies/SuppliersPanel'
 import AddCompanyModal from '@/components/companies/AddCompanyModal'
+import CompanyDashboard from '@/components/companies/CompanyDashboard'
+import UnifiedUsersPanel from '@/components/companies/UnifiedUsersPanel'
 import { useDocumentFinder } from '@/hooks/useDocumentFinder'
 import { isMobileDevice } from '@/lib/utils'
 
@@ -27,6 +30,10 @@ export default function CompaniesPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Mobile sidebar starts collapsed
   const [showAddBuyerModal, setShowAddBuyerModal] = useState(false)
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
+  const [showCompanyDashboard, setShowCompanyDashboard] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<any>(null)
+  
+  const { user } = useAuth()
   
   // Fetch real Wolthers staff data
   const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
@@ -92,6 +99,18 @@ export default function CompaniesPage() {
     setError(null)
   }, [actions])
 
+  // Handle viewing company dashboard
+  const handleViewCompanyDashboard = (company: any) => {
+    setSelectedCompany(company)
+    setShowCompanyDashboard(true)
+  }
+
+  // Handle closing company dashboard
+  const handleCloseDashboard = () => {
+    setShowCompanyDashboard(false)
+    setSelectedCompany(null)
+  }
+
   // Error handling component
   const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg p-4 mb-4">
@@ -116,6 +135,31 @@ export default function CompaniesPage() {
     suppliers: 'Suppliers'
   }
 
+  // If showing company dashboard, render it instead of main layout
+  if (showCompanyDashboard && selectedCompany) {
+    const shouldShowSidebar = !!user?.companyId && user.companyId !== selectedCompany.id
+    console.log('[CompaniesPage] Full user object analysis:', {
+      user: user,
+      userKeys: user ? Object.keys(user) : 'no user',
+      selectedCompanyName: selectedCompany.name,
+      selectedCompanyId: selectedCompany.id,
+      userCompanyId: user?.company_id,  // OLD FIELD
+      userCompanyIdNew: user?.companyId, // CORRECT FIELD
+      userEmail: user?.email,
+      shouldShowSidebar,
+      comparisonResult: user?.companyId !== selectedCompany.id
+    })
+    
+    return (
+      <CompanyDashboard 
+        company={selectedCompany}
+        onBack={handleCloseDashboard}
+        viewerCompanyId={user?.companyId} // Current user's company ID
+        showSidebar={shouldShowSidebar} // Show sidebar if Wolthers viewing other company
+      />
+    )
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3] dark:from-[#1a1a1a] dark:to-[#0f0f0f]">
       {/* Sidebar */}
@@ -126,6 +170,7 @@ export default function CompaniesPage() {
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         onAddBuyer={() => setShowAddBuyerModal(true)}
         onAddSupplier={() => setShowAddSupplierModal(true)}
+        onViewDashboard={handleViewCompanyDashboard} // Pass dashboard handler to sidebar
       />
 
       {/* Main Content Area */}
@@ -158,86 +203,24 @@ export default function CompaniesPage() {
                 selectedSection={selectedSection}
               />
               
-              {/* Wolthers Staff */}
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                  {selectedSection === 'wolthers' ? 'Wolthers Staff' : 
-                   selectedSection === 'buyers' ? 'Buyer Contacts' : 'Supplier Contacts'}
-                </h3>
-                
-                {selectedSection === 'wolthers' && (
-                  <div className="space-y-4">
-                    {staffLoading ? (
-                      // Loading skeleton
-                      <div className="space-y-4">
-                        {[...Array(4)].map((_, i) => (
-                          <div key={i} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                            <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
-                            <div className="flex-1">
-                              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-32 mb-2 animate-pulse"></div>
-                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-1 animate-pulse"></div>
-                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-40 animate-pulse"></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : staffError ? (
-                      <div className="text-center text-red-500 dark:text-red-400 py-8">
-                        Error loading staff: {staffError.message || 'Failed to load staff data'}
-                      </div>
-                    ) : !staffData?.staff || staffData.staff.length === 0 ? (
-                      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                        No Wolthers staff found
-                      </div>
-                    ) : (
-                      // Real staff data
-                      staffData.staff.map((member: any, index: number) => {
-                        // Generate initials from full name
-                        const initials = member.full_name
-                          ?.split(' ')
-                          .map((n: string) => n[0])
-                          .join('')
-                          .toUpperCase() || 'UN';
-                        
-                        // Generate avatar colors based on index for visual variety
-                        const avatarColors = [
-                          'bg-emerald-500',
-                          'bg-amber-500', 
-                          'bg-blue-500',
-                          'bg-purple-500',
-                          'bg-rose-500',
-                          'bg-indigo-500'
-                        ];
-                        const avatarColor = avatarColors[index % avatarColors.length];
-                        
-                        return (
-                          <div key={member.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                            <div className={`w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center text-white font-medium`}>
-                              {initials}
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                                {member.full_name || 'Unknown User'}
-                              </h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {member.email}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+              {/* Companies and Users */}
+              {selectedSection === 'wolthers' ? (
+                <UnifiedUsersPanel onViewDashboard={handleViewCompanyDashboard} />
+              ) : (
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
+                    {selectedSection === 'buyers' ? 'Buyer Companies' : 'Supplier Companies'}
+                  </h3>
+                  
+                  {selectedSection === 'buyers' && (
+                    <BuyersPanel onViewDashboard={handleViewCompanyDashboard} />
+                  )}
 
-                {selectedSection === 'buyers' && (
-                  <BuyersPanel />
-                )}
-
-                {selectedSection === 'suppliers' && (
-                  <SuppliersPanel />
-                )}
-              </div>
+                  {selectedSection === 'suppliers' && (
+                    <SuppliersPanel onViewDashboard={handleViewCompanyDashboard} />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Column: Full flexible width to fill remaining space */}

@@ -21,9 +21,10 @@ import {
 // API base URL for coffee supply chain documents
 const API_BASE = '/api/documents/coffee-supply'
 
-// Trip context interface for document filtering
+// Context interface for document filtering
 export interface DocumentFinderContext {
   tripId?: string;
+  companyId?: string;
   includeGeneral?: boolean;
 }
 
@@ -44,9 +45,12 @@ const api = {
       offset: options.offset.toString()
     })
 
-    // Add trip context parameters
+    // Add context parameters
     if (options.context?.tripId) {
       params.append('tripId', options.context.tripId)
+    }
+    if (options.context?.companyId) {
+      params.append('companyId', options.context.companyId)
     }
     if (options.context?.includeGeneral !== undefined) {
       params.append('include_general', options.context.includeGeneral.toString())
@@ -89,9 +93,12 @@ const api = {
     if (options.category) params.append('category', options.category)
     if (options.searchQuery) params.append('q', options.searchQuery)
 
-    // Add trip context parameters
+    // Add context parameters
     if (options.context?.tripId) {
       params.append('tripId', options.context.tripId)
+    }
+    if (options.context?.companyId) {
+      params.append('companyId', options.context.companyId)
     }
     if (options.context?.includeGeneral !== undefined) {
       params.append('include_general', options.context.includeGeneral.toString())
@@ -147,9 +154,12 @@ const api = {
 
     if (options.supplierId) params.append('supplier_id', options.supplierId)
 
-    // Add trip context parameters
+    // Add context parameters
     if (options.context?.tripId) {
       params.append('tripId', options.context.tripId)
+    }
+    if (options.context?.companyId) {
+      params.append('companyId', options.context.companyId)
     }
 
     if (options.filters) {
@@ -187,9 +197,12 @@ const api = {
       params.append('urgency', options.urgencyLevels.join(','))
     }
 
-    // Add trip context parameters
+    // Add context parameters
     if (options.context?.tripId) {
       params.append('tripId', options.context.tripId)
+    }
+    if (options.context?.companyId) {
+      params.append('companyId', options.context.companyId)
     }
 
     const response = await fetch(`${API_BASE}?${params}`, {
@@ -399,7 +412,7 @@ export const useDocumentFinder = (context?: DocumentFinderContext): UseDocumentF
     }
 
     initializeData()
-  }, [context?.tripId, context?.includeGeneral]);
+  }, [context?.tripId, context?.companyId, context?.includeGeneral]);
 
   // Update bulk actions when selection changes
   useEffect(() => {

@@ -6,10 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const resolvedParams = await params
     
     const { data: company, error } = await supabase
       .from('companies')
@@ -17,38 +18,33 @@ export async function GET(
         *,
         company_locations!company_locations_company_id_fkey (
           id,
-          location_name,
-          address_line_1,
-          address_line_2,
+          name,
+          address_line1,
+          address_line2,
           city,
           state_province,
           postal_code,
           country,
-          location_type,
-          is_primary_location,
-          is_meeting_location,
+          is_headquarters,
           phone,
           email,
           contact_person,
           latitude,
           longitude,
-          notes
+          notes,
+          is_active
         ),
-        company_staff!company_staff_company_id_fkey (
+        users!users_company_id_fkey (
           id,
           full_name,
           email,
           phone,
           whatsapp,
-          position,
-          department,
-          role_type,
-          is_primary_contact,
-          is_decision_maker,
-          is_active
+          user_type,
+          last_login_at
         )
       `)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (error) {
@@ -83,10 +79,16 @@ export async function GET(
       .order('created_at', { ascending: false })
       .limit(10)
 
+    // Add computed is_active field for users/staff (all users are active by default)
+    const staffWithStatus = company.users?.map(user => ({
+      ...user,
+      is_active: true, // All users are considered active since no deletion/ban system exists
+    })) || []
+
     const companyDetail = {
       ...company,
       locations: company.company_locations || [],
-      staff: company.company_staff || [],
+      staff: staffWithStatus,
       statistics: statistics ? [statistics] : [],
       recent_documents: documents || []
     }
@@ -103,10 +105,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const resolvedParams = await params
     
     const body = await request.json()
     
@@ -119,7 +122,7 @@ export async function PUT(
     const { data, error } = await supabase
       .from('companies')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .select()
       .single()
 
@@ -158,7 +161,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('companies')
       .delete()
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
 
     if (error) {
       if (error.code === 'PGRST116') {

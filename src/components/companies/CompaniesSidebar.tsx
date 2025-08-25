@@ -11,6 +11,10 @@ import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
 import UserManagementModal from '@/components/users/UserManagementModal'
+import useSWR from 'swr'
+
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
 // Custom Car icon component
 const CarIcon = ({ className }: { className?: string }) => (
@@ -27,6 +31,7 @@ interface CompaniesSidebarProps {
   className?: string
   onAddBuyer?: () => void
   onAddSupplier?: () => void
+  onViewDashboard?: (company: any) => void
 }
 
 export default function CompaniesSidebar({ 
@@ -36,7 +41,8 @@ export default function CompaniesSidebar({
   onToggle, 
   className = '',
   onAddBuyer,
-  onAddSupplier 
+  onAddSupplier,
+  onViewDashboard
 }: CompaniesSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { user, signOut } = useAuth()
@@ -46,11 +52,13 @@ export default function CompaniesSidebar({
   const [isSuppliersExpanded, setIsSuppliersExpanded] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
 
-  // Real data would come from API calls to /api/companies/... endpoints
-  // For now, show empty state until data is loaded
-  const wolthersLabs: any[] = []
-  const buyers: any[] = []
-  const suppliers: any[] = []
+  // Fetch real company data
+  const { data: buyersData } = useSWR('/api/companies/buyers', fetcher)
+  const { data: suppliersData } = useSWR('/api/companies/suppliers', fetcher)
+  
+  const wolthersLabs: any[] = [] // TODO: Add labs API when needed
+  const buyers = buyersData?.companies || []
+  const suppliers = suppliersData?.companies || []
 
   const handleAddNew = (type: string) => {
     switch (type) {
@@ -326,10 +334,11 @@ export default function CompaniesSidebar({
             {buyers.map((company) => (
               <div
                 key={company.id}
+                onClick={() => onViewDashboard?.(company)}
                 className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
               >
-                <span>{company.name}</span>
-                <span className="text-xs text-emerald-400/60">{company.type}</span>
+                <span>{company.fantasy_name || company.name}</span>
+                <span className="text-xs text-emerald-400/60">{company.category}</span>
               </div>
             ))}
             <button
@@ -380,10 +389,11 @@ export default function CompaniesSidebar({
             {suppliers.map((company) => (
               <div
                 key={company.id}
+                onClick={() => onViewDashboard?.(company)}
                 className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
               >
-                <span>{company.name}</span>
-                <span className="text-xs text-emerald-400/60">{company.type}</span>
+                <span>{company.fantasy_name || company.name}</span>
+                <span className="text-xs text-emerald-400/60">{company.category}</span>
               </div>
             ))}
             <button

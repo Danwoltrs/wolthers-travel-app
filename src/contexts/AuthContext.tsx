@@ -334,6 +334,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       email: profile.email,
       user_type: profile.user_type,
       is_global_admin: profile.is_global_admin,
+      company_id: profile.company_id,
       profileKeys: Object.keys(profile)
     })
     
@@ -397,6 +398,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
     
     console.log('🔄 AuthContext: Mapped user profile with full_name:', mappedUser.full_name)
+    console.log('🏢 AuthContext: Final user companyId:', mappedUser.companyId)
     setUser(mappedUser)
   }
 
