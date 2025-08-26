@@ -8,6 +8,7 @@ import useSWR from 'swr'
 import CompanyTravelHeatmap from './CompanyTravelHeatmap'
 import CompanyUsersManager from './CompanyUsersManager'
 import CompanyDocumentsView from './CompanyDocumentsView'
+import CompaniesSidebar from './CompaniesSidebar'
 import EnhancedHeatmap from './charts/EnhancedHeatmap'
 import RealTravelTrends from './charts/RealTravelTrends'
 import TravelTrendsChart from './charts/TravelTrendsChart'
@@ -35,14 +36,31 @@ interface CompanyDashboardProps {
   onBack: () => void
   viewerCompanyId?: string // ID of the company viewing this dashboard
   showSidebar?: boolean // Whether to show the sidebar for Wolthers staff
+  breadcrumbContext?: { base: string; section: string; item?: string } | null // Custom breadcrumb context
+  selectedExternalCompany?: any // Currently selected external company
+  onSectionChange?: (section: 'wolthers' | 'buyers' | 'suppliers') => void
+  onViewDashboard?: (company: any) => void
+  onNavigateToMain?: () => void // Navigate back to main companies overview
 }
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function CompanyDashboard({ company, onBack, viewerCompanyId, showSidebar = false }: CompanyDashboardProps) {
+export default function CompanyDashboard({ 
+  company, 
+  onBack, 
+  viewerCompanyId, 
+  showSidebar = false, 
+  breadcrumbContext, 
+  selectedExternalCompany,
+  onSectionChange,
+  onViewDashboard,
+  onNavigateToMain 
+}: CompanyDashboardProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [selectedSection, setSelectedSection] = useState<'wolthers' | 'buyers' | 'suppliers'>('buyers')
   
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -58,24 +76,37 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
     userEmail: user?.email
   })
 
-  // Fetch company-specific data
-  const { data: companyDetails } = useSWR(`/api/companies/${company.id}`, fetcher)
-  const { data: companyTrips } = useSWR(`/api/companies/${company.id}/trips`, fetcher)
-  const { data: companyContacts } = useSWR(`/api/companies/${company.id}/staff`, fetcher)
-  const { data: companyDocuments } = useSWR(`/api/companies/${company.id}/documents`, fetcher)
+  // Fetch company-specific data - handle Wolthers & Associates as special case
+  const isWolthersCompany = company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+  const { data: companyDetails } = useSWR(
+    isWolthersCompany ? null : `/api/companies/${company.id}`,
+    fetcher
+  )
+  const { data: companyTrips } = useSWR(
+    isWolthersCompany ? null : `/api/companies/${company.id}/trips`,
+    fetcher
+  )
+  const { data: companyContacts } = useSWR(
+    isWolthersCompany ? '/api/users/wolthers-staff' : `/api/companies/${company.id}/staff`,
+    fetcher
+  )
+  const { data: companyDocuments } = useSWR(
+    isWolthersCompany ? null : `/api/companies/${company.id}/documents`,
+    fetcher
+  )
   
   // Fetch data for charts to determine if they should be shown
   const { data: travelData } = useSWR(
-    company.id ? `/api/charts/travel-data?companyId=${company.id}` : '/api/charts/travel-data',
+    isWolthersCompany ? '/api/charts/travel-data' : `/api/charts/travel-data?companyId=${company.id}`,
     fetcher
   )
   const { data: tripsData } = useSWR(
-    company.id ? `/api/trips/real-data?companyId=${company.id}` : '/api/trips/real-data',
+    isWolthersCompany ? `/api/trips/real-data?companyId=${company.id}` : `/api/trips/real-data?companyId=${company.id}`,
     fetcher
   )
 
-  // Use the DocumentFinder hook for document management with company context
-  const { state, actions } = useDocumentFinder({ companyId: company.id })
+  // Use the DocumentFinder hook for document management with company context  
+  const { state, actions } = useDocumentFinder({ companyId: isWolthersCompany ? undefined : company.id })
 
   const headquarters = companyDetails?.locations?.find((loc: any) => loc.is_primary_location || loc.is_headquarters)
   
@@ -174,24 +205,25 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
 
   return (
     <div className="flex h-screen bg-gradient-to-b from-[#F5F1E8] to-[#EDE4D3] dark:from-[#1a1a1a] dark:to-[#0f0f0f]">
-      {/* Show sidebar if requested (for Wolthers staff) */}
+      {/* Show full CompaniesSidebar if requested (for Wolthers staff viewing external companies) */}
       {showSidebar && (
-        <div className="w-64 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white flex-shrink-0">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Wolthers Admin</h2>
-            <button 
-              onClick={onBack}
-              className="w-full text-left px-3 py-2 rounded hover:bg-emerald-700 transition-colors"
-            >
-              ← Back to Companies
-            </button>
-          </div>
-        </div>
+        <CompaniesSidebar 
+          selectedSection={selectedSection}
+          onSectionChange={(section) => {
+            setSelectedSection(section)
+            onSectionChange?.(section)
+          }}
+          isCollapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onViewDashboard={onViewDashboard}
+          selectedExternalCompany={selectedExternalCompany} // Pass the selected external company
+        />
       )}
       
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto">
-        {/* Header - Fixed at top with glassmorphic effect */}
+        {/* Header - Fixed at top with glassmorphic effect - only show for external users */}
+        {!showSidebar && (
         <div className="sticky top-0 z-10 bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 border-b border-emerald-700 shadow-lg backdrop-blur-sm">
           <div className="px-8 py-4 flex items-center justify-between">
             {/* Left side - Logo, Company Name, and Navigation */}
@@ -330,6 +362,42 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
             </div>
           </div>
         </div>
+        )}
+
+                {/* Simple Breadcrumb Navigation for Wolthers users viewing other companies */}
+        {showSidebar && breadcrumbContext && (
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-800 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-900 dark:to-black border-b border-slate-700/50 dark:border-slate-800/50 px-8 py-3 backdrop-blur-sm">
+            <nav className="text-sm">
+              <span className="font-medium">
+                <button 
+                  onClick={onNavigateToMain || onBack}
+                  className="hover:opacity-75 transition-opacity"
+                  style={{ color: '#EBB427' }}
+                >
+                  {breadcrumbContext.base}
+                </button>
+                {breadcrumbContext.section && (
+                  <>
+                    <span style={{ color: '#FDE68A' }}> / </span>
+                    <button 
+                      onClick={onBack}
+                      className="hover:opacity-75 transition-opacity"
+                      style={{ color: '#FDE68A' }}
+                    >
+                      {breadcrumbContext.section}
+                    </button>
+                  </>
+                )}
+                {breadcrumbContext.item && (
+                  <>
+                    <span style={{ color: '#FDE68A' }}> / </span>
+                    <span style={{ color: '#FDE68A' }}>{breadcrumbContext.item}</span>
+                  </>
+                )}
+              </span>
+            </nav>
+          </div>
+        )}
 
         {/* Dashboard Content - Match main dashboard layout exactly */}
         <div className="p-8 space-y-8">
@@ -341,7 +409,7 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
               {/* Enhanced Heatmap - Company-specific data (only show if data exists) */}
               {hasHeatmapData() && (
                 <EnhancedHeatmap 
-                  selectedSection={company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers'}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
                   companyId={company.id}
                 />
               )}
@@ -349,21 +417,50 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
               {/* Real Travel Trends - Company-specific data (only show if data exists) */}
               {hasRealTravelTrendsData() && (
                 <RealTravelTrends 
-                  selectedSection={company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers'}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
                   companyId={company.id}
                 />
               )}
               
               {/* Company Users */}
-              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                  Team Management
-                </h3>
-                <CompanyUsersManager 
-                  companyId={company.id} 
-                  companyName={company.fantasy_name || company.name}
-                  isWolthers={company.category === 'service_provider'}
-                />
+              <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] ${isWolthersCompany ? 'p-6' : 'overflow-hidden'}`}>
+                {isWolthersCompany ? (
+                  <>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
+                      Wolthers Santos Team
+                    </h3>
+                  </>
+                ) : null}
+                {isWolthersCompany ? (
+                  <div className="space-y-4">
+                    {companyContacts?.users?.map((staff: any) => (
+                      <div key={staff.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            {staff.full_name ? staff.full_name.split(' ').map((n: string) => n[0]).join('') : staff.email[0].toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                            {staff.full_name || staff.email}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {staff.email}
+                          </div>
+                        </div>
+                        <div className="text-xs text-emerald-600 dark:text-emerald-400 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded">
+                          {staff.user_type || 'Staff'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <CompanyUsersManager 
+                    companyId={company.id} 
+                    companyName={company.fantasy_name || company.name}
+                    isWolthers={company.category === 'service_provider'}
+                  />
+                )}
               </div>
             </div>
 
@@ -372,7 +469,7 @@ export default function CompanyDashboard({ company, onBack, viewerCompanyId, sho
               {/* Travel Coordination Trends at top (only show if data exists) */}
               {hasTravelTrendsChartData() && (
                 <TravelTrendsChart 
-                  selectedSection={company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers'}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
                   companyId={company.id}
                 />
               )}

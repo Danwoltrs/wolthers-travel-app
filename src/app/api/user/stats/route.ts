@@ -169,23 +169,33 @@ export async function GET(request: NextRequest) {
     })
 
     if (userTrips) {
-      // Filter trips this year
-      const tripsThisYear = userTrips.filter(tp => {
+      // Filter completed trips for total count (only concluded trips)
+      const completedTrips = userTrips.filter(tp => {
+        const trip = tp.trips
+        if (!trip) return false
+        return trip.status === 'completed'
+      })
+
+      // Filter completed trips this year for YTD count (only concluded trips in current year)
+      const completedTripsThisYear = userTrips.filter(tp => {
         const trip = tp.trips
         if (!trip || !trip.start_date) return false
         const tripYear = new Date(trip.start_date).getFullYear()
-        return tripYear === currentYear
+        return tripYear === currentYear && trip.status === 'completed'
       })
 
-      // Filter upcoming trips
+      // Filter upcoming trips (confirmed, ongoing, or planned trips starting in the future)
       const upcomingTrips = userTrips.filter(tp => {
         const trip = tp.trips
         if (!trip || !trip.start_date) return false
-        return trip.start_date >= now
+        const isUpcoming = trip.start_date >= now
+        const isNotCompleted = trip.status !== 'completed' && trip.status !== 'cancelled'
+        return isUpcoming && isNotCompleted
       })
 
       console.log('📈 API: Calculated statistics:', {
-        tripsThisYear: tripsThisYear.length,
+        completedTrips: completedTrips.length,
+        completedTripsThisYear: completedTripsThisYear.length,
         upcomingTrips: upcomingTrips.length,
         currentYear,
         today: now
@@ -269,9 +279,9 @@ export async function GET(request: NextRequest) {
       })
 
       return NextResponse.json({
-        tripsThisYear: tripsThisYear.length,
+        tripsThisYear: completedTripsThisYear.length,
         upcomingTrips: upcomingTrips.length,
-        totalTrips: userTrips.length,
+        totalTrips: completedTrips.length,
         // Legacy single-year data for backward compatibility
         weeklyData: yearlyData[currentYear]?.weeklyData || {},
         maxTripsPerWeek: yearlyData[currentYear]?.maxTripsPerWeek || 0,

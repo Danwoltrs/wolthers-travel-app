@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserPermissions } from '@/lib/permissions'
 import UserProfileSection from './UserProfileSection'
@@ -15,6 +16,7 @@ interface UserManagementModalProps {
 export default function UserManagementModal({ isOpen, onClose }: UserManagementModalProps) {
   const { user, isAuthenticated, refreshUserProfile } = useAuth()
   const [activeTab, setActiveTab] = useState<'profile' | 'team'>('profile')
+  const [isMounted, setIsMounted] = useState(false)
   
   // Enhanced refresh function that includes logging
   const handleProfileUpdate = async () => {
@@ -22,6 +24,11 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
     await refreshUserProfile()
     console.log('✅ UserManagementModal: Profile update completed')
   }
+
+  // Ensure component is mounted before using portal
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
@@ -35,13 +42,13 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
     }
   }, [isOpen])
 
-  if (!isOpen || !isAuthenticated) return null
+  if (!isOpen || !isAuthenticated || !isMounted) return null
 
   const permissions = getUserPermissions(user)
   const showTeamTab = permissions.canViewCompanyUsers || permissions.canViewAllUsers
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-[9999] p-2 md:p-4">
       <div className="bg-[#EDE4D3] dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
@@ -109,4 +116,6 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

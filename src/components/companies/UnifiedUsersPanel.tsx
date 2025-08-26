@@ -44,11 +44,18 @@ export default function UnifiedUsersPanel({ onViewDashboard }: UnifiedUsersPanel
 
   const fetchCompanies = async () => {
     setIsLoading(true)
+    setError(null)
     try {
       // Fetch all companies (buyers + suppliers + Wolthers)
       const [buyersResponse, suppliersResponse] = await Promise.all([
-        fetch('/api/companies/buyers', { credentials: 'include' }),
-        fetch('/api/companies/suppliers', { credentials: 'include' })
+        fetch('/api/companies/buyers', { credentials: 'include' }).catch(err => {
+          console.warn('Failed to fetch buyers:', err)
+          return { ok: false, json: () => Promise.resolve({ companies: [] }) }
+        }),
+        fetch('/api/companies/suppliers', { credentials: 'include' }).catch(err => {
+          console.warn('Failed to fetch suppliers:', err)
+          return { ok: false, json: () => Promise.resolve({ companies: [] }) }
+        })
       ])
 
       const [buyersData, suppliersData] = await Promise.all([
@@ -56,11 +63,11 @@ export default function UnifiedUsersPanel({ onViewDashboard }: UnifiedUsersPanel
         suppliersResponse.json()
       ])
 
-      // Add Wolthers & Associates
+      // Add Wolthers & Associates with proper ID to match the actual company
       const wolthersCompany: Company = {
-        id: 'wolthers',
+        id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Use actual Wolthers company ID
         name: 'Wolthers & Associates',
-        fantasy_name: 'Wolthers Lab',
+        fantasy_name: 'Wolthers Santos',
         category: 'service_provider',
         subcategories: ['laboratory'],
         staff_count: 4
@@ -85,7 +92,7 @@ export default function UnifiedUsersPanel({ onViewDashboard }: UnifiedUsersPanel
     if (companyUsers[companyId]) return // Already fetched
 
     try {
-      const endpoint = companyId === 'wolthers' 
+      const endpoint = companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' 
         ? '/api/users/wolthers-staff'
         : `/api/companies/${companyId}/users`
       

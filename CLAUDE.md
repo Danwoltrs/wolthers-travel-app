@@ -547,3 +547,4 @@ WHERE email = 'daniel@wolthers.com';
 5. **Debugging Strategy**: Enhanced logging at API entry points reveals root causes quickly
 
 The core trip creation functionality is now working correctly with proper authentication, staff loading, and database persistence.
+- Sidebar and blue navy header bradecrumbs always visible for wolthers & associates Brazil staff and admins company id 840783f4-866d-4bdb-9b5d-5d0facf62db0

@@ -6,10 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const { id: companyId } = await params
     
     // Get trips where this company participated
     const { data: trips, error } = await supabase
@@ -32,7 +33,7 @@ export async function GET(
           name
         )
       `)
-      .eq('trip_participants.company_id', params.id)
+      .eq('trip_participants.company_id', companyId)
       .order('start_date', { ascending: false })
 
     if (error) {

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Calendar, MapPin, DollarSign } from 'lucide-react'
 import useSWR from 'swr'
+import { useAuth } from '@/contexts/AuthContext'
+import { UserRole } from '@/types/index'
 
 interface TripData {
   id: string
@@ -21,7 +23,7 @@ interface TrendPoint {
   conventions: number
   inland: number
   other: number
-  totalCost: number
+  totalCost?: number // Optional since cost data may be filtered
 }
 
 interface RealTravelTrendsProps {
@@ -30,23 +32,37 @@ interface RealTravelTrendsProps {
   companyId?: string
 }
 
-const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
+const fetcher = async (url: string) => {
+  const response = await fetch(url, { credentials: 'include' })
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+  }
+  return response.json()
+}
 
 export default function RealTravelTrends({ selectedSection, className = '', companyId }: RealTravelTrendsProps) {
+  const { user, hasRole } = useAuth()
   const [trendData, setTrendData] = useState<TrendPoint[]>([])
   const [summary, setSummary] = useState({
     totalTrips: 0,
     totalCost: 0,
     conventions: 0,
     inland: 0,
-    avgTripCost: 0
+    avgTripCost: 0,
+    hasCostData: false // Track if cost data is available from API
   })
   
-  // Hide costs when viewing company-specific data (companyId is provided)
-  const showCosts = !companyId
+  // Cost visibility is now determined by the API response, not client-side role checking
+  // The server filters cost data based on user permissions and returns has_cost_data flag
+  const showCosts = summary.hasCostData
 
   // Fetch real trips data
-  const { data: tripsData, error, isLoading } = useSWR<{ trips: TripData[] }>(
+  const { data: tripsData, error, isLoading } = useSWR<{ 
+    trips: TripData[]; 
+    has_cost_data: boolean;
+    success: boolean;
+    count: number;
+  }>(
     companyId ? `/api/trips/real-data?companyId=${companyId}` : '/api/trips/real-data',
     fetcher
   )
@@ -55,6 +71,7 @@ export default function RealTravelTrends({ selectedSection, className = '', comp
     if (!tripsData?.trips) return
 
     const trips = tripsData.trips
+    const hasCostData = tripsData.has_cost_data || false
 
     // Group trips by month
     const monthlyMap = new Map<string, TrendPoint>()
@@ -65,21 +82,29 @@ export default function RealTravelTrends({ selectedSection, className = '', comp
     trips.forEach(trip => {
       const startDate = new Date(trip.start_date)
       const monthKey = startDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      const cost = trip.total_cost ? parseFloat(trip.total_cost) : 0
+      
+      // Only process cost data if available from API (server-side filtering)
+      const cost = (hasCostData && trip.total_cost) ? parseFloat(trip.total_cost) : 0
       totalCost += cost
 
       if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, {
+        const monthPoint: TrendPoint = {
           month: monthKey,
           conventions: 0,
           inland: 0,
-          other: 0,
-          totalCost: 0
-        })
+          other: 0
+        }
+        // Only include totalCost if we have cost data
+        if (hasCostData) {
+          monthPoint.totalCost = 0
+        }
+        monthlyMap.set(monthKey, monthPoint)
       }
 
       const monthData = monthlyMap.get(monthKey)!
-      monthData.totalCost += cost
+      if (hasCostData && monthData.totalCost !== undefined) {
+        monthData.totalCost += cost
+      }
 
       // Categorize trip types
       switch (trip.trip_type) {
@@ -109,10 +134,11 @@ export default function RealTravelTrends({ selectedSection, className = '', comp
     setTrendData(sortedData)
     setSummary({
       totalTrips: trips.length,
-      totalCost,
+      totalCost: hasCostData ? totalCost : 0,
       conventions,
       inland,
-      avgTripCost: trips.length > 0 ? totalCost / trips.length : 0
+      avgTripCost: (hasCostData && trips.length > 0) ? totalCost / trips.length : 0,
+      hasCostData
     })
 
   }, [tripsData])
@@ -134,14 +160,29 @@ export default function RealTravelTrends({ selectedSection, className = '', comp
   }
 
   if (error) {
+    const isAuthError = error.message?.includes('401') || error.message?.includes('Unauthorized')
+    
     return (
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
         <div className="text-center py-8">
           <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <p className="text-red-500 dark:text-red-400">Error loading trends</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {error.message || 'Failed to fetch trip trends'}
+          <p className="text-red-500 dark:text-red-400">
+            {isAuthError ? 'Authentication Required' : 'Error Loading Trends'}
           </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {isAuthError 
+              ? 'Please log in to view travel trends data'
+              : (error.message || 'Failed to fetch trip trends')
+            }
+          </p>
+          {isAuthError && (
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     )
@@ -310,7 +351,7 @@ export default function RealTravelTrends({ selectedSection, className = '', comp
                     <p className={`text-xs ${
                       isCurrentMonth ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'
                     }`}>
-                      {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'}{showCosts && ` • ${formatCurrency(month.totalCost)}`}
+                      {totalTrips} {totalTrips === 1 ? 'trip' : 'trips'}{showCosts && month.totalCost !== undefined && ` • ${formatCurrency(month.totalCost)}`}
                     </p>
                   </div>
 

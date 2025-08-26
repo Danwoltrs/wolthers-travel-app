@@ -6,11 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { id: companyId } = params
+    const { id: companyId } = await params
     
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -24,7 +24,6 @@ export async function GET(
         full_name,
         email,
         phone,
-        job_title,
         is_primary_contact,
         company_id,
         companies!inner(
@@ -52,7 +51,6 @@ export async function GET(
       full_name: member.full_name,
       email: member.email,
       phone: member.phone,
-      job_title: member.job_title,
       is_primary_contact: member.is_primary_contact || false,
       company_id: member.company_id,
       company_name: member.companies?.name || ''

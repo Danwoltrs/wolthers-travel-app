@@ -6,11 +6,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const companyId = params.id
+    const { id: companyId } = await params
     
     // First, get company details to determine type (buyer/supplier)
     const { data: company, error: companyError } = await supabase

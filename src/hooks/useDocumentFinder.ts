@@ -56,16 +56,22 @@ const api = {
       params.append('include_general', options.context.includeGeneral.toString())
     }
 
-    const response = await fetch(`${API_BASE}?${params}`, {
-      credentials: 'include'
-    })
+    try {
+      const response = await fetch(`${API_BASE}?${params}`, {
+        credentials: 'include'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch suppliers: ${response.statusText}`)
+      if (!response.ok) {
+        console.warn(`Failed to fetch suppliers: ${response.status} ${response.statusText}`)
+        return { suppliers: [], total: 0 }
+      }
+
+      const result = await response.json()
+      return result.success ? result.data : { suppliers: [], total: 0 }
+    } catch (error) {
+      console.warn('Network error fetching suppliers:', error)
+      return { suppliers: [], total: 0 }
     }
-
-    const result = await response.json()
-    return result.success ? result.data : { suppliers: [], total: 0 }
   },
 
   async fetchDocuments(options: {
@@ -125,16 +131,22 @@ const api = {
       }
     }
 
-    const response = await fetch(`${API_BASE}?${params}`, {
-      credentials: 'include'
-    })
+    try {
+      const response = await fetch(`${API_BASE}?${params}`, {
+        credentials: 'include'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch documents: ${response.statusText}`)
+      if (!response.ok) {
+        console.warn(`Failed to fetch documents: ${response.status} ${response.statusText}`)
+        return { documents: [], total: 0 }
+      }
+
+      const result = await response.json()
+      return result.success ? result.data : { documents: [], total: 0 }
+    } catch (error) {
+      console.warn('Network error fetching documents:', error)
+      return { documents: [], total: 0 }
     }
-
-    const result = await response.json()
-    return result.success ? result.data : { documents: [], total: 0 }
   },
 
   async searchDocuments(options: {
@@ -171,16 +183,22 @@ const api = {
       }
     }
 
-    const response = await fetch(`${API_BASE}?${params}`, {
-      credentials: 'include'
-    })
+    try {
+      const response = await fetch(`${API_BASE}?${params}`, {
+        credentials: 'include'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Failed to search documents: ${response.statusText}`)
+      if (!response.ok) {
+        console.warn(`Failed to search documents: ${response.status} ${response.statusText}`)
+        return { documents: [], folders: [], totalResults: 0, searchTime: 0 }
+      }
+
+      const result = await response.json()
+      return result.success ? result.data : { documents: [], folders: [], totalResults: 0, searchTime: 0 }
+    } catch (error) {
+      console.warn('Network error searching documents:', error)
+      return { documents: [], folders: [], totalResults: 0, searchTime: 0 }
     }
-
-    const result = await response.json()
-    return result.success ? result.data : { documents: [], folders: [], totalResults: 0, searchTime: 0 }
   },
 
   async fetchCropInformation(options: { 
@@ -205,16 +223,22 @@ const api = {
       params.append('companyId', options.context.companyId)
     }
 
-    const response = await fetch(`${API_BASE}?${params}`, {
-      credentials: 'include'
-    })
+    try {
+      const response = await fetch(`${API_BASE}?${params}`, {
+        credentials: 'include'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch crop information: ${response.statusText}`)
+      if (!response.ok) {
+        console.warn(`Failed to fetch crop information: ${response.status} ${response.statusText}`)
+        return { cropInformation: [] }
+      }
+
+      const result = await response.json()
+      return result.success ? result.data : { cropInformation: [] }
+    } catch (error) {
+      console.warn('Network error fetching crop information:', error)
+      return { cropInformation: [] }
     }
-
-    const result = await response.json()
-    return result.success ? result.data : { cropInformation: [] }
   },
 
   async uploadFiles(files: File[], options: {

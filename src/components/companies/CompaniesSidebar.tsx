@@ -32,6 +32,7 @@ interface CompaniesSidebarProps {
   onAddBuyer?: () => void
   onAddSupplier?: () => void
   onViewDashboard?: (company: any) => void
+  selectedExternalCompany?: any // Track external company selection
 }
 
 export default function CompaniesSidebar({ 
@@ -42,7 +43,8 @@ export default function CompaniesSidebar({
   className = '',
   onAddBuyer,
   onAddSupplier,
-  onViewDashboard
+  onViewDashboard,
+  selectedExternalCompany
 }: CompaniesSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { user, signOut } = useAuth()
@@ -55,8 +57,9 @@ export default function CompaniesSidebar({
   // Fetch real company data
   const { data: buyersData } = useSWR('/api/companies/buyers', fetcher)
   const { data: suppliersData } = useSWR('/api/companies/suppliers', fetcher)
+  const { data: labsData } = useSWR('/api/labs', fetcher)
   
-  const wolthersLabs: any[] = [] // TODO: Add labs API when needed
+  const wolthersLabs = labsData?.labs || []
   const buyers = buyersData?.companies || []
   const suppliers = suppliersData?.companies || []
 
@@ -79,12 +82,14 @@ export default function CompaniesSidebar({
 
   return (
     <>
-      {/* Mobile Toggle Button - Only visible on small screens */}
+      {/* Mobile Toggle Button - Enhanced for touch */}
       <button
         onClick={onToggle}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 bg-emerald-900 hover:bg-emerald-800 text-white rounded-lg shadow-lg transition-colors"
+        className="fixed top-4 left-4 z-50 lg:hidden p-3 bg-gradient-to-br from-emerald-900 to-emerald-800 hover:from-emerald-800 hover:to-emerald-700 text-white rounded-xl shadow-xl transition-all duration-200 transform active:scale-95 touch-manipulation"
+        aria-label={isCollapsed ? 'Open navigation menu' : 'Close navigation menu'}
+        style={{ minWidth: '48px', minHeight: '48px' }} // Ensure minimum touch target size
       >
-        {isCollapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
+        {isCollapsed ? <Menu className="w-6 h-6" /> : <X className="w-6 h-6" />}
       </button>
 
       {/* Mobile Backdrop */}
@@ -97,9 +102,9 @@ export default function CompaniesSidebar({
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed lg:relative inset-y-0 left-0 z-40 w-80 bg-emerald-900 dark:bg-emerald-950 border-r border-emerald-800 dark:border-emerald-900 h-screen flex flex-col transition-transform duration-300 ease-in-out",
-        "lg:translate-x-0", // Always visible on large screens
-        isCollapsed ? "-translate-x-full" : "translate-x-0", // Mobile: slide in/out
+        "fixed lg:relative inset-y-0 left-0 z-40 w-80 bg-gradient-to-b from-emerald-900 via-emerald-900 to-emerald-950 dark:from-emerald-950 dark:via-emerald-950 dark:to-black border-r border-emerald-800/50 dark:border-emerald-900/50 h-screen flex flex-col transition-all duration-300 ease-in-out backdrop-blur-sm",
+        "lg:translate-x-0 lg:shadow-none", // Always visible on large screens
+        isCollapsed ? "-translate-x-full" : "translate-x-0 shadow-2xl", // Mobile: slide in/out with enhanced shadow
         className
       )}>
       {/* Logo at Top */}
@@ -120,7 +125,8 @@ export default function CompaniesSidebar({
       <div className="px-6 pb-4">
         <button
           onClick={() => setIsUserExpanded(!isUserExpanded)}
-          className="w-full flex items-center justify-between p-2 hover:bg-emerald-800/30 rounded transition-all duration-200"
+          className="w-full flex items-center justify-between p-3 hover:bg-emerald-800/30 rounded-lg transition-all duration-200 group active:scale-[0.98] touch-manipulation"
+          aria-label={isUserExpanded ? 'Collapse user menu' : 'Expand user menu'}
         >
           <div className="flex items-center gap-3">
             {user?.image ? (
@@ -148,7 +154,7 @@ export default function CompaniesSidebar({
 
         {/* Expanded User Section */}
         {isUserExpanded && (
-          <div className="mt-3 bg-emerald-800/20 rounded-lg p-4 space-y-4">
+          <div className="mt-3 bg-gradient-to-br from-emerald-800/20 via-emerald-800/30 to-emerald-700/20 rounded-lg p-4 space-y-4 border border-emerald-700/30 shadow-lg backdrop-blur-sm animate-in slide-in-from-top duration-200">
             {/* User Info */}
             <div>
               <div className="font-bold text-white">
@@ -169,28 +175,31 @@ export default function CompaniesSidebar({
                 <button
                   onClick={() => toggleTheme()}
                   className={cn(
-                    "w-full text-left px-3 py-2 text-sm rounded transition-colors",
+                    "w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 flex items-center gap-2 active:scale-[0.98] touch-manipulation",
                     theme === 'dark' 
-                      ? "text-white bg-emerald-700/40" 
-                      : "text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/30"
+                      ? "text-white bg-emerald-700/60 shadow-sm border border-emerald-600/50" 
+                      : "text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/40"
                   )}
                 >
+                  <Moon className="w-4 h-4" />
                   Dark
                 </button>
                 <button
                   onClick={() => toggleTheme()}
                   className={cn(
-                    "w-full text-left px-3 py-2 text-sm rounded transition-colors",
+                    "w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 flex items-center gap-2 active:scale-[0.98] touch-manipulation",
                     theme === 'light' 
-                      ? "text-white bg-emerald-700/40" 
-                      : "text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/30"
+                      ? "text-white bg-emerald-700/60 shadow-sm border border-emerald-600/50" 
+                      : "text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/40"
                   )}
                 >
+                  <Sun className="w-4 h-4" />
                   Light
                 </button>
                 <button
-                  className="w-full text-left px-3 py-2 text-sm text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/30 rounded transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-emerald-300 hover:text-emerald-200 hover:bg-emerald-800/40 rounded-lg transition-all duration-200 flex items-center gap-2 active:scale-[0.98] touch-manipulation"
                 >
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 to-amber-400"></div>
                   System
                 </button>
               </div>
@@ -202,8 +211,9 @@ export default function CompaniesSidebar({
             {/* Logout */}
             <button
               onClick={signOut}
-              className="w-full text-left px-3 py-2 text-sm text-red-300 hover:text-red-200 hover:bg-red-900/20 rounded transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-red-300 hover:text-red-200 hover:bg-red-900/30 rounded-lg transition-all duration-200 flex items-center gap-2 active:scale-[0.98] touch-manipulation border border-red-800/30 hover:border-red-700/50"
             >
+              <LogOut className="w-4 h-4" />
               Log out
             </button>
           </div>
@@ -215,24 +225,24 @@ export default function CompaniesSidebar({
         <div className="h-px bg-emerald-700/30"></div>
       </div>
 
-      {/* Navigation Icons */}
+      {/* Navigation Icons - Enhanced for mobile touch */}
       <div className="px-6 mb-6">
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-3 lg:gap-4">
           <Link
             href="/"
-            className="p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200"
+            className="p-3 lg:p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200 active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             title="Home"
           >
             <Home className="w-5 h-5" />
           </Link>
           
-          <div className="p-3 rounded-full bg-emerald-600/60 text-white shadow-lg">
+          <div className="p-3 lg:p-3 rounded-full bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-600 text-white shadow-lg min-w-[48px] min-h-[48px] flex items-center justify-center">
             <Building className="w-5 h-5" />
           </div>
           
           <Link
             href="/fleet"
-            className="p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200"
+            className="p-3 lg:p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200 active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             title="Vehicles"
           >
             <CarIcon className="w-5 h-5" />
@@ -240,7 +250,7 @@ export default function CompaniesSidebar({
           
           <button
             onClick={() => setShowUserModal(true)}
-            className="p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200"
+            className="p-3 lg:p-3 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-700/50 transition-all duration-200 active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             title="Users"
           >
             <Users className="w-5 h-5" />
@@ -248,50 +258,87 @@ export default function CompaniesSidebar({
         </div>
       </div>
 
+
       {/* Wolthers Button */}
       <div className="px-6 mb-4">
         <button
           onClick={() => {
             onSectionChange('wolthers')
-            setIsWolthersExpanded(!isWolthersExpanded)
+            // Close all sections first, then open Wolthers
+            setIsBuyersExpanded(false)
+            setIsSuppliersExpanded(false)
+            setIsWolthersExpanded(true)
           }}
           className={cn(
-            "relative w-full flex items-center justify-between px-2 py-3 transition-all duration-200",
+            "relative w-full flex items-center justify-between px-3 py-3 transition-all duration-200 group focus:outline-none",
             selectedSection === 'wolthers'
-              ? "text-white"
-              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30"
+              ? "text-golden-400 dark:text-golden-400"
+              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30 rounded-lg"
           )}
+          aria-expanded={isWolthersExpanded}
+          aria-label="Wolthers section - toggle to expand or collapse"
         >
           <div className="flex items-center gap-3">
-            <Building className="w-5 h-5" />
-            <span className="font-medium">Wolthers</span>
+            <Building className={cn(
+              "w-5 h-5 transition-colors",
+              selectedSection === 'wolthers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400"
+            )} />
+            <span className="font-semibold tracking-wide">Wolthers</span>
           </div>
           <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
-            isWolthersExpanded && "rotate-180"
+            "w-4 h-4 transition-all duration-200",
+            isWolthersExpanded && "rotate-180",
+            selectedSection === 'wolthers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400 group-hover:text-emerald-300"
           )} />
           {selectedSection === 'wolthers' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400"></div>
+            <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-golden-400 dark:bg-golden-400"></div>
           )}
         </button>
 
         {isWolthersExpanded && (
-          <div className="mt-2 ml-4 space-y-1">
-            {wolthersLabs.map((lab) => (
-              <div
-                key={lab.id}
-                className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
-              >
-                <span>{lab.name}</span>
-                <span className="text-xs text-emerald-400/60">{lab.country}</span>
+          <div className="mt-3 ml-4 space-y-1">
+            {/* Show single entry for Brazil/Santos - merged entity */}
+            <div
+              onClick={() => onViewDashboard?.({
+                id: '840783f4-866d-4bdb-9b5d-5d0facf62db0',
+                name: 'Wolthers Santos',
+                country: 'Brazil',
+                location: 'Santos',
+                category: 'service_provider'
+              })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onViewDashboard?.({
+                    id: '840783f4-866d-4bdb-9b5d-5d0facf62db0',
+                    name: 'Wolthers Santos',
+                    country: 'Brazil',
+                    location: 'Santos',
+                    category: 'service_provider'
+                  })
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label="View Wolthers Santos dashboard"
+              className="flex items-center justify-between px-4 py-2.5 text-sm rounded-lg transition-all duration-200 cursor-pointer group relative focus:outline-none text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/40"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-medium">
+                  Santos
+                </span>
               </div>
-            ))}
+              <span className="text-xs px-2 py-1 rounded-full transition-colors text-emerald-400/70 bg-emerald-800/20 group-hover:bg-emerald-700/30">
+                Brazil
+              </span>
+            </div>
             <button
               onClick={() => handleAddNew('lab')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/40 rounded-lg transition-all duration-200 group border border-dashed border-emerald-600/30 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-900"
+              aria-label="Add new lab"
             >
-              <Plus className="w-3 h-3" />
-              <span>Add new lab</span>
+              <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">Add new lab</span>
             </button>
           </div>
         )}
@@ -307,46 +354,87 @@ export default function CompaniesSidebar({
         <button
           onClick={() => {
             onSectionChange('buyers')
-            setIsBuyersExpanded(!isBuyersExpanded)
+            // Close all sections first, then open Buyers
+            setIsWolthersExpanded(false)
+            setIsSuppliersExpanded(false)
+            setIsBuyersExpanded(true)
           }}
           className={cn(
-            "relative w-full flex items-center justify-between px-2 py-3 transition-all duration-200",
+            "relative w-full flex items-center justify-between px-3 py-3 transition-all duration-200 group focus:outline-none",
             selectedSection === 'buyers'
-              ? "text-white"
-              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30"
+              ? "text-golden-400 dark:text-golden-400"
+              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30 rounded-lg"
           )}
+          aria-expanded={isBuyersExpanded}
+          aria-label="Buyers section - toggle to expand or collapse"
         >
           <div className="flex items-center gap-3">
-            <Coffee className="w-5 h-5" />
-            <span className="font-medium">Buyers</span>
+            <Coffee className={cn(
+              "w-5 h-5 transition-colors",
+              selectedSection === 'buyers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400"
+            )} />
+            <span className="font-semibold tracking-wide">Buyers</span>
           </div>
           <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
-            isBuyersExpanded && "rotate-180"
+            "w-4 h-4 transition-all duration-200",
+            isBuyersExpanded && "rotate-180",
+            selectedSection === 'buyers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400 group-hover:text-emerald-300"
           )} />
           {selectedSection === 'buyers' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400"></div>
+            <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-golden-400 dark:bg-golden-400"></div>
           )}
         </button>
 
         {isBuyersExpanded && (
-          <div className="mt-2 ml-4 space-y-1">
-            {buyers.map((company) => (
-              <div
-                key={company.id}
-                onClick={() => onViewDashboard?.(company)}
-                className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
-              >
-                <span>{company.fantasy_name || company.name}</span>
-                <span className="text-xs text-emerald-400/60">{company.category}</span>
-              </div>
-            ))}
+          <div className="mt-3 ml-4 space-y-1">
+            {buyers.map((company) => {
+              const isSelected = selectedExternalCompany?.id === company.id
+              return (
+                <div
+                  key={company.id}
+                  onClick={() => onViewDashboard?.(company)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onViewDashboard?.(company)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View ${company.fantasy_name || company.name} dashboard - ${company.category}`}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-2.5 text-sm rounded-lg transition-all duration-200 cursor-pointer group relative focus:outline-none",
+                    isSelected
+                      ? "text-white"
+                      : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/40"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-medium truncate",
+                      isSelected ? "text-white" : "group-hover:text-emerald-100"
+                    )}>
+                      {company.fantasy_name || company.name}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "text-xs px-2 py-1 rounded-full transition-colors uppercase tracking-wider font-medium",
+                    isSelected 
+                      ? "text-white/80 bg-emerald-700/30" 
+                      : "text-emerald-400/70 bg-emerald-800/20 group-hover:bg-emerald-700/30"
+                  )}>
+                    {company.category}
+                  </span>
+                </div>
+              )
+            })}
             <button
               onClick={() => handleAddNew('buyer')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/40 rounded-lg transition-all duration-200 group border border-dashed border-emerald-600/30 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-emerald-900"
+              aria-label="Add new buyer company"
             >
-              <Plus className="w-3 h-3" />
-              <span>Add new buyer</span>
+              <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">Add new buyer</span>
             </button>
           </div>
         )}
@@ -362,46 +450,87 @@ export default function CompaniesSidebar({
         <button
           onClick={() => {
             onSectionChange('suppliers')
-            setIsSuppliersExpanded(!isSuppliersExpanded)
+            // Close all sections first, then open Suppliers
+            setIsWolthersExpanded(false)
+            setIsBuyersExpanded(false)
+            setIsSuppliersExpanded(true)
           }}
           className={cn(
-            "relative w-full flex items-center justify-between px-2 py-3 transition-all duration-200",
+            "relative w-full flex items-center justify-between px-3 py-3 transition-all duration-200 group focus:outline-none",
             selectedSection === 'suppliers'
-              ? "text-white"
-              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30"
+              ? "text-golden-400 dark:text-golden-400"
+              : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/30 rounded-lg"
           )}
+          aria-expanded={isSuppliersExpanded}
+          aria-label="Suppliers section - toggle to expand or collapse"
         >
           <div className="flex items-center gap-3">
-            <TreePine className="w-5 h-5" />
-            <span className="font-medium">Suppliers</span>
+            <TreePine className={cn(
+              "w-5 h-5 transition-colors",
+              selectedSection === 'suppliers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400"
+            )} />
+            <span className="font-semibold tracking-wide">Suppliers</span>
           </div>
           <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
-            isSuppliersExpanded && "rotate-180"
+            "w-4 h-4 transition-all duration-200",
+            isSuppliersExpanded && "rotate-180",
+            selectedSection === 'suppliers' ? "text-golden-400 dark:text-golden-400" : "text-emerald-400 group-hover:text-emerald-300"
           )} />
           {selectedSection === 'suppliers' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400"></div>
+            <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-golden-400 dark:bg-golden-400"></div>
           )}
         </button>
 
         {isSuppliersExpanded && (
-          <div className="mt-2 ml-4 space-y-1">
-            {suppliers.map((company) => (
-              <div
-                key={company.id}
-                onClick={() => onViewDashboard?.(company)}
-                className="flex items-center justify-between px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200 cursor-pointer"
-              >
-                <span>{company.fantasy_name || company.name}</span>
-                <span className="text-xs text-emerald-400/60">{company.category}</span>
-              </div>
-            ))}
+          <div className="mt-3 ml-4 space-y-1">
+            {suppliers.map((company) => {
+              const isSelected = selectedExternalCompany?.id === company.id
+              return (
+                <div
+                  key={company.id}
+                  onClick={() => onViewDashboard?.(company)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onViewDashboard?.(company)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View ${company.fantasy_name || company.name} dashboard - ${company.category}`}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-2.5 text-sm rounded-lg transition-all duration-200 cursor-pointer group relative focus:outline-none",
+                    isSelected
+                      ? "text-white"
+                      : "text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-800/40"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-medium truncate",
+                      isSelected ? "text-white" : "group-hover:text-emerald-100"
+                    )}>
+                      {company.fantasy_name || company.name}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "text-xs px-2 py-1 rounded-full transition-colors uppercase tracking-wider font-medium",
+                    isSelected 
+                      ? "text-white/80 bg-emerald-700/30" 
+                      : "text-emerald-400/70 bg-emerald-800/20 group-hover:bg-emerald-700/30"
+                  )}>
+                    {company.category}
+                  </span>
+                </div>
+              )
+            })}
             <button
               onClick={() => handleAddNew('supplier')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/30 transition-all duration-200"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-800/40 rounded-lg transition-all duration-200 group border border-dashed border-emerald-600/30 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-emerald-900"
+              aria-label="Add new supplier company"
             >
-              <Plus className="w-3 h-3" />
-              <span>Add new supplier</span>
+              <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">Add new supplier</span>
             </button>
           </div>
         )}

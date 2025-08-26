@@ -1,11 +1,36 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { 
+  authenticateApiRequest, 
+  filterTripCostData, 
+  createAuthErrorResponse,
+  logSecurityEvent 
+} from '@/lib/api-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(request: NextRequest) {
   try {
+    // 🔒 SECURITY: Authenticate and authorize the request
+    const authResult = await authenticateApiRequest(request)
+    
+    if (!authResult.success || !authResult.user) {
+      logSecurityEvent('UNAUTHORIZED_REQUEST', null, { 
+        endpoint: '/api/trips/real-data',
+        error: authResult.error 
+      })
+      return createAuthErrorResponse(
+        authResult.error || 'Authentication failed', 
+        authResult.statusCode || 401
+      )
+    }
+
+    const authenticatedUser = authResult.user
+    logSecurityEvent('AUTH_SUCCESS', authenticatedUser, { 
+      endpoint: '/api/trips/real-data' 
+    })
+
     // Create Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
@@ -43,11 +68,29 @@ export async function GET(request: NextRequest) {
 
     console.log(`[RealTravelData API] Found ${trips?.length || 0} trips${companyId ? ` for company ${companyId}` : ''}`)
 
+    // 🔒 SECURITY: Filter cost data based on user permissions
+    const filteredTrips = filterTripCostData(trips || [], authenticatedUser.can_view_cost_data)
+    
+    if (authenticatedUser.can_view_cost_data) {
+      logSecurityEvent('COST_ACCESS_GRANTED', authenticatedUser, { 
+        endpoint: '/api/trips/real-data',
+        trips_count: filteredTrips.length,
+        company_filter: companyId 
+      })
+    } else {
+      logSecurityEvent('COST_ACCESS_DENIED', authenticatedUser, { 
+        endpoint: '/api/trips/real-data',
+        trips_count: filteredTrips.length,
+        company_filter: companyId 
+      })
+    }
+
     return NextResponse.json({ 
-      trips: trips || [],
-      count: trips?.length || 0,
+      trips: filteredTrips,
+      count: filteredTrips.length,
       success: true,
-      companyId: companyId || null
+      companyId: companyId || null,
+      has_cost_data: authenticatedUser.can_view_cost_data // Inform client about data completeness
     })
     
   } catch (error) {

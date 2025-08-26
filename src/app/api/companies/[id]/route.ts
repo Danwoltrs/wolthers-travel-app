@@ -66,7 +66,7 @@ export async function GET(
     const { data: statistics, error: statsError } = await supabase
       .from('company_statistics')
       .select('*')
-      .eq('company_id', params.id)
+      .eq('company_id', resolvedParams.id)
       .eq('period_type', 'all_time')
       .single()
 
@@ -74,7 +74,7 @@ export async function GET(
     const { data: documents, error: docsError } = await supabase
       .from('company_documents')
       .select('*')
-      .eq('company_id', params.id)
+      .eq('company_id', resolvedParams.id)
       .eq('is_folder', false)
       .order('created_at', { ascending: false })
       .limit(10)

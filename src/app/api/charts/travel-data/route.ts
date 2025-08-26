@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { 
+  authenticateApiRequest, 
+  filterChartCostData, 
+  createAuthErrorResponse,
+  logSecurityEvent 
+} from '@/lib/api-auth'
 
 // Create Supabase admin client for server-side operations
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -7,6 +13,25 @@ const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(request: NextRequest) {
   try {
+    // 🔒 SECURITY: Authenticate and authorize the request
+    const authResult = await authenticateApiRequest(request)
+    
+    if (!authResult.success || !authResult.user) {
+      logSecurityEvent('UNAUTHORIZED_REQUEST', null, { 
+        endpoint: '/api/charts/travel-data',
+        error: authResult.error 
+      })
+      return createAuthErrorResponse(
+        authResult.error || 'Authentication failed', 
+        authResult.statusCode || 401
+      )
+    }
+
+    const authenticatedUser = authResult.user
+    logSecurityEvent('AUTH_SUCCESS', authenticatedUser, { 
+      endpoint: '/api/charts/travel-data' 
+    })
+
     const supabase = createClient(supabaseUrl, supabaseServiceRole)
     
     // Query for real trip data with participants and users
@@ -39,7 +64,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (!trips || trips.length === 0) {
-      return NextResponse.json({
+      // 🔒 SECURITY: Return safe empty data structure
+      const emptyData = {
         heatmapData: {
           yearlyData: new Map(),
           totalTrips: 0,
@@ -48,14 +74,17 @@ export async function GET(request: NextRequest) {
         trendsData: {
           monthlyData: [],
           totalTrips: 0,
-          totalCost: 0,
+          totalCost: authenticatedUser.can_view_cost_data ? 0 : undefined, // Only include cost if authorized
           tripsByType: {
             convention: 0,
             in_land: 0,
             other: 0
           }
-        }
-      })
+        },
+        has_cost_data: authenticatedUser.can_view_cost_data
+      }
+      
+      return NextResponse.json(emptyData)
     }
 
     // Process data for heatmap
@@ -73,7 +102,8 @@ export async function GET(request: NextRequest) {
       const weekNumber = getWeekNumber(startDate)
       const monthKey = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
       
-      const cost = trip.total_cost ? parseFloat(trip.total_cost) : 0
+      // 🔒 SECURITY: Only process cost data for authorized users
+      const cost = (authenticatedUser.can_view_cost_data && trip.total_cost) ? parseFloat(trip.total_cost) : 0
       totalCost += cost
 
       // Count trip types
@@ -102,7 +132,10 @@ export async function GET(request: NextRequest) {
       }
       
       const monthData = monthlyMap.get(monthKey)!
-      monthData.totalCost += cost
+      // 🔒 SECURITY: Only include cost data for authorized users
+      if (authenticatedUser.can_view_cost_data) {
+        monthData.totalCost += cost
+      }
       monthData.trips.push(trip)
       
       switch (trip.trip_type) {
@@ -205,15 +238,33 @@ export async function GET(request: NextRequest) {
     const trendsData = {
       monthlyData: sortedMonthlyData,
       totalTrips: trips.length,
-      totalCost,
+      totalCost: authenticatedUser.can_view_cost_data ? totalCost : undefined, // Only include if authorized
       tripsByType
     }
 
-    return NextResponse.json({
+    // 🔒 SECURITY: Filter cost data and log access
+    const responseData = {
       heatmapData,
       trendsData,
-      success: true
-    })
+      success: true,
+      has_cost_data: authenticatedUser.can_view_cost_data
+    }
+
+    if (authenticatedUser.can_view_cost_data) {
+      logSecurityEvent('COST_ACCESS_GRANTED', authenticatedUser, { 
+        endpoint: '/api/charts/travel-data',
+        trips_processed: trips.length,
+        total_cost: totalCost
+      })
+    } else {
+      logSecurityEvent('COST_ACCESS_DENIED', authenticatedUser, { 
+        endpoint: '/api/charts/travel-data',
+        trips_processed: trips.length,
+        cost_data_filtered: true
+      })
+    }
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('API Error:', error)

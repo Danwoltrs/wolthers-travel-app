@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Search, AlertTriangle, RefreshCw, Building, Home, Coffee, TreePine } from 'lucide-react'
 import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,6 +32,7 @@ export default function CompaniesPage() {
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
   const [showCompanyDashboard, setShowCompanyDashboard] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any>(null)
+  const [selectedExternalCompany, setSelectedExternalCompany] = useState<any>(null) // Track external company selection
   
   const { user } = useAuth()
   
@@ -61,6 +62,8 @@ export default function CompaniesPage() {
 
   const handleSectionChange = (section: 'wolthers' | 'buyers' | 'suppliers') => {
     setSelectedSection(section)
+    // Clear external company selection when navigating Wolthers sidebar
+    setSelectedExternalCompany(null)
     // Auto-close sidebar on mobile when section changes
     if (isMobile) {
       setSidebarCollapsed(true)
@@ -100,9 +103,44 @@ export default function CompaniesPage() {
   }, [actions])
 
   // Handle viewing company dashboard
-  const handleViewCompanyDashboard = (company: any) => {
-    setSelectedCompany(company)
-    setShowCompanyDashboard(true)
+  const handleViewCompanyDashboard = (companyOrLab: any) => {
+    console.log('[CompaniesPage] handleViewCompanyDashboard called with:', companyOrLab)
+    
+    // Check if this is Wolthers company (either by ID or category)
+    const isWolthersCompany = companyOrLab.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0' || 
+                             companyOrLab.category === 'service_provider' ||
+                             (companyOrLab.country && !companyOrLab.category) // Lab with country but no category
+
+    if (isWolthersCompany) {
+      // This is Wolthers company or lab
+      const wolthersCompany = {
+        id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Wolthers & Associates ID
+        name: 'Wolthers & Associates',
+        fantasy_name: 'Wolthers Santos',
+        category: 'service_provider',
+        isLabView: companyOrLab.country ? true : false,
+        selectedLab: companyOrLab.country ? companyOrLab : null
+      }
+      setSelectedCompany(wolthersCompany)
+      setShowCompanyDashboard(true)
+      setSelectedExternalCompany(null)
+      setSelectedSection('wolthers') // Ensure Wolthers section is selected
+      console.log('[CompaniesPage] Setting up Wolthers dashboard, selectedSection: wolthers')
+    } else {
+      // This is an external company
+      setSelectedCompany(companyOrLab)
+      setShowCompanyDashboard(true)
+      setSelectedExternalCompany(companyOrLab)
+      
+      // Set the appropriate section based on company category
+      if (companyOrLab.category === 'buyer') {
+        setSelectedSection('buyers')
+        console.log('[CompaniesPage] Setting section to buyers')
+      } else if (companyOrLab.category === 'supplier') {
+        setSelectedSection('suppliers')
+        console.log('[CompaniesPage] Setting section to suppliers')
+      }
+    }
   }
 
   // Handle closing company dashboard
@@ -135,9 +173,30 @@ export default function CompaniesPage() {
     suppliers: 'Suppliers'
   }
 
+  // Get breadcrumb path based on context
+  const getBreadcrumbPath = () => {
+    if (selectedExternalCompany) {
+      const companyType = selectedExternalCompany.category === 'buyer' ? 'Buyers' : 
+                         selectedExternalCompany.category === 'supplier' ? 'Suppliers' : 
+                         selectedExternalCompany.category
+      return {
+        base: 'Companies',
+        section: companyType,
+        item: selectedExternalCompany.fantasy_name || selectedExternalCompany.name
+      }
+    }
+    
+    return {
+      base: 'Companies',
+      section: sectionTitles[selectedSection],
+      item: null
+    }
+  }
+
   // If showing company dashboard, render it instead of main layout
   if (showCompanyDashboard && selectedCompany) {
-    const shouldShowSidebar = !!user?.companyId && user.companyId !== selectedCompany.id
+    // Always show sidebar for Wolthers staff, even when viewing their own company/labs
+    const shouldShowSidebar = !!user?.companyId && user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' // Wolthers & Associates ID
     console.log('[CompaniesPage] Full user object analysis:', {
       user: user,
       userKeys: user ? Object.keys(user) : 'no user',
@@ -147,7 +206,7 @@ export default function CompaniesPage() {
       userCompanyIdNew: user?.companyId, // CORRECT FIELD
       userEmail: user?.email,
       shouldShowSidebar,
-      comparisonResult: user?.companyId !== selectedCompany.id
+      isWolthersStaff: user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
     })
     
     return (
@@ -156,6 +215,31 @@ export default function CompaniesPage() {
         onBack={handleCloseDashboard}
         viewerCompanyId={user?.companyId} // Current user's company ID
         showSidebar={shouldShowSidebar} // Show sidebar if Wolthers viewing other company
+        breadcrumbContext={
+          selectedCompany.category === 'service_provider' || selectedCompany.isLabView
+            ? { 
+                base: 'Companies', 
+                section: 'Wolthers & Associates',
+                item: 'Santos'  // Always show Santos for Wolthers regardless of lab
+              }
+            : selectedExternalCompany
+              ? { 
+                  base: 'Companies', 
+                  section: `${selectedExternalCompany.category === 'buyer' ? 'Buyers' : selectedExternalCompany.category === 'supplier' ? 'Suppliers' : 'Companies'}`,
+                  item: selectedExternalCompany.fantasy_name || selectedExternalCompany.name
+                }
+              : null
+        }
+        selectedExternalCompany={selectedExternalCompany}
+        onSectionChange={handleSectionChange}
+        onViewDashboard={handleViewCompanyDashboard}
+        onNavigateToMain={() => {
+          setShowCompanyDashboard(false)
+          setSelectedCompany(null)
+          setSelectedExternalCompany(null)
+          // Reset to default section (Wolthers)
+          setSelectedSection('wolthers')
+        }}
       />
     )
   }
@@ -170,19 +254,65 @@ export default function CompaniesPage() {
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         onAddBuyer={() => setShowAddBuyerModal(true)}
         onAddSupplier={() => setShowAddSupplierModal(true)}
-        onViewDashboard={handleViewCompanyDashboard} // Pass dashboard handler to sidebar
+        onViewDashboard={handleViewCompanyDashboard}
+        selectedExternalCompany={selectedExternalCompany} // Pass external company selection
       />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto lg:ml-0">
-        {/* Breadcrumb Navigation */}
-        <div className="sticky top-0 z-10 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 dark:border-slate-800 px-8 py-4 lg:px-8 pl-16 lg:pl-8">
-          <nav className="flex items-center space-x-2 text-sm text-amber-300 dark:text-amber-400">
-            <span>Companies</span>
-            <span>/</span>
-            <span className="text-amber-100 dark:text-amber-200 font-medium">
-              {sectionTitles[selectedSection]}
-            </span>
+        {/* Simple Breadcrumb Navigation */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-800 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-900 dark:to-black border-b border-slate-700/50 dark:border-slate-800/50 px-8 py-3 lg:px-8 pl-16 lg:pl-8 backdrop-blur-sm">
+          <nav className="text-sm">
+            {(() => {
+              const breadcrumb = getBreadcrumbPath()
+              return (
+                <span className="font-medium">
+                  <button 
+                    onClick={() => {
+                      setShowCompanyDashboard(false)
+                      setSelectedCompany(null)
+                      setSelectedExternalCompany(null)
+                      // Reset to default section (Wolthers)
+                      setSelectedSection('wolthers')
+                    }}
+                    className="hover:opacity-75 transition-opacity"
+                    style={{ color: '#EBB427' }}
+                  >
+                    {breadcrumb.base}
+                  </button>
+                  {breadcrumb.section && (
+                    <>
+                      <span style={{ color: '#FDE68A' }}> / </span>
+                      <button 
+                        onClick={() => {
+                          setShowCompanyDashboard(false)
+                          setSelectedCompany(null)
+                          setSelectedExternalCompany(null)
+                          // Set the appropriate section based on breadcrumb
+                          if (breadcrumb.section === 'Buyers') {
+                            setSelectedSection('buyers')
+                          } else if (breadcrumb.section === 'Suppliers') {
+                            setSelectedSection('suppliers')
+                          } else if (breadcrumb.section === 'Wolthers & Associates') {
+                            setSelectedSection('wolthers')
+                          }
+                        }}
+                        className="hover:opacity-75 transition-opacity"
+                        style={{ color: '#FDE68A' }}
+                      >
+                        {breadcrumb.section}
+                      </button>
+                    </>
+                  )}
+                  {breadcrumb.item && (
+                    <>
+                      <span style={{ color: '#FDE68A' }}> / </span>
+                      <span style={{ color: '#FDE68A' }}>{breadcrumb.item}</span>
+                    </>
+                  )}
+                </span>
+              )
+            })()}
           </nav>
         </div>
 
@@ -201,6 +331,7 @@ export default function CompaniesPage() {
               {/* Real Travel Trends - Matches heatmap width */}
               <RealTravelTrends 
                 selectedSection={selectedSection}
+                companyId={selectedSection === 'wolthers' ? '840783f4-866d-4bdb-9b5d-5d0facf62db0' : undefined}
               />
               
               {/* Companies and Users */}
@@ -228,6 +359,7 @@ export default function CompaniesPage() {
               {/* Travel Coordination Trends at top */}
               <TravelTrendsChart 
                 selectedSection={selectedSection}
+                companyId={selectedSection === 'wolthers' ? '840783f4-866d-4bdb-9b5d-5d0facf62db0' : undefined}
               />
               
               {/* Document Management System below */}
