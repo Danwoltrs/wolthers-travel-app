@@ -224,10 +224,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to get week number from date
+// Helper function to get week number from date (ISO week number)
 function getWeekNumber(date: Date): number {
-  const start = new Date(date.getFullYear(), 0, 1)
-  const diff = date.getTime() - start.getTime()
-  const weekNumber = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))
-  return weekNumber
+  // ISO week calculation (Monday-Sunday weeks, first week contains Jan 4th)
+  const target = new Date(date.valueOf())
+  const dayNr = (date.getDay() + 6) % 7 // Monday = 0, Sunday = 6
+  target.setDate(target.getDate() - dayNr + 3) // Thursday of this week
+  const firstThursday = target.valueOf()
+  target.setMonth(0, 1) // January 1st
+  if (target.getDay() !== 4) { // If January 1st is not a Thursday
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7) // First Thursday of the year
+  }
+  return 1 + Math.ceil((firstThursday - target) / 604800000) // 604800000 = 7 * 24 * 3600 * 1000
 }

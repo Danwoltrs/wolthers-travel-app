@@ -54,12 +54,27 @@ export default function EnhancedHeatmap({ selectedSection, className = '', compa
     fetcher
   )
 
-  // Calculate current week
+  // Calculate current week (using ISO week date calculation)
   useEffect(() => {
     const now = new Date()
-    const start = new Date(now.getFullYear(), 0, 1)
-    const diff = now.getTime() - start.getTime()
-    const weekNumber = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))
+    
+    // ISO week calculation (Monday-Sunday weeks, first week contains Jan 4th)
+    function getISOWeek(date) {
+      const target = new Date(date.valueOf())
+      const dayNr = (date.getDay() + 6) % 7 // Monday = 0, Sunday = 6
+      target.setDate(target.getDate() - dayNr + 3) // Thursday of this week
+      const firstThursday = target.valueOf()
+      target.setMonth(0, 1) // January 1st
+      if (target.getDay() !== 4) { // If January 1st is not a Thursday
+        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7) // First Thursday of the year
+      }
+      return 1 + Math.ceil((firstThursday - target) / 604800000) // 604800000 = 7 * 24 * 3600 * 1000
+    }
+    
+    const weekNumber = getISOWeek(now)
+    
+    console.log(`📅 HEATMAP: Current date: ${now.toDateString()}, ISO Week: ${weekNumber}`)
+    console.log(`📅 HEATMAP: Setting currentWeek to ${weekNumber}`)
     setCurrentWeek(weekNumber)
   }, [])
 
@@ -157,7 +172,8 @@ export default function EnhancedHeatmap({ selectedSection, className = '', compa
     const weekNumbers = []
     for (let week = 1; week <= 52; week++) {
       const isCurrentWeek = week === currentWeek
-      const isRegularInterval = week === 1 || week % 5 === 0
+      // Show weeks 1, 5, 10, 15, 20, etc. (intervals of 5 starting from 1 and 5)
+      const isRegularInterval = week === 1 || (week >= 5 && (week - 5) % 5 === 0)
       const isTooCloseToCurrentWeek = Math.abs(week - currentWeek) <= 2 && week !== currentWeek
       
       // Show regular intervals unless they're too close to current week, or always show current week
@@ -485,6 +501,8 @@ export default function EnhancedHeatmap({ selectedSection, className = '', compa
     )
   }
 
+  console.log(`📈 HEATMAP RENDER: currentWeek=${currentWeek}, selectedSection=${selectedSection}`)
+  
   return (
     <div 
       ref={containerRef}

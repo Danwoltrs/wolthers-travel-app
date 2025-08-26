@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         id, title, status, start_date, end_date, total_cost, access_code, trip_type, created_at,
         trip_participants!inner(
           company_id,
-          is_meeting_attendee
+          role
         )
       `)
       .order('created_at', { ascending: false })
