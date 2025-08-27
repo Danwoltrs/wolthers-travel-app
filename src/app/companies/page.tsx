@@ -13,7 +13,8 @@ import DocumentFinder from '@/components/documents/DocumentFinder'
 import MobileDocumentView from '@/components/documents/MobileDocumentView'
 import BuyersPanel from '@/components/companies/BuyersPanel'
 import SuppliersPanel from '@/components/companies/SuppliersPanel'
-import AddCompanyModal from '@/components/companies/AddCompanyModal'
+import UnifiedCompanyCreationModal from '@/components/companies/UnifiedCompanyCreationModal'
+import LabCreationModal from '@/components/companies/LabCreationModal'
 import CompanyDashboard from '@/components/companies/CompanyDashboard'
 import UnifiedUsersPanel from '@/components/companies/UnifiedUsersPanel'
 import { useDocumentFinder } from '@/hooks/useDocumentFinder'
@@ -30,6 +31,20 @@ export default function CompaniesPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Mobile sidebar starts collapsed
   const [showAddBuyerModal, setShowAddBuyerModal] = useState(false)
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
+  const [showAddLabModal, setShowAddLabModal] = useState(false)
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('CompaniesPage: showAddBuyerModal changed to:', showAddBuyerModal)
+  }, [showAddBuyerModal])
+
+  useEffect(() => {
+    console.log('CompaniesPage: showAddSupplierModal changed to:', showAddSupplierModal)
+  }, [showAddSupplierModal])
+
+  useEffect(() => {
+    console.log('CompaniesPage: showAddLabModal changed to:', showAddLabModal)
+  }, [showAddLabModal])
   const [showCompanyDashboard, setShowCompanyDashboard] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any>(null)
   const [selectedExternalCompany, setSelectedExternalCompany] = useState<any>(null) // Track external company selection
@@ -42,8 +57,10 @@ export default function CompaniesPage() {
     fetcher
   )
 
-  // Use the DocumentFinder hook for document management
-  const { state, actions } = useDocumentFinder()
+  // Use the DocumentFinder hook for document management with Wolthers company context
+  const { state, actions } = useDocumentFinder({ 
+    companyId: '840783f4-866d-4bdb-9b5d-5d0facf62db0' // Wolthers & Associates ID
+  })
 
   // Check for mobile device on mount and window resize
   useEffect(() => {
@@ -252,8 +269,18 @@ export default function CompaniesPage() {
         onSectionChange={handleSectionChange}
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onAddBuyer={() => setShowAddBuyerModal(true)}
-        onAddSupplier={() => setShowAddSupplierModal(true)}
+        onAddBuyer={() => {
+          console.log('CompaniesPage: onAddBuyer called, setting modal to true')
+          setShowAddBuyerModal(true)
+        }}
+        onAddSupplier={() => {
+          console.log('CompaniesPage: onAddSupplier called, setting modal to true')  
+          setShowAddSupplierModal(true)
+        }}
+        onAddLab={() => {
+          console.log('CompaniesPage: onAddLab called, setting modal to true')
+          setShowAddLabModal(true)
+        }}
         onViewDashboard={handleViewCompanyDashboard}
         selectedExternalCompany={selectedExternalCompany} // Pass external company selection
       />
@@ -479,17 +506,40 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      {/* Add Company Modals */}
-      <AddCompanyModal
+      {/* Unified Company Creation Modals */}
+      <UnifiedCompanyCreationModal
         isOpen={showAddBuyerModal}
         onClose={() => setShowAddBuyerModal(false)}
         companyType="buyer"
+        context="dashboard"
+        onCompanyCreated={(company) => {
+          console.log('Buyer company created:', company)
+          // Refresh data or add to local state as needed
+          setShowAddBuyerModal(false)
+        }}
       />
       
-      <AddCompanyModal
+      <UnifiedCompanyCreationModal
         isOpen={showAddSupplierModal}
         onClose={() => setShowAddSupplierModal(false)}
         companyType="supplier"
+        context="dashboard"
+        onCompanyCreated={(company) => {
+          console.log('Supplier company created:', company)
+          // Refresh data or add to local state as needed
+          setShowAddSupplierModal(false)
+        }}
+      />
+
+      {/* Lab Creation Modal */}
+      <LabCreationModal
+        isOpen={showAddLabModal}
+        onClose={() => setShowAddLabModal(false)}
+        onLabCreated={(lab) => {
+          console.log('Lab created:', lab)
+          // Refresh data or add to local state as needed
+          setShowAddLabModal(false)
+        }}
       />
     </div>
   )

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Plus, MapPin, Phone, Mail, Building, Globe, Users } from 'lucide-react'
 import useSWR from 'swr'
-import AddCompanyModal from './AddCompanyModal'
+import UnifiedCompanyCreationModal from './UnifiedCompanyCreationModal'
 import CompanyDetailModal from './CompanyDetailModal'
 import CompanyDashboard from './CompanyDashboard'
 
@@ -186,11 +186,18 @@ export default function BuyersPanel({ className = '', onViewDashboard }: BuyersP
         </div>
       )}
 
-      {/* Add Company Modal */}
-      <AddCompanyModal
+      {/* Unified Company Creation Modal */}
+      <UnifiedCompanyCreationModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         companyType="buyer"
+        context="dashboard"
+        onCompanyCreated={(company) => {
+          console.log('Buyer created from BuyersPanel:', company)
+          setShowAddModal(false)
+          // Refresh the data
+          window.location.reload()
+        }}
       />
 
       {/* Company Detail Modal */}

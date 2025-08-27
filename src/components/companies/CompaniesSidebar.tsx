@@ -31,6 +31,7 @@ interface CompaniesSidebarProps {
   className?: string
   onAddBuyer?: () => void
   onAddSupplier?: () => void
+  onAddLab?: () => void
   onViewDashboard?: (company: any) => void
   selectedExternalCompany?: any // Track external company selection
 }
@@ -43,6 +44,7 @@ export default function CompaniesSidebar({
   className = '',
   onAddBuyer,
   onAddSupplier,
+  onAddLab,
   onViewDashboard,
   selectedExternalCompany
 }: CompaniesSidebarProps) {
@@ -64,16 +66,19 @@ export default function CompaniesSidebar({
   const suppliers = suppliersData?.companies || []
 
   const handleAddNew = (type: string) => {
+    console.log(`CompaniesSidebar: handleAddNew called with type: ${type}`)
     switch (type) {
       case 'buyer':
+        console.log('CompaniesSidebar: Calling onAddBuyer')
         onAddBuyer?.()
         break
       case 'supplier':
+        console.log('CompaniesSidebar: Calling onAddSupplier')
         onAddSupplier?.()
         break
       case 'lab':
-        // TODO: Handle lab creation
-        console.log('Add new lab')
+        console.log('CompaniesSidebar: Calling onAddLab')
+        onAddLab?.()
         break
       default:
         console.log(`Add new ${type}`)

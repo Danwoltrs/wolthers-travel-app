@@ -200,12 +200,18 @@ async function getSuppliers(
 
       if (company.category === 'buyer') {
         // Buyers see supplier folders (exporters, cooperatives, producers)
+        // These folders contain files FROM suppliers that were uploaded or shared during meetings
         relatedCompaniesQuery = relatedCompaniesQuery.in('category', ['supplier', 'exporter', 'cooperative', 'producer'])
       } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(company.category)) {
-        // Suppliers see buyer folders (importers, roasters)
+        // Suppliers see buyer folders (importers, roasters)  
+        // These folders contain files they shared WITH buyers during meetings
         relatedCompaniesQuery = relatedCompaniesQuery.in('category', ['buyer', 'importer', 'roaster'])
+      } else if (company.category === 'service_provider') {
+        // Wolthers sees supplier folders (same as buyers)
+        // These folders contain files FROM suppliers that were uploaded or shared during meetings with buyers
+        relatedCompaniesQuery = relatedCompaniesQuery.in('category', ['supplier', 'exporter', 'cooperative', 'producer'])
       } else {
-        // Service providers see all companies they work with
+        // Default: show all non-service provider companies
         relatedCompaniesQuery = relatedCompaniesQuery.neq('category', 'service_provider')
       }
 
@@ -223,25 +229,36 @@ async function getSuppliers(
       // Transform to supplier format for the frontend
       const suppliers = await Promise.all(
         relatedCompanies?.map(async (relatedCompany: any) => {
-          // Get document count where this company shared documents with the viewing company
-          const { count } = await supabase
+          // Get document count based on the folder organization logic
+          let documentQuery = supabase
             .from('company_files')
             .select('*', { count: 'exact', head: true })
-            .eq('company_id', relatedCompany.id)
-            // TODO: Add permission logic here based on company relationships
+            .eq('is_archived', false)
+
+          // Apply the same filtering logic as in getDocuments
+          if (company.category === 'buyer' || company.category === 'service_provider') {
+            // For buyers and Wolthers: show files FROM this supplier
+            documentQuery = documentQuery.eq('company_id', relatedCompany.id)
+          } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(company.category)) {
+            // For suppliers: show files they uploaded (from their own company)
+            // TODO: Would need meeting relationship filtering to show only files shared with this specific buyer
+            documentQuery = documentQuery.eq('company_id', company.id)
+          }
+
+          const { count } = await documentQuery
 
           return {
             id: relatedCompany.id,
-            name: relatedCompany.name,
+            name: relatedCompany.fantasy_name || relatedCompany.name,
             path: `/documents/${relatedCompany.name.toLowerCase().replace(/\s+/g, '-')}`,
             supplierId: relatedCompany.id,
             itemCount: count || 0,
             documentCount: count || 0,
-            folderCount: 1,
+            folderCount: count > 0 ? 1 : 0, // Only show as folder if it has documents
             totalSize: 0,
             lastModified: new Date(relatedCompany.created_at),
             createdDate: new Date(relatedCompany.created_at),
-            subFolders: [], // Simplified for now to avoid async issues
+            subFolders: count > 0 ? await getYearFolders(supabase, relatedCompany.id) : [],
             recentDocuments: [],
             supplierInfo: {
               id: relatedCompany.id,
@@ -249,16 +266,20 @@ async function getSuppliers(
               country: 'Unknown',
               contactPerson: '',
               email: '',
-              relationshipStatus: 'active',
+              relationshipStatus: count > 0 ? 'active' : 'inactive',
               supplierType: relatedCompany.category || 'cooperative',
               certifications: [],
               primaryCrops: ['arabica'],
               qualityGrade: 'specialty'
             },
-            // Company-specific metadata
-            relationshipType: company.category === 'buyer' ? 'supplier' : 'buyer',
+            // Company-specific metadata for folder organization context
+            relationshipType: company.category === 'buyer' ? 'supplier' : 
+                           company.category === 'service_provider' ? 'supplier' : 'buyer',
             viewingCompany: company.id,
-            accessLevel: company.category === 'buyer' ? 'full' : 'restricted'
+            accessLevel: company.category === 'buyer' ? 'full' : 'restricted',
+            // New fields for empty folder handling
+            isEmpty: count === 0,
+            folderDescription: getFolderDescription(company.category, relatedCompany.category, relatedCompany.name, count || 0)
           }
         }) || []
       )
@@ -512,15 +533,15 @@ async function getDocuments(
         `)
         .eq('is_archived', false)
 
-      // Apply company-specific permission filtering
+      // Apply company-specific permission filtering based on folder organization requirements
       if (viewingCompany.category === 'buyer') {
-        // Buyers see:
-        // 1. All files from suppliers (files suppliers shared during meetings)
-        // 2. ALL meeting notes from meetings they attended
+        // Buyers see supplier folders containing:
+        // 1. Files uploaded by suppliers during meetings with this buyer
+        // 2. Trip notes from meetings they attended with suppliers
         if (options.supplierId) {
-          // When viewing a specific supplier folder
+          // When viewing a specific supplier folder - show files FROM that supplier
           query = query.eq('company_id', options.supplierId)
-          // TODO: Add logic to filter only files that can be shared with this buyer
+          // TODO: Add trip/meeting relationship filtering to show only files from meetings this buyer attended
         } else {
           // Show files from all supplier companies
           const { data: supplierCompanies } = await supabase
@@ -534,16 +555,36 @@ async function getDocuments(
           }
         }
       } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(viewingCompany.category)) {
-        // Suppliers see:
-        // 1. Files they shared during meetings
-        // 2. Trip notes from meetings they attended
+        // Suppliers see buyer folders containing:
+        // 1. Files they uploaded when visiting those buyers
+        // 2. Trip notes from meetings with those buyers
         if (options.supplierId) {
-          // When viewing a specific buyer folder, show files they shared with this buyer
-          query = query.eq('company_id', options.companyId) // Show files from viewing company
-          // TODO: Add logic to filter only files shared with the specific buyer
+          // When viewing a specific buyer folder - show files they (the supplier) shared with that buyer
+          // This means files uploaded by the supplier (viewing company) but related to meetings with the specific buyer
+          query = query.eq('company_id', options.companyId) // Files from the supplier themselves
+          // TODO: Add trip/meeting relationship filtering to show only files from meetings with the specific buyer
         } else {
-          // Show only files from their own company
+          // Show only files from their own company (files they uploaded)
           query = query.eq('company_id', options.companyId)
+        }
+      } else if (viewingCompany.category === 'service_provider') {
+        // Wolthers sees supplier folders containing:
+        // 1. Files from suppliers shared during meetings with buyers
+        // 2. All trip notes from meetings they attended or coordinated
+        if (options.supplierId) {
+          // When viewing a specific supplier folder - show files FROM that supplier
+          query = query.eq('company_id', options.supplierId)
+        } else {
+          // Show files from all supplier companies
+          const { data: supplierCompanies } = await supabase
+            .from('companies')
+            .select('id')
+            .in('category', ['supplier', 'exporter', 'cooperative', 'producer'])
+          
+          const supplierIds = supplierCompanies?.map(c => c.id) || []
+          if (supplierIds.length > 0) {
+            query = query.in('company_id', supplierIds)
+          }
         }
       }
 
@@ -593,6 +634,83 @@ async function getDocuments(
         return NextResponse.json({ error: 'Failed to fetch company documents' }, { status: 500 })
       }
 
+      // Fetch trip notes related to this company and viewing company
+      let tripNotes: any[] = []
+      if (options.supplierId) {
+        // Get trip notes from meetings between the viewing company and the supplier
+        const { data: notesData } = await supabase
+          .from('activities')
+          .select(`
+            id,
+            title,
+            notes,
+            activity_date,
+            type,
+            trip_id,
+            created_at,
+            updated_at,
+            created_by,
+            trips:trip_id (
+              id,
+              title,
+              company_id
+            ),
+            users:created_by (
+              id,
+              full_name,
+              email
+            )
+          `)
+          .not('notes', 'is', null)
+          .neq('notes', '')
+          .eq('trips.company_id', viewingCompany.id) // Only trips from the viewing company
+
+        // Filter notes that are relevant to meetings with the specific supplier
+        const relevantNotes = notesData?.filter(note => {
+          // Include notes from trips that likely involved the supplier
+          // This would be enhanced with proper trip-company relationships
+          return note.notes && note.notes.trim() !== '';
+        }) || []
+
+        tripNotes = relevantNotes.map((note: any) => ({
+          id: `note-${note.id}`,
+          name: `Meeting Notes: ${note.title}`,
+          path: '',
+          supplier: (options.supplierId === viewingCompany.id ? 'Meeting Notes' : 'Trip Notes'),
+          supplierId: options.supplierId,
+          year: new Date(note.activity_date).getFullYear(),
+          size: (note.notes?.length || 0) * 2, // Rough estimate
+          lastModified: new Date(note.updated_at || note.created_at),
+          createdDate: new Date(note.created_at),
+          createdBy: note.users?.full_name || 'Unknown',
+          createdById: note.created_by,
+          kind: 'Meeting Notes',
+          extension: 'notes',
+          mimeType: 'text/plain',
+          isNew: isNewDocument(note.created_at),
+          isShared: true,
+          tags: ['meeting-notes', note.type],
+          metadata: {
+            category: 'meeting-notes',
+            description: `Notes from ${note.title}`,
+            tags: ['meeting-notes', note.type],
+            version: '1.0',
+            tripId: note.trip_id,
+            activityId: note.id,
+            activityType: note.type,
+            noteContent: note.notes,
+            // Company-specific metadata
+            viewingCompany: options.companyId,
+            accessLevel: 'full'
+          },
+          accessLevel: 'team',
+          downloadUrl: null, // Notes don't have downloads
+          previewUrl: null,
+          thumbnailUrl: null,
+          isNote: true // Flag to identify this as a note rather than a file
+        }))
+      }
+
       // Transform to frontend format
       const transformedDocuments = documents?.map((doc: any) => ({
         id: doc.id,
@@ -625,16 +743,26 @@ async function getDocuments(
         accessLevel: viewingCompany.category === 'buyer' ? 'team' : 'public',
         downloadUrl: `/api/documents/coffee-supply/${doc.id}/download`,
         previewUrl: null,
-        thumbnailUrl: null
+        thumbnailUrl: null,
+        isNote: false
       })) || []
+
+      // Combine documents and trip notes
+      const allDocuments = [...transformedDocuments, ...tripNotes]
+        .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
 
       return NextResponse.json({
         success: true,
         data: {
-          documents: transformedDocuments,
-          total: transformedDocuments.length,
+          documents: allDocuments,
+          total: allDocuments.length,
           context: 'company-filtered',
           viewingCompany,
+          documentStats: {
+            files: transformedDocuments.length,
+            notes: tripNotes.length,
+            total: allDocuments.length
+          },
           accessPermissions: {
             canViewAll: viewingCompany.category === 'buyer',
             canViewMeetingNotes: true,
@@ -1174,4 +1302,27 @@ function inferUrgencyFromFile(fileName: string, description: string, tags: strin
   }
   
   return 'medium'; // Default urgency
+}
+
+// Helper function to generate folder descriptions based on company relationship
+function getFolderDescription(viewerCategory: string, folderCompanyCategory: string, folderCompanyName: string, documentCount: number): string {
+  if (documentCount === 0) {
+    if (viewerCategory === 'buyer') {
+      return `No documents shared by ${folderCompanyName} during meetings yet.`;
+    } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(viewerCategory)) {
+      return `No documents shared with ${folderCompanyName} during meetings yet.`;
+    } else if (viewerCategory === 'service_provider') {
+      return `No documents from ${folderCompanyName} during coordinated meetings yet.`;
+    }
+    return `No documents available in this folder.`;
+  } else {
+    if (viewerCategory === 'buyer') {
+      return `${documentCount} document${documentCount > 1 ? 's' : ''} shared by ${folderCompanyName} during meetings, plus meeting notes.`;
+    } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(viewerCategory)) {
+      return `${documentCount} document${documentCount > 1 ? 's' : ''} you shared with ${folderCompanyName} during meetings, plus meeting notes.`;
+    } else if (viewerCategory === 'service_provider') {
+      return `${documentCount} document${documentCount > 1 ? 's' : ''} from ${folderCompanyName} during coordinated meetings, plus all meeting notes.`;
+    }
+    return `${documentCount} document${documentCount > 1 ? 's' : ''} in this folder.`;
+  }
 }

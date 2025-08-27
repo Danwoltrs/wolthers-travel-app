@@ -106,7 +106,7 @@ export default function CompanyDashboard({
   )
 
   // Use the DocumentFinder hook for document management with company context  
-  const { state, actions } = useDocumentFinder({ companyId: isWolthersCompany ? undefined : company.id })
+  const { state, actions } = useDocumentFinder({ companyId: company.id })
 
   const headquarters = companyDetails?.locations?.find((loc: any) => loc.is_primary_location || loc.is_headquarters)
   

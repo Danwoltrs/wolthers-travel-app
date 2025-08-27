@@ -168,25 +168,37 @@ const SupplierFolderRow: React.FC<SupplierFolderRowProps> = ({
               {getQualityGradeBadge()}
             </div>
             
-            {/* Supplier Info Preview */}
-            {folder.supplierInfo && (isHovered || isSelected) && (
+            {/* Folder Description - Show on hover/select */}
+            {(isHovered || isSelected) && (
               <div className="mt-2 text-xs text-latte-600 dark:text-gray-400 space-y-1">
-                <div className="flex items-center gap-4">
-                  <span>
-                    <MapPin className="w-3 h-3 inline mr-1" />
-                    {folder.supplierInfo.country}
-                    {folder.supplierInfo.region && `, ${folder.supplierInfo.region}`}
-                  </span>
-                  {folder.supplierInfo.primaryCrops.length > 0 && (
-                    <span>
-                      Crops: {folder.supplierInfo.primaryCrops.slice(0, 2).join(', ')}
-                      {folder.supplierInfo.primaryCrops.length > 2 && '...'}
-                    </span>
-                  )}
-                </div>
-                {folder.supplierInfo.lastContact && (
-                  <div>
-                    Last contact: {formatDate(folder.supplierInfo.lastContact)}
+                {/* Show folder description */}
+                {(folder as any).folderDescription && (
+                  <div className="italic text-latte-700 dark:text-gray-300 mb-2">
+                    {(folder as any).folderDescription}
+                  </div>
+                )}
+                
+                {/* Supplier Info Preview */}
+                {folder.supplierInfo && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-4">
+                      <span>
+                        <MapPin className="w-3 h-3 inline mr-1" />
+                        {folder.supplierInfo.country}
+                        {folder.supplierInfo.region && `, ${folder.supplierInfo.region}`}
+                      </span>
+                      {folder.supplierInfo.primaryCrops.length > 0 && (
+                        <span>
+                          Crops: {folder.supplierInfo.primaryCrops.slice(0, 2).join(', ')}
+                          {folder.supplierInfo.primaryCrops.length > 2 && '...'}
+                        </span>
+                      )}
+                    </div>
+                    {folder.supplierInfo.lastContact && (
+                      <div>
+                        Last contact: {formatDate(folder.supplierInfo.lastContact)}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -206,7 +218,7 @@ const SupplierFolderRow: React.FC<SupplierFolderRowProps> = ({
 
         {/* Kind Column */}
         <div className="flex items-center gap-2 text-sm text-latte-600 dark:text-gray-400">
-          <span>Supplier Folder</span>
+          <span>Company Folder</span>
           {folder.supplierInfo?.certifications && folder.supplierInfo.certifications.length > 0 && (
             <div className="flex gap-1">
               {folder.supplierInfo.certifications.slice(0, 2).map((cert) => (
@@ -217,6 +229,11 @@ const SupplierFolderRow: React.FC<SupplierFolderRowProps> = ({
                 />
               ))}
             </div>
+          )}
+          {(folder as any).isEmpty && (
+            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded">
+              Empty
+            </span>
           )}
         </div>
       </div>

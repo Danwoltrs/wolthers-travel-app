@@ -208,7 +208,7 @@ const DocumentFinder: React.FC<DocumentFinderProps> = ({
       {/* Header with Search and Controls */}
       <div className="finder-header bg-gradient-to-r from-sage-600 to-sage-700 dark:from-emerald-700 dark:to-emerald-800 text-white px-6 py-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Supplier Documents</h2>
+          <h2 className="text-lg font-semibold">Company Documents</h2>
           <div className="flex items-center gap-4">
             {/* Search Bar */}
             <div className="relative">
@@ -359,12 +359,14 @@ const DocumentFinder: React.FC<DocumentFinderProps> = ({
                 <div className="text-center py-12">
                   <Folder className="w-16 h-16 text-latte-400 dark:text-gray-600 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-latte-700 dark:text-gray-300 mb-2">
-                    {viewState.currentPath.length === 0 ? 'No suppliers found' : 'No documents found'}
+                    {viewState.currentPath.length === 0 ? 'No company folders found' : 'No documents found'}
                   </h3>
                   <p className="text-latte-600 dark:text-gray-400">
                     {searchQuery 
                       ? `No results for "${searchQuery}". Try adjusting your search.`
-                      : 'Upload documents to get started.'
+                      : viewState.currentPath.length === 0 
+                        ? 'No companies are available to display folders for. Company folders will appear here once meetings and document sharing begins.'
+                        : 'No documents have been shared in this folder yet. Documents will appear here after meetings where files are uploaded or shared.'
                     }
                   </p>
                 </div>
@@ -389,6 +391,18 @@ const DocumentFinder: React.FC<DocumentFinderProps> = ({
                   document={file}
                   isSelected={viewState.selectedItems.includes(file.id)}
                   onSelect={(multi) => onSelectItem(file.id, multi)}
+                  onDoubleClick={() => {
+                    // Handle double-click for notes vs files differently
+                    if ((file as any).isNote) {
+                      // For notes, show a preview modal or expand inline
+                      console.log('Show note preview:', file.metadata?.noteContent);
+                    } else {
+                      // For files, trigger download or preview
+                      if (file.downloadUrl) {
+                        window.open(file.downloadUrl, '_blank');
+                      }
+                    }
+                  }}
                   onContextMenu={(e) => handleContextMenu(e, file.id)}
                 />
               ))}

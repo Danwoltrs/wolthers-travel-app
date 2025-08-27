@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Plus, MapPin, Phone, Mail, Building, Globe, Users, TreePine } from 'lucide-react'
 import useSWR from 'swr'
-import AddCompanyModal from './AddCompanyModal'
+import UnifiedCompanyCreationModal from './UnifiedCompanyCreationModal'
 import CompanyDetailModal from './CompanyDetailModal'
 
 interface Company {
@@ -159,11 +159,18 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
         </div>
       )}
 
-      {/* Add Company Modal */}
-      <AddCompanyModal
+      {/* Unified Company Creation Modal */}
+      <UnifiedCompanyCreationModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         companyType="supplier"
+        context="dashboard"
+        onCompanyCreated={(company) => {
+          console.log('Supplier created from SuppliersPanel:', company)
+          setShowAddModal(false)
+          // Refresh the data
+          window.location.reload()
+        }}
       />
 
       {/* Company Detail Modal */}

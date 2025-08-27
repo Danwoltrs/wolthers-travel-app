@@ -276,3 +276,88 @@ export interface CompanyHeatmapData {
   total_trips: number
   total_cost: number
 }
+
+// Legacy Company Integration Types
+export interface LegacyCompanyResult {
+  id: number
+  name: string
+  fantasyName?: string
+  city?: string
+  state?: string
+  country: string
+  businessType?: string
+  group1?: string
+  group2?: string
+  address: {
+    street?: string
+    number?: string
+    complement?: string
+    neighborhood?: string
+    city?: string
+    state?: string
+    country: string
+    postalCode?: string
+  }
+  contacts: {
+    phone1?: string
+    phone2?: string
+    email?: string
+    contractEmail?: string
+  }
+  fullAddress: string
+  displayName: string
+  location: string
+}
+
+export interface CompanyContact {
+  id: string
+  company_id: string
+  name: string
+  email?: string
+  phone?: string
+  whatsapp?: string
+  title?: string
+  department?: string
+  is_primary: boolean
+  contact_type: 'business' | 'technical' | 'financial' | 'logistics'
+  notes?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateFromLegacyInput {
+  legacyClientId: number
+  pic?: {
+    name: string
+    email: string
+    whatsapp: string
+    title: string
+  }
+  additionalLocations?: Array<{
+    name: string
+    address: string
+    isHeadquarters?: boolean
+  }>
+  companyOverrides?: {
+    name?: string
+    fantasyName?: string
+    category?: string
+    subcategories?: string[]
+  }
+}
+
+export interface UnifiedCompanyCreationModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onCompanyCreated?: (company: any) => void
+  companyType?: 'buyer' | 'supplier'
+  initialSearch?: string
+  context?: 'dashboard' | 'trip_creation' | 'standalone'
+}
+
+export interface NavigationUrls {
+  google_maps: string
+  apple_maps: string
+  waze: string
+}

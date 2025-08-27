@@ -3,7 +3,7 @@ import { Plus, X, Calendar, Users, Hash } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
 import { ClientType } from '@/types'
 import type { Company, User } from '@/types'
-import CompanyCreationModal from './CompanyCreationModal'
+import UnifiedCompanyCreationModal from '../companies/UnifiedCompanyCreationModal'
 import UserCreationModal from './UserCreationModal'
 import { generateTripCode } from '@/lib/tripCodeGenerator'
 import { useTripCodeValidation } from '@/hooks/useTripCodeValidation'
@@ -452,11 +452,13 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       )}
       
       {/* Modals */}
-      <CompanyCreationModal
+      <UnifiedCompanyCreationModal
         isOpen={showCompanyModal}
         onClose={() => setShowCompanyModal(false)}
         onCompanyCreated={handleCompanyCreated}
-        searchTerm={companySearch}
+        initialSearch={companySearch}
+        context="trip_creation"
+        companyType="supplier"
       />
       
       <UserCreationModal

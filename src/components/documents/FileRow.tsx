@@ -50,6 +50,11 @@ const FileRow: React.FC<FileRowProps> = ({
 
   // Get file type icon with color
   const getFileTypeIcon = (extension: string) => {
+    // Special handling for meeting notes
+    if (extension === 'notes' || (document as any).isNote) {
+      return <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+    }
+    
     switch (extension.toLowerCase()) {
       case 'xlsx':
       case 'xls':
@@ -325,10 +330,29 @@ const FileRow: React.FC<FileRowProps> = ({
       {/* Extended metadata panel (shown on selection) */}
       {isSelected && document.metadata && (
         <div className="metadata-panel bg-golden-25 dark:bg-emerald-950/20 border-t border-golden-200 dark:border-emerald-600/30 px-6 py-3">
+          {/* Special handling for meeting notes */}
+          {(document as any).isNote && document.metadata.noteContent && (
+            <div className="mb-4">
+              <div className="font-medium text-latte-700 dark:text-gray-300 mb-2">Meeting Notes</div>
+              <div className="bg-white dark:bg-sage-800/50 p-3 rounded border border-golden-200 dark:border-emerald-600/30">
+                <div className="text-sm text-latte-800 dark:text-gray-200 max-h-32 overflow-y-auto">
+                  {document.metadata.noteContent}
+                </div>
+              </div>
+              {document.metadata.tripId && (
+                <div className="text-xs text-latte-600 dark:text-gray-400 mt-2">
+                  Trip ID: {document.metadata.tripId} | Activity: {document.metadata.activityType}
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             {/* File Information */}
             <div>
-              <div className="font-medium text-latte-700 dark:text-gray-300 mb-1">File Information</div>
+              <div className="font-medium text-latte-700 dark:text-gray-300 mb-1">
+                {(document as any).isNote ? 'Note Information' : 'File Information'}
+              </div>
               <div className="space-y-1 text-latte-600 dark:text-gray-400">
                 <div>Created: {formatDate(document.createdDate)}</div>
                 <div>Modified: {formatDate(document.lastModified)}</div>
