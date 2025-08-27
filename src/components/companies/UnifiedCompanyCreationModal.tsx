@@ -128,6 +128,8 @@ export default function UnifiedCompanyCreationModal({
         return true // PIC is optional
       case CreationStep.ADDITIONAL_LOCATIONS:
         return true // Additional locations are optional
+      case CreationStep.CONFIRMATION:
+        return companyData.name.trim().length > 0 && companyData.subcategories.length > 0
       default:
         return false
     }
