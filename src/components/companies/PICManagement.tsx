@@ -64,7 +64,7 @@ export default function PICManagement({
             Person in Charge (PIC)
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Pessoa responsável pelos negócios com esta empresa
+            Person responsible for business with this company
           </p>
         </div>
         
@@ -81,12 +81,12 @@ export default function PICManagement({
             {hasPIC ? (
               <>
                 <X className="w-4 h-4" />
-                Remover PIC
+                Remove PIC
               </>
             ) : (
               <>
                 <Plus className="w-4 h-4" />
-                Adicionar PIC
+                Add PIC
               </>
             )}
           </button>
@@ -101,7 +101,7 @@ export default function PICManagement({
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome Completo {required && '*'}
+                  Full Name {required && '*'}
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -111,7 +111,7 @@ export default function PICManagement({
                     onChange={(e) => updatePICData('name', e.target.value)}
                     required={required}
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="João Silva"
+                    placeholder="John Silva"
                   />
                 </div>
               </div>
@@ -119,7 +119,7 @@ export default function PICManagement({
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Cargo/Posição
+                  Job Title/Position
                 </label>
                 <div className="relative">
                   <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -128,7 +128,7 @@ export default function PICManagement({
                     value={picData.title}
                     onChange={(e) => updatePICData('title', e.target.value)}
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="Gerente Comercial"
+                    placeholder="Commercial Manager"
                   />
                 </div>
               </div>
@@ -148,7 +148,7 @@ export default function PICManagement({
                     onChange={(e) => updatePICData('email', e.target.value)}
                     required={required}
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="joao@empresa.com"
+                    placeholder="john@company.com"
                   />
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function PICManagement({
             {required && !isValid && (
               <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
                 <X className="w-4 h-4" />
-                Nome e e-mail são obrigatórios para o PIC
+                Name and email are required for PIC
               </div>
             )}
           </div>
@@ -188,12 +188,12 @@ export default function PICManagement({
           <div className="flex items-start gap-3">
             <User className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
             <div className="text-sm text-blue-800 dark:text-blue-300">
-              <p className="font-medium mb-1">Benefícios do PIC:</p>
+              <p className="font-medium mb-1">PIC Benefits:</p>
               <ul className="space-y-1 text-xs">
-                <li>• Contato principal para coordenação de viagens</li>
-                <li>• Comunicação direta via WhatsApp para atualizações</li>
-                <li>• Integração com sistema CRM para histórico de relacionamento</li>
-                <li>• Notificações automáticas sobre viagens e reuniões</li>
+                <li>• Main contact for trip coordination</li>
+                <li>• Direct WhatsApp communication for updates</li>
+                <li>• CRM system integration for relationship history</li>
+                <li>• Automatic notifications about trips and meetings</li>
               </ul>
             </div>
           </div>

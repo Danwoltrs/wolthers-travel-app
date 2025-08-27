@@ -218,10 +218,10 @@ export default function UnifiedCompanyCreationModal({
           body: JSON.stringify({
             company: companyData,
             headquarters: {
-              name: 'Sede Principal',
-              address_line1: 'Endereço a ser preenchido',
-              city: 'Cidade a ser preenchida',
-              country: 'Brasil'
+              name: 'Main Headquarters',
+              address_line1: 'Address to be filled',
+              city: 'City to be filled',
+              country: 'Brazil'
             },
             pic: picData
           })
@@ -417,7 +417,7 @@ export default function UnifiedCompanyCreationModal({
                           className="w-4 h-4 text-emerald-600 bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-gray-600 rounded focus:ring-emerald-500"
                         />
                         <label htmlFor="roasters" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                          Torrefações (Roasters)
+                          Roasters
                         </label>
                       </div>
                       <div className="flex items-center">
@@ -429,7 +429,7 @@ export default function UnifiedCompanyCreationModal({
                           className="w-4 h-4 text-emerald-600 bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-gray-600 rounded focus:ring-emerald-500"
                         />
                         <label htmlFor="importers" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                          Importadores (Importers)
+                          Importers
                         </label>
                       </div>
                     </>
@@ -449,7 +449,7 @@ export default function UnifiedCompanyCreationModal({
                           className="w-4 h-4 text-emerald-600 bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-gray-600 focus:ring-emerald-500"
                         />
                         <label htmlFor="cooperatives" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                          Cooperativas (Cooperatives)
+                          Cooperatives
                         </label>
                       </div>
                       <div className="flex items-center">
@@ -466,7 +466,7 @@ export default function UnifiedCompanyCreationModal({
                           className="w-4 h-4 text-emerald-600 bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-gray-600 focus:ring-emerald-500"
                         />
                         <label htmlFor="producers" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                          Produtores (Producers)
+                          Producers
                         </label>
                       </div>
                       <div className="flex items-center">
@@ -483,7 +483,7 @@ export default function UnifiedCompanyCreationModal({
                           className="w-4 h-4 text-emerald-600 bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-gray-600 focus:ring-emerald-500"
                         />
                         <label htmlFor="exporters" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                          Exportadores (Exporters)
+                          Exporters
                         </label>
                       </div>
                     </>
@@ -491,7 +491,7 @@ export default function UnifiedCompanyCreationModal({
                 </div>
                 {companyData.subcategories.length === 0 && (
                   <p className="text-sm text-red-600 dark:text-red-400 mt-2">
-                    Por favor, selecione pelo menos um tipo de empresa.
+                    Please select at least one company type.
                   </p>
                 )}
               </div>
@@ -506,7 +506,7 @@ export default function UnifiedCompanyCreationModal({
                   Person in Charge (PIC)
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Defina a pessoa responsável pelo relacionamento comercial com esta empresa.
+                  Define the person responsible for the commercial relationship with this company.
                 </p>
               </div>
 
@@ -523,10 +523,10 @@ export default function UnifiedCompanyCreationModal({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
-                  Locais Adicionais
+                  Additional Locations
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Adicione outras unidades, filiais ou locais de interesse desta empresa.
+                  Add other units, branches or locations of interest for this company.
                 </p>
               </div>
 
@@ -535,7 +535,7 @@ export default function UnifiedCompanyCreationModal({
                   <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                        Local {index + 1}
+                        Location {index + 1}
                       </h4>
                       <button
                         onClick={() => removeAdditionalLocation(index)}
@@ -548,27 +548,27 @@ export default function UnifiedCompanyCreationModal({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Nome do Local
+                          Location Name
                         </label>
                         <input
                           type="text"
                           value={location.name}
                           onChange={(e) => updateAdditionalLocation(index, 'name', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                          placeholder="ex: Filial São Paulo"
+                          placeholder="ex: São Paulo Branch"
                         />
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Endereço Completo
+                          Complete Address
                         </label>
                         <input
                           type="text"
                           value={location.address}
                           onChange={(e) => updateAdditionalLocation(index, 'address', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                          placeholder="Endereço completo com cidade e estado"
+                          placeholder="Complete address with city and state"
                         />
                       </div>
                     </div>
@@ -580,7 +580,7 @@ export default function UnifiedCompanyCreationModal({
                   className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors w-full justify-center"
                 >
                   <Plus className="w-4 h-4" />
-                  Adicionar Local
+                  Add Location
                 </button>
               </div>
             </div>
@@ -591,10 +591,10 @@ export default function UnifiedCompanyCreationModal({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
-                  Confirmar Criação
+                  Confirm Creation
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Revise as informações antes de criar a empresa.
+                  Review the information before creating the company.
                 </p>
               </div>
 
@@ -602,13 +602,13 @@ export default function UnifiedCompanyCreationModal({
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                 <div className="space-y-3">
                   <div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Empresa: </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">Company: </span>
                     <span className="text-gray-700 dark:text-gray-300">
                       {companyData.name} {companyData.fantasyName && companyData.fantasyName !== companyData.name && `(${companyData.fantasyName})`}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Tipo: </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">Type: </span>
                     <span className="text-gray-700 dark:text-gray-300">
                       {companyData.subcategories.join(', ')}
                     </span>
@@ -623,17 +623,17 @@ export default function UnifiedCompanyCreationModal({
                   )}
                   {selectedLegacy && (
                     <div>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">Origem: </span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Source: </span>
                       <span className="text-emerald-600 dark:text-emerald-400">
-                        Importado do sistema legacy
+                        Imported from legacy system
                       </span>
                     </div>
                   )}
                   {additionalLocations.length > 0 && (
                     <div>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">Locais adicionais: </span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Additional locations: </span>
                       <span className="text-gray-700 dark:text-gray-300">
-                        {additionalLocations.length} local(is) adicionado(s)
+                        {additionalLocations.length} location(s) added
                       </span>
                     </div>
                   )}
