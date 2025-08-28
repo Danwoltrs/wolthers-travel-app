@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Building, ArrowLeft, ArrowRight, Plus, MapPin, Check } from 'lucide-react'
+import { X, Building, ArrowLeft, ArrowRight, Plus, MapPin, Check, Search } from 'lucide-react'
 import { UnifiedCompanyCreationModalProps, LegacyCompanyResult } from '@/types/company'
 import LegacyCompanySearch from './LegacyCompanySearch'
 import PICManagement, { PICData } from './PICManagement'
@@ -46,6 +46,8 @@ export default function UnifiedCompanyCreationModal({
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
   const [legacyLocations, setLegacyLocations] = useState<any[]>([])
   const [loadingLegacyLocations, setLoadingLegacyLocations] = useState(false)
+  const [locationSearchQuery, setLocationSearchQuery] = useState('')
+  const [showLocationSearch, setShowLocationSearch] = useState(false)
   
   // Geocoding results for preview
   const [headquartersPreview, setHeadquartersPreview] = useState<any>(null)
@@ -66,6 +68,8 @@ export default function UnifiedCompanyCreationModal({
       setPicData(null)
       setAdditionalLocations([])
       setLegacyLocations([])
+      setLocationSearchQuery('')
+      setShowLocationSearch(false)
       setHeadquartersPreview(null)
     }
   }, [isOpen, companyType])
@@ -84,8 +88,7 @@ export default function UnifiedCompanyCreationModal({
       subcategories: determineSubcategories(company.group1, company.group2)
     })
 
-    // Fetch related legacy locations
-    await fetchLegacyLocations(company)
+    // Don't auto-fetch legacy locations anymore - let user search manually
 
     // Geocode headquarters for preview
     if (company.fullAddress) {
@@ -157,26 +160,27 @@ export default function UnifiedCompanyCreationModal({
     }
   }
 
-  // Fetch legacy locations for selected company
-  const fetchLegacyLocations = async (company: LegacyCompanyResult) => {
-    if (!company) return
+  // Search legacy locations manually
+  const searchLegacyLocations = async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setLegacyLocations([])
+      return
+    }
     
     setLoadingLegacyLocations(true)
     try {
       const params = new URLSearchParams()
-      if (company.name) params.append('company', company.name)
-      if (company.fantasyName) params.append('fantasy', company.fantasyName)
+      params.append('search', query.trim())
       
       const response = await fetch(`/api/companies/legacy-locations?${params.toString()}`)
       
       if (response.ok) {
         const data = await response.json()
-        // Filter out the main company location (headquarters)
-        const additionalLocs = data.locations?.filter((loc: any) => loc.id !== company.id) || []
-        setLegacyLocations(additionalLocs)
+        setLegacyLocations(data.locations || [])
       }
     } catch (error) {
-      console.error('Failed to fetch legacy locations:', error)
+      console.error('Failed to search legacy locations:', error)
+      setLegacyLocations([])
     } finally {
       setLoadingLegacyLocations(false)
     }
@@ -618,59 +622,89 @@ export default function UnifiedCompanyCreationModal({
                   </div>
                 ))}
 
-                {/* Legacy Locations Section - only show when importing from legacy */}
-                {selectedLegacy && legacyLocations.length > 0 && (
+                {/* Legacy Locations Search - only show when importing from legacy */}
+                {selectedLegacy && (
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                     <h4 className="text-md font-medium text-gray-900 dark:text-golden-400 mb-3">
-                      Available Locations from Legacy System
+                      Search Legacy Locations
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Found {legacyLocations.length} additional location(s) for this company. Click to add:
+                      Search for additional locations by company name or address:
                     </p>
-                    <div className="grid grid-cols-1 gap-3">
-                      {legacyLocations.map((legacyLoc, index) => {
-                        const isAlreadyAdded = additionalLocations.some(loc => 
-                          loc.address === legacyLoc.fullAddress
-                        )
-                        
-                        return (
-                          <div 
-                            key={index}
-                            className={`p-3 border rounded-lg transition-colors ${
-                              isAlreadyAdded 
-                                ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
-                                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 cursor-pointer'
-                            }`}
-                            onClick={() => !isAlreadyAdded && addLegacyLocation(legacyLoc)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="font-medium text-gray-900 dark:text-gray-100">
-                                  {legacyLoc.name}
+                    
+                    {/* Search Input */}
+                    <div className="relative mb-4">
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <Search className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={locationSearchQuery}
+                        onChange={(e) => {
+                          setLocationSearchQuery(e.target.value)
+                          searchLegacyLocations(e.target.value)
+                        }}
+                        placeholder="Search by company name or address..."
+                        style={{ paddingLeft: '36px' }}
+                        className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                      />
+                    </div>
+
+                    {/* Loading State */}
+                    {loadingLegacyLocations && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500"></div>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">Searching locations...</span>
+                      </div>
+                    )}
+
+                    {/* Search Results */}
+                    {!loadingLegacyLocations && legacyLocations.length > 0 && (
+                      <div className="grid grid-cols-1 gap-3">
+                        {legacyLocations.map((legacyLoc, index) => {
+                          const isAlreadyAdded = additionalLocations.some(loc => 
+                            loc.address === legacyLoc.fullAddress
+                          )
+                          
+                          return (
+                            <div 
+                              key={index}
+                              className={`p-3 border rounded-lg transition-colors ${
+                                isAlreadyAdded 
+                                  ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
+                                  : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 cursor-pointer'
+                              }`}
+                              onClick={() => !isAlreadyAdded && addLegacyLocation(legacyLoc)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900 dark:text-gray-100">
+                                    {legacyLoc.name}
+                                  </div>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    {legacyLoc.fullAddress}
+                                  </div>
                                 </div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                  {legacyLoc.fullAddress}
+                                <div className="ml-3">
+                                  {isAlreadyAdded ? (
+                                    <Check className="w-5 h-5 text-emerald-600" />
+                                  ) : (
+                                    <Plus className="w-5 h-5 text-emerald-600" />
+                                  )}
                                 </div>
-                              </div>
-                              <div className="ml-3">
-                                {isAlreadyAdded ? (
-                                  <Check className="w-5 h-5 text-emerald-600" />
-                                ) : (
-                                  <Plus className="w-5 h-5 text-emerald-600" />
-                                )}
                               </div>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                          )
+                        })}
+                      </div>
+                    )}
 
-                {loadingLegacyLocations && (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500"></div>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading related locations...</span>
+                    {/* No Results */}
+                    {!loadingLegacyLocations && locationSearchQuery && legacyLocations.length === 0 && (
+                      <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                        No locations found for "{locationSearchQuery}"
+                      </div>
+                    )}
                   </div>
                 )}
 

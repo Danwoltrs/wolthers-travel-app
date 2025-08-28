@@ -10,36 +10,69 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const companyName = searchParams.get('company')
     const fantasyName = searchParams.get('fantasy')
+    const searchQuery = searchParams.get('search') // Manual search query
 
-    if (!companyName && !fantasyName) {
-      return NextResponse.json(
-        { error: 'Company name or fantasy name is required' },
-        { status: 400 }
-      )
+    // If manual search query is provided, use it directly
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      const cleanQuery = searchQuery.trim()
+      
+      const { data: searchResults, error } = await supabase
+        .from('legacy_clients')
+        .select(`
+          legacy_client_id,
+          descricao,
+          descricao_fantasia,
+          endereco,
+          numero,
+          complemento,
+          bairro,
+          cidade,
+          uf,
+          pais,
+          cep,
+          telefone1,
+          email
+        `)
+        .or(`descricao.ilike.%${cleanQuery}%,descricao_fantasia.ilike.%${cleanQuery}%,endereco.ilike.%${cleanQuery}%,cidade.ilike.%${cleanQuery}%`)
+        .eq('ativo', true)
+        .order('descricao')
+        .limit(20)
+
+      if (error) {
+        console.error('Error searching legacy locations:', error)
+        return NextResponse.json({ error: 'Failed to search locations' }, { status: 500 })
+      }
+
+      const locations = searchResults?.map(formatLocationData) || []
+      return NextResponse.json({ locations, count: locations.length })
     }
 
-    // Search for related companies by similar names
-    let searchTerms: string[] = []
-    
-    if (companyName) {
-      // Extract key words from company name for broader search
-      const cleanName = companyName
+    // Auto-suggest mode - only for exact company matches
+    if (!companyName && !fantasyName) {
+      return NextResponse.json({ locations: [], count: 0 })
+    }
+
+    // For auto-suggestions, be more restrictive - only exact fantasy name matches
+    let searchFilter = ''
+    if (fantasyName) {
+      // Only find exact matches or very close matches for the fantasy name
+      searchFilter = `descricao_fantasia.ilike.${fantasyName}`
+    } else if (companyName) {
+      // Extract the core company name for exact matching
+      const coreNames = companyName
         .replace(/LTDA|S\/A|S\.A\.|SA|LTDA\.|LTD|CORP|CORPORATION|INC|LIMITED/gi, '')
         .trim()
+        .split(/\s+/)
+        .filter(word => word.length > 4) // Only significant words
       
-      // Split and get meaningful words (longer than 3 characters)
-      const words = cleanName.split(/\s+/).filter(word => word.length > 3)
-      searchTerms.push(...words)
-    }
-    
-    if (fantasyName) {
-      searchTerms.push(fantasyName)
+      if (coreNames.length > 0) {
+        searchFilter = coreNames.map(name => `descricao.ilike.%${name}%`).join(',')
+      }
     }
 
-    // Remove duplicates and create search patterns
-    const uniqueTerms = [...new Set(searchTerms)]
-    const searchPatterns = uniqueTerms.map(term => `descricao.ilike.%${term}%,descricao_fantasia.ilike.%${term}%`)
-    const searchQuery = searchPatterns.join(',')
+    if (!searchFilter) {
+      return NextResponse.json({ locations: [], count: 0 })
+    }
 
     const { data: relatedCompanies, error } = await supabase
       .from('legacy_clients')
@@ -58,9 +91,10 @@ export async function GET(request: NextRequest) {
         telefone1,
         email
       `)
-      .or(searchQuery)
+      .or(searchFilter)
       .eq('ativo', true)
       .order('descricao')
+      .limit(10) // Limit auto-suggestions
 
     if (error) {
       console.error('Error fetching related legacy locations:', error)
@@ -71,33 +105,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Format locations for frontend
-    const locations = relatedCompanies?.map(company => ({
-      id: company.legacy_client_id,
-      name: company.descricao_fantasia || company.descricao,
-      fullName: company.descricao,
-      address: {
-        street: company.endereco,
-        number: company.numero,
-        complement: company.complemento,
-        neighborhood: company.bairro,
-        city: company.cidade,
-        state: company.uf,
-        country: company.pais || 'Brasil',
-        postalCode: company.cep
-      },
-      fullAddress: [
-        company.endereco,
-        company.numero,
-        company.complemento,
-        company.bairro,
-        company.cidade,
-        company.uf
-      ].filter(Boolean).join(', '),
-      contacts: {
-        phone: company.telefone1,
-        email: company.email
-      }
-    })) || []
+    const locations = relatedCompanies?.map(formatLocationData) || []
 
     return NextResponse.json({ 
       locations,
@@ -110,5 +118,36 @@ export async function GET(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to format location data
+function formatLocationData(company: any) {
+  return {
+    id: company.legacy_client_id,
+    name: company.descricao_fantasia || company.descricao,
+    fullName: company.descricao,
+    address: {
+      street: company.endereco,
+      number: company.numero,
+      complement: company.complemento,
+      neighborhood: company.bairro,
+      city: company.cidade,
+      state: company.uf,
+      country: company.pais || 'Brasil',
+      postalCode: company.cep
+    },
+    fullAddress: [
+      company.endereco,
+      company.numero,
+      company.complemento,
+      company.bairro,
+      company.cidade,
+      company.uf
+    ].filter(Boolean).join(', '),
+    contacts: {
+      phone: company.telefone1,
+      email: company.email
+    }
   }
 }
