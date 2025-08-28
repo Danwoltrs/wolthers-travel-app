@@ -44,6 +44,8 @@ export default function UnifiedCompanyCreationModal({
   })
   const [picData, setPicData] = useState<PICData | null>(null)
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
+  const [legacyLocations, setLegacyLocations] = useState<any[]>([])
+  const [loadingLegacyLocations, setLoadingLegacyLocations] = useState(false)
   
   // Geocoding results for preview
   const [headquartersPreview, setHeadquartersPreview] = useState<any>(null)
@@ -63,6 +65,7 @@ export default function UnifiedCompanyCreationModal({
       })
       setPicData(null)
       setAdditionalLocations([])
+      setLegacyLocations([])
       setHeadquartersPreview(null)
     }
   }, [isOpen, companyType])
@@ -80,6 +83,9 @@ export default function UnifiedCompanyCreationModal({
       category: companyType,
       subcategories: determineSubcategories(company.group1, company.group2)
     })
+
+    // Fetch related legacy locations
+    await fetchLegacyLocations(company)
 
     // Geocode headquarters for preview
     if (company.fullAddress) {
@@ -151,6 +157,31 @@ export default function UnifiedCompanyCreationModal({
     }
   }
 
+  // Fetch legacy locations for selected company
+  const fetchLegacyLocations = async (company: LegacyCompanyResult) => {
+    if (!company) return
+    
+    setLoadingLegacyLocations(true)
+    try {
+      const params = new URLSearchParams()
+      if (company.name) params.append('company', company.name)
+      if (company.fantasyName) params.append('fantasy', company.fantasyName)
+      
+      const response = await fetch(`/api/companies/legacy-locations?${params.toString()}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Filter out the main company location (headquarters)
+        const additionalLocs = data.locations?.filter((loc: any) => loc.id !== company.id) || []
+        setLegacyLocations(additionalLocs)
+      }
+    } catch (error) {
+      console.error('Failed to fetch legacy locations:', error)
+    } finally {
+      setLoadingLegacyLocations(false)
+    }
+  }
+
   // Handle subcategory changes
   const handleSubcategoryChange = (subcategory: string, checked: boolean) => {
     setCompanyData(prev => {
@@ -182,6 +213,16 @@ export default function UnifiedCompanyCreationModal({
         i === index ? { ...location, [field]: value } : location
       )
     )
+  }
+
+  // Add legacy location to additional locations
+  const addLegacyLocation = (legacyLocation: any) => {
+    const newLocation: AdditionalLocation = {
+      name: legacyLocation.name || legacyLocation.fullName,
+      address: legacyLocation.fullAddress,
+      isHeadquarters: false
+    }
+    setAdditionalLocations(prev => [...prev, newLocation])
   }
 
   // Handle final submission
@@ -577,13 +618,71 @@ export default function UnifiedCompanyCreationModal({
                   </div>
                 ))}
 
-                <button
-                  onClick={addAdditionalLocation}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors w-full justify-center"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Location
-                </button>
+                {/* Legacy Locations Section - only show when importing from legacy */}
+                {selectedLegacy && legacyLocations.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h4 className="text-md font-medium text-gray-900 dark:text-golden-400 mb-3">
+                      Available Locations from Legacy System
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Found {legacyLocations.length} additional location(s) for this company. Click to add:
+                    </p>
+                    <div className="grid grid-cols-1 gap-3">
+                      {legacyLocations.map((legacyLoc, index) => {
+                        const isAlreadyAdded = additionalLocations.some(loc => 
+                          loc.address === legacyLoc.fullAddress
+                        )
+                        
+                        return (
+                          <div 
+                            key={index}
+                            className={`p-3 border rounded-lg transition-colors ${
+                              isAlreadyAdded 
+                                ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
+                                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 cursor-pointer'
+                            }`}
+                            onClick={() => !isAlreadyAdded && addLegacyLocation(legacyLoc)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900 dark:text-gray-100">
+                                  {legacyLoc.name}
+                                </div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  {legacyLoc.fullAddress}
+                                </div>
+                              </div>
+                              <div className="ml-3">
+                                {isAlreadyAdded ? (
+                                  <Check className="w-5 h-5 text-emerald-600" />
+                                ) : (
+                                  <Plus className="w-5 h-5 text-emerald-600" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {loadingLegacyLocations && (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500"></div>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading related locations...</span>
+                  </div>
+                )}
+
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <button
+                    onClick={addAdditionalLocation}
+                    className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors w-full justify-center"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Custom Location
+                  </button>
+                </div>
               </div>
             </div>
           )}
