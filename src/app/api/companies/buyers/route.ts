@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get companies with buyer categories created in this webapp (no legacy_client_id)
+    // Get all companies with buyer categories (including legacy imports that are now managed)
     const { data: companies, error } = await supabase
       .from('companies')
       .select(`
@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('category', 'buyer')
-      .is('legacy_client_id', null) // Only show companies created in this webapp
       .order('name')
 
     if (error) {
