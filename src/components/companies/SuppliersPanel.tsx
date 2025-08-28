@@ -44,7 +44,7 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
   const [showAddModal, setShowAddModal] = useState(false)
 
   // Fetch suppliers data
-  const { data, error, isLoading } = useSWR('/api/companies/suppliers', fetcher)
+  const { data, error, isLoading, mutate } = useSWR('/api/companies/suppliers', fetcher)
 
   const suppliers = data?.companies || []
   const filteredSuppliers = suppliers.filter((supplier: Company) =>
@@ -83,40 +83,37 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Header with Search and Add Button */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-            Suppliers
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {filteredSuppliers.length} {filteredSuppliers.length === 1 ? 'company' : 'companies'}
-          </p>
+    <div className={`space-y-4 ${className}`}>
+      {/* Header with Title and Company Count */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-golden-400">
+          Suppliers - {filteredSuppliers.length} {filteredSuppliers.length === 1 ? 'company' : 'companies'}
+        </h2>
+      </div>
+
+      {/* Search Bar and Add Button */}
+      <div className="flex gap-4 justify-between items-center">
+        <div className="relative flex-1">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <Search className="w-4 h-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search suppliers by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '40px' }}
+            className="w-full pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+          />
         </div>
         
         <button 
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add New Supplier
         </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <Search className="w-4 h-4 text-gray-400" />
-        </div>
-        <input
-          type="text"
-          placeholder="Search suppliers by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ paddingLeft: '40px' }}
-          className="w-full pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-        />
       </div>
 
       {/* Companies Table */}
@@ -131,17 +128,15 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+        <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden -mx-6">
           {/* Table Header */}
           <div className="bg-[#1E293B] px-8 py-4 border-b border-gray-700">
             <div className="grid grid-cols-12 gap-6 text-sm font-medium text-amber-400">
               <div className="col-span-3">COMPANY NAME</div>
-              <div className="col-span-1">TYPE</div>
-              <div className="col-span-3">HQ LOCATION</div>
+              <div className="col-span-4">HQ LOCATION</div>
               <div className="col-span-1">LOCATIONS</div>
-              <div className="col-span-1">STAFF</div>
-              <div className="col-span-2">PERSON IN CHARGE</div>
-              <div className="col-span-1"># OF TRIPS</div>
+              <div className="col-span-2 text-right">STAFF</div>
+              <div className="col-span-2 text-right"># OF VISITS</div>
             </div>
           </div>
 
@@ -165,11 +160,11 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
         onClose={() => setShowAddModal(false)}
         companyType="supplier"
         context="dashboard"
-        onCompanyCreated={(company) => {
+        onCompanyCreated={async (company) => {
           console.log('Supplier created from SuppliersPanel:', company)
           setShowAddModal(false)
-          // Refresh the data
-          window.location.reload()
+          // Smoothly refresh the suppliers data with loading state
+          await mutate()
         }}
       />
 
@@ -202,33 +197,20 @@ function CompanyTableRow({ company, index, onClick }: CompanyTableRowProps) {
       <div className="grid grid-cols-12 gap-6 items-center">
         {/* Company Name */}
         <div className="col-span-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-              {(company.fantasy_name || company.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+          <div>
+            <div className="font-medium text-gray-900">
+              {company.fantasy_name || company.name}
             </div>
-            <div>
-              <div className="font-medium text-gray-900">
-                {company.fantasy_name || company.name}
+            {company.fantasy_name && company.fantasy_name !== company.name && (
+              <div className="text-sm text-gray-600">
+                {company.name}
               </div>
-              {company.fantasy_name && company.fantasy_name !== company.name && (
-                <div className="text-sm text-gray-600">
-                  {company.name}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
         
-        {/* Type */}
-        <div className="col-span-1">
-          <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">
-            <TreePine className="w-3 h-3" />
-            Supplier
-          </span>
-        </div>
-        
         {/* HQ Location */}
-        <div className="col-span-3">
+        <div className="col-span-4">
           {headquarters?.city && headquarters?.country ? (
             <div className="flex items-center gap-1 text-sm text-gray-700">
               <MapPin className="w-3 h-3 text-gray-400" />
@@ -247,26 +229,14 @@ function CompanyTableRow({ company, index, onClick }: CompanyTableRowProps) {
         </div>
         
         {/* Staff */}
-        <div className="col-span-1">
+        <div className="col-span-2 text-right">
           <span className="text-gray-700">
             {company.staff_count || 0}
           </span>
         </div>
         
-        {/* Person in Charge */}
-        <div className="col-span-2">
-          {headquarters?.contact_person ? (
-            <div className="flex items-center gap-1 text-sm text-gray-700">
-              <Users className="w-3 h-3 text-gray-400" />
-              <span>{headquarters.contact_person}</span>
-            </div>
-          ) : (
-            <span className="text-gray-400 text-sm">-</span>
-          )}
-        </div>
-        
-        {/* # of Trips */}
-        <div className="col-span-1">
+        {/* # of Visits */}
+        <div className="col-span-2 text-right">
           <span className="text-gray-700">
             {company.trips_count || 0}
           </span>

@@ -366,9 +366,6 @@ export default function CompaniesPage() {
                 <UnifiedUsersPanel onViewDashboard={handleViewCompanyDashboard} />
               ) : (
                 <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                    {selectedSection === 'buyers' ? 'Buyer Companies' : 'Supplier Companies'}
-                  </h3>
                   
                   {selectedSection === 'buyers' && (
                     <BuyersPanel onViewDashboard={handleViewCompanyDashboard} />
