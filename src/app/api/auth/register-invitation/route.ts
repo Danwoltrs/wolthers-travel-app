@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import * as bcrypt from 'bcryptjs'
 import * as jwt from 'jsonwebtoken'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -83,21 +82,33 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
-    // Hash password
-    const saltRounds = 12
-    const hashedPassword = await bcrypt.hash(password, saltRounds)
+    // Create user in Supabase Auth system
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: invitation.email,
+      password: password,
+      email_confirm: true // Skip email confirmation since invitation is pre-approved
+    })
 
-    // Create user account
+    if (authError || !authData.user) {
+      console.error(`[REGISTER INVITATION] Failed to create auth user:`, authError)
+      return NextResponse.json({ 
+        error: 'Failed to create account. Please try again.' 
+      }, { status: 500 })
+    }
+
+    console.log(`[REGISTER INVITATION] Auth user created successfully: ${authData.user.id}`)
+
+    // Create corresponding profile in public.users table
     const { data: newUser, error: createError } = await supabase
       .from('users')
       .insert([{
+        id: authData.user.id, // Use same ID as auth user
         email: invitation.email,
         full_name: invitation.invited_name,
         whatsapp: whatsapp || invitation.invited_whatsapp || null,
         company_id: invitation.company_id,
         role: invitation.role,
         user_type: 'client',
-        password_hash: hashedPassword,
         is_global_admin: false,
         can_view_all_trips: false,
         can_view_company_trips: true, // External users can view their company's trips
@@ -108,22 +119,29 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error(`[REGISTER INVITATION] Failed to create user:`, createError)
+      console.error(`[REGISTER INVITATION] Failed to create user profile:`, createError)
+      // Clean up the auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json({ 
         error: 'Failed to create account. Please try again.' 
       }, { status: 500 })
     }
 
-    console.log(`[REGISTER INVITATION] User created successfully: ${newUser.id}`)
+    console.log(`[REGISTER INVITATION] User profile created successfully: ${newUser.id}`)
 
-    // Mark invitation as used
-    await supabase
+    // Update invitation timestamp (status stays 'approved' as user has registered)
+    const { error: updateError } = await supabase
       .from('user_invitations')
       .update({ 
-        status: 'completed',
         updated_at: new Date().toISOString()
       })
       .eq('id', invitation.id)
+
+    if (updateError) {
+      console.error(`[REGISTER INVITATION] Failed to update invitation timestamp:`, updateError)
+    } else {
+      console.log(`[REGISTER INVITATION] Invitation timestamp updated: ${invitation.id}`)
+    }
 
     // Create JWT session token
     const sessionToken = jwt.sign(
