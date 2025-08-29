@@ -98,6 +98,9 @@ export async function POST(request: NextRequest) {
         role: invitation.role,
         user_type: 'external',
         password_hash: hashedPassword,
+        is_global_admin: false,
+        can_view_all_trips: false,
+        can_view_company_trips: true, // External users can view their company's trips
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])
