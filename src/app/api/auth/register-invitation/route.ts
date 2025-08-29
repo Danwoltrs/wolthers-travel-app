@@ -98,6 +98,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[REGISTER INVITATION] Auth user created successfully: ${authData.user.id}`)
 
+    // Sign the user in to create an active session
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: invitation.email,
+      password: password
+    })
+
+    if (signInError) {
+      console.warn(`[REGISTER INVITATION] Sign-in after creation failed:`, signInError)
+      // Don't fail the registration, just log the warning
+    } else {
+      console.log(`[REGISTER INVITATION] User signed in successfully after creation`)
+    }
+
     // Create corresponding profile in public.users table
     const { data: newUser, error: createError } = await supabase
       .from('users')
@@ -156,7 +169,7 @@ export async function POST(request: NextRequest) {
       { expiresIn: '7d' }
     )
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie and prepare response
     const response = NextResponse.json({
       success: true,
       message: 'Account created successfully',
@@ -167,7 +180,9 @@ export async function POST(request: NextRequest) {
         company_id: newUser.company_id,
         role: newUser.role,
         company_name: invitation.companies.fantasy_name || invitation.companies.name
-      }
+      },
+      // Include session info if sign-in was successful
+      session: signInData?.session || null
     })
 
     response.cookies.set('auth-token', sessionToken, {
