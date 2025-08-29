@@ -9,10 +9,11 @@ import AuthDebug from '@/components/debug/AuthDebug'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useTrips } from '@/hooks/useTrips'
-import { useRequireAuth } from '@/contexts/AuthContext'
+import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
 
 export default function Dashboard() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
+  const { user } = useAuth() // Get user data for permission checks
   const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showTripCreationModal, setShowTripCreationModal] = useState(false)
@@ -160,6 +161,18 @@ export default function Dashboard() {
     }
   }
 
+  // Check if user can create trips (Wolthers staff or external company admins)
+  const canCreateTrips = React.useMemo(() => {
+    if (!user) return false
+    
+    // Wolthers staff (global admins or company members) can always create trips
+    const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+    if (isWolthersStaff) return true
+    
+    // External company users can create trips only if they are admins
+    return user.role === 'admin'
+  }, [user])
+
   const handleCreateTrip = () => {
     setResumeData(null) // Clear any resume data
     setShowTripCreationModal(true)
@@ -213,29 +226,33 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 xl:pt-40 pb-8 transition-colors duration-300">
-      {/* Fixed Add Trip Button fine-tuned positioning */}
-      <div className="fixed left-[calc(50%-400px-160px)] top-[260px] xl:top-[260px] z-30 hidden xl:block">
-        <div
-          onClick={handleCreateTrip}
-          className={cn(
-            "bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px]",
-            currentTrips.length > 0 ? "h-[420px]" : "h-[190px]"
-          )}
-        >
-          <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
+      {/* Fixed Add Trip Button fine-tuned positioning - Only show for authorized users */}
+      {canCreateTrips && (
+        <div className="fixed left-[calc(50%-400px-160px)] top-[260px] xl:top-[260px] z-30 hidden xl:block">
+          <div
+            onClick={handleCreateTrip}
+            className={cn(
+              "bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[60px]",
+              currentTrips.length > 0 ? "h-[420px]" : "h-[190px]"
+            )}
+          >
+            <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Mobile Add Trip Button - fixed position below header but behind modals */}
-      <div className="fixed top-[135px] left-[55px] right-[55px] xl:hidden z-20">
-        <div
-          onClick={handleCreateTrip}
-          className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 w-full h-[50px]"
-        >
-          <Plus className="w-6 h-6 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
-          <span className="ml-2 text-sm font-medium text-gray-600 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300">Add New Trip</span>
+      {/* Mobile Add Trip Button - fixed position below header but behind modals - Only show for authorized users */}
+      {canCreateTrips && (
+        <div className="fixed top-[135px] left-[55px] right-[55px] xl:hidden z-20">
+          <div
+            onClick={handleCreateTrip}
+            className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 w-full h-[50px]"
+          >
+            <Plus className="w-6 h-6 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
+            <span className="ml-2 text-sm font-medium text-gray-600 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300">Add New Trip</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0 mt-[90px] xl:mt-0">
         

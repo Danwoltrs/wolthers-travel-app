@@ -160,12 +160,24 @@ export default function LoginPage() {
   
   const passwordRef = useRef<HTMLInputElement>(null)
 
-  // Redirect if already authenticated
+  // Get auth context to access user data
+  const { user } = useAuth()
+
+  // Redirect if already authenticated with proper role-based routing
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      router.push('/dashboard')
+    if (!authLoading && isAuthenticated && user) {
+      // Check if user is Wolthers staff (global admin or Wolthers company member)
+      const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      
+      if (isWolthersStaff) {
+        // Wolthers staff go to companies dashboard
+        router.push('/companies')
+      } else {
+        // External users go to their own dashboard
+        router.push('/dashboard')
+      }
     }
-  }, [isAuthenticated, authLoading, router])
+  }, [isAuthenticated, authLoading, user, router])
   
   // Load saved users on component mount
   useEffect(() => {

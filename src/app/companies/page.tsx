@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, AlertTriangle, RefreshCw, Building, Home, Coffee, TreePine } from 'lucide-react'
 import useSWR from 'swr'
 import CompaniesSidebar from '@/components/companies/CompaniesSidebar'
@@ -35,6 +36,23 @@ export default function CompaniesPage() {
   const [showAddLabModal, setShowAddLabModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<any>(null)
+  
+  const router = useRouter()
+  
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+
+  // Security check: Only allow Wolthers staff access to companies page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      
+      if (!isWolthersStaff) {
+        // Redirect external users to their own dashboard
+        router.push('/dashboard')
+        return
+      }
+    }
+  }, [user, isAuthenticated, authLoading, router])
 
   // Debug state changes
   useEffect(() => {
