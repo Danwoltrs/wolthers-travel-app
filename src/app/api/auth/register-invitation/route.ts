@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import * as bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -166,8 +166,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[REGISTER INVITATION] Error creating account:', error)
+    console.error('[REGISTER INVITATION] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json({ 
-      error: 'Internal server error while creating account' 
+      error: 'Internal server error while creating account',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
