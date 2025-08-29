@@ -70,8 +70,6 @@ export default function CompaniesPage() {
   const [selectedCompany, setSelectedCompany] = useState<any>(null)
   const [selectedExternalCompany, setSelectedExternalCompany] = useState<any>(null) // Track external company selection
   
-  const { user } = useAuth()
-  
   // Fetch real Wolthers staff data
   const { data: staffData, error: staffError, isLoading: staffLoading } = useSWR(
     '/api/users/wolthers-staff',
