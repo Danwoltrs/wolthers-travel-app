@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         whatsapp: whatsapp || invitation.invited_whatsapp || null,
         company_id: invitation.company_id,
         role: invitation.role,
-        user_type: 'external',
+        user_type: 'client',
         password_hash: hashedPassword,
         is_global_admin: false,
         can_view_all_trips: false,
