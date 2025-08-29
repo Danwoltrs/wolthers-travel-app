@@ -130,8 +130,8 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
       ) : (
         <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden -mx-6">
           {/* Table Header */}
-          <div className="bg-[#1E293B] px-8 py-4 border-b border-gray-700">
-            <div className="grid grid-cols-12 gap-6 text-sm font-medium text-amber-400">
+          <div className="bg-[#1E293B] dark:bg-[#1E293B] px-8 py-4 border-b border-gray-700 dark:border-gray-600">
+            <div className="grid grid-cols-12 gap-6 text-sm font-medium text-amber-400 dark:text-amber-400">
               <div className="col-span-3">COMPANY NAME</div>
               <div className="col-span-4">HQ LOCATION</div>
               <div className="col-span-1">LOCATIONS</div>
@@ -141,7 +141,7 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
           </div>
 
           {/* Table Body */}
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredSuppliers.map((supplier: Company, index: number) => (
               <CompanyTableRow 
                 key={supplier.id} 
@@ -190,19 +190,21 @@ function CompanyTableRow({ company, index, onClick }: CompanyTableRowProps) {
   return (
     <div
       onClick={onClick}
-      className={`px-8 py-4 hover:bg-gray-900/50 transition-colors cursor-pointer ${
-        index % 2 === 0 ? 'bg-[#FFFDF9]' : 'bg-[#FCFAF4]'
+      className={`px-8 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${
+        index % 2 === 0 
+          ? 'bg-[#FFFDF9] dark:bg-[#1a1a1a]' 
+          : 'bg-[#FCFAF4] dark:bg-[#0f0f0f]'
       }`}
     >
       <div className="grid grid-cols-12 gap-6 items-center">
         {/* Company Name */}
         <div className="col-span-3">
           <div>
-            <div className="font-medium text-gray-900">
+            <div className="font-medium text-gray-900 dark:text-gray-100">
               {company.fantasy_name || company.name}
             </div>
             {company.fantasy_name && company.fantasy_name !== company.name && (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 {company.name}
               </div>
             )}
@@ -212,32 +214,32 @@ function CompanyTableRow({ company, index, onClick }: CompanyTableRowProps) {
         {/* HQ Location */}
         <div className="col-span-4">
           {headquarters?.city && headquarters?.country ? (
-            <div className="flex items-center gap-1 text-sm text-gray-700">
-              <MapPin className="w-3 h-3 text-gray-400" />
+            <div className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
+              <MapPin className="w-3 h-3 text-gray-400 dark:text-gray-500" />
               <span>{headquarters.city}, {headquarters.country}</span>
             </div>
           ) : (
-            <span className="text-gray-400 text-sm">-</span>
+            <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
           )}
         </div>
         
         {/* Locations */}
         <div className="col-span-1">
-          <span className="text-gray-700">
+          <span className="text-gray-700 dark:text-gray-300">
             {company.locations?.length || 0}
           </span>
         </div>
         
         {/* Staff */}
         <div className="col-span-2 text-right">
-          <span className="text-gray-700">
+          <span className="text-gray-700 dark:text-gray-300">
             {company.staff_count || 0}
           </span>
         </div>
         
         {/* # of Visits */}
         <div className="col-span-2 text-right">
-          <span className="text-gray-700">
+          <span className="text-gray-700 dark:text-gray-300">
             {company.trips_count || 0}
           </span>
         </div>

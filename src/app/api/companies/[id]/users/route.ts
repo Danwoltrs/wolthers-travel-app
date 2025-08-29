@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const cookieStore = await cookies()
+  
+  const sessionCookie = cookieStore.get('sb-access-token')
+  if (!sessionCookie) {
+    return null
+  }
+
+  const { data: { user } } = await supabase.auth.getUser(sessionCookie.value)
+  if (!user) return null
+
+  const { data: userDetails } = await supabase
+    .from('users')
+    .select('id, email, company_id, role, user_type')
+    .eq('id', user.id)
+    .single()
+
+  return userDetails
+}
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +55,7 @@ export async function GET(
 
     console.log(`[API] Found company: ${company.name}`)
 
-    // Fetch users for the specific company
+    // Fetch users for the specific company including the new role field
     const { data: users, error } = await supabase
       .from('users')
       .select(`
@@ -40,7 +63,9 @@ export async function GET(
         full_name,
         email,
         phone,
+        whatsapp,
         user_type,
+        role,
         last_login_at,
         created_at,
         company_id
@@ -80,5 +105,115 @@ export async function GET(
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// Update user role within company
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const currentUser = await getAuthenticatedUser()
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const resolvedParams = await params
+    const companyId = resolvedParams.id
+    const { userId, role, isActive } = await request.json()
+
+    // Validate role if provided
+    if (role) {
+      const validRoles = ['staff', 'driver', 'manager', 'admin']
+      if (!validRoles.includes(role)) {
+        return NextResponse.json({ 
+          error: 'Invalid role. Must be one of: staff, driver, manager, admin' 
+        }, { status: 400 })
+      }
+    }
+
+    // Check authorization
+    const isWolthersStaff = currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+    const isCompanyAdmin = currentUser.company_id === companyId && ['admin', 'manager'].includes(currentUser.role)
+
+    if (!isWolthersStaff && !isCompanyAdmin) {
+      return NextResponse.json({ 
+        error: 'Unauthorized to manage users for this company' 
+      }, { status: 403 })
+    }
+
+    // Verify the user belongs to the company
+    const { data: targetUser, error: userError } = await supabase
+      .from('users')
+      .select('id, full_name, email, company_id, role')
+      .eq('id', userId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (userError || !targetUser) {
+      return NextResponse.json({ 
+        error: 'User not found in this company' 
+      }, { status: 404 })
+    }
+
+    // Prevent self-demotion from admin
+    if (currentUser.id === userId && role && role !== 'admin' && currentUser.role === 'admin') {
+      return NextResponse.json({ 
+        error: 'Cannot demote yourself from admin role' 
+      }, { status: 400 })
+    }
+
+    // Build update object
+    const updateData: any = {}
+    if (role !== undefined) updateData.role = role
+    if (isActive !== undefined) {
+      // Note: Since we don't have an is_active field, we could implement this as a soft delete
+      // For now, we'll just log it
+      console.log(`[USER UPDATE] isActive flag: ${isActive} for user ${userId}`)
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ 
+        error: 'No valid update fields provided' 
+      }, { status: 400 })
+    }
+
+    // Update the user
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .eq('company_id', companyId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating user:', updateError)
+      return NextResponse.json({ 
+        error: 'Failed to update user' 
+      }, { status: 500 })
+    }
+
+    console.log(`[USER UPDATE] Updated user ${targetUser.full_name} (${targetUser.email})`, updateData)
+
+    return NextResponse.json({
+      message: 'User updated successfully',
+      user: {
+        id: updatedUser.id,
+        full_name: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        company_id: updatedUser.company_id
+      }
+    })
+
+  } catch (error) {
+    console.error('Error in user update API:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 })
   }
 }

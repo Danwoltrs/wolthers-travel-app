@@ -73,7 +73,10 @@ export default function CompanyDashboard({
     showSidebar,
     userCompanyId: user?.companyId,  // Fixed: use camelCase companyId
     userId: user?.id,
-    userEmail: user?.email
+    userEmail: user?.email,
+    propsShowSidebar: showSidebar,
+    conditionalCheck: !showSidebar,
+    willShowDualHeader: !showSidebar
   })
 
   // Fetch company-specific data - handle Wolthers & Associates as special case

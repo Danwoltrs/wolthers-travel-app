@@ -17,6 +17,7 @@ import UnifiedCompanyCreationModal from '@/components/companies/UnifiedCompanyCr
 import LabCreationModal from '@/components/companies/LabCreationModal'
 import CompanyDashboard from '@/components/companies/CompanyDashboard'
 import UnifiedUsersPanel from '@/components/companies/UnifiedUsersPanel'
+import UserInvitationModal from '@/components/companies/UserInvitationModal'
 import { useDocumentFinder } from '@/hooks/useDocumentFinder'
 import { isMobileDevice } from '@/lib/utils'
 
@@ -32,6 +33,8 @@ export default function CompaniesPage() {
   const [showAddBuyerModal, setShowAddBuyerModal] = useState(false)
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
   const [showAddLabModal, setShowAddLabModal] = useState(false)
+  const [showAddUserModal, setShowAddUserModal] = useState(false)
+  const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<any>(null)
 
   // Debug state changes
   useEffect(() => {
@@ -81,6 +84,9 @@ export default function CompaniesPage() {
     setSelectedSection(section)
     // Clear external company selection when navigating Wolthers sidebar
     setSelectedExternalCompany(null)
+    // Close any open company dashboard and return to main overview
+    setShowCompanyDashboard(false)
+    setSelectedCompany(null)
     // Auto-close sidebar on mobile when section changes
     if (isMobile) {
       setSidebarCollapsed(true)
@@ -166,6 +172,13 @@ export default function CompaniesPage() {
     setSelectedCompany(null)
   }
 
+  // Handle adding users to a company
+  const handleAddUsers = (company: any) => {
+    console.log('[CompaniesPage] handleAddUsers called with company:', company)
+    setSelectedCompanyForUser(company)
+    setShowAddUserModal(true)
+  }
+
   // Error handling component
   const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg p-4 mb-4">
@@ -212,18 +225,18 @@ export default function CompaniesPage() {
 
   // If showing company dashboard, render it instead of main layout
   if (showCompanyDashboard && selectedCompany) {
-    // Always show sidebar for Wolthers staff, even when viewing their own company/labs
-    const shouldShowSidebar = !!user?.companyId && user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' // Wolthers & Associates ID
-    console.log('[CompaniesPage] Full user object analysis:', {
-      user: user,
-      userKeys: user ? Object.keys(user) : 'no user',
+    // Show sidebar for Wolthers staff when viewing ANY company (including their own)
+    const isWolthersStaff = user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' // Wolthers & Associates ID
+    const shouldShowSidebar = isWolthersStaff // Always show sidebar for Wolthers staff
+    
+    console.log('[CompaniesPage] Dashboard routing analysis:', {
       selectedCompanyName: selectedCompany.name,
       selectedCompanyId: selectedCompany.id,
-      userCompanyId: user?.company_id,  // OLD FIELD
-      userCompanyIdNew: user?.companyId, // CORRECT FIELD
+      userCompanyId: user?.companyId,
       userEmail: user?.email,
+      isWolthersStaff,
       shouldShowSidebar,
-      isWolthersStaff: user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      viewingOwnCompany: selectedCompany.id === user?.companyId
     })
     
     return (
@@ -363,7 +376,10 @@ export default function CompaniesPage() {
               
               {/* Companies and Users */}
               {selectedSection === 'wolthers' ? (
-                <UnifiedUsersPanel onViewDashboard={handleViewCompanyDashboard} />
+                <UnifiedUsersPanel 
+                  onViewDashboard={handleViewCompanyDashboard} 
+                  onAddUsers={handleAddUsers}
+                />
               ) : (
                 <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
                   
@@ -538,6 +554,23 @@ export default function CompaniesPage() {
           setShowAddLabModal(false)
         }}
       />
+
+      {/* User Invitation Modal */}
+      {selectedCompanyForUser && (
+        <UserInvitationModal
+          isOpen={showAddUserModal}
+          onClose={() => {
+            setShowAddUserModal(false)
+            setSelectedCompanyForUser(null)
+          }}
+          companyId={selectedCompanyForUser.id}
+          companyName={selectedCompanyForUser.fantasy_name || selectedCompanyForUser.name}
+          onInvitationSent={(invitation) => {
+            console.log('Invitation sent:', invitation)
+            // Optionally refresh data or show success notification
+          }}
+        />
+      )}
     </div>
   )
 }

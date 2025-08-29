@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, ChevronDown, ChevronRight, Eye, Building, Search, UserCheck, Mail, Phone } from 'lucide-react'
+import { Users, ChevronDown, ChevronRight, Eye, Building, Search, UserCheck, Mail, Phone, UserPlus } from 'lucide-react'
 
 interface Company {
   id: string
@@ -26,11 +26,12 @@ interface User {
 
 interface UnifiedUsersPanelProps {
   onViewDashboard: (company: Company) => void
+  onAddUsers?: (company: Company) => void
 }
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function UnifiedUsersPanel({ onViewDashboard }: UnifiedUsersPanelProps) {
+export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: UnifiedUsersPanelProps) {
   const [companies, setCompanies] = useState<Company[]>([])
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: string]: User[] }>({})
@@ -260,6 +261,15 @@ export default function UnifiedUsersPanel({ onViewDashboard }: UnifiedUsersPanel
                 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
+                  {onAddUsers && (
+                    <button
+                      onClick={() => onAddUsers(company)}
+                      className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      Add Users
+                    </button>
+                  )}
                   <button
                     onClick={() => onViewDashboard(company)}
                     className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, Plus, Search, Filter, Mail, Phone, Edit } from 'lucide-react'
+import { Users, Plus, Search, Filter, Mail, Phone, Edit, UserPlus, CheckCircle, XCircle, Clock } from 'lucide-react'
 import UserEditModal from '@/components/users/UserEditModal'
+import UserInvitationModal from '@/components/companies/UserInvitationModal'
 import { getUserPermissions } from '@/lib/permissions'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -13,6 +14,7 @@ interface User {
   phone?: string
   whatsapp?: string
   user_type: 'admin' | 'user' | 'viewer' | 'wolthers_staff'
+  role?: 'staff' | 'driver' | 'manager' | 'admin'
   last_login_at?: string
   last_login?: string
   created_at: string
@@ -23,6 +25,23 @@ interface User {
     total: number
     ytd: number
     upcoming: number
+  }
+}
+
+interface Invitation {
+  id: string
+  email: string
+  role: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  expires_at: string
+  companies: {
+    name: string
+    fantasy_name?: string
+  }
+  invited_by_user: {
+    full_name: string
+    email: string
   }
 }
 
@@ -38,23 +57,27 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
   const { user: currentUser } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  const [invitations, setInvitations] = useState<Invitation[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'admin' | 'user' | 'viewer'>('all')
+  const [filterRole, setFilterRole] = useState<'all' | 'staff' | 'driver' | 'manager' | 'admin'>('all')
+  const [currentTab, setCurrentTab] = useState<'users' | 'invitations'>('users')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showAddUserModal, setShowAddUserModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [hoveredUser, setHoveredUser] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
 
   useEffect(() => {
     fetchUsers()
+    fetchInvitations()
   }, [companyId])
 
   useEffect(() => {
     filterUsers()
-  }, [users, searchTerm, filterType])
+  }, [users, searchTerm, filterType, filterRole])
 
   const fetchUserTripStats = async (userId: string) => {
     try {
@@ -127,6 +150,26 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
     }
   }
 
+  const fetchInvitations = async () => {
+    try {
+      const response = await fetch(`/api/user-invitations?companyId=${companyId}`, { 
+        credentials: 'include' 
+      })
+      const data = await response.json()
+      
+      if (response.ok) {
+        setInvitations(data.invitations || [])
+        console.log(`[CompanyUsersManager] Loaded ${data.invitations?.length || 0} invitations for ${companyName}`)
+      } else {
+        console.warn('Failed to fetch invitations:', data.error)
+        setInvitations([])
+      }
+    } catch (err) {
+      console.warn('Error fetching invitations:', err)
+      setInvitations([])
+    }
+  }
+
   const filterUsers = () => {
     let filtered = [...users]
     
@@ -142,6 +185,11 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
     // Type filter
     if (filterType !== 'all') {
       filtered = filtered.filter(user => user.user_type === filterType)
+    }
+
+    // Role filter
+    if (filterRole !== 'all') {
+      filtered = filtered.filter(user => user.role === filterRole)
     }
     
     setFilteredUsers(filtered)
@@ -164,6 +212,21 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
       case 'viewer': return 'Viewer'
       default: return 'User'
     }
+  }
+
+  const getRoleBadgeColor = (role?: string): string => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+      case 'manager': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+      case 'driver': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200'
+      case 'staff': return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+    }
+  }
+
+  const formatRole = (role?: string): string => {
+    if (!role) return 'Staff'
+    return role.charAt(0).toUpperCase() + role.slice(1)
   }
 
   const getStatusBadge = (isActive: boolean, lastLogin?: string): JSX.Element => {
@@ -221,9 +284,77 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
   }
 
   const handleAddUser = () => {
-    setShowAddUserModal(true)
-    console.log('Opening add user modal')
-    // TODO: Open add user modal
+    setShowInviteModal(true)
+    console.log('Opening user invitation modal')
+  }
+
+  const handleInvitationSent = async (invitation: any) => {
+    console.log('Invitation sent:', invitation)
+    // Refresh invitations list
+    await fetchInvitations()
+  }
+
+  const handleApproveInvitation = async (invitationId: string) => {
+    try {
+      const response = await fetch(`/api/user-invitations/${invitationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'approve' })
+      })
+
+      if (response.ok) {
+        console.log('Invitation approved')
+        await fetchInvitations()
+      } else {
+        const data = await response.json()
+        console.error('Failed to approve invitation:', data.error)
+      }
+    } catch (error) {
+      console.error('Error approving invitation:', error)
+    }
+  }
+
+  const handleRejectInvitation = async (invitationId: string) => {
+    try {
+      const response = await fetch(`/api/user-invitations/${invitationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'reject' })
+      })
+
+      if (response.ok) {
+        console.log('Invitation rejected')
+        await fetchInvitations()
+      } else {
+        const data = await response.json()
+        console.error('Failed to reject invitation:', data.error)
+      }
+    } catch (error) {
+      console.error('Error rejecting invitation:', error)
+    }
+  }
+
+  const handleUpdateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const response = await fetch(`/api/companies/${companyId}/users`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId, role: newRole })
+      })
+
+      if (response.ok) {
+        console.log('User role updated')
+        await fetchUsers()
+      } else {
+        const data = await response.json()
+        console.error('Failed to update user role:', data.error)
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error)
+    }
   }
 
   const handleCloseEditModal = () => {
@@ -275,6 +406,32 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="px-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex space-x-8">
+          <button
+            onClick={() => setCurrentTab('users')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+              currentTab === 'users'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Users ({filteredUsers.length})
+          </button>
+          <button
+            onClick={() => setCurrentTab('invitations')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+              currentTab === 'invitations'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Invitations ({invitations.filter(i => i.status === 'pending').length})
+          </button>
+        </div>
+      </div>
+
       {/* Search bar with Add User button */}
       <div className="px-6 pb-6 flex items-center gap-3">
         <div className="relative flex-1">
@@ -283,134 +440,259 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
           </div>
           <input
             type="text"
-            placeholder="Search name or email"
+            placeholder={currentTab === 'users' ? "Search name or email" : "Search invitations"}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ paddingLeft: '36px' }}
             className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
           />
         </div>
+        
+        {currentTab === 'users' && (
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value as 'all' | 'staff' | 'driver' | 'manager' | 'admin')}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+          >
+            <option value="all">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="driver">Driver</option>
+            <option value="staff">Staff</option>
+          </select>
+        )}
+        
         <button
           onClick={() => handleAddUser()}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          Add User
+          <UserPlus className="w-4 h-4" />
+          Invite User
         </button>
       </div>
 
       {/* Full width table */}
       <div className="w-full">
         {/* Table Header */}
-        <div className="bg-[#1E293B] px-6 py-4 border-b border-gray-700">
-          <div className="flex gap-6 text-sm font-medium text-amber-400">
-            <div className="flex-[3] min-w-0">NAME</div>
-            <div className="flex-[1.5] min-w-0">CONTACT</div>
-            <div className="flex-[1.5] min-w-0">ROLE</div>
-            <div className="flex-[1.5] min-w-0">LAST LOGIN</div>
-            <div className="flex-[2] min-w-0">
-              <div className="text-center">
-                <div className="text-amber-400">TRIPS</div>
-                <div className="flex text-xs text-amber-300/70 mt-1">
-                  <span className="flex-1 text-left">Total</span>
-                  <span className="flex-1 text-center">YTD</span>
-                  <span className="flex-1 text-right">Upcoming</span>
+        {currentTab === 'users' ? (
+          <div className="bg-[#1E293B] px-6 py-4 border-b border-gray-700">
+            <div className="flex gap-6 text-sm font-medium text-amber-400">
+              <div className="flex-[3] min-w-0">NAME</div>
+              <div className="flex-[1.5] min-w-0">CONTACT</div>
+              <div className="flex-[1] min-w-0">ROLE</div>
+              <div className="flex-[1.5] min-w-0">LAST LOGIN</div>
+              <div className="flex-[2] min-w-0">
+                <div className="text-center">
+                  <div className="text-amber-400">TRIPS</div>
+                  <div className="flex text-xs text-amber-300/70 mt-1">
+                    <span className="flex-1 text-left">Total</span>
+                    <span className="flex-1 text-center">YTD</span>
+                    <span className="flex-1 text-right">Upcoming</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-[#1E293B] px-6 py-4 border-b border-gray-700">
+            <div className="flex gap-6 text-sm font-medium text-amber-400">
+              <div className="flex-[2] min-w-0">EMAIL</div>
+              <div className="flex-[1] min-w-0">ROLE</div>
+              <div className="flex-[1] min-w-0">STATUS</div>
+              <div className="flex-[1.5] min-w-0">INVITED BY</div>
+              <div className="flex-[1.5] min-w-0">CREATED</div>
+              <div className="flex-[1] min-w-0">ACTIONS</div>
+            </div>
+          </div>
+        )}
 
         {/* Table Body */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {filteredUsers.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                {searchTerm || filterType !== 'all' ? 'No users match your criteria' : 'No users found for this company'}
-              </p>
-              {!isWolthers && !searchTerm && filterType === 'all' && (
-                <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors mx-auto">
-                  <Plus className="w-4 h-4" />
-                  Add Users to {companyName}
-                </button>
+          {currentTab === 'users' ? (
+            // Users Table
+            <>
+              {filteredUsers.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    {searchTerm || filterType !== 'all' ? 'No users match your criteria' : 'No users found for this company'}
+                  </p>
+                  {!isWolthers && !searchTerm && filterType === 'all' && (
+                    <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors mx-auto">
+                      <Plus className="w-4 h-4" />
+                      Add Users to {companyName}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredUsers.map((user, index) => (
+                  <div
+                    key={user.id}
+                    onMouseEnter={() => setHoveredUser(user.id)}
+                    onMouseLeave={() => setHoveredUser(null)}
+                    className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative ${
+                      index % 2 === 0 ? 'bg-[#FFFDF9] dark:bg-gray-900/30' : 'bg-[#FCFAF4] dark:bg-gray-800/30'
+                    } ${selectedUser?.id === user.id ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
+                  >
+                    <div className="flex gap-6 items-center">
+                      
+                      <div className="flex-[3] min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {user.full_name}
+                          </span>
+                          {hoveredUser === user.id && (
+                            <button
+                              onClick={() => handleUserClick(user)}
+                              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+                              title="Edit user"
+                            >
+                              <Edit className="w-3 h-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-[1.5] min-w-0">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{user.email}</span>
+                          </div>
+                          {(user.phone || user.whatsapp) && (
+                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                              <Phone className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{user.whatsapp || user.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-[1] min-w-0">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
+                            {formatRole(user.role)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex-[1.5] min-w-0">
+                        <div className="space-y-1">
+                          <div className="text-gray-700 dark:text-gray-300">
+                            {getStatusBadge(true, user.last_login_at || user.last_login)}
+                          </div>
+                          {(user.last_login_at || user.last_login) && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {formatDate(user.last_login_at || user.last_login)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-[2] min-w-0">
+                        <div className="text-center space-y-1">
+                          <div className="flex text-sm text-gray-700 dark:text-gray-300">
+                            <span className="flex-1 text-left">{user.trip_stats?.total || 0}</span>
+                            <span className="flex-1 text-center">{user.trip_stats?.ytd || 0}</span>
+                            <span className="flex-1 text-right">{user.trip_stats?.upcoming || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
-            </div>
+            </>
           ) : (
-            filteredUsers.map((user, index) => (
-              <div
-                key={user.id}
-                onMouseEnter={() => setHoveredUser(user.id)}
-                onMouseLeave={() => setHoveredUser(null)}
-                className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative ${
-                  index % 2 === 0 ? 'bg-[#FFFDF9] dark:bg-gray-900/30' : 'bg-[#FCFAF4] dark:bg-gray-800/30'
-                } ${selectedUser?.id === user.id ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
-              >
-                <div className="flex gap-6 items-center">
-                  
-                  <div className="flex-[3] min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {user.full_name}
+            // Invitations Table
+            invitations.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <Mail className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  No invitations found for this company
+                </p>
+              </div>
+            ) : (
+              invitations.map((invitation, index) => (
+                <div
+                  key={invitation.id}
+                  className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                    index % 2 === 0 ? 'bg-[#FFFDF9] dark:bg-gray-900/30' : 'bg-[#FCFAF4] dark:bg-gray-800/30'
+                  }`}
+                >
+                  <div className="flex gap-6 items-center">
+                    <div className="flex-[2] min-w-0">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {invitation.email}
                       </span>
-                      {hoveredUser === user.id && (
-                        <button
-                          onClick={() => handleUserClick(user)}
-                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
-                          title="Edit user"
-                        >
-                          <Edit className="w-3 h-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
-                        </button>
-                      )}
                     </div>
-                  </div>
-                  
-                  <div className="flex-[1.5] min-w-0">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <Mail className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{user.email}</span>
+                    
+                    <div className="flex-[1] min-w-0">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(invitation.role)}`}>
+                        {formatRole(invitation.role)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex-[1] min-w-0">
+                      <div className="flex items-center gap-2">
+                        {invitation.status === 'pending' && (
+                          <>
+                            <Clock className="w-4 h-4 text-yellow-500" />
+                            <span className="text-yellow-700 dark:text-yellow-300 text-sm">Pending</span>
+                          </>
+                        )}
+                        {invitation.status === 'approved' && (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span className="text-green-700 dark:text-green-300 text-sm">Approved</span>
+                          </>
+                        )}
+                        {invitation.status === 'rejected' && (
+                          <>
+                            <XCircle className="w-4 h-4 text-red-500" />
+                            <span className="text-red-700 dark:text-red-300 text-sm">Rejected</span>
+                          </>
+                        )}
                       </div>
-                      {(user.phone || user.whatsapp) && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                          <Phone className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{user.whatsapp || user.phone}</span>
+                    </div>
+                    
+                    <div className="flex-[1.5] min-w-0">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <div>{invitation.invited_by_user.full_name}</div>
+                        <div className="text-xs">{invitation.invited_by_user.email}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-[1.5] min-w-0">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(invitation.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-[1] min-w-0">
+                      {invitation.status === 'pending' && (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleApproveInvitation(invitation.id)}
+                            className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                            title="Approve"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRejectInvitation(invitation.id)}
+                            className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                            title="Reject"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
                         </div>
                       )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-[1.5] min-w-0">
-                    <span className="text-gray-700 dark:text-gray-300 truncate block">
-                      {getRoleColor(user.user_type)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex-[1.5] min-w-0">
-                    <div className="space-y-1">
-                      <div className="text-gray-700 dark:text-gray-300">
-                        {getStatusBadge(true, user.last_login_at || user.last_login)}
-                      </div>
-                      {(user.last_login_at || user.last_login) && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {formatDate(user.last_login_at || user.last_login)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-[2] min-w-0">
-                    <div className="text-center space-y-1">
-                      <div className="flex text-sm text-gray-700 dark:text-gray-300">
-                        <span className="flex-1 text-left">{user.trip_stats?.total || 0}</span>
-                        <span className="flex-1 text-center">{user.trip_stats?.ytd || 0}</span>
-                        <span className="flex-1 text-right">{user.trip_stats?.upcoming || 0}</span>
-                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
+            )
           )}
         </div>
       </div>
@@ -424,6 +706,15 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
           onSave={handleSaveUser}
         />
       )}
+
+      {/* User Invitation Modal */}
+      <UserInvitationModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        companyId={companyId}
+        companyName={companyName}
+        onInvitationSent={handleInvitationSent}
+      />
     </div>
   )
 }
