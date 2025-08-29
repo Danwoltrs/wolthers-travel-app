@@ -296,7 +296,11 @@ export default function Dashboard() {
           ) : (
             <div className="text-center py-12 text-gray-500 dark:text-green-400">
               <p>No current or upcoming trips</p>
-              <p className="text-sm mt-1">Click the "+" button to create your first trip</p>
+              {canCreateTrips ? (
+                <p className="text-sm mt-1">Click the "+" button to create your first trip</p>
+              ) : (
+                <p className="text-sm mt-1">Your company administrator can request trips that will be reviewed by Wolthers staff</p>
+              )}
             </div>
           )}
         </div>

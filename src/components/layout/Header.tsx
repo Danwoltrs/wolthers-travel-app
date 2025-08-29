@@ -40,6 +40,23 @@ export default function Header() {
   const [showUserModal, setShowUserModal] = React.useState(false)
   const [showUserDropdown, setShowUserDropdown] = React.useState(false)
   
+  // Filter navigation items based on user permissions
+  const getFilteredNavItems = () => {
+    if (!user) return navItems
+    
+    const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+    
+    return navItems.filter(item => {
+      // External users cannot access Fleet or Companies pages
+      if (!isWolthersStaff) {
+        if (item.href === '/fleet' || item.href === '/companies') {
+          return false
+        }
+      }
+      return true
+    })
+  }
+  
   const toggleMenu = () => {
     const newState = !isMenuOpen
     setIsMenuOpen(newState)
@@ -72,7 +89,7 @@ export default function Header() {
 
             {/* Desktop Icon Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
-              {navItems.map((item) => (
+              {getFilteredNavItems().map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -220,7 +237,7 @@ export default function Header() {
             <div className="bg-emerald-800/95 dark:bg-[#09261d]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-600/30 dark:border-emerald-900/60 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-emerald-700/30 to-emerald-900/30 dark:from-[#09261d]/60 dark:to-[#041611]/80" />
               <nav className="relative p-4 space-y-2">
-                {navItems.map((item) => (
+                {getFilteredNavItems().map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
