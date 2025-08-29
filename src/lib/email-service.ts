@@ -70,7 +70,7 @@ export class EmailService {
             
             <!-- Logo Header -->
             <div style="padding: 40px 30px 20px; text-align: center;">
-              <img src="https://trips.wolthers.com/wolthers-logo.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
+              <img src="https://wolthers.com/images/wolthers-logo-green.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
               <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2;">
                 Welcome to Wolthers Travel Platform
               </h1>
@@ -173,7 +173,7 @@ export class EmailService {
             
             <!-- Logo Header -->
             <div style="padding: 40px 30px 20px; text-align: center;">
-              <img src="https://trips.wolthers.com/wolthers-logo.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
+              <img src="https://wolthers.com/images/wolthers-logo-green.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
               <h1 style="color: ${isApproved ? '#059669' : '#dc2626'}; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2;">
                 Invitation ${isApproved ? 'Approved' : 'Declined'}
               </h1>
