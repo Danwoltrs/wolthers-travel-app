@@ -538,7 +538,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
               <Building2 className="w-4 h-4 text-gray-400" />
               <div className="flex-1">
                 <p className="text-xs text-gray-500">Company</p>
-                <p className="text-sm text-gray-900 dark:text-white">{user?.company_name || 'Wolthers & Associates'}</p>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {user?.company_fantasy_name || user?.company_name || 'No Company'}
+                </p>
               </div>
             </div>
 

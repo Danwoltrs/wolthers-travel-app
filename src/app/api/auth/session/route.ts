@@ -29,11 +29,18 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Get user from database
+    // Get user from database with company information
     const supabase = createServerSupabaseClient()
     const { data: user, error } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        companies!users_company_id_fkey (
+          id,
+          name,
+          fantasy_name
+        )
+      `)
       .eq('id', decoded.userId)
       .single()
 
@@ -68,7 +75,8 @@ export async function GET(request: NextRequest) {
         last_login_at: user.last_login_at,
         last_login_timezone: user.last_login_timezone,
         last_login_provider: user.last_login_provider,
-        company_name: user.company_name,
+        company_name: user.companies?.name || 'No Company',
+        company_fantasy_name: user.companies?.fantasy_name,
         notification_preferences: user.notification_preferences,
         created_at: user.created_at,
         updated_at: user.updated_at,
