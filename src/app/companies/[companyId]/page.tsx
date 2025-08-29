@@ -34,19 +34,17 @@ export default function CompanyPage() {
     try {
       setIsLoading(true)
       
-      // For now, create a basic company object based on the companyId
-      // This will be replaced with actual API call later
-      const basicCompany = {
-        id: companyId,
-        name: user?.companyId === companyId ? (user?.company?.name || 'Your Company') : 'Company',
-        fantasy_name: user?.companyId === companyId ? (user?.company?.fantasy_name || null) : null,
-        category: 'client', // External companies are typically clients/buyers
-        email: user?.companyId === companyId ? user?.company?.email : null,
-        phone: user?.companyId === companyId ? user?.company?.phone : null,
-        logo_url: user?.companyId === companyId ? user?.company?.logo_url : null
+      // Fetch real company data from API
+      const response = await fetch(`/api/companies/${companyId}`, {
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch company data')
       }
       
-      setCompany(basicCompany)
+      const companyData = await response.json()
+      setCompany(companyData)
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load company data')
