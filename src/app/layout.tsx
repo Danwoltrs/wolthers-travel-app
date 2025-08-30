@@ -20,12 +20,14 @@ export default function RootLayout({
       <head>
         <script src="/extension-protection.js" async></script>
       </head>
-      <body suppressHydrationWarning={true}>
+      {/* Prevent horizontal scroll on narrow viewports */}
+      <body suppressHydrationWarning={true} className="overflow-x-hidden">
         <AuthProvider>
           <ThemeProvider>
             <ModalProvider>
               <ConditionalHeader />
-              <main className="min-h-screen">
+              {/* Ensure pages don't introduce horizontal scrolling */}
+              <main className="min-h-screen overflow-x-hidden">
                 {children}
               </main>
             </ModalProvider>

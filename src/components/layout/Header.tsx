@@ -67,10 +67,11 @@ export default function Header() {
     }))
   }
 
+  // Use responsive padding to avoid horizontal overflow on small screens
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 p-6">
+    <header className="fixed top-0 left-0 right-0 z-50 p-4 sm:p-6">
       <div className="mx-auto max-w-6xl">
-        <div className="relative bg-emerald-800/90 dark:bg-[#09261d]/95 backdrop-blur-xl rounded-full shadow-2xl border border-emerald-600/30 dark:border-emerald-900/60 px-12 py-6">
+        <div className="relative bg-emerald-800/90 dark:bg-[#09261d]/95 backdrop-blur-xl rounded-full shadow-2xl border border-emerald-600/30 dark:border-emerald-900/60 px-6 sm:px-8 md:px-10 lg:px-12 py-6">
           {/* Glassmorphism overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-700/30 to-emerald-900/30 dark:from-[#09261d]/60 dark:to-[#041611]/80 rounded-full" />
           
@@ -233,7 +234,7 @@ export default function Header() {
         
         {/* Mobile Menu Dropdown */}
         {isMenuOpen && (
-          <div className="lg:hidden mt-4 mx-6">
+          <div className="lg:hidden mt-4 mx-4 sm:mx-6">
             <div className="bg-emerald-800/95 dark:bg-[#09261d]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-600/30 dark:border-emerald-900/60 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-emerald-700/30 to-emerald-900/30 dark:from-[#09261d]/60 dark:to-[#041611]/80" />
               <nav className="relative p-4 space-y-2">
