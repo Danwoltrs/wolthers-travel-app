@@ -21,8 +21,8 @@ export default function ConditionalHeader() {
     return null
   }
   
-  // Don't show header on companies page (uses sidebar layout)
-  if (pathname === '/companies') {
+  // Don't show header on companies page and company-specific pages (uses custom layout)
+  if (pathname.startsWith('/companies')) {
     return null
   }
   

@@ -99,12 +99,13 @@ export default function CompanyDashboard({
   )
   
   // Fetch data for charts to determine if they should be shown
+  // For external companies, always use their specific company ID
   const { data: travelData } = useSWR(
     isWolthersCompany ? '/api/charts/travel-data' : `/api/charts/travel-data?companyId=${company.id}`,
     fetcher
   )
   const { data: tripsData } = useSWR(
-    isWolthersCompany ? `/api/trips/real-data?companyId=${company.id}` : `/api/trips/real-data?companyId=${company.id}`,
+    `/api/trips/real-data?companyId=${company.id}`,
     fetcher
   )
 
@@ -412,15 +413,16 @@ export default function CompanyDashboard({
               {/* Enhanced Heatmap - Company-specific data (only show if data exists) */}
               {hasHeatmapData() && (
                 <EnhancedHeatmap 
-                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'buyers')}
                   companyId={company.id}
+                  companyName={company.fantasy_name || company.name}
                 />
               )}
               
               {/* Real Travel Trends - Company-specific data (only show if data exists) */}
               {hasRealTravelTrendsData() && (
                 <RealTravelTrends 
-                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'buyers')}
                   companyId={company.id}
                 />
               )}
@@ -430,7 +432,7 @@ export default function CompanyDashboard({
                 {isWolthersCompany ? (
                   <>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400 mb-4">
-                      Wolthers Santos Team
+                      {company.fantasy_name || company.name} Team
                     </h3>
                   </>
                 ) : null}
@@ -472,7 +474,7 @@ export default function CompanyDashboard({
               {/* Travel Coordination Trends at top (only show if data exists) */}
               {hasTravelTrendsChartData() && (
                 <TravelTrendsChart 
-                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'wolthers')}
+                  selectedSection={isWolthersCompany ? 'wolthers' : (company.category === 'buyer' ? 'buyers' : company.category === 'supplier' ? 'suppliers' : 'buyers')}
                   companyId={company.id}
                 />
               )}

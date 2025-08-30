@@ -13,6 +13,7 @@ export default function CompanyPage() {
   
   const [company, setCompany] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Check if user has permission to view this company
@@ -45,6 +46,7 @@ export default function CompanyPage() {
       
       const companyData = await response.json()
       setCompany(companyData)
+      setIsInitialLoad(false)
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load company data')
@@ -54,10 +56,12 @@ export default function CompanyPage() {
   }
 
   const handleBack = () => {
+    // Always go back to dashboard for external users
+    // Wolthers staff would use the sidebar navigation instead
     router.push('/dashboard')
   }
 
-  if (authLoading || isLoading) {
+  if (authLoading || (isLoading && isInitialLoad)) {
     return (
       <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 flex items-center justify-center">
         <div className="text-center">

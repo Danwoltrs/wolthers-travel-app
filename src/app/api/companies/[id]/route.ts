@@ -11,6 +11,67 @@ export async function GET(
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const resolvedParams = await params
+
+    // Authentication check
+    const authHeader = request.headers.get('authorization')
+    let currentUser = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      // Verify token and get user information
+      try {
+        const response = await fetch(`${request.nextUrl.origin}/api/auth/verify-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const { user } = await response.json()
+          currentUser = user
+        }
+      } catch (error) {
+        console.error('Token verification failed:', error)
+      }
+    }
+
+    // Try cookie-based auth as fallback
+    if (!currentUser) {
+      try {
+        const cookieHeader = request.headers.get('cookie')
+        const sessionResponse = await fetch(`${request.nextUrl.origin}/api/auth/session`, {
+          headers: { cookie: cookieHeader || '' }
+        })
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json()
+          if (sessionData.authenticated) {
+            currentUser = sessionData.user
+          }
+        }
+      } catch (error) {
+        console.error('Cookie auth failed:', error)
+      }
+    }
+
+    // Authorization check
+    if (currentUser) {
+      const isWolthersStaff = currentUser.is_global_admin || currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      
+      // External users can only access their own company data
+      if (!isWolthersStaff && currentUser.company_id !== resolvedParams.id) {
+        return NextResponse.json(
+          { error: 'Access denied. You can only view your own company data.' },
+          { status: 403 }
+        )
+      }
+    } else {
+      // No authentication found
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
     
     const { data: company, error } = await supabase
       .from('companies')
@@ -110,6 +171,64 @@ export async function PUT(
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const resolvedParams = await params
+
+    // Authentication and authorization check (same as GET)
+    const authHeader = request.headers.get('authorization')
+    let currentUser = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const response = await fetch(`${request.nextUrl.origin}/api/auth/verify-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const { user } = await response.json()
+          currentUser = user
+        }
+      } catch (error) {
+        console.error('Token verification failed:', error)
+      }
+    }
+
+    if (!currentUser) {
+      try {
+        const cookieHeader = request.headers.get('cookie')
+        const sessionResponse = await fetch(`${request.nextUrl.origin}/api/auth/session`, {
+          headers: { cookie: cookieHeader || '' }
+        })
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json()
+          if (sessionData.authenticated) {
+            currentUser = sessionData.user
+          }
+        }
+      } catch (error) {
+        console.error('Cookie auth failed:', error)
+      }
+    }
+
+    // Authorization check - only Wolthers staff can update company data
+    if (currentUser) {
+      const isWolthersStaff = currentUser.is_global_admin || currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      
+      // External users cannot update company data (read-only access)
+      if (!isWolthersStaff) {
+        return NextResponse.json(
+          { error: 'Access denied. You do not have permission to modify company data.' },
+          { status: 403 }
+        )
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
     
     const body = await request.json()
     
@@ -153,10 +272,59 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const resolvedParams = await params
+
+    // Authentication and authorization check - only Wolthers global admins can delete companies
+    const authHeader = request.headers.get('authorization')
+    let currentUser = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const response = await fetch(`${request.nextUrl.origin}/api/auth/verify-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const { user } = await response.json()
+          currentUser = user
+        }
+      } catch (error) {
+        console.error('Token verification failed:', error)
+      }
+    }
+
+    if (!currentUser) {
+      try {
+        const cookieHeader = request.headers.get('cookie')
+        const sessionResponse = await fetch(`${request.nextUrl.origin}/api/auth/session`, {
+          headers: { cookie: cookieHeader || '' }
+        })
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json()
+          if (sessionData.authenticated) {
+            currentUser = sessionData.user
+          }
+        }
+      } catch (error) {
+        console.error('Cookie auth failed:', error)
+      }
+    }
+
+    // Only global admins can delete companies
+    if (!currentUser || !currentUser.is_global_admin) {
+      return NextResponse.json(
+        { error: 'Access denied. Only global administrators can delete companies.' },
+        { status: 403 }
+      )
+    }
     
     const { error } = await supabase
       .from('companies')

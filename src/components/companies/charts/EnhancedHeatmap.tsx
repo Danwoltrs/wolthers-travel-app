@@ -32,20 +32,30 @@ interface EnhancedHeatmapProps {
   selectedSection: 'wolthers' | 'buyers' | 'suppliers'
   className?: string
   companyId?: string
+  companyName?: string
 }
 
 // Fetcher function for SWR
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
-export default function EnhancedHeatmap({ selectedSection, className = '', companyId }: EnhancedHeatmapProps) {
+export default function EnhancedHeatmap({ selectedSection, className = '', companyId, companyName }: EnhancedHeatmapProps) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([2021, 2022, 2023, 2024, 2025]))
   const [currentWeek, setCurrentWeek] = useState<number>(0)
 
-  const sectionTitles = {
-    wolthers: 'Wolthers Staff Travel Activity',
-    importers: 'Importer/Roaster Activity',
-    exporters: 'Exporter/Producer/Coop Activity'
+  // Dynamic title based on company context
+  const getTitle = () => {
+    if (companyName && selectedSection !== 'wolthers') {
+      return `${companyName} Travel Activity`
+    }
+    
+    const sectionTitles = {
+      wolthers: 'Wolthers Staff Travel Activity',
+      buyers: 'Buyer Travel Activity',
+      suppliers: 'Supplier Travel Activity'
+    }
+    
+    return sectionTitles[selectedSection] || 'Travel Activity'
   }
 
   // Fetch real travel data
@@ -487,14 +497,14 @@ export default function EnhancedHeatmap({ selectedSection, className = '', compa
     return (
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6 ${className}`}>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-golden-400 mb-6">
-          {sectionTitles[selectedSection]}
+          {getTitle()}
         </h2>
         <div className="text-center py-12">
           <p className="text-gray-500 dark:text-gray-400">No travel data available</p>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
             {selectedSection === 'wolthers' 
               ? 'Travel activity will appear here as trips are created'
-              : `${sectionTitles[selectedSection]} data will be available in the future`}
+              : `${getTitle()} data will be available in the future`}
           </p>
         </div>
       </div>
@@ -515,7 +525,7 @@ export default function EnhancedHeatmap({ selectedSection, className = '', compa
       }}
     >
       <h2 className="text-xl font-semibold text-gray-900 dark:text-golden-400 mb-6">
-        {sectionTitles[selectedSection]}
+        {getTitle()}
       </h2>
       
       {/* Container with constrained width to prevent overflow */}

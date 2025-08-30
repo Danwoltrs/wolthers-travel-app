@@ -41,14 +41,14 @@ export default function CompaniesPage() {
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
 
-  // Security check: Only allow Wolthers staff access to companies page
+  // Security check and auto-redirect for external users
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
       const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
       
-      if (!isWolthersStaff) {
-        // Redirect external users to their own dashboard
-        router.push('/dashboard')
+      if (!isWolthersStaff && user.companyId) {
+        // External users: redirect directly to their company dashboard
+        router.push(`/companies/${user.companyId}`)
         return
       }
     }

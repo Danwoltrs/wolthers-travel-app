@@ -47,9 +47,9 @@ export default function Header() {
     const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
     
     return navItems.filter(item => {
-      // External users cannot access Fleet or Companies pages
+      // External users cannot access Fleet page but CAN access Companies (their own company dashboard)
       if (!isWolthersStaff) {
-        if (item.href === '/fleet' || item.href === '/companies') {
+        if (item.href === '/fleet') {
           return false
         }
       }
