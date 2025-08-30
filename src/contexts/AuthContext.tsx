@@ -18,6 +18,8 @@ interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>
   verifyOtp: (email: string, token: string, type: 'email' | 'recovery') => Promise<{ error: AuthError | null }>
+  sendOtpLogin: (email: string) => Promise<{ error: string | null }>
+  verifyOtpLogin: (email: string, otp: string) => Promise<{ error: string | null; user?: AuthUser | null; otpLogin?: boolean }>
   hasRole: (role: UserRole) => boolean
   hasPermission: (permission: string) => boolean
   isCompanyUser: (companyId?: string) => boolean
@@ -565,6 +567,73 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { error }
   }
 
+  const sendOtpLogin = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/otp-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'send',
+          email: email.toLowerCase()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Failed to send login code' };
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Send OTP login error:', error);
+      return { error: 'Network error. Please try again.' };
+    }
+  }
+
+  const verifyOtpLogin = async (email: string, otp: string) => {
+    try {
+      const response = await fetch('/api/auth/otp-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'verify',
+          email: email.toLowerCase(),
+          otp: otp
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Invalid login code' };
+      }
+
+      if (data.success && data.user) {
+        // Update the local user state
+        setUser(data.user);
+        setSession({ user: data.user } as Session);
+        
+        return { 
+          error: null, 
+          user: data.user, 
+          otpLogin: data.user.otp_login 
+        };
+      }
+
+      return { error: 'Login failed' };
+    } catch (error) {
+      console.error('Verify OTP login error:', error);
+      return { error: 'Network error. Please try again.' };
+    }
+  }
+
   const hasRole = (role: UserRole): boolean => {
     if (!user?.role) return false
     
@@ -606,6 +675,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
     resetPassword,
     verifyOtp,
+    sendOtpLogin,
+    verifyOtpLogin,
     hasRole,
     hasPermission,
     isCompanyUser,

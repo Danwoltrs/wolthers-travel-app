@@ -6,6 +6,8 @@ import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
 import TripCreationModal from '@/components/trips/TripCreationModal'
 import AuthDebug from '@/components/debug/AuthDebug'
+import PasswordChangePrompt from '@/components/auth/PasswordChangePrompt'
+import UserPanel from '@/components/user/UserPanel'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useTrips } from '@/hooks/useTrips'
@@ -19,6 +21,8 @@ export default function Dashboard() {
   const [showTripCreationModal, setShowTripCreationModal] = useState(false)
   const [resumeData, setResumeData] = useState<any>(null)
   const [draftTrips, setDraftTrips] = useState<any[]>([])
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
+  const [showUserPanel, setShowUserPanel] = useState(false)
   const { trips, loading, error, isOffline, refetch } = useTrips()
 
   // Listen for menu state changes (this would need to be coordinated with Header component)
@@ -38,6 +42,18 @@ export default function Dashboard() {
       loadDraftTrips()
     }
   }, [isAuthenticated])
+
+  // Show password change prompt for OTP login users
+  React.useEffect(() => {
+    if (user && (user as any).otp_login && isAuthenticated) {
+      // Show prompt after a brief delay to allow dashboard to load
+      const timer = setTimeout(() => {
+        setShowPasswordPrompt(true)
+      }, 1500)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [user, isAuthenticated])
 
   const loadDraftTrips = async () => {
     try {
@@ -195,6 +211,15 @@ export default function Dashboard() {
     refetch()
   }
 
+  const handlePasswordPromptClose = () => {
+    setShowPasswordPrompt(false)
+  }
+
+  const handleOpenUserPanel = () => {
+    setShowPasswordPrompt(false)
+    setShowUserPanel(true)
+  }
+
   // Handle loading and error states within the main render to maintain hooks order
   if (loading) {
     return (
@@ -349,6 +374,21 @@ export default function Dashboard() {
           }}
           onTripCreated={handleTripCreated}
           resumeData={resumeData}
+        />
+
+        {/* Password Change Prompt */}
+        <PasswordChangePrompt
+          isOpen={showPasswordPrompt}
+          onClose={handlePasswordPromptClose}
+          onOpenUserPanel={handleOpenUserPanel}
+          userName={user?.name}
+        />
+
+        {/* User Panel */}
+        <UserPanel
+          isOpen={showUserPanel}
+          onClose={() => setShowUserPanel(false)}
+          focusPasswordChange={(user as any)?.otp_login}
         />
       </div>
     </div>

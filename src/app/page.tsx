@@ -10,6 +10,9 @@ import { useModal } from '@/hooks/use-modal'
 import { TripStatus } from '@/types'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import OTPLogin from '@/components/auth/OTPLogin'
+import PasswordChangePrompt from '@/components/auth/PasswordChangePrompt'
+import UserPanel from '@/components/user/UserPanel'
 
 // Isolated Password Reset Modal Component
 const IsolatedPasswordResetModal = ({ 
@@ -157,6 +160,9 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [showPasswordReset, setShowPasswordReset] = useState(false)
   const [otp, setOtp] = useState('')
+  const [showOTPLogin, setShowOTPLogin] = useState(false)
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
+  const [showUserPanel, setShowUserPanel] = useState(false)
   
   const passwordRef = useRef<HTMLInputElement>(null)
 
@@ -383,6 +389,39 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleOTPLoginSuccess = (user: any, otpLogin: boolean) => {
+    console.log('=== OTP LOGIN SUCCESS ===')
+    console.log('User:', user)
+    console.log('OTP Login:', otpLogin)
+    
+    setShowOTPLogin(false)
+    
+    // Show password prompt if this was an OTP login
+    if (otpLogin) {
+      setShowPasswordPrompt(true)
+    }
+    
+    // Navigate to appropriate dashboard
+    const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+    
+    setTimeout(() => {
+      if (isWolthersStaff) {
+        router.push('/companies')
+      } else {
+        router.push('/dashboard')
+      }
+    }, 500)
+  }
+
+  const handlePasswordPromptClose = () => {
+    setShowPasswordPrompt(false)
+  }
+
+  const handleOpenUserPanel = () => {
+    setShowPasswordPrompt(false)
+    setShowUserPanel(true)
   }
 
   const handleMicrosoftLogin = async () => {
@@ -704,6 +743,27 @@ export default function LoginPage() {
             <rect x="11" y="11" width="9" height="9" fill="#7fba00"/>
           </svg>
           Sign in with Microsoft
+        </button>
+
+        {/* OTP Login Button */}
+        <button
+          onClick={() => setShowOTPLogin(true)}
+          disabled={isLoading}
+          className={cn(
+            "w-full mb-4 py-3 px-4 rounded-lg font-medium transition-all duration-200",
+            "bg-emerald-600 dark:bg-emerald-700 hover:bg-emerald-700 dark:hover:bg-emerald-600",
+            "text-white",
+            "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "transform hover:scale-[1.02] active:scale-[0.98]",
+            "shadow-md hover:shadow-lg",
+            "flex items-center justify-center"
+          )}
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Sign in with email code
         </button>
 
         {/* Forgot Password Link */}
@@ -1041,6 +1101,33 @@ export default function LoginPage() {
           setShowForgotPassword(false)
           router.push('/dashboard')
         }}
+      />
+
+      {/* OTP Login Modal */}
+      {showOTPLogin && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            <OTPLogin
+              onBack={() => setShowOTPLogin(false)}
+              onSuccess={handleOTPLoginSuccess}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Prompt */}
+      <PasswordChangePrompt
+        isOpen={showPasswordPrompt}
+        onClose={handlePasswordPromptClose}
+        onOpenUserPanel={handleOpenUserPanel}
+        userName={user?.name}
+      />
+
+      {/* User Panel */}
+      <UserPanel
+        isOpen={showUserPanel}
+        onClose={() => setShowUserPanel(false)}
+        focusPasswordChange={(user as any)?.otp_login}
       />
     </div>
   )
