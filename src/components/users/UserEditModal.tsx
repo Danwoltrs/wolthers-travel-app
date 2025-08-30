@@ -128,7 +128,8 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      {/* Full width on mobile, constrained on larger screens */}
+      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-lg w-full max-w-full sm:max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 bg-golden-400 dark:bg-[#09261d] border-b border-pearl-200 dark:border-[#0a2e21] flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white dark:text-golden-400">Edit User</h2>
@@ -141,7 +142,8 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 bg-white dark:bg-[#1a1a1a] overflow-y-auto max-h-[calc(90vh-8rem)]">
+        {/* Responsive padding so modal fits on small devices */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 bg-white dark:bg-[#1a1a1a] overflow-y-auto max-h-[calc(90vh-8rem)]">
           <div className="space-y-6">
             {/* Basic Information */}
             <div>
