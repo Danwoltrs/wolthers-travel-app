@@ -373,14 +373,17 @@ export default function CompaniesPage() {
         </div>
 
         {/* Dashboard Content */}
-        <div className="p-8 space-y-8 lg:p-8 pl-16 lg:pl-8">
+        <div className="p-4 space-y-6 sm:p-8 sm:space-y-8 pl-4 sm:pl-8">
           {/* Two Column Layout: Balanced Responsive Layout */}
           <div className="flex flex-col 2xl:flex-row gap-6 items-start space-y-6 2xl:space-y-0">
-            
+
             {/* Left Column: Added 20px to ensure weeks 51-52 are visible */}
-            <div className="w-full space-y-6 min-w-0" style={{ maxWidth: '800px' }}>
+            <div
+              className="w-full space-y-6 min-w-0"
+              style={{ maxWidth: isMobile ? '100%' : '800px' }}
+            >
               {/* Enhanced Heatmap - MASTER WIDTH COMPONENT */}
-              <EnhancedHeatmap 
+              <EnhancedHeatmap
                 selectedSection={selectedSection}
               />
               
