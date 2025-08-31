@@ -14,27 +14,36 @@ import { useTrips } from '@/hooks/useTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
 
 export default function Dashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
-  const { user } = useAuth() // Get user data for permission checks
-  const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [showTripCreationModal, setShowTripCreationModal] = useState(false)
+    const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
+    const { user } = useAuth() // Get user data for permission checks
+    const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
+    const [isMenuOpen, setIsMenuOpen] = useState(false)
+    const [showTripCreationModal, setShowTripCreationModal] = useState(false)
   const [resumeData, setResumeData] = useState<any>(null)
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-  const { trips, loading, error, isOffline, refetch } = useTrips()
+    const { trips, loading, error, isOffline, refetch } = useTrips()
 
-  // Listen for menu state changes (this would need to be coordinated with Header component)
-  // This useEffect must be called unconditionally to maintain hooks order
-  React.useEffect(() => {
-    const handleMenuToggle = (event: CustomEvent) => {
-      setIsMenuOpen(event.detail.isOpen)
-    }
-    
-    window.addEventListener('menuToggle', handleMenuToggle as EventListener)
-    return () => window.removeEventListener('menuToggle', handleMenuToggle as EventListener)
-  }, [])
+    // Listen for menu state changes (this would need to be coordinated with Header component)
+    // This useEffect must be called unconditionally to maintain hooks order
+    React.useEffect(() => {
+      const handleMenuToggle = (event: CustomEvent) => {
+        setIsMenuOpen(event.detail.isOpen)
+      }
+
+      window.addEventListener('menuToggle', handleMenuToggle as EventListener)
+      return () => window.removeEventListener('menuToggle', handleMenuToggle as EventListener)
+    }, [])
+
+    // Prevent background scrolling when trip overview modal is open
+    React.useEffect(() => {
+      if (selectedTrip) {
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+      }
+    }, [selectedTrip])
 
   // Load draft trips
   React.useEffect(() => {
@@ -199,6 +208,15 @@ export default function Dashboard() {
     setShowTripCreationModal(true)
   }
 
+  // Open trip creation modal when triggered from Header
+  React.useEffect(() => {
+    const handleOpenTripCreation = () => {
+      handleCreateTrip()
+    }
+    window.addEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+    return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+  }, [handleCreateTrip])
+
   const handleTripCreated = (trip: any) => {
     // Refresh trips data to show the newly created trip
     console.log('Trip created:', trip)
@@ -262,19 +280,6 @@ export default function Dashboard() {
             )}
           >
             <Plus className="w-8 h-8 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Add Trip Button - fixed position below header but behind modals - Only show for authorized users */}
-      {canCreateTrips && (
-        <div className="fixed top-[135px] left-[55px] right-[55px] xl:hidden z-20">
-          <div
-            onClick={handleCreateTrip}
-            className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 w-full h-[50px]"
-          >
-            <Plus className="w-6 h-6 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
-            <span className="ml-2 text-sm font-medium text-gray-600 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300">Add New Trip</span>
           </div>
         </div>
       )}

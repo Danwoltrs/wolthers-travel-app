@@ -6,15 +6,16 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Building,
-  Users,
-  Settings,
-  Sun,
-  Moon,
-  Menu,
-  X,
-  User,
-  LogOut,
-} from "lucide-react";
+    Users,
+    Settings,
+    Sun,
+    Moon,
+    Menu,
+    X,
+    User,
+    LogOut,
+    Plus,
+  } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,10 +59,20 @@ const navItems: NavItem[] = [
 export default function Header() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, isLoading } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [showUserModal, setShowUserModal] = React.useState(false);
-  const [showUserDropdown, setShowUserDropdown] = React.useState(false);
+    const { user, signOut, isLoading } = useAuth();
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const [showUserModal, setShowUserModal] = React.useState(false);
+    const [showUserDropdown, setShowUserDropdown] = React.useState(false);
+
+    // Determine if user can create trips
+    const canCreateTrips = React.useMemo(() => {
+      if (!user) return false;
+      const isWolthersStaff =
+        user.isGlobalAdmin ||
+        user.companyId === "840783f4-866d-4bdb-9b5d-5d0facf62db0";
+      if (isWolthersStaff) return true;
+      return user.role === "admin";
+    }, [user]);
 
   // Filter navigation items based on user permissions
   const getFilteredNavItems = () => {
@@ -279,11 +290,11 @@ export default function Header() {
           <div className="lg:hidden mt-4 mx-4 sm:mx-6">
             <div className="bg-emerald-800/95 dark:bg-[#09261d]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-600/30 dark:border-emerald-900/60 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-emerald-700/30 to-emerald-900/30 dark:from-[#09261d]/60 dark:to-[#041611]/80" />
-              <nav className="relative p-4 space-y-2">
-                {getFilteredNavItems().map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
+                <nav className="relative p-4 space-y-2">
+                  {getFilteredNavItems().map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
                     onClick={() => {
                       setIsMenuOpen(false);
                       window.dispatchEvent(
@@ -302,14 +313,33 @@ export default function Header() {
                     {item.icon}
                     <span className="font-medium">{item.label}</span>
                   </Link>
-                ))}
+                  ))}
+
+                  {/* Add Trip Button for Mobile */}
+                  {canCreateTrips && (
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent("openTripCreation"));
+                        setIsMenuOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("menuToggle", {
+                            detail: { isOpen: false },
+                          }),
+                        );
+                      }}
+                      className="flex items-center space-x-3 p-3 rounded-xl text-emerald-100 dark:text-green-300 hover:text-white hover:bg-white/10 dark:hover:bg-emerald-500/15 transition-all duration-200 w-full text-left"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span className="font-medium">Add Trip</span>
+                    </button>
+                  )}
 
                 {/* User Profile for Mobile */}
-                {user && !isLoading && (
-                  <button
-                    onClick={() => {
-                      setShowUserModal(true);
-                      setIsMenuOpen(false);
+                  {user && !isLoading && (
+                    <button
+                      onClick={() => {
+                        setShowUserModal(true);
+                        setIsMenuOpen(false);
                       window.dispatchEvent(
                         new CustomEvent("menuToggle", {
                           detail: { isOpen: false },
