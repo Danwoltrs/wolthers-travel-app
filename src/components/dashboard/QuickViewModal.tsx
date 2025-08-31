@@ -286,7 +286,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-start md:items-center justify-center z-50 p-2 md:p-4 overflow-y-auto">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
         getScheduleWidth()
       }`}>
@@ -388,7 +388,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             )}
             
             {/* Tab Content Area */}
-            <div className="flex-1 overflow-y-auto p-3 md:p-6" ref={(el) => {
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 touch-pan-y" ref={(el) => {
               // Auto-scroll to top when Schedule tab becomes active
               if (activeTab === 'schedule' && el) {
                 el.scrollTop = 0
