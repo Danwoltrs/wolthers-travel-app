@@ -275,7 +275,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-20 xl:pt-40 pb-8 transition-colors duration-300">
+    <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-12 xl:pt-40 pb-8 transition-colors duration-300">
       {/* Fixed Add Trip Button fine-tuned positioning - Only show for authorized users */}
       {canCreateTrips && (
         <div className="fixed left-[calc(50%-400px-160px)] top-[260px] xl:top-[260px] z-30 hidden xl:block">
@@ -291,7 +291,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0 mt-[90px] xl:mt-0">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0 mt-[60px] xl:mt-0">
         
         {/* Debug info - temporary */}
         <AuthDebug />
