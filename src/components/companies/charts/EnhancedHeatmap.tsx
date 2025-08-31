@@ -318,18 +318,18 @@ export default function EnhancedHeatmap({
 
   const renderMonthlyHeaders = (squareSize: number) => {
     const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
+      "J",
+      "F",
+      "M",
+      "A",
+      "M",
+      "J",
+      "J",
+      "A",
+      "S",
+      "O",
+      "N",
+      "D",
     ];
     return months.map((month) => (
       <div
@@ -477,15 +477,16 @@ export default function EnhancedHeatmap({
       const mobileBreakpoint = 640;
 
       if (containerWidth <= mobileBreakpoint) {
-        const nameColumnWidth = 80;
+        const nameColumnWidth = 60;
         const heatmapWidth = containerWidth - nameColumnWidth - 20;
-        const squareSize = Math.floor(heatmapWidth / 23);
+        const gap = 2;
+        const squareSize = Math.floor((heatmapWidth - gap * 11) / 12);
         return {
           mode: "monthly" as const,
           squareSize,
-          gap: squareSize,
+          gap,
           nameColumnWidth,
-          verticalGap: squareSize,
+          verticalGap: gap,
         };
       }
 
@@ -706,36 +707,57 @@ export default function EnhancedHeatmap({
               };
 
               const isLastYear = index === array.length - 1;
+              const entityNames = Array.from(yearData.entities.keys()).join(", ");
 
               return (
                 <div key={year} className="space-y-px">
                   {/* Year Header with Heatmap */}
                   <div
-                    className="flex items-center gap-2"
+                    className={`flex ${
+                      fixedSizing.mode === "monthly" ? "items-start" : "items-center"
+                    } gap-2`}
                     style={{
-                      height: "10px",
+                      height: fixedSizing.mode === "monthly" ? "auto" : "10px",
                       marginBottom: isLastYear ? "0" : "2px",
                     }}
                   >
                     <button
                       onClick={() => toggleYear(year)}
-                      className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                      className={`${
+                        fixedSizing.mode === "monthly"
+                          ? "flex flex-col items-start gap-1"
+                          : "flex items-center gap-1"
+                      } text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100`}
                       style={{
                         width: `${fixedSizing.nameColumnWidth}px`,
                         flexShrink: 0,
                       }}
                     >
-                      {isExpanded ? (
-                        <ChevronDown className="w-3 h-3" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3" />
+                      <div className="flex items-center gap-1 w-full">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3 h-3" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3" />
+                        )}
+                        <span>{year}</span>
+                        <span className="ml-auto text-[10px] text-gray-500 dark:text-gray-400">
+                          ({yearData.totalTrips})
+                        </span>
+                      </div>
+                      {fixedSizing.mode === "monthly" && (
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 w-full break-words">
+                          {entityNames}
+                        </div>
                       )}
-                      <span>{year}</span>
-                      <span className="ml-auto text-[10px] text-gray-500 dark:text-gray-400">
-                        ({yearData.totalTrips})
-                      </span>
                     </button>
-                    <div className="flex overflow-hidden">
+                    <div
+                      className="flex overflow-hidden"
+                      style={
+                        fixedSizing.mode === "monthly"
+                          ? { gap: `${fixedSizing.gap}px` }
+                          : undefined
+                      }
+                    >
                       {renderHeatmapSquares(yearEntityData, fixedSizing)}
                     </div>
                   </div>
