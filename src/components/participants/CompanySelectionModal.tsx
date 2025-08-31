@@ -299,7 +299,7 @@ export function CompanySelectionModal({ isOpen, onClose, tripId, onInvitationSen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-lg max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-none sm:rounded-lg w-full h-full sm:max-w-6xl sm:h-auto sm:max-h-[90vh] mx-0 sm:mx-4 flex flex-col overflow-auto sm:overflow-hidden">
         
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] text-white dark:text-golden-400 px-6 py-4 border-b border-pearl-200 dark:border-[#0a2e21] flex justify-between items-center">
@@ -313,7 +313,7 @@ export function CompanySelectionModal({ isOpen, onClose, tripId, onInvitationSen
         </div>
 
         {/* Content */}
-        <div className="bg-white dark:bg-[#1a1a1a] overflow-hidden">
+        <div className="flex-1 bg-white dark:bg-[#1a1a1a] overflow-hidden flex flex-col">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
               <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
@@ -334,12 +334,12 @@ export function CompanySelectionModal({ isOpen, onClose, tripId, onInvitationSen
               </p>
             </div>
           ) : loading ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 flex-1">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent mx-auto mb-4"></div>
               <p className="text-gray-500 dark:text-gray-400">Loading companies...</p>
             </div>
           ) : (
-            <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="flex-1 overflow-y-auto">
               {/* Companies Table */}
               <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
                 {companies.length > 0 ? (

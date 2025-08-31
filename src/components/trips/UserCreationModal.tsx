@@ -89,8 +89,8 @@ export default function UserCreationModal({
   const selectedCompany = availableCompanies.find(c => c.id === formData.companyId)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full max-w-lg max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full h-full sm:max-w-lg sm:h-auto sm:max-h-[90vh] flex flex-col overflow-auto sm:overflow-hidden">
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">

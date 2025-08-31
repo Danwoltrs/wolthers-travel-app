@@ -199,8 +199,8 @@ export function AddParticipantsDialog({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] max-w-4xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full h-full sm:max-w-4xl sm:h-auto sm:max-h-[90vh] flex flex-col overflow-auto sm:overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
           <div>

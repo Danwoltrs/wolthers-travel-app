@@ -149,8 +149,8 @@ export default function LabCreationModal({ isOpen, onClose, onLabCreated }: LabC
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl w-full h-full sm:max-w-3xl sm:h-auto sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] text-white dark:text-golden-400 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">

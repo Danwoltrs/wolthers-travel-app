@@ -281,8 +281,8 @@ export default function QuickTripPlanningModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg shadow-2xl w-full h-full sm:max-w-6xl sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-6 text-white">
           <div className="flex items-center justify-between">

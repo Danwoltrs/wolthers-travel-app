@@ -48,8 +48,8 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
   const showTeamTab = permissions.canViewCompanyUsers || permissions.canViewAllUsers
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-[9999] p-2 md:p-4">
-      <div className="bg-[#EDE4D3] dark:bg-[#1a1a1a] rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto border border-pearl-200 dark:border-[#2a2a2a]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-[9999] p-0 sm:p-2 md:p-4">
+      <div className="bg-[#EDE4D3] dark:bg-[#1a1a1a] rounded-none sm:rounded-lg shadow-xl w-full h-full sm:max-w-5xl sm:h-auto sm:max-h-[90vh] border border-pearl-200 dark:border-[#2a2a2a] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between w-full">
@@ -99,7 +99,7 @@ export default function UserManagementModal({ isOpen, onClose }: UserManagementM
         </div>
 
         {/* Content */}
-        <div className="p-3 md:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-6">
           {activeTab === 'profile' ? (
             <div className="bg-[#F5F1E8] dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
               <UserProfileSection user={user} isOwnProfile={true} onUpdate={handleProfileUpdate} />

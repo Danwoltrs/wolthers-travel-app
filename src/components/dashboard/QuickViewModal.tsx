@@ -263,7 +263,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
   // Calculate flexible width based on trip duration for schedule mode
   const getScheduleWidth = () => {
-    if (!isEditing || activeTab !== 'schedule') return 'max-w-5xl w-full max-h-[90vh]'
+    if (!isEditing || activeTab !== 'schedule') return 'w-full h-full sm:max-w-5xl sm:max-h-[90vh]'
     
     const days = calculateDuration(localTrip.startDate, localTrip.endDate)
     
@@ -282,11 +282,11 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
       widthClass = 'max-w-[92vw]' // Maximum for 8+ days + padding
     }
     
-    return `w-full ${widthClass} h-[95vh]`
+    return `w-full h-full sm:h-[95vh] ${widthClass}`
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-start md:items-center justify-center z-50 p-2 md:p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-start md:items-center justify-center z-50 p-0 sm:p-2 md:p-4 overflow-y-auto">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
         getScheduleWidth()
       }`}>

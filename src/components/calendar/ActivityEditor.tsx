@@ -157,8 +157,8 @@ export function ActivityEditor({
   if (!isOpen) return null
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="activity-editor-title"
@@ -166,7 +166,7 @@ export function ActivityEditor({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 bg-emerald-800 dark:bg-emerald-900 border-b border-emerald-700">
           <div className="flex items-center justify-between">
