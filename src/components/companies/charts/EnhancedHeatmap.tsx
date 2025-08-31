@@ -251,16 +251,17 @@ export default function EnhancedHeatmap({
       "Dec",
     ];
     const monthHeaders = [];
+    const year = heatmapData?.currentYear || new Date().getFullYear();
 
     // Create a header for each week position, showing month name only at the start of each month
     for (let week = 1; week <= 52; week++) {
-      const date = new Date(2025, 0, 1); // Start of 2025
+      const date = new Date(year, 0, 1); // Start of the year
       date.setDate(date.getDate() + (week - 1) * 7); // Add weeks
       const monthIndex = date.getMonth();
       const isFirstWeekOfMonth =
         week === 1 ||
         (week > 1 &&
-          new Date(2025, 0, 1 + (week - 2) * 7).getMonth() !== monthIndex);
+          new Date(year, 0, 1 + (week - 2) * 7).getMonth() !== monthIndex);
 
       monthHeaders.push(
         <div
@@ -315,7 +316,7 @@ export default function EnhancedHeatmap({
     return headers;
   };
 
-  const renderMonthlyHeaders = () => {
+  const renderMonthlyHeaders = (squareSize: number) => {
     const months = [
       "Jan",
       "Feb",
@@ -330,11 +331,11 @@ export default function EnhancedHeatmap({
       "Nov",
       "Dec",
     ];
-    return months.map((month, index) => (
+    return months.map((month) => (
       <div
         key={month}
         className="text-xs text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
-        style={{ width: "16px", marginRight: "2px" }}
+        style={{ width: `${squareSize}px` }}
       >
         {month}
       </div>
@@ -446,8 +447,6 @@ export default function EnhancedHeatmap({
               width: `${squareSize}px`,
               height: `${squareSize}px`,
               borderRadius: "2px",
-              marginRight: `${gap}px`,
-              marginBottom: `${verticalGap}px`,
               minWidth: `${squareSize}px`,
               minHeight: `${squareSize}px`,
               maxWidth: `${squareSize}px`,
@@ -459,7 +458,11 @@ export default function EnhancedHeatmap({
         );
       }
 
-      return <div className="flex">{monthlySquares}</div>;
+      return (
+        <div className="flex" style={{ gap: `${gap}px` }}>
+          {monthlySquares}
+        </div>
+      );
     }
 
     return null;
@@ -468,30 +471,27 @@ export default function EnhancedHeatmap({
   // Fixed sizing calculation - always weekly view with 10x10px squares
   const getFixedSizing = (containerRef?: React.RefObject<HTMLDivElement>) => {
     const weekly = { squareSize: 10, gap: 1, verticalGap: 1 };
-    const monthly = { squareSize: 16, gap: 2, verticalGap: 2 };
 
     if (typeof window !== "undefined" && containerRef?.current) {
       const containerWidth = containerRef.current.offsetWidth;
+      const mobileBreakpoint = 640;
 
-      // Mobile layout: monthly squares
-      if (containerWidth < 600) {
-        const monthlyWidth = 12 * monthly.squareSize + 11 * monthly.gap + 20;
-        const availableForNames = containerWidth - monthlyWidth - 30;
-        const nameColumnWidth = Math.max(100, Math.min(130, availableForNames));
-
+      if (containerWidth <= mobileBreakpoint) {
+        const nameColumnWidth = 80;
+        const heatmapWidth = containerWidth - nameColumnWidth - 20;
+        const squareSize = Math.floor(heatmapWidth / 23);
         return {
           mode: "monthly" as const,
-          squareSize: monthly.squareSize,
-          gap: monthly.gap,
+          squareSize,
+          gap: squareSize,
           nameColumnWidth,
-          verticalGap: monthly.verticalGap,
+          verticalGap: squareSize,
         };
       }
 
-      // Default weekly layout
       const weeklyWidth = 52 * weekly.squareSize + 51 * weekly.gap + 20;
       const availableForNames = containerWidth - weeklyWidth - 30;
-      const nameColumnWidth = Math.max(130, Math.min(170, availableForNames));
+      const nameColumnWidth = Math.max(100, Math.min(170, availableForNames));
 
       return {
         mode: "weekly" as const,
@@ -624,7 +624,6 @@ export default function EnhancedHeatmap({
       className={`w-full bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 lg:p-6 ${className}`}
       style={{
         maxWidth: "100%",
-        overflow: "hidden",
         minWidth: 0,
         boxSizing: "border-box",
       }}
@@ -633,8 +632,8 @@ export default function EnhancedHeatmap({
         {getTitle()}
       </h2>
 
-      {/* Container with constrained width to prevent overflow */}
-      <div className="w-full overflow-hidden" style={{ maxWidth: "100%" }}>
+      {/* Container with constrained width to allow horizontal scroll */}
+      <div className="w-full overflow-x-auto" style={{ maxWidth: "100%" }}>
         <div
           style={{
             minWidth: "fit-content",
@@ -658,10 +657,18 @@ export default function EnhancedHeatmap({
             >
               Month
             </div>
-            <div className="flex overflow-hidden">
+            <div
+              className="flex overflow-hidden"
+              style={
+                fixedSizing.mode === "monthly"
+                  ? { gap: `${fixedSizing.gap}px` }
+                  : undefined
+              }
+            >
               {fixedSizing.mode === "weekly" && renderWeeklyMonthHeaders()}
               {fixedSizing.mode === "biannual" && renderBiannualHeaders()}
-              {fixedSizing.mode === "monthly" && renderMonthlyHeaders()}
+              {fixedSizing.mode === "monthly" &&
+                renderMonthlyHeaders(fixedSizing.squareSize)}
             </div>
           </div>
 
