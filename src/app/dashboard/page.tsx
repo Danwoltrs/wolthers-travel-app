@@ -38,10 +38,17 @@ export default function Dashboard() {
 
     // Prevent background scrolling when trip overview modal is open
     React.useEffect(() => {
+      const html = document.documentElement
+      const body = document.body
+
       if (selectedTrip) {
-        document.body.style.overflow = 'hidden'
+        // Lock scroll on both the html and body elements
+        html.style.overflow = 'hidden'
+        body.style.overflow = 'hidden'
       } else {
-        document.body.style.overflow = ''
+        // Restore default scrolling
+        html.style.overflow = ''
+        body.style.overflow = ''
       }
     }, [selectedTrip])
 
