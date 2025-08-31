@@ -97,8 +97,8 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-none sm:rounded-lg w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] flex flex-col overflow-auto sm:overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -141,7 +141,7 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-10rem)]">
+        <form onSubmit={handleSubmit} className="flex-1 p-6 overflow-y-auto">
           <div className="space-y-6">
             {inviteMode === 'single' ? (
               <>

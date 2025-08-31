@@ -339,7 +339,7 @@ export function ScheduleTab({
       {/* Activity Editor Modal */}
       {showActivityEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg p-6 w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] mx-0 sm:mx-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
                 {editingActivity ? 'Edit Activity' : 'Add Activity'}

@@ -241,7 +241,7 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] border border-pearl-200 dark:border-[#2a2a2a] shadow-xl rounded-none sm:rounded-lg w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] mx-0 sm:mx-4 flex flex-col overflow-auto sm:overflow-hidden">
         
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] text-white dark:text-golden-400 px-6 py-4 border-b border-pearl-200 dark:border-[#0a2e21] flex justify-between items-center">
@@ -256,7 +256,7 @@ export function EnhancedGuestInvitationModal({ isOpen, onClose, tripId, onInvita
         </div>
 
         {/* Content */}
-        <div className="p-6 bg-white dark:bg-[#1a1a1a] overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="flex-1 p-6 bg-white dark:bg-[#1a1a1a] overflow-y-auto">
           {success ? (
             <div className="text-center py-8">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">

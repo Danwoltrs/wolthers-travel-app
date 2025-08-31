@@ -150,13 +150,13 @@ const UserPanel: React.FC<UserPanelProps> = ({
       />
       
       {/* Panel */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div 
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
+        <div
           className={cn(
-            "relative bg-white dark:bg-[#1a1a1a] rounded-xl shadow-2xl",
+            "relative bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-xl shadow-2xl",
             "border border-pearl-200 dark:border-[#2a2a2a]",
-            "max-w-2xl w-full max-h-[90vh] overflow-hidden",
-            "transform transition-all duration-200",
+            "w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] overflow-auto sm:overflow-hidden",
+            "transform transition-all duration-200 flex flex-col",
             isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
           )}
         >
@@ -206,7 +206,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="flex-1 p-6 overflow-y-auto">
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Profile Information</h3>

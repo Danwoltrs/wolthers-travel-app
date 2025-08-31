@@ -402,10 +402,10 @@ export default function CompanyLocationsTab({ companyId, editMode }: CompanyLoca
       {/* Add/Edit Location Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="flex min-h-screen items-center justify-center p-0 sm:p-4">
             <div className="fixed inset-0 bg-black/50" onClick={() => setIsFormOpen(false)} />
-            
-            <div className="relative bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+
+            <div className="relative bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] w-full h-full sm:max-w-4xl sm:h-auto sm:max-h-[90vh] overflow-y-auto">
               <div className="bg-golden-400 dark:bg-[#09261d] px-6 py-4 border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-lg">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
                   {editingLocation ? 'Edit Location' : 'Add New Location'}
