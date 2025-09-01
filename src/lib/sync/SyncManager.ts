@@ -465,8 +465,8 @@ export class SyncManager {
   private async setupRealTimeSync(): Promise<void> {
     try {
       // Import Supabase client dynamically to avoid SSR issues
-      const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser')
-      const supabase = createBrowserSupabaseClient()
+      const { createClient } = await import('@/lib/supabase-client')
+      const supabase = createClient()
 
       // Subscribe to trip changes
       this.supabaseSubscription = supabase

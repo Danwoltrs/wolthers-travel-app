@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { usePerformanceMonitor } from '@/lib/cache/performance'
 import { adaptiveCacheConfig, getCacheSystemConfig, getEnvironmentInfo } from '@/lib/cache/config'
 import { useTripCache } from '@/contexts/TripCacheContext'
-import { CheckCircle, XCircle, AlertTriangle, Activity, Zap, Database, Sync, Settings, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, AlertTriangle, Activity, Zap, Database, RotateCw, Settings, RefreshCw } from 'lucide-react'
 
 /**
  * System validation component for administrators
@@ -320,7 +320,7 @@ export default function SystemValidation() {
               {/* Sync Results */}
               <TestSection
                 title="Sync System"
-                icon={<Sync className="w-4 h-4" />}
+                icon={<RotateCw className="w-4 h-4" />}
                 test={validationResults.tests.sync}
               />
 

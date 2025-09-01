@@ -192,6 +192,7 @@ export class CacheManager<T> {
 
   private getFromStorage(key: string): CacheItem<T> | null {
     try {
+      if (typeof window === 'undefined') return null
       const stored = localStorage.getItem(`${this.config.storageKey}:${key}`)
       if (!stored) return null
 
@@ -211,6 +212,7 @@ export class CacheManager<T> {
 
   private setInStorage(key: string, item: CacheItem<T>): void {
     try {
+      if (typeof window === 'undefined') return
       localStorage.setItem(`${this.config.storageKey}:${key}`, JSON.stringify(item))
     } catch (error) {
       console.warn(`Failed to write to storage for key ${key}:`, error)
@@ -220,6 +222,7 @@ export class CacheManager<T> {
 
   private removeFromStorage(key: string): void {
     try {
+      if (typeof window === 'undefined') return
       localStorage.removeItem(`${this.config.storageKey}:${key}`)
     } catch (error) {
       console.warn(`Failed to remove from storage for key ${key}:`, error)
@@ -228,6 +231,7 @@ export class CacheManager<T> {
 
   private clearStorage(): void {
     try {
+      if (typeof window === 'undefined') return
       const keys = Object.keys(localStorage)
       keys.forEach(key => {
         if (key.startsWith(`${this.config.storageKey}:`)) {
@@ -252,6 +256,7 @@ export class CacheManager<T> {
 
       // Clean localStorage (expensive operation, do less frequently)
       try {
+        if (typeof window === 'undefined') return
         const keys = Object.keys(localStorage)
         keys.forEach(storageKey => {
           if (storageKey.startsWith(`${this.config.storageKey}:`)) {
@@ -292,11 +297,15 @@ export class CacheManager<T> {
  */
 export class NetworkManager {
   private listeners: Array<(online: boolean) => void> = []
-  private _isOnline = navigator.onLine
+  private _isOnline = true // Default to online for SSR
 
   constructor() {
-    window.addEventListener('online', () => this.setOnlineStatus(true))
-    window.addEventListener('offline', () => this.setOnlineStatus(false))
+    // Only set up event listeners in browser environment
+    if (typeof window !== 'undefined') {
+      this._isOnline = navigator.onLine
+      window.addEventListener('online', () => this.setOnlineStatus(true))
+      window.addEventListener('offline', () => this.setOnlineStatus(false))
+    }
   }
 
   get isOnline(): boolean {
