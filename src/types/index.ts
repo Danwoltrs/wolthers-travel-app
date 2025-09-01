@@ -2,6 +2,7 @@ export enum UserRole {
   GLOBAL_ADMIN = "global_admin",
   WOLTHERS_STAFF = "wolthers_staff",
   WOLTHERS_FINANCE = "wolthers_finance",
+  CAR_MANAGER = "car_manager",
   COMPANY_ADMIN = "company_admin",
   VISITOR = "visitor",
   VISITOR_ADMIN = "visitor_admin",

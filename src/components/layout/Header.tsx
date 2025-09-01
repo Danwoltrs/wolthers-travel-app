@@ -7,7 +7,6 @@ import {
   Home,
   Building,
     Users,
-    Settings,
     Sun,
     Moon,
     Menu,
@@ -48,11 +47,6 @@ const navItems: NavItem[] = [
     icon: <Building className="w-5 h-5" />,
     label: "Companies",
     href: "/companies",
-  },
-  {
-    icon: <Settings className="w-5 h-5" />,
-    label: "Settings",
-    href: "/settings",
   },
 ];
 
