@@ -172,17 +172,15 @@ export default function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
               <>
                 <span className="text-gray-300 dark:text-gray-600">•</span>
                 <span>{vehicle.seating_capacity} seats</span>
+                {vehicle.vehicle_type && (
+                  <>
+                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                    <span className="capitalize">{vehicle.vehicle_type.replace('_', ' ')}</span>
+                  </>
+                )}
               </>
             )}
           </div>
-
-          {/* Vehicle Type */}
-          {vehicle.vehicle_type && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <MapPin className="h-4 w-4" />
-              <span className="capitalize">{vehicle.vehicle_type.replace('_', ' ')}</span>
-            </div>
-          )}
         </div>
 
         {/* Status Indicators */}
