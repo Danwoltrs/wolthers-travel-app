@@ -28,6 +28,8 @@ interface Vehicle {
   vehicle_type: string;
   seating_capacity: number;
   notes: string | null;
+  image_url: string | null;
+  gallery_images: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,9 +123,17 @@ export default function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
       className="group bg-white dark:bg-[#1a1a1a] rounded-lg border border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-600 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden"
       style={{ height: "420px" }} // Fixed height like TripCard
     >
-      {/* Vehicle Image Placeholder */}
+      {/* Vehicle Image */}
       <div className="h-48 bg-gradient-to-br from-[#D4AF86] to-[#C19A6B] dark:from-[#2D5347] dark:to-[#1E3A2E] flex items-center justify-center relative overflow-hidden">
-        <Car className="h-16 w-16 text-[#8B6F47] dark:text-[#A0B3A8]" />
+        {vehicle.image_url ? (
+          <img
+            src={vehicle.image_url}
+            alt={`${vehicle.model} - ${vehicle.license_plate}`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <Car className="h-16 w-16 text-[#8B6F47] dark:text-[#A0B3A8]" />
+        )}
         
         {/* Status Badge */}
         <div className={cn(

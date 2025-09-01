@@ -21,6 +21,7 @@ import VehicleMaintenanceTab from "./VehicleMaintenanceTab";
 import VehicleUsageTab from "./VehicleUsageTab";
 import VehicleInsuranceTab from "./VehicleInsuranceTab";
 import VehicleMileageChart from "./VehicleMileageChart";
+import VehicleImageUpload from "./VehicleImageUpload";
 
 interface Vehicle {
   id: string;
@@ -36,6 +37,8 @@ interface Vehicle {
   vehicle_type: string;
   seating_capacity: number;
   notes: string | null;
+  image_url: string | null;
+  gallery_images: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +61,8 @@ export default function VehicleDetailsModal({
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [editedVehicle, setEditedVehicle] = useState<Vehicle>(vehicle);
+  const [currentVehicle, setCurrentVehicle] = useState<Vehicle>(vehicle);
+  const [uploading, setUploading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -75,7 +80,7 @@ export default function VehicleDetailsModal({
   };
 
   const getStatusDisplay = () => {
-    if (vehicle.is_available) {
+    if (currentVehicle.is_available) {
       return {
         label: "Available",
         color: "text-green-600 dark:text-green-400",
@@ -109,9 +114,110 @@ export default function VehicleDetailsModal({
 
       const updatedVehicle = await response.json();
       onUpdate(updatedVehicle.vehicle);
+      setCurrentVehicle(updatedVehicle.vehicle);
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating vehicle:", error);
+      // TODO: Add proper error handling/toast notification
+    }
+  };
+
+  const handleImageUpload = async (files: File[], setPrimary?: boolean) => {
+    if (!files.length) return;
+    
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('images', file);
+      });
+      if (setPrimary) {
+        formData.append('set_primary', 'true');
+      }
+
+      const response = await fetch(`/api/fleet/vehicles/${vehicle.id}/upload-image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      const updatedVehicle = {
+        ...currentVehicle,
+        image_url: result.data.primaryImage,
+        gallery_images: result.data.galleryImages,
+      };
+      
+      setCurrentVehicle(updatedVehicle);
+      onUpdate(updatedVehicle);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      // TODO: Add proper error handling/toast notification
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleImageDelete = async (imageUrl: string) => {
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicle.id}/upload-image`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Delete failed');
+      }
+
+      const result = await response.json();
+      const updatedVehicle = {
+        ...currentVehicle,
+        image_url: result.data.primaryImage,
+        gallery_images: result.data.galleryImages,
+      };
+      
+      setCurrentVehicle(updatedVehicle);
+      onUpdate(updatedVehicle);
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      // TODO: Add proper error handling/toast notification
+    }
+  };
+
+  const handleSetPrimary = async (imageUrl: string) => {
+    try {
+      const updatedVehicle = {
+        ...currentVehicle,
+        image_url: imageUrl,
+      };
+      
+      const response = await fetch(`/api/fleet/vehicles/${vehicle.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ image_url: imageUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to set primary image");
+      }
+
+      setCurrentVehicle(updatedVehicle);
+      onUpdate(updatedVehicle);
+    } catch (error) {
+      console.error('Error setting primary image:', error);
       // TODO: Add proper error handling/toast notification
     }
   };
@@ -126,10 +232,10 @@ export default function VehicleDetailsModal({
               <Car className="h-6 w-6 text-[#006D5B] dark:text-golden-400" />
               <div>
                 <h2 className="text-xl font-semibold text-[#006D5B] dark:text-golden-400">
-                  {vehicle.model} ({vehicle.year})
+                  {currentVehicle.model} ({currentVehicle.year})
                 </h2>
                 <p className="text-[#333333] dark:text-golden-300 text-sm">
-                  {vehicle.color} • {vehicle.license_plate}
+                  {currentVehicle.color} • {currentVehicle.license_plate}
                 </p>
               </div>
             </div>
@@ -329,6 +435,25 @@ export default function VehicleDetailsModal({
                     </div>
                   </div>
 
+                  {/* Vehicle Images section - full width */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
+                      Vehicle Images
+                    </h3>
+                    
+                    <VehicleImageUpload
+                      vehicleId={vehicle.id}
+                      currentImages={currentVehicle.gallery_images || []}
+                      primaryImage={currentVehicle.image_url || undefined}
+                      onUpload={handleImageUpload}
+                      onDelete={handleImageDelete}
+                      onSetPrimary={handleSetPrimary}
+                      maxImages={10}
+                      disabled={uploading}
+                      showGallery={true}
+                    />
+                  </div>
+
                   {/* Action Buttons */}
                   <div className="flex justify-end gap-3 pt-6 border-t border-pearl-200 dark:border-[#2a2a2a]">
                     <button
@@ -363,16 +488,16 @@ export default function VehicleDetailsModal({
                           <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Model</p>
                             <p className="font-medium text-gray-900 dark:text-gray-100">
-                              {vehicle.model} ({vehicle.year})
+                              {currentVehicle.model} ({currentVehicle.year})
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-gray-400" style={{ backgroundColor: vehicle.color?.toLowerCase() }} />
+                          <div className="w-4 h-4 rounded-full bg-gray-400" style={{ backgroundColor: currentVehicle.color?.toLowerCase() }} />
                           <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Color & Plate</p>
                             <p className="font-medium text-gray-900 dark:text-gray-100">
-                              {vehicle.color} • {vehicle.license_plate}
+                              {currentVehicle.color} • {currentVehicle.license_plate}
                             </p>
                           </div>
                         </div>
@@ -381,17 +506,17 @@ export default function VehicleDetailsModal({
                           <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Current Mileage</p>
                             <p className="font-medium text-gray-900 dark:text-gray-100">
-                              {formatMileage(vehicle.current_mileage)} km
+                              {formatMileage(currentVehicle.current_mileage)} km
                             </p>
                           </div>
                         </div>
-                        {vehicle.seating_capacity && (
+                        {currentVehicle.seating_capacity && (
                           <div className="flex items-center gap-3">
                             <Users className="h-4 w-4 text-gray-400" />
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">Seating Capacity</p>
                               <p className="font-medium text-gray-900 dark:text-gray-100">
-                                {vehicle.seating_capacity} seats
+                                {currentVehicle.seating_capacity} seats
                               </p>
                             </div>
                           </div>
@@ -418,24 +543,24 @@ export default function VehicleDetailsModal({
                             </div>
                           </div>
                         </div>
-                        {vehicle.vehicle_type && (
+                        {currentVehicle.vehicle_type && (
                           <div className="flex items-center gap-3">
                             <MapPin className="h-4 w-4 text-gray-400" />
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">Vehicle Type</p>
                               <p className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                                {vehicle.vehicle_type.replace('_', ' ')}
+                                {currentVehicle.vehicle_type.replace('_', ' ')}
                               </p>
                             </div>
                           </div>
                         )}
-                        {vehicle.last_maintenance_date && (
+                        {currentVehicle.last_maintenance_date && (
                           <div className="flex items-center gap-3">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">Last Service</p>
                               <p className="font-medium text-gray-900 dark:text-gray-100">
-                                {new Date(vehicle.last_maintenance_date).toLocaleDateString('pt-BR')}
+                                {new Date(currentVehicle.last_maintenance_date).toLocaleDateString('pt-BR')}
                               </p>
                             </div>
                           </div>
@@ -450,14 +575,54 @@ export default function VehicleDetailsModal({
                       Notes
                     </h3>
                     <div className="text-sm text-gray-700 dark:text-gray-300">
-                      {vehicle.notes ? (
-                        <p className="whitespace-pre-wrap">{vehicle.notes}</p>
+                      {currentVehicle.notes ? (
+                        <p className="whitespace-pre-wrap">{currentVehicle.notes}</p>
                       ) : (
                         <p className="text-gray-500 dark:text-gray-400 italic">
                           No notes available
                         </p>
                       )}
                     </div>
+                  </div>
+
+                  {/* Vehicle Images Card - full width */}
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-4">
+                      Vehicle Images
+                    </h3>
+                    
+                    {currentVehicle.gallery_images && currentVehicle.gallery_images.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {currentVehicle.gallery_images.map((imageUrl, index) => (
+                          <div key={imageUrl} className="relative group">
+                            <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                              <img
+                                src={imageUrl}
+                                alt={`Vehicle image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            
+                            {/* Primary indicator */}
+                            {imageUrl === currentVehicle.image_url && (
+                              <div className="absolute top-2 left-2 p-1 bg-yellow-500 text-white rounded-full">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400 italic">
+                          No vehicle images available
+                        </p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                          Click the settings gear above to add vehicle photos
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -25,6 +25,19 @@ export default function Dashboard() {
   const [showUserPanel, setShowUserPanel] = useState(false)
     const { trips, loading, error, isOffline, refetch } = useTrips()
 
+    // Check if user can create trips (Wolthers staff or external company admins)
+    // Must be called before any conditional returns to maintain hook order
+    const canCreateTrips = React.useMemo(() => {
+      if (!user) return false
+      
+      // Wolthers staff (global admins or company members) can always create trips
+      const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      if (isWolthersStaff) return true
+      
+      // External company users can create trips only if they are admins
+      return user.role === 'admin'
+    }, [user])
+
     // Listen for menu state changes (this would need to be coordinated with Header component)
     // This useEffect must be called unconditionally to maintain hooks order
     React.useEffect(() => {
@@ -193,17 +206,6 @@ export default function Dashboard() {
     }
   }
 
-  // Check if user can create trips (Wolthers staff or external company admins)
-  const canCreateTrips = React.useMemo(() => {
-    if (!user) return false
-    
-    // Wolthers staff (global admins or company members) can always create trips
-    const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
-    if (isWolthersStaff) return true
-    
-    // External company users can create trips only if they are admins
-    return user.role === 'admin'
-  }, [user])
 
   const handleCreateTrip = () => {
     setResumeData(null) // Clear any resume data
