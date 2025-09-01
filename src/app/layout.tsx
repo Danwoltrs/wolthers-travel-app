@@ -3,7 +3,9 @@ import './globals.css'
 import ConditionalHeader from '@/components/layout/ConditionalHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { TripCacheProvider } from '@/contexts/TripCacheContext'
 import { ModalProvider } from '@/hooks/use-modal'
+import ErrorBoundary, { CacheErrorBoundary, SyncErrorBoundary } from '@/components/ErrorBoundary'
 
 export const metadata: Metadata = {
   title: 'Wolthers Travel App',
@@ -22,17 +24,25 @@ export default function RootLayout({
       </head>
       {/* Prevent horizontal scroll on narrow viewports */}
       <body suppressHydrationWarning={true} className="overflow-x-hidden">
-        <AuthProvider>
-          <ThemeProvider>
-            <ModalProvider>
-              <ConditionalHeader />
-              {/* Ensure pages don't introduce horizontal scrolling */}
-              <main className="min-h-screen overflow-x-hidden">
-                {children}
-              </main>
-            </ModalProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <ErrorBoundary context="general">
+          <AuthProvider>
+            <ThemeProvider>
+              <CacheErrorBoundary>
+                <SyncErrorBoundary>
+                  <TripCacheProvider>
+                    <ModalProvider>
+                      <ConditionalHeader />
+                      {/* Ensure pages don't introduce horizontal scrolling */}
+                      <main className="min-h-screen overflow-x-hidden">
+                        {children}
+                      </main>
+                    </ModalProvider>
+                  </TripCacheProvider>
+                </SyncErrorBoundary>
+              </CacheErrorBoundary>
+            </ThemeProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

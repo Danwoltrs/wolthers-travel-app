@@ -6,11 +6,13 @@ import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
 import TripCreationModal from '@/components/trips/TripCreationModal'
 import AuthDebug from '@/components/debug/AuthDebug'
+import CachePerformanceMonitor from '@/components/debug/CachePerformanceMonitor'
+import SystemValidation from '@/components/admin/SystemValidation'
 import PasswordChangePrompt from '@/components/auth/PasswordChangePrompt'
 import UserPanel from '@/components/user/UserPanel'
 import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
-import { useTrips } from '@/hooks/useTrips'
+import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
 
 export default function Dashboard() {
@@ -23,7 +25,7 @@ export default function Dashboard() {
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-    const { trips, loading, error, isOffline, refetch } = useTrips()
+    const { trips, loading, error, isOffline, refreshSilently } = useSmartTrips()
 
     // Check if user can create trips (Wolthers staff or external company admins)
     // Must be called before any conditional returns to maintain hook order
@@ -227,15 +229,15 @@ export default function Dashboard() {
   }, [handleCreateTrip])
 
   const handleTripCreated = (trip: any) => {
-    // Refresh trips data to show the newly created trip
+    // Refresh trips data silently to show the newly created trip
     console.log('Trip created:', trip)
-    refetch()
+    refreshSilently()
   }
 
   const closeModal = () => {
     setSelectedTrip(null)
-    // Refetch trip data to get updated participant information
-    refetch()
+    // Refresh trip data silently to get updated participant information
+    refreshSilently()
   }
 
   const handlePasswordPromptClose = () => {
@@ -404,6 +406,10 @@ export default function Dashboard() {
           onClose={() => setShowUserPanel(false)}
           focusPasswordChange={(user as any)?.otp_login}
         />
+
+        {/* Development Tools */}
+        <CachePerformanceMonitor />
+        <SystemValidation />
       </div>
     </div>
   )

@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { supabase, getCachedTrips, cacheTrips, isOnline } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTripsWithCache } from '@/hooks/useSmartTrips'
 import type { TripCard, Company } from '@/types'
 import { UserRole } from '@/types'
 
+/**
+ * Legacy useTrips hook - now uses smart caching under the hood
+ * This provides backward compatibility for existing code
+ */
 export function useTrips() {
+  // Use the new cached implementation
+  return useTripsWithCache()
+}
+
+/**
+ * Original useTrips implementation (kept for reference/fallback)
+ * This function is no longer used but preserved for potential debugging
+ */
+function useTripsLegacy() {
   const [trips, setTrips] = useState<TripCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +70,7 @@ export function useTrips() {
     }
   }
 
-  // Define fetchTrips outside useEffect so refetch can access it
+  // Legacy fetchTrips implementation (unused but preserved for reference)
   const fetchTrips = React.useCallback(async () => {
     // Don't fetch if not authenticated
     if (!isAuthenticated || !session || !user) {
