@@ -504,17 +504,21 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4">
       <div className="bg-white dark:bg-[#1a1a1a] rounded-none md:rounded-xl shadow-xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0">
+        <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0" style={{ backgroundColor: '#FBBF23' }}>
           <div className="flex items-center space-x-3">
-            <Plus className="w-6 h-6 text-white dark:text-golden-400" />
-            <h2 className="text-lg md:text-xl font-semibold text-white dark:text-golden-400">
+            <Plus className="w-6 h-6" style={{ color: '#006D5B' }} />
+            <h2 className="text-lg md:text-xl font-semibold" style={{ color: '#006D5B' }}>
               <span className="hidden sm:inline">
                 {resumeData ? 'Continue Trip Creation' : 'Create New Trip'}
-                {formData.tripType && currentStep > 1 && ` - ${steps[currentStep - 1]?.name}`}
+                {formData.tripType && currentStep > 1 && (
+                  <span style={{ color: '#333333' }}> - {steps[currentStep - 1]?.name}</span>
+                )}
               </span>
               <span className="sm:hidden">
                 {resumeData ? 'Continue Trip' : 'New Trip'}
-                {formData.tripType && currentStep > 1 && ` - ${steps[currentStep - 1]?.name}`}
+                {formData.tripType && currentStep > 1 && (
+                  <span style={{ color: '#333333' }}> - {steps[currentStep - 1]?.name}</span>
+                )}
               </span>
             </h2>
             {/* Save Status Indicator and Auto-save Toggle */}
@@ -522,13 +526,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               {/* Save Status */}
               <div className="flex items-center space-x-1 md:space-x-2">
                 {saveStatus.isSaving && (
-                  <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                  <div className="flex items-center space-x-1" style={{ color: '#333333' }}>
                     <Save className="w-3 md:w-4 h-3 md:h-4 animate-pulse" />
                     <span className="text-xs md:text-sm hidden xs:inline">Saving...</span>
                   </div>
                 )}
                 {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
-                  <div className="flex items-center space-x-1 text-white/80 dark:text-golden-400/80">
+                  <div className="flex items-center space-x-1" style={{ color: '#333333' }}>
                     <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
                     <span className="text-xs md:text-sm hidden xs:inline">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
                   </div>
@@ -544,7 +548,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               {/* Auto-save Toggle - only show after step 3 when we can have a trip ID */}
               {currentStep >= 3 && (
                 <div className="flex items-center space-x-1 md:space-x-2">
-                  <label className="flex items-center space-x-1 md:space-x-2 cursor-pointer text-white/80 dark:text-golden-400/80">
+                  <label className="flex items-center space-x-1 md:space-x-2 cursor-pointer" style={{ color: '#333333' }}>
                     <div className="relative">
                       <input
                         type="checkbox"
@@ -576,7 +580,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </div>
           <button
             onClick={handleClose}
-            className="text-white dark:text-golden-400 hover:text-gray-100 dark:hover:text-golden-300 transition-colors"
+            className="transition-colors hover:opacity-80"
+            style={{ color: '#006D5B' }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -785,6 +790,21 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
                 onClick={handleNext}
                 disabled={!canProceed()}
                 className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center"
+                style={{
+                  backgroundColor: !canProceed() ? '#9CA3AF' : '#059669'
+                }}
+                onMouseEnter={(e) => {
+                  if (canProceed()) {
+                    e.currentTarget.style.backgroundColor = '#FCC542'
+                    e.currentTarget.style.color = '#006D5B'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (canProceed()) {
+                    e.currentTarget.style.backgroundColor = '#059669'
+                    e.currentTarget.style.color = 'white'
+                  }
+                }}
               >
                 <span className="hidden sm:inline">Next</span>
                 <span className="sm:hidden">Next</span>
@@ -794,7 +814,23 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               <button
                 onClick={handleSubmit}
                 disabled={!canProceed() || isSubmitting}
-                className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                className="px-3 md:px-4 py-2 text-sm md:text-base rounded-lg transition-colors"
+                style={{
+                  backgroundColor: (!canProceed() || isSubmitting) ? '#9CA3AF' : '#059669',
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  if (canProceed() && !isSubmitting) {
+                    e.currentTarget.style.backgroundColor = '#FCC542'
+                    e.currentTarget.style.color = '#006D5B'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (canProceed() && !isSubmitting) {
+                    e.currentTarget.style.backgroundColor = '#059669'
+                    e.currentTarget.style.color = 'white'
+                  }
+                }}
               >
                 {isSubmitting ? (
                   <>

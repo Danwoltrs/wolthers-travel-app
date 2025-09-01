@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Plus, X, Calendar, Users, Hash } from 'lucide-react'
+import { Plus, X, Calendar, Users, Hash, Sparkles } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
 import { ClientType } from '@/types'
 import type { Company, User } from '@/types'
 import UnifiedCompanyCreationModal from '../companies/UnifiedCompanyCreationModal'
 import UserCreationModal from './UserCreationModal'
+import RegionBasedCompanySelector from './RegionBasedCompanySelector'
 import { generateTripCode } from '@/lib/tripCodeGenerator'
 import { useTripCodeValidation } from '@/hooks/useTripCodeValidation'
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
@@ -12,6 +13,11 @@ import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 interface BasicInfoStepProps {
   formData: TripFormData
   updateFormData: (data: Partial<TripFormData>) => void
+}
+
+// Check if this is an inland trip to show AI features
+const isInlandTrip = (formData: TripFormData) => {
+  return formData.tripType === 'in_land'
 }
 
 // Mock data - will be replaced with API calls
@@ -83,6 +89,9 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
   const [showCompanyModal, setShowCompanyModal] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<string | undefined>()
+  const [showRegionSelector, setShowRegionSelector] = useState(false)
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [isAiLoading, setIsAiLoading] = useState(false)
 
   const filteredCompanies = availableCompanies.filter(
     company => 
@@ -126,6 +135,37 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     setShowUserModal(true)
   }
 
+  // Handle region-based company selection
+  const handleRegionSelect = (regionId: string, suggestedCompanies: Company[]) => {
+    // Add region to selected list
+    setSelectedRegions(prev => [...prev, regionId])
+    
+    // Add all suggested companies to the form
+    const newCompanies = suggestedCompanies.filter(company => 
+      !formData.companies.some(existing => existing.id === company.id)
+    )
+    
+    updateFormData({ 
+      companies: [...formData.companies, ...newCompanies] 
+    })
+  }
+
+  const handleCustomSearch = async (searchTerm: string) => {
+    setIsAiLoading(true)
+    try {
+      // This would call a more general AI endpoint for custom searches
+      // For now, we'll simulate it
+      setTimeout(() => {
+        setIsAiLoading(false)
+        // In a real implementation, this would parse the search term and suggest companies
+        alert(`AI search for: "${searchTerm}" - This feature will be implemented in the next phase!`)
+      }, 2000)
+    } catch (error) {
+      setIsAiLoading(false)
+      console.error('Custom search error:', error)
+    }
+  }
+
   const formatDateForInput = (date: Date | null): string => {
     if (!date) return ''
     const d = new Date(date)
@@ -138,14 +178,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-medium text-latte-800 mb-4">
+        <h2 className="text-lg font-medium mb-4" style={{ color: '#006D5B' }}>
           Basic Trip Information
         </h2>
       </div>
 
       {/* Trip Title */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-latte-700">
+        <label htmlFor="title" className="block text-sm font-medium" style={{ color: '#333333' }}>
           Trip Title *
         </label>
         <div className="flex items-center space-x-2">
@@ -204,7 +244,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
 
       {/* Subject */}
       <div>
-        <label htmlFor="subject" className="block text-sm font-medium text-latte-700">
+        <label htmlFor="subject" className="block text-sm font-medium" style={{ color: '#333333' }}>
           Subject
         </label>
         <input
@@ -219,7 +259,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-latte-700">
+        <label htmlFor="description" className="block text-sm font-medium" style={{ color: '#333333' }}>
           Description
         </label>
         <textarea
@@ -234,7 +274,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
 
       {/* Companies */}
       <div>
-        <label className="block text-sm font-medium text-latte-700 mb-2">
+        <label className="block text-sm font-medium mb-2" style={{ color: '#333333' }}>
           Companies (Optional)
         </label>
         
@@ -256,7 +296,42 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           ))}
         </div>
 
-        {/* Add Company */}
+        {/* AI-Powered Company Discovery for Inland Trips */}
+        {isInlandTrip(formData) && (
+          <div className="mb-4 p-4 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50">
+            <div className="text-center mb-3">
+              <Sparkles className="w-5 h-5 text-blue-500 mx-auto mb-2" />
+              <h4 className="font-medium text-blue-900">AI-Powered Company Discovery</h4>
+              <p className="text-sm text-blue-700">
+                Discover coffee companies by Brazilian regions or describe your trip needs
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowRegionSelector(!showRegionSelector)}
+              className="w-full px-4 py-2 rounded-lg font-medium transition-colors"
+              style={{
+                backgroundColor: showRegionSelector ? '#FCC542' : '#059669',
+                color: showRegionSelector ? '#006D5B' : 'white'
+              }}
+            >
+              {showRegionSelector ? 'Hide AI Discovery' : 'Discover Companies by Region'}
+            </button>
+            
+            {showRegionSelector && (
+              <div className="mt-4">
+                <RegionBasedCompanySelector
+                  onRegionSelect={handleRegionSelect}
+                  onCustomSearch={handleCustomSearch}
+                  selectedRegions={selectedRegions}
+                  isLoading={isAiLoading}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Traditional Company Search */}
         <div className="relative">
           <div className="flex items-center">
             <input
@@ -313,7 +388,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       {/* Date Range */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="startDate" className="block text-sm font-medium text-latte-700">
+          <label htmlFor="startDate" className="block text-sm font-medium" style={{ color: '#333333' }}>
             Start Date *
           </label>
           <div className="mt-1 relative">
@@ -333,7 +408,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         </div>
         
         <div>
-          <label htmlFor="endDate" className="block text-sm font-medium text-latte-700">
+          <label htmlFor="endDate" className="block text-sm font-medium" style={{ color: '#333333' }}>
             End Date *
           </label>
           <div className="mt-1 relative">
@@ -376,7 +451,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       {/* Participants Section */}
       {formData.companies.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-latte-700 mb-2">
+          <label className="block text-sm font-medium mb-2" style={{ color: '#333333' }}>
             Participants
           </label>
           

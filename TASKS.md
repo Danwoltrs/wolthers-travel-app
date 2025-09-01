@@ -1,191 +1,207 @@
-# Wolthers Travel App - Task Management
+# Next Development Tasks - Trip Creation AI Enhancement
 
-## 🎯 Current Task Status
+## 🚀 Immediate Next Steps
 
-*Last Updated: 2025-01-14*
+### **Phase 1: Complete AI Integration (High Priority)**
 
----
+#### **1.1 Create Full AI Itinerary Generation Endpoint**
+- **File**: `src/app/api/ai/generate-inland-itinerary/route.ts`
+- **Purpose**: Replace the stub API with full OpenAI-powered itinerary generation
+- **Features Needed**:
+  - Parse natural language trip descriptions
+  - Generate optimized multi-day routes with Google Maps integration
+  - Calculate travel times between companies
+  - Suggest accommodation near visit locations
+  - Export to calendar format (ICS files)
+- **Integration**: Use in `EnhancedItineraryBuilderStep.tsx` step 4 of inland trips
 
-## ✅ Recently Completed Tasks
+#### **1.2 Custom AI Search Implementation**
+- **File**: Update `RegionBasedCompanySelector.tsx` custom search
+- **Current Status**: Shows alert placeholder
+- **Features Needed**:
+  - Natural language processing ("3-day trip to specialty farms in Minas Gerais")
+  - Company matching based on trip requirements
+  - Route optimization suggestions
+  - Duration and cost estimates
 
-### Draft Deletion Fix (2025-01-13)
-- [x] **Investigate 500 error when deleting trip drafts**
-  - Identified server hanging issue causing API timeouts
-- [x] **Fix DELETE /api/trips/drafts endpoint authentication**  
-  - Added dual auth support (Bearer token + cookies)
-- [x] **Implement full DELETE functionality with auth and database operations**
-  - Added comprehensive database cleanup logic
-  - Implemented permission checks (creator + company admin)
-  - Added detailed error handling and logging
-- [x] **Test the fixed deletion functionality**
-  - Verified endpoint works with curl testing
-  - Confirmed authentication flow works properly
-- [x] **Clean up backup files and commit changes**
-  - Removed temporary files
-  - Committed and pushed to main branch
+#### **1.3 Smart Itinerary Builder Enhancement**
+- **File**: `src/components/trips/EnhancedItineraryBuilderStep.tsx`
+- **Current Status**: Has AI processing framework but uses mock data
+- **Features Needed**:
+  - Real integration with `/api/ai/generate-inland-itinerary`
+  - Company-to-company routing with Google Maps
+  - Conflict detection for overlapping visits
+  - Drag-and-drop calendar integration
 
-**Outcome**: Draft deletion now works properly with comprehensive error handling and security checks.
+### **Phase 2: UX & Polish (Medium Priority)**
 
-### Activity Management & Calendar Enhancement (2025-01-14)
-- [x] **Investigate activities not loading in schedule editor**
-  - Fixed RLS policies blocking activity creation
-  - Updated activities API with proper JWT authentication
-  - Converted useActivityManager to use API instead of direct Supabase calls
-- [x] **Fix activity statistics not updating on trip card**
-  - Added fetchActivityCounts function to useTrips hook
-  - Updated trip transformation to use real activity data instead of legacy itinerary_items
-- [x] **Implement drag-to-resize functionality for activity cards**
-  - Added visual resize handles with hover transitions
-  - Implemented mouse event handling for time calculations
-  - Added time constraint logic (min 1 hour, 6 AM - 10 PM bounds)
-  - Connected resize handlers through component prop chain
-  - Integrated with updateActivity API for real-time persistence
-- [x] **Fix activities display across all components**
-  - Ensured consistent API-based loading in schedule editor
-  - Verified activity counts display properly on trip cards
-  - Confirmed activities show in Quick View modal schedule tab
+#### **2.1 Update TeamVehicleStep.tsx Styling** 
+- **Status**: Not updated to match new color scheme
+- **Changes Needed**:
+  - Apply `#006D5B` for section headers
+  - Apply `#333333` for labels
+  - Add hover effects with `#FCC542` background
 
-**Outcome**: Complete activity management system with drag-to-resize functionality allowing users to adjust meeting durations by dragging activity card edges.
+#### **2.2 Enhanced Company Display**
+- **Feature**: Show AI-suggested companies with enhanced information
+- **Details**:
+  - Visit duration estimates
+  - Best time of day for visits
+  - Specialty focus areas
+  - Distance from previous location
 
----
+#### **2.3 Mobile Optimization**
+- **Target**: RegionBasedCompanySelector responsive design
+- **Changes**:
+  - Stack region cards on mobile
+  - Optimize touch interactions
+  - Improve custom search input on small screens
 
-## 🚧 Active Development Areas
+### **Phase 3: Advanced AI Features (Future Enhancement)**
 
-### Current Focus
-- **Calendar System Stabilization**: Testing and monitoring new drag-to-resize functionality
-- **Activity Management**: Ensuring robust API integration and real-time updates
-- **Performance Optimization**: Monitoring system performance with enhanced calendar features
+#### **3.1 Intelligent Route Optimization**
+- **Feature**: AI-powered driving route optimization
+- **Integration**: Google Maps Directions API + AI analysis
+- **Benefits**:
+  - Minimize driving time between companies
+  - Factor in lunch stops and accommodation
+  - Account for business hours and visit preferences
+  - Suggest overnight stays for multi-day trips
 
-### Next Immediate Tasks
-- [ ] Test drag-to-resize functionality across different browsers and devices
-- [ ] Monitor activity API performance with increased usage
-- [ ] Verify real-time updates work properly in multi-user scenarios
-- [ ] Test activity conflict detection and resolution
+#### **3.2 Dynamic Company Suggestions**
+- **Feature**: Learn from user preferences over time
+- **Data Sources**:
+  - Previous trip patterns
+  - Company visit success rates
+  - Seasonal availability
+  - User feedback scores
 
----
+#### **3.3 Multi-Language Support**
+- **Target**: Portuguese language support for Brazilian regions
+- **Scope**:
+  - Region names and descriptions
+  - Company information
+  - AI-generated routing suggestions
 
-## 📋 Planned Features & Improvements
+## 🔧 Technical Debt & Improvements
 
-### High Priority
-- [ ] **Trip Creation Wizard Completion**
-  - UI is complete, needs testing and edge case handling
-  - Verify all form steps save properly
-  - Test finalization process
+### **Database Enhancements**
+- **Add location data to companies**: City, state, coordinates for routing
+- **Company visit metadata**: Business hours, visit duration, contact info
+- **Trip analytics**: Track AI suggestion success rates
 
-- [ ] **Google Maps Integration Enhancement**  
-  - Complete interactive maps with real location data
-  - Implement geocoding and route planning
-  - Add calendar export functionality
+### **API Performance**
+- **Caching**: Implement Redis caching for region company queries
+- **Rate limiting**: Add rate limiting for AI endpoints
+- **Error handling**: Enhance error responses with user-friendly messages
 
-- [ ] **Meeting Confirmation System**
-  - Build UI for confirming meetings
-  - Add notification system
-  - Implement status tracking
+### **Testing & Documentation**
+- **Unit tests**: Add tests for RegionBasedCompanySelector component
+- **API tests**: Test AI endpoints with various inputs
+- **User documentation**: Create guide for using AI trip creation features
 
-### Medium Priority  
-- [ ] **Company Management Pages**
-  - Build company profile management
-  - Add company-wide settings
-  - Implement company admin features
+## 📋 Development Environment Setup
 
-- [ ] **Fleet Management System**
-  - Vehicle assignment interface
-  - Maintenance tracking
-  - Driver management
+### **Required Environment Variables**
+Ensure these are set for AI features to work:
+```env
+OPENAI_API_KEY=your-openai-api-key
+GOOGLE_MAPS_API_KEY=your-google-maps-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
 
-- [ ] **Expense Tracking Features**
-  - Receipt upload and processing
-  - Budget tracking per trip
-  - Expense reporting
+### **Files to Monitor During Development**
+```
+Modified Components:
+- src/components/trips/TripCreationModal.tsx ✅
+- src/components/trips/BasicInfoStep.tsx ✅  
+- src/components/trips/RegionBasedCompanySelector.tsx ✅
+- src/components/trips/EnhancedItineraryBuilderStep.tsx (needs AI integration)
+- src/components/trips/TeamVehicleStep.tsx (needs styling)
 
-### Lower Priority
-- [ ] **Real-time Updates and Notifications**
-  - WebSocket integration
-  - Push notification system
-  - Live trip status updates
+API Endpoints:
+- src/app/api/ai/region-companies/route.ts ✅
+- src/app/api/ai/generate-inland-itinerary/route.ts (needs creation)
 
-- [ ] **Advanced Analytics**
-  - Trip cost analysis
-  - Staff utilization reports
-  - Performance metrics
+Database:
+- Companies with regional subcategories ✅
+- Location data for routing (needs enhancement)
+```
 
----
+## 🎯 Success Criteria
 
-## 🔄 Ongoing Maintenance Tasks
+### **MVP (Minimum Viable Product)**
+- [x] Regional company discovery working
+- [x] Real Supabase data integration
+- [x] Color scheme matching Quick View modal
+- [ ] Full AI itinerary generation
+- [ ] TeamVehicleStep styling complete
 
-### Regular Monitoring
-- [ ] **Server Health**: Monitor for API hanging issues
-- [ ] **Authentication**: Verify token/cookie auth continues working
-- [ ] **Database Performance**: Watch for slow queries or RLS issues
-- [ ] **Error Rates**: Track 500/400 error frequencies
+### **Complete Feature Set**
+- [ ] Natural language trip planning working
+- [ ] Google Maps integration for routing
+- [ ] Calendar export functionality
+- [ ] Mobile-optimized experience
+- [ ] Multi-day trip optimization
 
-### Code Quality
-- [ ] **Type Safety**: Maintain strict TypeScript compliance
-- [ ] **Test Coverage**: Add tests for critical paths
-- [ ] **Code Review**: Regular architecture review sessions
+### **Production Ready**
+- [ ] Comprehensive error handling
+- [ ] Performance optimization
+- [ ] User analytics integration
+- [ ] Multi-language support
+- [ ] Accessibility compliance
 
----
+## 🚦 Current Status Summary
 
-## 🐛 Known Issues to Address
+### **✅ Completed (Ready for Use)**
+- Color scheme updates across trip creation modal
+- RegionBasedCompanySelector component with regional discovery
+- Real database integration with 8 Brazilian coffee companies
+- API endpoint for region-based company suggestions
+- Seamless integration with existing trip creation flow
 
-### Technical Debt
-- [ ] **Webpack Cache Warnings**: Investigate and resolve cache corruption warnings
-- [ ] **Server Hanging**: Implement automatic detection/restart mechanism
-- [ ] **API Route Organization**: Consider consolidating similar endpoints
+### **🚧 In Progress (Needs Completion)**
+- Custom AI search implementation (placeholder alert)
+- Full AI itinerary generation API endpoint
+- TeamVehicleStep styling updates
 
-### UI/UX Improvements
-- [ ] **Mobile Responsiveness**: Test and improve mobile experience
-- [ ] **Loading States**: Add proper loading indicators throughout app
-- [ ] **Error Handling**: Improve user-facing error messages
-
----
-
-## 📊 Success Metrics
-
-### Development Velocity
-- **Tasks Completed This Week**: 9/9 (Draft deletion + Activity management)
-- **Bugs Fixed**: 3 (Draft deletion 500 error, Activity RLS issues, Activity statistics)
-- **New Features Delivered**: 2 (Enhanced deletion with security, Drag-to-resize functionality)
-
-### Quality Metrics
-- **Zero Critical Bugs**: ✅ Currently achieved
-- **Authentication Success Rate**: 100% (both token types working)
-- **API Reliability**: ✅ Stable after server restart fix and activity API integration
-- **Calendar Functionality**: ✅ Full drag-and-drop + resize capabilities working
-- **Real-time Updates**: ✅ Activity changes sync immediately across components
-
----
-
-## 🔮 Future Considerations
-
-### Scalability Planning
-- Consider moving from development server to production-ready setup
-- Plan for increased user load testing
-- Database optimization for larger datasets
-
-### Technology Updates
-- Monitor Next.js updates for new features and fixes
-- Consider Supabase feature additions
-- Evaluate need for additional monitoring tools
-
----
-
-## 📝 Task Management Process
-
-### Daily Workflow
-1. Review active tasks and priorities
-2. Check MEMORY.md for context and constraints  
-3. Update task status as work progresses
-4. Document new learnings in MEMORY.md
-5. Update TASKS.md with completed work and new items
-
-### Weekly Reviews
-- Assess completed tasks and outcomes
-- Identify new priorities based on user feedback
-- Update success metrics and performance indicators
-- Plan upcoming development focus areas
+### **📋 Not Started (Future Work)**
+- Google Maps routing integration
+- Advanced AI learning features
+- Multi-language support
+- Comprehensive testing suite
 
 ---
 
-*This document is updated with every significant development session*  
-*See MEMORY.md for technical context and architectural decisions*
+## 🎬 Quick Start for Next Session
+
+```bash
+# Start development server
+npm run dev
+
+# Navigate to trip creation
+# http://localhost:3000/dashboard -> Create Trip -> In-land Trip
+
+# Test current AI features:
+1. Select "In-land Trip" type
+2. In Basic Info step, click "Discover Companies by Region"
+3. Select a region (e.g., "Sul de Minas")
+4. Verify companies populate automatically
+5. Note: Custom search shows placeholder alert (needs implementation)
+
+# Priority development order:
+1. Implement custom AI search in RegionBasedCompanySelector
+2. Create /api/ai/generate-inland-itinerary endpoint
+3. Update TeamVehicleStep.tsx styling
+4. Test end-to-end inland trip creation
+```
+
+### **Expected Next Session Output**
+- Full AI-powered trip planning from natural language
+- Complete color scheme consistency 
+- Working itinerary generation with real routing
+- Production-ready inland trip creation experience
+
+---
+*Created: January 2025*
+*Status: Ready for Development*
