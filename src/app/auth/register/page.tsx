@@ -140,23 +140,24 @@ function RegisterContent() {
       <div className="max-w-md w-full mx-4">
         <div className="bg-white dark:bg-pearl-800 rounded-lg shadow-xl overflow-hidden">
           {/* Header */}
-          <div className="bg-emerald-600 dark:bg-emerald-700 px-8 py-6 text-center">
+          <div className="bg-emerald-600 dark:bg-emerald-700 px-8 py-8 text-center">
             <img 
               src="https://wolthers.com/images/wolthers-logo-green.png" 
               alt="Wolthers & Associates" 
-              className="w-32 h-auto mx-auto mb-4 brightness-0 invert"
+              className="w-48 h-auto mx-auto brightness-0 invert"
             />
-            <h1 className="text-xl font-semibold text-white">
-              Create Your Account
-            </h1>
-            <p className="text-emerald-100 text-sm mt-2">
-              Complete your invitation to join {formData.company}
+          </div>
+          
+          {/* Invitation Text - Now below green section and styled in green */}
+          <div className="px-8 pt-6 pb-2 text-center">
+            <p className="text-emerald-600 dark:text-emerald-400 text-lg font-medium">
+              Complete your invitation to join {formData.company} on the Wolthers Travel Platform
             </p>
           </div>
 
           {/* Content */}
-          <div className="px-8 py-6">
-            {/* Invitation Summary */}
+          <div className="px-8 py-4">
+            {/* Invitation Summary - Hide role */}
             <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 mb-6">
               <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-200 mb-2">
                 Invitation Details
@@ -165,10 +166,6 @@ function RegisterContent() {
                 <div className="flex items-center gap-2">
                   <Building className="w-3 h-3" />
                   <span><strong>Company:</strong> {formData.company}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-3 h-3" />
-                  <span><strong>Role:</strong> {formatRole(formData.role)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3 h-3" />
@@ -259,6 +256,15 @@ function RegisterContent() {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const confirmPasswordInput = document.getElementById('confirmPassword');
+                        if (confirmPasswordInput) {
+                          confirmPasswordInput.focus();
+                        }
+                      }
+                    }}
                     className="w-full pl-4 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                     placeholder="Enter your password"
                     required
@@ -268,6 +274,7 @@ function RegisterContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -296,6 +303,7 @@ function RegisterContent() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    tabIndex={-1}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
