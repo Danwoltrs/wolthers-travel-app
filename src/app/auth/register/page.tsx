@@ -130,18 +130,14 @@ function RegisterContent() {
         }
       }
       
-      console.log('About to reset loading state and redirect')
+      console.log('Account registration completed, redirecting to trips.wolthers.com')
       
-      // Reset loading state before redirect
+      // Reset loading state before redirect  
       setLoading(false)
       
-      console.log('Loading state reset, scheduling redirect')
-      
-      // Add a small delay to allow auth state to propagate
-      setTimeout(() => {
-        console.log('Redirecting to dashboard')
-        router.push('/dashboard?welcome=true')
-      }, 500)
+      // Instead of redirecting to dashboard and hoping auth state propagates,
+      // redirect directly to the full trips.wolthers.com domain to ensure clean state
+      window.location.href = 'https://trips.wolthers.com/dashboard?welcome=true'
       
     } catch (error) {
       console.error('Registration error:', error)
