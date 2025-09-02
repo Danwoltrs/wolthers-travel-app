@@ -118,6 +118,9 @@ function RegisterContent() {
         })
       }
       
+      // Reset loading state before redirect
+      setLoading(false)
+      
       // Add a small delay to allow auth state to propagate
       setTimeout(() => {
         router.push('/dashboard?welcome=true')
