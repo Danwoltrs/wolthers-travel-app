@@ -36,6 +36,7 @@ export default function CompaniesPage() {
   const [showAddLabModal, setShowAddLabModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<any>(null)
+  const [usersPanelRefreshKey, setUsersPanelRefreshKey] = useState(0)
   
   const router = useRouter()
   
@@ -395,9 +396,10 @@ export default function CompaniesPage() {
               
               {/* Companies and Users */}
               {selectedSection === 'wolthers' ? (
-                <UnifiedUsersPanel 
-                  onViewDashboard={handleViewCompanyDashboard} 
+                <UnifiedUsersPanel
+                  onViewDashboard={handleViewCompanyDashboard}
                   onAddUsers={handleAddUsers}
+                  refreshTrigger={usersPanelRefreshKey}
                 />
               ) : (
                 <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-6">
@@ -546,8 +548,8 @@ export default function CompaniesPage() {
         context="dashboard"
         onCompanyCreated={(company) => {
           console.log('Buyer company created:', company)
-          // Refresh data or add to local state as needed
           setShowAddBuyerModal(false)
+          setUsersPanelRefreshKey((k) => k + 1)
         }}
       />
       
@@ -558,8 +560,8 @@ export default function CompaniesPage() {
         context="dashboard"
         onCompanyCreated={(company) => {
           console.log('Supplier company created:', company)
-          // Refresh data or add to local state as needed
           setShowAddSupplierModal(false)
+          setUsersPanelRefreshKey((k) => k + 1)
         }}
       />
 
@@ -569,8 +571,8 @@ export default function CompaniesPage() {
         onClose={() => setShowAddLabModal(false)}
         onLabCreated={(lab) => {
           console.log('Lab created:', lab)
-          // Refresh data or add to local state as needed
           setShowAddLabModal(false)
+          setUsersPanelRefreshKey((k) => k + 1)
         }}
       />
 
@@ -586,7 +588,7 @@ export default function CompaniesPage() {
           companyName={selectedCompanyForUser.fantasy_name || selectedCompanyForUser.name}
           onInvitationSent={(invitation) => {
             console.log('Invitation sent:', invitation)
-            // Optionally refresh data or show success notification
+            setUsersPanelRefreshKey((k) => k + 1)
           }}
         />
       )}

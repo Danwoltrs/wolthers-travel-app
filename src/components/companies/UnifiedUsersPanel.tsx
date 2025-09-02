@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, ChevronDown, ChevronRight, Eye, Building, Search, UserCheck, Mail, Phone, UserPlus, Edit, Trash2 } from 'lucide-react'
+import { Users, ChevronDown, ChevronRight, Eye, Building, Search, Mail, Phone, UserPlus, Edit, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
 import CompanyEditModal from '@/components/companies/CompanyEditModal'
@@ -26,16 +26,16 @@ interface User {
   user_type: 'admin' | 'user' | 'viewer'
   is_active: boolean
   last_login?: string
+  company_id?: string
 }
 
 interface UnifiedUsersPanelProps {
   onViewDashboard: (company: Company) => void
   onAddUsers?: (company: Company) => void
+  refreshTrigger?: number
 }
 
-const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
-
-export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: UnifiedUsersPanelProps) {
+export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers, refreshTrigger = 0 }: UnifiedUsersPanelProps) {
   const { user: currentUser } = useAuth()
   const [companies, setCompanies] = useState<Company[]>([])
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
@@ -54,11 +54,10 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    fetchCompanies()
-  }, [])
+    refreshData()
+  }, [refreshTrigger])
 
   const fetchCompanies = async () => {
-    setIsLoading(true)
     setError(null)
     try {
       // Fetch all companies (buyers + suppliers + Wolthers)
@@ -98,13 +97,20 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
     } catch (err) {
       setError('Failed to fetch companies')
       console.error('Error fetching companies:', err)
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  const fetchCompanyUsers = async (companyId: string) => {
-    if (companyUsers[companyId]) return // Already fetched
+  const refreshData = async () => {
+    setIsLoading(true)
+    await fetchCompanies()
+    const expanded = Array.from(expandedCompanies)
+    setCompanyUsers({})
+    await Promise.all(expanded.map(id => fetchCompanyUsers(id, true)))
+    setIsLoading(false)
+  }
+
+  const fetchCompanyUsers = async (companyId: string, force = false) => {
+    if (companyUsers[companyId] && !force) return // Already fetched
 
     try {
       const endpoint = companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' 
@@ -208,10 +214,9 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
         throw new Error(data.error || 'Failed to delete company')
       }
 
-      // Remove company from local state
-      setCompanies(prev => prev.filter(c => c.id !== selectedCompany.id))
       setShowDeleteCompanyModal(false)
       setSelectedCompany(null)
+      await refreshData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete company')
       setTimeout(() => setError(null), 5000)
@@ -235,16 +240,9 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
         throw new Error(data.error || 'Failed to delete user')
       }
 
-      // Remove user from local state
-      Object.keys(companyUsers).forEach(companyId => {
-        setCompanyUsers(prev => ({
-          ...prev,
-          [companyId]: prev[companyId].filter(u => u.id !== selectedUser.id)
-        }))
-      })
-      
       setShowDeleteUserModal(false)
       setSelectedUser(null)
+      await refreshData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user')
       setTimeout(() => setError(null), 5000)
@@ -253,22 +251,16 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
     }
   }
 
-  const handleCompanyUpdated = (updatedCompany: Company) => {
-    setCompanies(prev => prev.map(c => c.id === updatedCompany.id ? updatedCompany : c))
+  const handleCompanyUpdated = async () => {
     setShowCompanyEditModal(false)
     setSelectedCompany(null)
+    await refreshData()
   }
 
-  const handleUserUpdated = (updatedUser: User) => {
-    // Update user in the appropriate company's user list
-    Object.keys(companyUsers).forEach(companyId => {
-      setCompanyUsers(prev => ({
-        ...prev,
-        [companyId]: prev[companyId].map(u => u.id === updatedUser.id ? updatedUser : u)
-      }))
-    })
+  const handleUserUpdated = async () => {
     setShowUserEditModal(false)
     setSelectedUser(null)
+    await refreshData()
   }
 
   if (isLoading) {
