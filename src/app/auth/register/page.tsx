@@ -124,11 +124,16 @@ function RegisterContent() {
         }
       }
       
+      console.log('About to reset loading state and redirect')
+      
       // Reset loading state before redirect
       setLoading(false)
       
+      console.log('Loading state reset, scheduling redirect')
+      
       // Add a small delay to allow auth state to propagate
       setTimeout(() => {
+        console.log('Redirecting to dashboard')
         router.push('/dashboard?welcome=true')
       }, 500)
       
