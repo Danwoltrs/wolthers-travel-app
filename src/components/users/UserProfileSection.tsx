@@ -567,9 +567,9 @@ export default function UserProfileSection({ user, isOwnProfile, onUpdate }: Use
             <div className="flex items-center space-x-3">
               <Plane className="w-4 h-4 text-gray-400" />
               <div className="flex-1">
-                <p className="text-xs text-gray-500">Trip Statistics</p>
+                <p className="text-xs text-gray-500">Hosting Statistics</p>
                 <p className="text-sm text-gray-900 dark:text-white">
-                  {tripStats.tripsThisYear} trips this year | {tripStats.upcomingTrips} upcoming trips
+                  {tripStats.tripsThisYear} hosts this year | {tripStats.upcomingTrips} upcoming visits
                 </p>
               </div>
             </div>

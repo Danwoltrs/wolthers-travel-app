@@ -501,8 +501,8 @@ export class SyncManager {
   private async setupRealTimeSync(): Promise<void> {
     try {
       // Import Supabase client dynamically to avoid SSR issues
-      const { createClient } = await import('@/lib/supabase-client')
-      const supabase = createClient()
+      const supabaseModule = await import('@/lib/supabase-client')
+      const supabase = supabaseModule.getSupabaseClient()
 
       // Define callback functions with proper context binding
       const handleTripsChange = (payload: any) => this.handleRealTimeChange('trips', payload)

@@ -55,7 +55,7 @@ export async function GET(
 
     console.log(`[API] Found company: ${company.name}`)
 
-    // Fetch users for the specific company including the new role field
+    // Fetch users for the specific company including the new role field and company info
     const { data: users, error } = await supabase
       .from('users')
       .select(`
@@ -68,7 +68,10 @@ export async function GET(
         role,
         last_login_at,
         created_at,
-        company_id
+        company_id,
+        companies!inner(
+          name
+        )
       `)
       .eq('company_id', companyId)
       .order('full_name')
@@ -83,11 +86,12 @@ export async function GET(
 
     console.log(`[API] Found ${users?.length || 0} users for company ${company.name}`)
 
-    // Add computed is_active field for each user (all users are active by default)
+    // Add computed is_active field for each user and flatten company info
     const usersWithStatus = users?.map(user => ({
       ...user,
       is_active: true, // All users are considered active since no deletion/ban system exists
-      last_login: user.last_login_at // Map to expected field name
+      last_login: user.last_login_at, // Map to expected field name
+      company: user.companies ? { name: user.companies.name } : null
     })) || []
 
     return NextResponse.json({

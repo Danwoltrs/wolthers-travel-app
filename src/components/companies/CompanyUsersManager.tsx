@@ -483,10 +483,10 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
               <div className="flex-[1.5] min-w-0">LAST LOGIN</div>
               <div className="flex-[2] min-w-0">
                 <div className="text-center">
-                  <div className="text-amber-400">TRIPS</div>
+                  <div className="text-amber-400">HOSTING</div>
                   <div className="flex text-xs text-amber-300/70 mt-1">
                     <span className="flex-1 text-left">Total</span>
-                    <span className="flex-1 text-center">YTD</span>
+                    <span className="flex-1 text-center">This Year</span>
                     <span className="flex-1 text-right">Upcoming</span>
                   </div>
                 </div>

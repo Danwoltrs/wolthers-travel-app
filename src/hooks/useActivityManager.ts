@@ -544,8 +544,23 @@ export function useActivityManager(tripId: string) {
     console.log('🔍 [getActivitiesByDate] Starting grouping with', activities.length, 'activities')
     
     activities.forEach(activity => {
+      // Validate date fields before creating Date objects
+      if (!activity.activity_date) {
+        console.warn(`⚠️ Activity ${activity.title} has no activity_date, skipping`)
+        return
+      }
+
       const startDate = new Date(activity.activity_date + 'T00:00:00')
       const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+      
+      // Check if dates are valid
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn(`⚠️ Activity ${activity.title} has invalid dates:`, {
+          activity_date: activity.activity_date,
+          end_date: activity.end_date
+        })
+        return
+      }
       
       console.log(`📅 Processing activity: ${activity.title}`, {
         activity_date: activity.activity_date,
