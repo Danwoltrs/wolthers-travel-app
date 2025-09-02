@@ -106,7 +106,13 @@ function RegisterContent() {
       }
 
       console.log('Account created successfully')
-      
+
+      // Store JWT session token for API calls before setting Supabase session
+      if (result.sessionToken) {
+        localStorage.setItem('auth-token', result.sessionToken)
+        console.log('Stored JWT session token from registration')
+      }
+
       // If we got a session, set it in Supabase client for immediate auth state
       if (result.session) {
         try {

@@ -181,6 +181,7 @@ export async function POST(request: NextRequest) {
         role: newUser.role,
         company_name: invitation.companies.fantasy_name || invitation.companies.name
       },
+      sessionToken,
       // Include session info if sign-in was successful
       session: signInData?.session || null
     })
