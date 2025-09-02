@@ -212,14 +212,15 @@ export async function PUT(
       }
     }
 
-    // Authorization check - only Wolthers staff can update company data
+    // Authorization check - Wolthers staff can update any company, external admins can update their own company
     if (currentUser) {
       const isWolthersStaff = currentUser.is_global_admin || currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      const isExternalAdmin = currentUser.user_type === 'admin' && currentUser.company_id === resolvedParams.id
       
-      // External users cannot update company data (read-only access)
-      if (!isWolthersStaff) {
+      // Only Wolthers staff or external admins editing their own company can update
+      if (!isWolthersStaff && !isExternalAdmin) {
         return NextResponse.json(
-          { error: 'Access denied. You do not have permission to modify company data.' },
+          { error: 'Access denied. You can only modify your own company data.' },
           { status: 403 }
         )
       }

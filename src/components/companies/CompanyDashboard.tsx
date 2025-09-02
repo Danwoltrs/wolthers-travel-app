@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Calendar, FileText, BarChart3, MapPin, Phone, Mail, Search, Plus, AlertTriangle, RefreshCw, User, ChevronDown, Home, Building, LogOut, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, Users, Calendar, FileText, BarChart3, MapPin, Phone, Mail, Search, Plus, AlertTriangle, RefreshCw, User, ChevronDown, Home, Building, LogOut, Sun, Moon, Edit } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import useSWR from 'swr'
@@ -9,6 +9,7 @@ import CompanyTravelHeatmap from './CompanyTravelHeatmap'
 import CompanyUsersManager from './CompanyUsersManager'
 import CompanyDocumentsView from './CompanyDocumentsView'
 import CompaniesSidebar from './CompaniesSidebar'
+import CompanyEditModal from './CompanyEditModal'
 import EnhancedHeatmap from './charts/EnhancedHeatmap'
 import RealTravelTrends from './charts/RealTravelTrends'
 import TravelTrendsChart from './charts/TravelTrendsChart'
@@ -61,6 +62,7 @@ export default function CompanyDashboard({
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [selectedSection, setSelectedSection] = useState<'wolthers' | 'buyers' | 'suppliers'>('buyers')
+  const [showEditModal, setShowEditModal] = useState(false)
   
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -133,6 +135,9 @@ export default function CompanyDashboard({
   
   // Determine if costs should be shown (only when Wolthers is viewing other company's dashboard)
   const showCosts = isWolthersStaffView
+  
+  // Determine if current user can edit this company (external admin viewing their own company)
+  const canEditCompany = isExternalCompanyView && user?.user_type === 'admin' && user?.companyId === company.id
 
   // Check for mobile device on mount and window resize
   useEffect(() => {
@@ -258,24 +263,37 @@ export default function CompanyDashboard({
               {/* Company Name/Logo with separator */}
               <div className="flex items-center gap-3">
                 <div className="w-px h-6 bg-white/30"></div>
-                {companyDetails?.logo_url ? (
-                  <div className="flex items-center gap-2">
-                    <Image
-                      src={companyDetails.logo_url}
-                      alt={company.fantasy_name || company.name}
-                      width={28}
-                      height={28}
-                      className="h-7 w-7 rounded object-contain bg-white/10 p-1"
-                    />
+                <div className="flex items-center gap-2">
+                  {companyDetails?.logo_url ? (
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={companyDetails.logo_url}
+                        alt={company.fantasy_name || company.name}
+                        width={28}
+                        height={28}
+                        className="h-7 w-7 rounded object-contain bg-white/10 p-1"
+                      />
+                      <span className="text-white font-medium text-sm">
+                        {company.fantasy_name || company.name}
+                      </span>
+                    </div>
+                  ) : (
                     <span className="text-white font-medium text-sm">
-                      {company.fantasy_name || company.name}
+                      {company.name}
                     </span>
-                  </div>
-                ) : (
-                  <span className="text-white font-medium text-sm">
-                    {company.name}
-                  </span>
-                )}
+                  )}
+                  
+                  {/* Edit button for external admins */}
+                  {canEditCompany && (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="ml-2 p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors"
+                      title="Edit company information"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -583,6 +601,17 @@ export default function CompanyDashboard({
           </div>
         </div>
       </div>
+      
+      {/* Company Edit Modal */}
+      <CompanyEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        company={company}
+        onCompanyUpdated={() => {
+          // Refresh the company data
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }

@@ -407,7 +407,7 @@ export default function CompanyUsersManager({ companyId, companyName, isWolthers
       </div>
 
       {/* Tabs */}
-      <div className="px-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="px-6 pb-4">
         <div className="flex space-x-8">
           <button
             onClick={() => setCurrentTab('users')}

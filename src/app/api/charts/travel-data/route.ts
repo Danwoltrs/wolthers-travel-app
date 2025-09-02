@@ -34,29 +34,87 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRole)
     
-    // Query for real trip data with participants and users
-    const { data: trips, error } = await supabase
-      .from('trips')
-      .select(`
-        id,
-        title,
-        start_date,
-        end_date,
-        total_cost,
-        trip_type,
-        status,
-        created_at,
-        trip_participants!inner (
-          user_id,
-          users!trip_participants_user_id_fkey (
-            id,
-            full_name,
-            email
+    // Get query parameters
+    const { searchParams } = new URL(request.url)
+    const companyId = searchParams.get('companyId')
+    
+    // Determine if this is a supplier company (for hosting data) or regular travel data
+    let isSupplierCompany = false
+    if (companyId) {
+      const { data: companyInfo } = await supabase
+        .from('companies')
+        .select('category')
+        .eq('id', companyId)
+        .single()
+      
+      isSupplierCompany = companyInfo?.category === 'supplier'
+    }
+    
+    let trips, error
+    
+    if (isSupplierCompany && companyId) {
+      // For supplier companies, get trips where they were the hosting company
+      // This means trips where their locations were visited
+      const { data: supplierTrips, error: supplierError } = await supabase
+        .from('trips')
+        .select(`
+          id,
+          title,
+          start_date,
+          end_date,
+          total_cost,
+          trip_type,
+          status,
+          created_at,
+          trip_activities!inner (
+            location_id,
+            company_locations!inner (
+              company_id
+            )
+          ),
+          trip_participants!inner (
+            user_id,
+            users!trip_participants_user_id_fkey (
+              id,
+              full_name,
+              email
+            )
           )
-        )
-      `)
-      .neq('status', 'cancelled')
-      .order('start_date', { ascending: true })
+        `)
+        .eq('trip_activities.company_locations.company_id', companyId)
+        .neq('status', 'cancelled')
+        .order('start_date', { ascending: true })
+      
+      trips = supplierTrips
+      error = supplierError
+    } else {
+      // Regular query for travel data (Wolthers staff or buyer companies)
+      const { data: regularTrips, error: regularError } = await supabase
+        .from('trips')
+        .select(`
+          id,
+          title,
+          start_date,
+          end_date,
+          total_cost,
+          trip_type,
+          status,
+          created_at,
+          trip_participants!inner (
+            user_id,
+            users!trip_participants_user_id_fkey (
+              id,
+              full_name,
+              email
+            )
+          )
+        `)
+        .neq('status', 'cancelled')
+        .order('start_date', { ascending: true })
+      
+      trips = regularTrips  
+      error = regularError
+    }
 
     if (error) {
       console.error('Supabase error:', error)

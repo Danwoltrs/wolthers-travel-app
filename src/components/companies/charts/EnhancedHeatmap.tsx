@@ -54,13 +54,17 @@ export default function EnhancedHeatmap({
   // Dynamic title based on company context
   const getTitle = () => {
     if (companyName && selectedSection !== "wolthers") {
+      // For supplier companies, show hosting activity instead of travel activity
+      if (selectedSection === "suppliers") {
+        return `${companyName} Hosting Activity`;
+      }
       return `${companyName} Travel Activity`;
     }
 
     const sectionTitles = {
       wolthers: "Wolthers Staff Travel Activity",
       buyers: "Buyer Travel Activity",
-      suppliers: "Supplier Travel Activity",
+      suppliers: "Supplier Hosting Activity",
     };
 
     return sectionTitles[selectedSection] || "Travel Activity";
