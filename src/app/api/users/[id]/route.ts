@@ -277,6 +277,7 @@ export async function DELETE(
       }
     }
 
+    // Step 1: Delete from users table
     const { error } = await supabase
       .from('users')
       .delete()
@@ -290,8 +291,30 @@ export async function DELETE(
       )
     }
 
+    // Step 2: Delete from Supabase Auth (allows re-invitation)
+    try {
+      await supabase.auth.admin.deleteUser(resolvedParams.id)
+      console.log(`Auth user deleted: ${userToDelete.email}`)
+    } catch (authError) {
+      console.warn(`Warning: Could not delete auth user ${resolvedParams.id}:`, authError)
+      // Continue - this might already be deleted or not exist
+    }
+
+    // Step 3: Clean up any existing invitations for this email (allows re-invitation)
+    const { error: inviteError } = await supabase
+      .from('user_invitations')
+      .delete()
+      .eq('email', userToDelete.email)
+
+    if (inviteError) {
+      console.warn(`Warning: Could not delete invitations for ${userToDelete.email}:`, inviteError)
+      // Continue - this is not critical
+    } else {
+      console.log(`Cleaned up invitations for: ${userToDelete.email}`)
+    }
+
     // Log the deletion for audit purposes
-    console.log(`User deleted: ${userToDelete.email} (${userToDelete.full_name}) by ${currentUser.email}`)
+    console.log(`User fully deleted: ${userToDelete.email} (${userToDelete.full_name}) by ${currentUser.email}`)
 
     return NextResponse.json({ 
       message: 'User deleted successfully',
