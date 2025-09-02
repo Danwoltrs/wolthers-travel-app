@@ -5,6 +5,7 @@ import { Search, Plus, MapPin, Phone, Mail, Building, Globe, Users, TreePine } f
 import useSWR from 'swr'
 import UnifiedCompanyCreationModal from './UnifiedCompanyCreationModal'
 import CompanyDetailModal from './CompanyDetailModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Company {
   id: string
@@ -39,9 +40,13 @@ interface SuppliersPanelProps {
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
 export default function SuppliersPanel({ className = '', onViewDashboard }: SuppliersPanelProps) {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+
+  // Check if user is Wolthers admin (can create companies and needs hard refresh)
+  const isWolthersAdmin = user?.is_global_admin || user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
 
   // Fetch suppliers data
   const { data, error, isLoading, mutate } = useSWR('/api/companies/suppliers', fetcher)
@@ -163,8 +168,14 @@ export default function SuppliersPanel({ className = '', onViewDashboard }: Supp
         onCompanyCreated={async (company) => {
           console.log('Supplier created from SuppliersPanel:', company)
           setShowAddModal(false)
-          // Smoothly refresh the suppliers data with loading state
-          await mutate()
+          
+          if (isWolthersAdmin) {
+            // Hard refresh for Wolthers admins to ensure all data is updated
+            window.location.reload()
+          } else {
+            // Smoothly refresh the suppliers data with loading state for other users
+            await mutate()
+          }
         }}
       />
 

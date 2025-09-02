@@ -12,6 +12,14 @@ export async function GET(
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { id: companyId } = await params
     
+    // Validate companyId
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'Company ID is required' },
+        { status: 400 }
+      )
+    }
+    
     // First, get company details to determine type (buyer/supplier)
     const { data: company, error: companyError } = await supabase
       .from('companies')

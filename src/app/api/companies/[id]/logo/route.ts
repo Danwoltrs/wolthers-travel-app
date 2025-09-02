@@ -80,11 +80,11 @@ export async function POST(
       )
     }
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    // Validate file type - now includes AVIF and SVG
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Please upload an image (JPEG, PNG, GIF, or WebP).' },
+        { error: 'Invalid file type. Please upload an image (JPEG, PNG, GIF, WebP, AVIF, or SVG).' },
         { status: 400 }
       )
     }

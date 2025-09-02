@@ -12,6 +12,14 @@ export async function GET(
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { id: companyId } = await params
     
+    // Validate companyId
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'Company ID is required' },
+        { status: 400 }
+      )
+    }
+    
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Building, Loader2, Check, Upload, Camera, MapPin, User, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Company {
   id: string
@@ -53,7 +54,11 @@ export default function CompanyEditModal({
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  const { user } = useAuth()
+  const isWolthersStaff = user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
 
   // Initialize form data when company changes
   useEffect(() => {
@@ -103,16 +108,68 @@ export default function CompanyEditModal({
     }
   }, [isOpen, company?.logo_url])
 
+  // Validate file type and size
+  const validateFile = (file: File): string | null => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml']
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    
+    if (!allowedTypes.includes(file.type)) {
+      return 'Please select a valid image file (PNG, JPG, GIF, WebP, AVIF, or SVG)'
+    }
+    
+    if (file.size > maxSize) {
+      return 'File size must be less than 5MB'
+    }
+    
+    return null
+  }
+
+  // Handle file processing
+  const processFile = (file: File) => {
+    const validationError = validateFile(file)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    
+    setError(null)
+    setLogoFile(file)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setLogoPreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   // Handle logo file selection
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setLogoFile(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setLogoPreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+      processFile(file)
+    }
+  }
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+    
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      processFile(file)
     }
   }
 
@@ -340,18 +397,21 @@ export default function CompanyEditModal({
                   <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-6">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Company Logo</h3>
                     
-                    <div className="flex items-center space-x-6">
+                    <div className="flex items-start space-x-6">
                       {/* Logo Preview */}
                       <div className="flex-shrink-0">
                         {logoPreview ? (
                           <div className="relative">
-                            <Image
-                              src={logoPreview}
-                              alt="Company Logo"
-                              width={80}
-                              height={80}
-                              className="w-20 h-20 object-contain bg-white rounded-lg border border-gray-200 dark:border-gray-600"
-                            />
+                            <div className="w-32 h-20 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center p-2">
+                              <Image
+                                src={logoPreview}
+                                alt="Company Logo"
+                                width={120}
+                                height={80}
+                                className="max-w-full max-h-full object-contain"
+                                style={{ maxHeight: '43px' }}
+                              />
+                            </div>
                             <button
                               type="button"
                               onClick={handleLogoRemove}
@@ -362,8 +422,27 @@ export default function CompanyEditModal({
                             </button>
                           </div>
                         ) : (
-                          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                            <Camera className="w-8 h-8 text-gray-400" />
+                          <div 
+                            className={`w-32 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed ${
+                              isDragOver 
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
+                                : 'border-gray-300 dark:border-gray-600'
+                            } flex items-center justify-center cursor-pointer transition-all`}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <div className="text-center">
+                              <Camera className={`w-6 h-6 mx-auto mb-1 ${
+                                isDragOver ? 'text-emerald-500' : 'text-gray-400'
+                              }`} />
+                              <p className={`text-xs ${
+                                isDragOver ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'
+                              }`}>
+                                {isDragOver ? 'Drop here' : 'Drop or click'}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -401,13 +480,13 @@ export default function CompanyEditModal({
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/avif,image/svg+xml"
                           onChange={handleLogoSelect}
                           className="hidden"
                         />
                         
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Upload a square image (PNG, JPG, GIF, WebP) up to 5MB
+                          Upload an image (PNG, JPG, GIF, WebP, AVIF, SVG) up to 5MB. Drag and drop supported.
                         </p>
                       </div>
                     </div>
@@ -451,14 +530,19 @@ export default function CompanyEditModal({
                   <div>
                     <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Category *
+                      {!isWolthersStaff && (
+                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                          (Contact Wolthers staff to change)
+                        </span>
+                      )}
                     </label>
                     <select
                       id="category"
                       required
                       value={formData.category || ''}
                       onChange={(e) => handleInputChange('category', e.target.value as Company['category'])}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                      disabled={isLoading}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isLoading || !isWolthersStaff}
                     >
                       {categoryOptions.map(option => (
                         <option key={option.value} value={option.value}>

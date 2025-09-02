@@ -33,11 +33,11 @@ export default function Dashboard() {
       if (!user) return false
       
       // Wolthers staff (global admins or company members) can always create trips
-      const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+      const isWolthersStaff = user.is_global_admin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
       if (isWolthersStaff) return true
       
       // External company users can create trips only if they are admins
-      return user.role === 'admin'
+      return user.user_type === 'admin'
     }, [user])
 
     // Listen for menu state changes (this would need to be coordinated with Header component)
@@ -237,7 +237,10 @@ export default function Dashboard() {
   const closeModal = () => {
     setSelectedTrip(null)
     // Refresh trip data silently to get updated participant information
-    refreshSilently()
+    // Add delay to avoid sync conflicts
+    setTimeout(() => {
+      refreshSilently()
+    }, 100)
   }
 
   const handlePasswordPromptClose = () => {

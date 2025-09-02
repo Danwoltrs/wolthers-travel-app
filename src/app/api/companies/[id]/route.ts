@@ -233,6 +233,33 @@ export async function PUT(
     
     const body = await request.json()
     
+    // Check if user is trying to change company category and restrict to Wolthers staff only
+    const isWolthersStaff = currentUser.is_global_admin || currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+    
+    if (body.category && !isWolthersStaff) {
+      // Get current company category to check if it's being changed
+      const { data: currentCompany, error: fetchError } = await supabase
+        .from('companies')
+        .select('category')
+        .eq('id', resolvedParams.id)
+        .single()
+      
+      if (fetchError) {
+        return NextResponse.json(
+          { error: 'Company not found' },
+          { status: 404 }
+        )
+      }
+      
+      // If category is being changed and user is not Wolthers staff, deny
+      if (currentCompany.category !== body.category) {
+        return NextResponse.json(
+          { error: 'Access denied. Only Wolthers staff can change company category.' },
+          { status: 403 }
+        )
+      }
+    }
+    
     // Remove fields that shouldn't be updated
     const { id, created_at, trip_count, total_cost_usd, last_visit_date, ...updateData } = body
     

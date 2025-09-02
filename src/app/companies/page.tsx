@@ -42,11 +42,12 @@ export default function CompaniesPage() {
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
 
+  // Check if user is Wolthers admin (can create companies and needs hard refresh)
+  const isWolthersStaff = user?.is_global_admin || user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
+
   // Security check and auto-redirect for external users
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      const isWolthersStaff = user.isGlobalAdmin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
-      
       if (!isWolthersStaff && user.companyId) {
         // External users: redirect directly to their company dashboard
         router.push(`/companies/${user.companyId}`)
@@ -549,7 +550,14 @@ export default function CompaniesPage() {
         onCompanyCreated={(company) => {
           console.log('Buyer company created:', company)
           setShowAddBuyerModal(false)
-          setUsersPanelRefreshKey((k) => k + 1)
+          
+          if (isWolthersStaff) {
+            // Hard refresh for Wolthers admins to ensure all data is updated
+            window.location.reload()
+          } else {
+            // Soft refresh for other users
+            setUsersPanelRefreshKey((k) => k + 1)
+          }
         }}
       />
       
@@ -561,7 +569,14 @@ export default function CompaniesPage() {
         onCompanyCreated={(company) => {
           console.log('Supplier company created:', company)
           setShowAddSupplierModal(false)
-          setUsersPanelRefreshKey((k) => k + 1)
+          
+          if (isWolthersStaff) {
+            // Hard refresh for Wolthers admins to ensure all data is updated
+            window.location.reload()
+          } else {
+            // Soft refresh for other users
+            setUsersPanelRefreshKey((k) => k + 1)
+          }
         }}
       />
 

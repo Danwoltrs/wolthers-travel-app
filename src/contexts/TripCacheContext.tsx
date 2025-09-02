@@ -512,7 +512,10 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       case 'sync_complete':
         // Refresh trips after successful sync
         if (event.data?.successful > 0) {
-          refreshTrips({ force: false })
+          // Add delay to prevent rapid refresh cycles
+          setTimeout(() => {
+            refreshTrips({ force: false })
+          }, 200)
         }
         break
         
@@ -523,6 +526,14 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         
       case 'sync_error':
         console.error('TripCache: Sync error:', event.error)
+        // Clear sync queue if too many errors accumulate
+        if (syncManagerRef.current) {
+          const stats = syncManagerRef.current.getStats()
+          if (stats.failedOperations > 10) {
+            console.warn('TripCache: Too many sync errors, clearing queue')
+            syncManagerRef.current.clearQueue()
+          }
+        }
         break
     }
     

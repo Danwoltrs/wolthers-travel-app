@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import UnifiedCompanyCreationModal from './UnifiedCompanyCreationModal'
 import CompanyDetailModal from './CompanyDetailModal'
 import CompanyDashboard from './CompanyDashboard'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Company {
   id: string
@@ -40,11 +41,15 @@ interface BuyersPanelProps {
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
 export default function BuyersPanel({ className = '', onViewDashboard }: BuyersPanelProps) {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
   const [dashboardCompany, setDashboardCompany] = useState<Company | null>(null)
+
+  // Check if user is Wolthers admin (can create companies and needs hard refresh)
+  const isWolthersAdmin = user?.is_global_admin || user?.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
 
   // Fetch buyers data
   const { data, error, isLoading, mutate } = useSWR('/api/companies/buyers', fetcher)
@@ -190,8 +195,14 @@ export default function BuyersPanel({ className = '', onViewDashboard }: BuyersP
         onCompanyCreated={async (company) => {
           console.log('Buyer created from BuyersPanel:', company)
           setShowAddModal(false)
-          // Smoothly refresh the buyers data with loading state
-          await mutate()
+          
+          if (isWolthersAdmin) {
+            // Hard refresh for Wolthers admins to ensure all data is updated
+            window.location.reload()
+          } else {
+            // Smoothly refresh the buyers data with loading state for other users
+            await mutate()
+          }
         }}
       />
 
