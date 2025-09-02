@@ -533,28 +533,156 @@ export default function CompanyEditModal({
                 />
               </div>
             </div>
-          </div>
+                </div>
+              )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-[#2a2a2a]">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isLoading ? 'Updating...' : 'Update Company'}
-            </button>
-          </div>
-        </form>
+              {/* Locations Tab */}
+              {activeTab === 'locations' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Office Locations</h3>
+                    <button
+                      type="button"
+                      onClick={addLocation}
+                      className="flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Location
+                    </button>
+                  </div>
+
+                  {locations.map((location, index) => (
+                    <div key={index} className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-6 border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-md font-medium text-gray-900 dark:text-white">
+                          {location.is_headquarters ? 'Headquarters' : `Location ${index + 1}`}
+                        </h4>
+                        {locations.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLocation(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Location Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={location.name}
+                            onChange={(e) => updateLocation(index, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            PIC (Person In Charge)
+                          </label>
+                          <input
+                            type="text"
+                            value={location.contact_person || ''}
+                            onChange={(e) => updateLocation(index, 'contact_person', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Address *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={location.address_line1}
+                            onChange={(e) => updateLocation(index, 'address_line1', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                            placeholder="Street address"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            City *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={location.city}
+                            onChange={(e) => updateLocation(index, 'city', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Country *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={location.country}
+                            onChange={(e) => updateLocation(index, 'country', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {locations.length === 0 && (
+                    <div className="text-center py-8">
+                      <MapPin className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No locations added</h3>
+                      <p className="text-gray-500 dark:text-gray-400 mb-4">Add your first office location to get started.</p>
+                      <button
+                        type="button"
+                        onClick={addLocation}
+                        className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add First Location
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-[#2a2a2a]">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )
