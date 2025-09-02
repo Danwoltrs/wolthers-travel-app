@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, ChevronDown, ChevronRight, Eye, Building, Search, UserCheck, Mail, Phone, UserPlus } from 'lucide-react'
+import { Users, ChevronDown, ChevronRight, Eye, Building, Search, UserCheck, Mail, Phone, UserPlus, Edit, Trash2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import ConfirmationModal from '@/components/ui/ConfirmationModal'
+import CompanyEditModal from '@/components/companies/CompanyEditModal'
+import UserEditModal from '@/components/companies/UserEditModal'
 
 interface Company {
   id: string
@@ -32,12 +36,22 @@ interface UnifiedUsersPanelProps {
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
 export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: UnifiedUsersPanelProps) {
+  const { user: currentUser } = useAuth()
   const [companies, setCompanies] = useState<Company[]>([])
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: string]: User[] }>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal states
+  const [showCompanyEditModal, setShowCompanyEditModal] = useState(false)
+  const [showUserEditModal, setShowUserEditModal] = useState(false)
+  const [showDeleteCompanyModal, setShowDeleteCompanyModal] = useState(false)
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     fetchCompanies()
@@ -147,6 +161,114 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
       case 'viewer': return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
       default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
     }
+  }
+
+  // Check if current user is global admin
+  const isGlobalAdmin = currentUser?.role === 'global_admin'
+
+  // Handler functions for edit/delete operations
+  const handleEditCompany = (company: Company) => {
+    setSelectedCompany(company)
+    setShowCompanyEditModal(true)
+  }
+
+  const handleDeleteCompany = (company: Company) => {
+    // Prevent deletion of Wolthers & Associates
+    if (company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0') {
+      setError('Cannot delete Wolthers & Associates company.')
+      setTimeout(() => setError(null), 5000)
+      return
+    }
+    setSelectedCompany(company)
+    setShowDeleteCompanyModal(true)
+  }
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user)
+    setShowUserEditModal(true)
+  }
+
+  const handleDeleteUser = (user: User) => {
+    setSelectedUser(user)
+    setShowDeleteUserModal(true)
+  }
+
+  const confirmDeleteCompany = async () => {
+    if (!selectedCompany) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/companies/${selectedCompany.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete company')
+      }
+
+      // Remove company from local state
+      setCompanies(prev => prev.filter(c => c.id !== selectedCompany.id))
+      setShowDeleteCompanyModal(false)
+      setSelectedCompany(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete company')
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!selectedUser) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete user')
+      }
+
+      // Remove user from local state
+      Object.keys(companyUsers).forEach(companyId => {
+        setCompanyUsers(prev => ({
+          ...prev,
+          [companyId]: prev[companyId].filter(u => u.id !== selectedUser.id)
+        }))
+      })
+      
+      setShowDeleteUserModal(false)
+      setSelectedUser(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user')
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCompanyUpdated = (updatedCompany: Company) => {
+    setCompanies(prev => prev.map(c => c.id === updatedCompany.id ? updatedCompany : c))
+    setShowCompanyEditModal(false)
+    setSelectedCompany(null)
+  }
+
+  const handleUserUpdated = (updatedUser: User) => {
+    // Update user in the appropriate company's user list
+    Object.keys(companyUsers).forEach(companyId => {
+      setCompanyUsers(prev => ({
+        ...prev,
+        [companyId]: prev[companyId].map(u => u.id === updatedUser.id ? updatedUser : u)
+      }))
+    })
+    setShowUserEditModal(false)
+    setSelectedUser(null)
   }
 
   if (isLoading) {
@@ -260,22 +382,41 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
                 </div>
                 
                 {/* Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {onAddUsers && (
                     <button
                       onClick={() => onAddUsers(company)}
-                      className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
+                      title="Add Users"
                     >
-                      <UserPlus className="w-3 h-3" />
-                      Add Users
+                      <UserPlus className="w-4 h-4" />
                     </button>
+                  )}
+                  {isGlobalAdmin && (
+                    <>
+                      <button
+                        onClick={() => handleEditCompany(company)}
+                        className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        title="Edit Company"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCompany(company)}
+                        disabled={company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'}
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0' ? 'Cannot delete Wolthers & Associates' : 'Delete Company'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => onViewDashboard(company)}
-                    className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded transition-colors"
+                    title="View Dashboard"
                   >
-                    <Eye className="w-3 h-3" />
-                    Dashboard
+                    <Eye className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -328,6 +469,27 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
                                 </div>
                               </div>
                             </div>
+                            
+                            {/* User Actions */}
+                            {isGlobalAdmin && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleEditUser(user)}
+                                  className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                  title="Edit user"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(user)}
+                                  disabled={user.id === currentUser?.id}
+                                  className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={user.id === currentUser?.id ? 'Cannot delete your own account' : 'Delete user'}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -370,6 +532,58 @@ export default function UnifiedUsersPanel({ onViewDashboard, onAddUsers }: Unifi
           <div className="text-sm text-gray-600 dark:text-gray-400">Suppliers</div>
         </div>
       </div>
+
+      {/* Modal Components */}
+      <CompanyEditModal
+        isOpen={showCompanyEditModal}
+        onClose={() => {
+          setShowCompanyEditModal(false)
+          setSelectedCompany(null)
+        }}
+        company={selectedCompany}
+        onCompanyUpdated={handleCompanyUpdated}
+      />
+
+      <UserEditModal
+        isOpen={showUserEditModal}
+        onClose={() => {
+          setShowUserEditModal(false)
+          setSelectedUser(null)
+        }}
+        user={selectedUser}
+        onUserUpdated={handleUserUpdated}
+        currentUserId={currentUser?.id}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteCompanyModal}
+        onClose={() => {
+          setShowDeleteCompanyModal(false)
+          setSelectedCompany(null)
+        }}
+        onConfirm={confirmDeleteCompany}
+        title="Delete Company"
+        message={`Are you sure you want to delete "${selectedCompany?.fantasy_name || selectedCompany?.name}"? This action cannot be undone and will also delete all associated users and data.`}
+        confirmText="Delete Company"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteUserModal}
+        onClose={() => {
+          setShowDeleteUserModal(false)
+          setSelectedUser(null)
+        }}
+        onConfirm={confirmDeleteUser}
+        title="Delete User"
+        message={`Are you sure you want to delete user "${selectedUser?.full_name}" (${selectedUser?.email})? This action cannot be undone.`}
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

@@ -1,16 +1,17 @@
-import React from 'react'
-import { AlertTriangle, X } from 'lucide-react'
+import React, { useState } from 'react'
+import { AlertTriangle, X, Loader2 } from 'lucide-react'
 
 interface ConfirmationModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => Promise<void> | void
   title: string
   message: string
   confirmText?: string
   cancelText?: string
   variant?: 'danger' | 'warning' | 'info'
   icon?: React.ReactNode
+  isLoading?: boolean
 }
 
 export default function ConfirmationModal({
@@ -22,19 +23,32 @@ export default function ConfirmationModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'warning',
-  icon
+  icon,
+  isLoading = false
 }: ConfirmationModalProps) {
+  const [internalLoading, setInternalLoading] = useState(false)
+  
   if (!isOpen) return null
 
+  const loading = isLoading || internalLoading
+
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !loading) {
       onClose()
     }
   }
 
-  const handleConfirm = () => {
-    onConfirm()
-    onClose()
+  const handleConfirm = async () => {
+    try {
+      setInternalLoading(true)
+      await onConfirm()
+      onClose()
+    } catch (error) {
+      console.error('Error in confirmation action:', error)
+      // Don't close modal on error so user can retry or cancel
+    } finally {
+      setInternalLoading(false)
+    }
   }
 
   const variantStyles = {
@@ -85,8 +99,9 @@ export default function ConfirmationModal({
             </div>
             
             <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              onClick={loading ? undefined : onClose}
+              disabled={loading}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-5 h-5" />
             </button>
@@ -104,15 +119,18 @@ export default function ConfirmationModal({
         <div className="px-6 py-4 border-t border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111] rounded-b-lg">
           <div className="flex justify-end space-x-3">
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+              onClick={loading ? undefined : onClose}
+              disabled={loading}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cancelText}
             </button>
             <button
               onClick={handleConfirm}
-              className={`px-4 py-2 rounded-lg transition-colors font-medium ${styles.confirmBtn}`}
+              disabled={loading}
+              className={`px-4 py-2 rounded-lg transition-colors font-medium ${styles.confirmBtn} disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {confirmText}
             </button>
           </div>
