@@ -2,28 +2,37 @@
 
 import React, { useState, useEffect } from 'react'
 import { useCacheMonitor } from '@/hooks/useSmartTrips'
-import { Activity, Database, Wifi, WifiOff, Clock, TrendingUp } from 'lucide-react'
+import { getPerformanceIntegration } from '@/lib/performance/PerformanceIntegration'
+import { Activity, Database, Wifi, WifiOff, Clock, TrendingUp, AlertTriangle } from 'lucide-react'
 
 /**
- * Development-only component for monitoring cache performance
- * Displays real-time cache statistics and performance metrics
+ * Enhanced cache performance monitor with integrated performance system
+ * Displays real-time cache statistics and comprehensive performance metrics
  */
 export default function CachePerformanceMonitor() {
   const { getPerformanceMetrics } = useCacheMonitor()
   const [metrics, setMetrics] = useState<any>(null)
+  const [systemStatus, setSystemStatus] = useState<any>(null)
   const [isVisible, setIsVisible] = useState(false)
+  const performanceIntegration = getPerformanceIntegration()
 
   useEffect(() => {
     const updateMetrics = () => {
-      const current = getPerformanceMetrics()
-      setMetrics(current)
+      try {
+        const current = getPerformanceMetrics()
+        const status = performanceIntegration.getSystemStatus()
+        setMetrics(current)
+        setSystemStatus(status)
+      } catch (error) {
+        console.error('CachePerformanceMonitor: Failed to update metrics:', error)
+      }
     }
 
     updateMetrics()
-    const interval = setInterval(updateMetrics, 1000) // Update every second
+    const interval = setInterval(updateMetrics, 2000) // Update every 2 seconds
 
     return () => clearInterval(interval)
-  }, [getPerformanceMetrics])
+  }, [getPerformanceMetrics, performanceIntegration])
 
   // Only show in development
   if (process.env.NODE_ENV === 'production') return null
@@ -157,6 +166,46 @@ export default function CachePerformanceMonitor() {
               </div>
             </div>
 
+            {/* System Health */}
+            {systemStatus && (
+              <div className="border-t pt-2 dark:border-gray-600">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-purple-600" />
+                  <span className="font-medium">System Health</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    systemStatus.overall === 'excellent' ? 'bg-green-100 text-green-700' :
+                    systemStatus.overall === 'good' ? 'bg-blue-100 text-blue-700' :
+                    systemStatus.overall === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {systemStatus.overall.toUpperCase()}
+                  </span>
+                </div>
+                
+                <div className="space-y-1 text-xs">
+                  {systemStatus.alerts && systemStatus.alerts.length > 0 && (
+                    <div className="flex items-center gap-1 text-red-600">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>{systemStatus.alerts.length} active alerts</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-gray-500">
+                    Memory: {systemStatus.components?.memory?.status || 'unknown'}
+                  </div>
+                  <div className="text-gray-500">
+                    Sync: {systemStatus.components?.sync?.status || 'unknown'}
+                  </div>
+                  
+                  {systemStatus.recommendations && systemStatus.recommendations.length > 0 && (
+                    <div className="mt-1 p-1 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-700 dark:text-blue-300">
+                      {systemStatus.recommendations[0]}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Performance Targets */}
             <div className="border-t pt-2 dark:border-gray-600">
               <div className="text-xs space-y-1">
@@ -164,6 +213,8 @@ export default function CachePerformanceMonitor() {
                 <div className="text-gray-500">Dashboard Load: &lt;200ms</div>
                 <div className="text-gray-500">Navigation: &lt;100ms</div>
                 <div className="text-gray-500">Cache Hit Rate: &gt;80%</div>
+                <div className="text-gray-500">Memory Usage: &lt;75%</div>
+                <div className="text-gray-500">Sync Time: &lt;2s</div>
               </div>
             </div>
           </div>

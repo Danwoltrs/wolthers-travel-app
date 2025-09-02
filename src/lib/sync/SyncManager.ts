@@ -82,6 +82,9 @@ export class SyncManager {
   private async initialize(): Promise<void> {
     console.log('SyncManager: Initializing background sync service')
     
+    // Clean up stale operations on startup
+    await this.cleanupStaleOperations()
+    
     // Listen for network status changes
     networkManager.onStatusChange((online) => {
       if (online) {
@@ -228,6 +231,7 @@ export class SyncManager {
     success: boolean
     error?: Error
     conflicts?: any[]
+    statusCode?: number
   }>> {
     // Group operations by type for batch processing
     const groupedOps = this.groupOperationsByType(operations)
@@ -236,6 +240,7 @@ export class SyncManager {
       success: boolean
       error?: Error
       conflicts?: any[]
+      statusCode?: number
     }> = []
 
     // Process each group with appropriate batch endpoints
@@ -246,11 +251,13 @@ export class SyncManager {
       } catch (error) {
         console.error(`SyncManager: Failed to process ${type} operations:`, error)
         // Mark all operations in this group as failed
+        const statusCode = (error as any)?.statusCode || 500
         ops.forEach(op => {
           results.push({
             operationId: op.id,
             success: false,
-            error: error instanceof Error ? error : new Error(String(error))
+            error: error instanceof Error ? error : new Error(String(error)),
+            statusCode
           })
         })
       }
@@ -282,12 +289,14 @@ export class SyncManager {
     success: boolean
     error?: Error
     conflicts?: any[]
+    statusCode?: number
   }>> {
     const results: Array<{
       operationId: string
       success: boolean
       error?: Error
       conflicts?: any[]
+      statusCode?: number
     }> = []
 
     switch (type) {
@@ -305,10 +314,12 @@ export class SyncManager {
             await this.processIndividualOperation(op)
             results.push({ operationId: op.id, success: true })
           } catch (error) {
+            const statusCode = (error as any)?.statusCode || 500
             results.push({
               operationId: op.id,
               success: false,
-              error: error instanceof Error ? error : new Error(String(error))
+              error: error instanceof Error ? error : new Error(String(error)),
+              statusCode
             })
           }
         }
@@ -325,25 +336,31 @@ export class SyncManager {
     success: boolean
     error?: Error
     conflicts?: any[]
+    statusCode?: number
   }>> {
     try {
+      // Validate and clean data for all operations
+      const cleanedOperations = operations.map(op => ({
+        id: op.id,
+        type: op.type,
+        resourceId: op.resourceId,
+        data: op.data ? this.validateAndCleanData(op.data) : op.data,
+        timestamp: op.timestamp
+      }))
+
       const response = await fetch('/api/trips/batch', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ operations: operations.map(op => ({
-          id: op.id,
-          type: op.type,
-          resourceId: op.resourceId,
-          data: op.data,
-          timestamp: op.timestamp
-        }))})
+        body: JSON.stringify({ operations: cleanedOperations })
       })
 
       if (!response.ok) {
-        throw new Error(`Batch API error: ${response.status}`)
+        const errorWithStatus = new Error(`Batch API error: ${response.status}`) as Error & { statusCode?: number }
+        errorWithStatus.statusCode = response.status
+        throw errorWithStatus
       }
 
       const result = await response.json()
@@ -351,11 +368,13 @@ export class SyncManager {
 
     } catch (error) {
       console.error('SyncManager: Trip batch processing failed:', error)
+      const statusCode = (error as any)?.statusCode || 500
       // Return failure for all operations
       return operations.map(op => ({
         operationId: op.id,
         success: false,
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error : new Error(String(error)),
+        statusCode
       }))
     }
   }
@@ -369,6 +388,11 @@ export class SyncManager {
     let endpoint = ''
     let method = 'POST'
     let body = data
+
+    // Validate and clean data before sending
+    if (body) {
+      body = this.validateAndCleanData(body)
+    }
 
     switch (`${type}_${resource}`) {
       case 'create_trip':
@@ -399,12 +423,14 @@ export class SyncManager {
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`API error: ${response.status} - ${error}`)
+      const errorWithStatus = new Error(`API error: ${response.status} - ${error}`) as Error & { statusCode?: number }
+      errorWithStatus.statusCode = response.status
+      throw errorWithStatus
     }
   }
 
   /**
-   * Handle failed operations with retry logic
+   * Handle failed operations with smart retry logic
    */
   private async handleFailedOperations(
     failedOperations: Array<{
@@ -412,11 +438,21 @@ export class SyncManager {
       success: boolean
       error?: Error
       conflicts?: any[]
+      statusCode?: number
     }>
   ): Promise<void> {
     for (const failure of failedOperations) {
       const operation = await this.queueManager.get(failure.operationId)
       if (!operation) continue
+
+      // Check if this is a non-retryable error
+      const shouldRetry = this.shouldRetryOperation(failure.error, failure.statusCode)
+      
+      if (!shouldRetry) {
+        console.log(`SyncManager: Operation ${operation.id} failed with non-retryable error, removing from queue`)
+        await this.queueManager.remove(operation.id)
+        continue
+      }
 
       // Handle conflicts
       if (failure.conflicts && failure.conflicts.length > 0) {
@@ -428,7 +464,7 @@ export class SyncManager {
           
           if (resolved) {
             // Update operation with resolved data and retry
-            operation.data = resolved.data
+            operation.data = this.validateAndCleanData(resolved.data)
             operation.retryCount = 0 // Reset retry count after conflict resolution
             await this.queueManager.update(operation)
             this.stats.conflictsResolved++
@@ -444,7 +480,7 @@ export class SyncManager {
         }
       }
 
-      // Retry logic for failed operations
+      // Retry logic for retryable failed operations
       operation.retryCount = (operation.retryCount || 0) + 1
       
       if (operation.retryCount >= this.config.retryAttempts) {
@@ -468,16 +504,20 @@ export class SyncManager {
       const { createClient } = await import('@/lib/supabase-client')
       const supabase = createClient()
 
+      // Define callback functions with proper context binding
+      const handleTripsChange = (payload: any) => this.handleRealTimeChange('trips', payload)
+      const handleParticipantsChange = (payload: any) => this.handleRealTimeChange('participants', payload)
+
       // Subscribe to trip changes
       this.supabaseSubscription = supabase
         .channel('trips_sync')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'trips' },
-          (payload) => this.handleRealTimeChange('trips', payload)
+          handleTripsChange
         )
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'trip_participants' },
-          (payload) => this.handleRealTimeChange('participants', payload)
+          handleParticipantsChange
         )
         .subscribe()
 
@@ -591,6 +631,116 @@ export class SyncManager {
     await this.queueManager.clear()
     this.updateStats()
     console.log('SyncManager: Queue cleared')
+  }
+
+  /**
+   * Clean up stale operations on startup
+   */
+  private async cleanupStaleOperations(): Promise<void> {
+    console.log('SyncManager: Cleaning up stale operations')
+    try {
+      // Run general cleanup
+      const cleanedGeneral = await this.queueManager.cleanup()
+      
+      // Validate and fix operation data integrity
+      const validation = await this.queueManager.validateOperations()
+      
+      // Clean up operations that shouldn't be retried based on error patterns
+      const cleanedByError = await this.queueManager.cleanupByErrorType((op) => {
+        // Remove delete operations that have been retried (likely 404s)
+        if (op.type === 'delete' && op.retryCount > 1) {
+          return true
+        }
+        
+        // Remove very old operations that haven't succeeded
+        const ageInDays = (Date.now() - op.timestamp) / (24 * 60 * 60 * 1000)
+        if (ageInDays > 7 && op.retryCount > 0) {
+          return true
+        }
+        
+        return false
+      })
+      
+      const totalCleaned = cleanedGeneral + validation.invalid + cleanedByError
+      if (totalCleaned > 0 || validation.fixed > 0) {
+        console.log(`SyncManager: Startup cleanup complete - ${totalCleaned} removed, ${validation.fixed} fixed`)
+      }
+    } catch (error) {
+      console.error('SyncManager: Failed to clean up stale operations:', error)
+    }
+  }
+
+  /**
+   * Determine if an operation should be retried based on error type
+   */
+  private shouldRetryOperation(error?: Error, statusCode?: number): boolean {
+    // Don't retry for client errors that won't resolve with time
+    if (statusCode) {
+      // Non-retryable HTTP status codes
+      if (statusCode === 400 || statusCode === 401 || statusCode === 403 || 
+          statusCode === 404 || statusCode === 409 || statusCode === 410) {
+        return false
+      }
+    }
+    
+    // Don't retry for specific error types
+    if (error?.message) {
+      const message = error.message.toLowerCase()
+      if (message.includes('not found') || 
+          message.includes('does not exist') ||
+          message.includes('unauthorized') ||
+          message.includes('forbidden')) {
+        return false
+      }
+    }
+    
+    return true // Retry by default for network errors, temporary issues
+  }
+
+  /**
+   * Validate and clean data before sync operations
+   */
+  private validateAndCleanData(data: any): any {
+    if (!data || typeof data !== 'object') {
+      return data
+    }
+    
+    const cleaned = { ...data }
+    
+    // Convert date strings to proper Date objects or ISO strings
+    const dateFields = ['start_date', 'end_date', 'created_at', 'updated_at', 'startDate', 'endDate']
+    
+    for (const field of dateFields) {
+      if (cleaned[field]) {
+        try {
+          // Handle various date formats
+          if (typeof cleaned[field] === 'string') {
+            const date = new Date(cleaned[field])
+            if (!isNaN(date.getTime())) {
+              cleaned[field] = date.toISOString()
+            }
+          } else if (cleaned[field] instanceof Date) {
+            if (!isNaN(cleaned[field].getTime())) {
+              cleaned[field] = cleaned[field].toISOString()
+            } else {
+              delete cleaned[field] // Remove invalid dates
+            }
+          } else if (typeof cleaned[field] === 'object' && cleaned[field].toISOString) {
+            // Handle Date-like objects
+            try {
+              cleaned[field] = cleaned[field].toISOString()
+            } catch {
+              delete cleaned[field]
+            }
+          }
+        } catch (error) {
+          console.warn(`SyncManager: Invalid date field ${field}:`, cleaned[field])
+          delete cleaned[field] // Remove invalid date fields
+        }
+      }
+    }
+    
+    return cleaned
   }
 
   /**

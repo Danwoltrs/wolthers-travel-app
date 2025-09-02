@@ -41,6 +41,13 @@ export class QueueManager {
   constructor(storageKey: string = STORAGE_KEY) {
     this.storageKey = storageKey
     this.loadFromStorage()
+    
+    // Schedule periodic cleanup
+    if (typeof window !== 'undefined') {
+      setInterval(() => {
+        this.cleanup()
+      }, 60 * 60 * 1000) // Clean up every hour
+    }
   }
 
   /**
@@ -353,11 +360,12 @@ export class QueueManager {
   }
 
   /**
-   * Clean up expired retry operations
+   * Clean up expired and stale operations
    */
   async cleanup(): Promise<number> {
     const now = Date.now()
     const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
+    const staleThreshold = 3 * 24 * 60 * 60 * 1000 // 3 days for stale operations
     const toRemove: string[] = []
 
     this.queue.forEach((op, id) => {
@@ -365,14 +373,127 @@ export class QueueManager {
       if (now - op.timestamp > maxAge && op.retryCount > 3) {
         toRemove.push(id)
       }
+      // Remove stale delete operations (likely for non-existent resources)
+      else if (op.type === 'delete' && now - op.timestamp > staleThreshold && op.retryCount > 0) {
+        toRemove.push(id)
+      }
+      // Remove operations with excessive retry counts
+      else if (op.retryCount > 10) {
+        toRemove.push(id)
+      }
     })
 
     const removed = await this.removeMultiple(toRemove)
     if (removed > 0) {
-      console.log(`QueueManager: Cleaned up ${removed} expired operations`)
+      console.log(`QueueManager: Cleaned up ${removed} expired/stale operations`)
     }
     
     return removed
+  }
+
+  /**
+   * Clean up operations by error type
+   */
+  async cleanupByErrorType(shouldRemove: (operation: QueuedOperation) => boolean): Promise<number> {
+    const toRemove: string[] = []
+    
+    this.queue.forEach((op, id) => {
+      if (shouldRemove(op)) {
+        toRemove.push(id)
+      }
+    })
+    
+    return await this.removeMultiple(toRemove)
+  }
+
+  /**
+   * Validate operation data integrity
+   */
+  async validateOperations(): Promise<{ valid: number, invalid: number, fixed: number }> {
+    let valid = 0
+    let invalid = 0
+    let fixed = 0
+    const toUpdate: QueuedOperation[] = []
+    const toRemove: string[] = []
+    
+    this.queue.forEach((op) => {
+      // Check for required fields
+      if (!op.id || !op.type || !op.resource || typeof op.timestamp !== 'number') {
+        invalid++
+        toRemove.push(op.id)
+        return
+      }
+      
+      // Validate and fix date fields in operation data
+      if (op.data && typeof op.data === 'object') {
+        const originalData = JSON.stringify(op.data)
+        op.data = this.cleanDateFields(op.data)
+        
+        if (JSON.stringify(op.data) !== originalData) {
+          fixed++
+          toUpdate.push(op)
+        }
+      }
+      
+      valid++
+    })
+    
+    // Remove invalid operations
+    await this.removeMultiple(toRemove)
+    
+    // Update operations with fixed data
+    for (const op of toUpdate) {
+      await this.update(op)
+    }
+    
+    if (invalid > 0 || fixed > 0) {
+      console.log(`QueueManager: Validation complete - ${valid} valid, ${invalid} removed, ${fixed} fixed`)
+    }
+    
+    return { valid, invalid, fixed }
+  }
+
+  /**
+   * Clean date fields in operation data
+   */
+  private cleanDateFields(data: any): any {
+    if (!data || typeof data !== 'object') {
+      return data
+    }
+    
+    const cleaned = { ...data }
+    const dateFields = ['start_date', 'end_date', 'created_at', 'updated_at', 'startDate', 'endDate']
+    
+    for (const field of dateFields) {
+      if (cleaned[field]) {
+        try {
+          if (typeof cleaned[field] === 'string') {
+            const date = new Date(cleaned[field])
+            if (!isNaN(date.getTime())) {
+              cleaned[field] = date.toISOString()
+            } else {
+              delete cleaned[field]
+            }
+          } else if (cleaned[field] instanceof Date) {
+            if (!isNaN(cleaned[field].getTime())) {
+              cleaned[field] = cleaned[field].toISOString()
+            } else {
+              delete cleaned[field]
+            }
+          } else if (typeof cleaned[field] === 'object' && cleaned[field].toISOString) {
+            try {
+              cleaned[field] = cleaned[field].toISOString()
+            } catch {
+              delete cleaned[field]
+            }
+          }
+        } catch {
+          delete cleaned[field]
+        }
+      }
+    }
+    
+    return cleaned
   }
 
   /**

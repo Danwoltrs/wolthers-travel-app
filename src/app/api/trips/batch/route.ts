@@ -25,6 +25,7 @@ interface BatchResult {
   error?: string
   conflicts?: any[]
   data?: any
+  statusCode?: number
 }
 
 export async function POST(request: NextRequest) {
@@ -83,10 +84,12 @@ export async function POST(request: NextRequest) {
           results.push(result.value)
         } else {
           console.error(`Batch API: Operation ${operation.id} failed:`, result.reason)
+          const statusCode = (result.reason as any)?.statusCode || 500
           results.push({
             operationId: operation.id,
             success: false,
-            error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+            statusCode
           })
         }
       })
@@ -142,14 +145,18 @@ async function processOperation(
         return await handlePatchOperation(supabase, conflictResolver, id, resourceId!, data, timestamp, userId)
       
       default:
-        throw new Error(`Unsupported operation type: ${type}`)
+        const unsupportedError = new Error(`Unsupported operation type: ${type}`) as Error & { statusCode?: number }
+        unsupportedError.statusCode = 400
+        throw unsupportedError
     }
   } catch (error) {
     console.error(`Operation ${id} failed:`, error)
+    const statusCode = (error as any)?.statusCode || 500
     return {
       operationId: id,
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      statusCode
     }
   }
 }
@@ -166,10 +173,13 @@ async function handleCreateOperation(
   // Remove temporary ID if present
   const { id: tempId, ...cleanData } = tripData
   
+  // Validate and clean date fields
+  const validatedData = validateAndCleanDates(cleanData)
+  
   const { data, error } = await supabase
     .from('trips')
     .insert({
-      ...cleanData,
+      ...validatedData,
       created_by: userId,
       updated_by: userId
     })
@@ -177,7 +187,9 @@ async function handleCreateOperation(
     .single()
 
   if (error) {
-    throw new Error(`Create failed: ${error.message}`)
+    const createError = new Error(`Create failed: ${error.message}`) as Error & { statusCode?: number }
+    createError.statusCode = error.code === '23505' ? 409 : 400 // Conflict for duplicate, Bad Request for other validation errors
+    throw createError
   }
 
   return {
@@ -207,14 +219,19 @@ async function handleUpdateOperation(
     .single()
 
   if (fetchError) {
-    throw new Error(`Trip not found: ${fetchError.message}`)
+    const notFoundError = new Error(`Trip not found: ${fetchError.message}`) as Error & { statusCode?: number }
+    notFoundError.statusCode = fetchError.code === 'PGRST116' ? 404 : 500
+    throw notFoundError
   }
+  
+  // Validate and clean date fields in updates
+  const validatedUpdates = validateAndCleanDates(updates)
 
   // Check for conflicts
   const serverTimestamp = new Date(currentTrip.updated_at).getTime()
-  const conflictFields = ConflictResolver.detectConflicts(updates, currentTrip)
+  const conflictFields = ConflictResolver.detectConflicts(validatedUpdates, currentTrip)
   
-  let finalData = updates
+  let finalData = validatedUpdates
   const conflicts: any[] = []
 
   if (conflictFields.length > 0 && serverTimestamp > clientTimestamp) {
@@ -227,13 +244,13 @@ async function handleUpdateOperation(
         type: 'update',
         resource: 'trip',
         resourceId: tripId,
-        data: updates,
+        data: validatedUpdates,
         timestamp: clientTimestamp,
         priority: 2,
         retryCount: 0
       },
       {
-        clientVersion: updates,
+        clientVersion: validatedUpdates,
         serverVersion: currentTrip,
         conflictFields,
         lastSyncTimestamp: clientTimestamp
@@ -247,7 +264,7 @@ async function handleUpdateOperation(
       // Return conflict for manual resolution
       conflicts.push({
         fields: conflictFields,
-        clientVersion: updates,
+        clientVersion: validatedUpdates,
         serverVersion: currentTrip
       })
       
@@ -273,7 +290,9 @@ async function handleUpdateOperation(
     .single()
 
   if (error) {
-    throw new Error(`Update failed: ${error.message}`)
+    const updateError = new Error(`Update failed: ${error.message}`) as Error & { statusCode?: number }
+    updateError.statusCode = error.code === 'PGRST116' ? 404 : 400
+    throw updateError
   }
 
   return {
@@ -293,6 +312,19 @@ async function handleDeleteOperation(
   tripId: string,
   userId: string
 ): Promise<BatchResult> {
+  // Check if trip exists first
+  const { data: existingTrip, error: checkError } = await supabase
+    .from('trips')
+    .select('id')
+    .eq('id', tripId)
+    .single()
+    
+  if (checkError) {
+    const notFoundError = new Error(`Trip not found: ${checkError.message}`) as Error & { statusCode?: number }
+    notFoundError.statusCode = checkError.code === 'PGRST116' ? 404 : 500
+    throw notFoundError
+  }
+  
   // Soft delete by updating status
   const { data, error } = await supabase
     .from('trips')
@@ -306,7 +338,9 @@ async function handleDeleteOperation(
     .single()
 
   if (error) {
-    throw new Error(`Delete failed: ${error.message}`)
+    const deleteError = new Error(`Delete failed: ${error.message}`) as Error & { statusCode?: number }
+    deleteError.statusCode = error.code === 'PGRST116' ? 404 : 500
+    throw deleteError
   }
 
   return {
@@ -328,11 +362,14 @@ async function handlePatchOperation(
   clientTimestamp: number,
   userId: string
 ): Promise<BatchResult> {
+  // Validate and clean date fields
+  const validatedPatches = validateAndCleanDates(patches)
+  
   // Similar to update but less strict conflict handling
   const { data, error } = await supabase
     .from('trips')
     .update({
-      ...patches,
+      ...validatedPatches,
       updated_by: userId,
       updated_at: new Date().toISOString()
     })
@@ -341,7 +378,9 @@ async function handlePatchOperation(
     .single()
 
   if (error) {
-    throw new Error(`Patch failed: ${error.message}`)
+    const patchError = new Error(`Patch failed: ${error.message}`) as Error & { statusCode?: number }
+    patchError.statusCode = error.code === 'PGRST116' ? 404 : 400
+    throw patchError
   }
 
   return {
@@ -349,6 +388,52 @@ async function handlePatchOperation(
     success: true,
     data
   }
+}
+
+/**
+ * Validate and clean date fields in data
+ */
+function validateAndCleanDates(data: any): any {
+  if (!data || typeof data !== 'object') {
+    return data
+  }
+  
+  const cleaned = { ...data }
+  const dateFields = ['start_date', 'end_date', 'created_at', 'updated_at', 'startDate', 'endDate']
+  
+  for (const field of dateFields) {
+    if (cleaned[field]) {
+      try {
+        // Handle various date formats
+        if (typeof cleaned[field] === 'string') {
+          const date = new Date(cleaned[field])
+          if (!isNaN(date.getTime())) {
+            cleaned[field] = date.toISOString()
+          } else {
+            delete cleaned[field] // Remove invalid dates
+          }
+        } else if (cleaned[field] instanceof Date) {
+          if (!isNaN(cleaned[field].getTime())) {
+            cleaned[field] = cleaned[field].toISOString()
+          } else {
+            delete cleaned[field] // Remove invalid dates
+          }
+        } else if (typeof cleaned[field] === 'object' && cleaned[field].toISOString) {
+          // Handle Date-like objects
+          try {
+            cleaned[field] = cleaned[field].toISOString()
+          } catch {
+            delete cleaned[field]
+          }
+        }
+      } catch (error) {
+        console.warn(`Batch API: Invalid date field ${field}:`, cleaned[field])
+        delete cleaned[field] // Remove invalid date fields
+      }
+    }
+  }
+  
+  return cleaned
 }
 
 // Export method types for type safety

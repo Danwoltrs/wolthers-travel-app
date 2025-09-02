@@ -1,0 +1,163 @@
+{
+  "timestamp": 1756822104143,
+  "environment": {
+    "nodeEnv": "development",
+    "isProduction": false,
+    "isDevelopment": true,
+    "isStaging": false,
+    "supportsServiceWorker": true,
+    "supportsPerformanceAPI": true,
+    "isOnline": true
+  },
+  "configuration": {
+    "cache": {
+      "freshTTL": 120000,
+      "staleTTL": 300000,
+      "maxMemoryItems": 50,
+      "storageKeyPrefix": "wolthers-dev",
+      "enableCompression": false,
+      "enableMetrics": true
+    },
+    "sync": {
+      "syncInterval": 10000,
+      "retryAttempts": 2,
+      "batchSize": 5,
+      "conflictStrategy": "merge",
+      "enableRealTimeSync": true,
+      "enableBackgroundSync": true,
+      "maxQueueSize": 100
+    },
+    "performance": {
+      "enableOptimization": false,
+      "enableMonitoring": true,
+      "targetMetrics": {
+        "dashboardLoadTime": 500,
+        "navigationTime": 200,
+        "cacheHitRate": 0.7,
+        "maxMemoryUsage": 104857600
+      },
+      "autoTuning": false
+    },
+    "development": {
+      "enableDebugMode": true,
+      "enablePerformanceMonitor": true,
+      "enableVerboseLogging": true,
+      "simulateSlowNetwork": false,
+      "simulateOfflineMode": false
+    }
+  },
+  "tests": {
+    "performance": {
+      "passed": false,
+      "results": {
+        "dashboardLoad": {
+          "passed": false,
+          "actual": 3617.3999999910593,
+          "target": 200
+        },
+        "cacheHitRate": {
+          "passed": false,
+          "actual": 0,
+          "target": 0.85
+        },
+        "memoryUsage": {
+          "passed": true,
+          "actual": 12.52730236053467,
+          "target": 50
+        },
+        "syncLatency": {
+          "passed": true,
+          "actual": 0,
+          "target": 5000
+        },
+        "errorRate": {
+          "passed": true,
+          "actual": 0,
+          "target": 1
+        }
+      }
+    },
+    "cache": {
+      "passed": true,
+      "details": {
+        "tripCache": {
+          "memoryItems": 1,
+          "fresh": 0,
+          "stale": 0,
+          "expired": 1,
+          "hitRate": 0.85
+        },
+        "activityCache": {
+          "memoryItems": 0,
+          "fresh": 0,
+          "stale": 0,
+          "expired": 0,
+          "hitRate": 0
+        },
+        "isOnline": true,
+        "memoryHealth": {
+          "totalCachedItems": 1,
+          "withinLimits": true,
+          "memoryPressure": false
+        }
+      }
+    },
+    "sync": {
+      "passed": true,
+      "details": {
+        "queueSize": 0,
+        "lastSync": null,
+        "failedOperations": 0,
+        "successfulOperations": 0,
+        "syncInProgress": false
+      }
+    },
+    "configuration": {
+      "passed": false,
+      "details": {
+        "dashboardLoad": {
+          "passed": false,
+          "actual": 3617.3999999910593,
+          "target": 200
+        },
+        "cacheHitRate": {
+          "passed": false,
+          "actual": 0,
+          "target": 0.85
+        },
+        "memoryUsage": {
+          "passed": true,
+          "actual": 12.52730236053467,
+          "target": 50
+        },
+        "syncLatency": {
+          "passed": true,
+          "actual": 0,
+          "target": 5000
+        },
+        "errorRate": {
+          "passed": true,
+          "actual": 0,
+          "target": 1
+        }
+      },
+      "recommendations": [
+        "Dashboard loading is slow (3617ms). Consider pre-loading critical data."
+      ]
+    },
+    "integration": {
+      "passed": true,
+      "details": {
+        "tripsCount": 4,
+        "cacheActive": true,
+        "syncActive": true,
+        "realTimeEnabled": true
+      }
+    }
+  },
+  "recommendations": [
+    "Dashboard loading is slow (3617ms). Consider reducing initial data load or implementing progressive loading.",
+    "Cache hit rate is low (0%). Consider increasing cache TTL or pre-loading frequently accessed data."
+  ],
+  "performanceMetrics": "{\n  \"timestamp\": 1756822105711,\n  \"metrics\": {\n    \"cacheHitRate\": 0,\n    \"averageLoadTime\": 3617.3999999910593,\n    \"memoryUsage\": 13186951.700000001,\n    \"syncLatency\": 0,\n    \"errorRate\": 0,\n    \"backgroundSyncCount\": 0,\n    \"operationMetrics\": {\n      \"cache_lookup\": {\n        \"average\": 3617.0999999940395,\n        \"median\": 3617.0999999940395,\n        \"p95\": 3617.0999999940395,\n        \"count\": 1\n      },\n      \"dashboard_load\": {\n        \"average\": 3617.3999999910593,\n        \"median\": 3617.3999999910593,\n        \"p95\": 3617.3999999910593,\n        \"count\": 1\n      }\n    },\n    \"recommendations\": [\n      \"Dashboard loading is slow (3617ms). Consider pre-loading critical data.\"\n    ]\n  },\n  \"validation\": {\n    \"passed\": false,\n    \"results\": {\n      \"dashboardLoad\": {\n        \"passed\": false,\n        \"actual\": 3617.3999999910593,\n        \"target\": 200\n      },\n      \"cacheHitRate\": {\n        \"passed\": false,\n        \"actual\": 0,\n        \"target\": 0.85\n      },\n      \"memoryUsage\": {\n        \"passed\": true,\n        \"actual\": 12.576057147979737,\n        \"target\": 50\n      },\n      \"syncLatency\": {\n        \"passed\": true,\n        \"actual\": 0,\n        \"target\": 5000\n      },\n      \"errorRate\": {\n        \"passed\": true,\n        \"actual\": 0,\n        \"target\": 1\n      }\n    }\n  },\n  \"targets\": {\n    \"dashboardLoadTime\": 200,\n    \"navigationTime\": 100,\n    \"cacheHitRate\": 0.85,\n    \"maxMemoryUsage\": 52428800,\n    \"maxSyncLatency\": 5000,\n    \"maxErrorRate\": 0.01\n  }\n}"
+}
