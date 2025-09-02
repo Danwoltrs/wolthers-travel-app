@@ -216,10 +216,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
-      // Fetch fresh profile from database
+      // Fetch fresh profile from database with company information
       const { data: profile, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          companies (
+            id,
+            name,
+            category
+          )
+        `)
         .eq('id', authUser.id)
         .single()
 
@@ -394,6 +401,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       can_view_company_trips: profile.can_view_company_trips,
       microsoft_oauth_id: profile.microsoft_oauth_id,
       company_name: profile.company_name,
+      company_category: profile.companies?.category || null,
       notification_preferences: profile.notification_preferences,
       created_at: profile.created_at,
       updated_at: profile.updated_at,

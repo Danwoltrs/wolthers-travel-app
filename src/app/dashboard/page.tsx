@@ -36,8 +36,12 @@ export default function Dashboard() {
       const isWolthersStaff = user.is_global_admin || user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
       if (isWolthersStaff) return true
       
-      // External company users can create trips only if they are admins
-      return user.user_type === 'admin'
+      // External company users: Only buyer admins can request trips (suppliers cannot)
+      if (user.user_type === 'admin' && user.company_category === 'buyer') {
+        return true
+      }
+      
+      return false
     }, [user])
 
     // Listen for menu state changes (this would need to be coordinated with Header component)

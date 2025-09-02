@@ -83,7 +83,7 @@ export default function CompanyDashboard({
 
   // Fetch company-specific data - handle Wolthers & Associates as special case
   const isWolthersCompany = company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
-  const { data: companyDetails } = useSWR(
+  const { data: companyDetails, mutate: mutateCompanyDetails } = useSWR(
     isWolthersCompany ? null : `/api/companies/${company.id}`,
     fetcher
   )
@@ -607,9 +607,9 @@ export default function CompanyDashboard({
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         company={company}
-        onCompanyUpdated={() => {
-          // Refresh the company data
-          window.location.reload()
+        onCompanyUpdated={(updatedCompany) => {
+          // Update SWR cache with new company data
+          mutateCompanyDetails(updatedCompany, false)
         }}
       />
     </div>

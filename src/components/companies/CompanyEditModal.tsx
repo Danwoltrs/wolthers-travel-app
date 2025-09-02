@@ -197,6 +197,11 @@ export default function CompanyEditModal({
       setFormData(prev => ({ ...prev, logo_url: data.logoUrl }))
       setSuccessMessage('Logo uploaded successfully!')
       setLogoFile(null)
+      
+      // Notify parent component to refresh data
+      if (onCompanyUpdated && company) {
+        onCompanyUpdated({ ...company, logo_url: data.logoUrl })
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload logo')
@@ -226,6 +231,11 @@ export default function CompanyEditModal({
       setLogoPreview(null)
       setLogoFile(null)
       setSuccessMessage('Logo removed successfully!')
+      
+      // Notify parent component to refresh data
+      if (onCompanyUpdated && company) {
+        onCompanyUpdated({ ...company, logo_url: null })
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove logo')
