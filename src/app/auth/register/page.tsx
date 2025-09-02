@@ -109,13 +109,19 @@ function RegisterContent() {
       
       // If we got a session, set it in Supabase client for immediate auth state
       if (result.session) {
-        console.log('Setting Supabase session from registration')
-        // Import supabase client dynamically to avoid SSR issues
-        const { supabase } = await import('@/lib/supabase-client')
-        await supabase.auth.setSession({
-          access_token: result.session.access_token,
-          refresh_token: result.session.refresh_token
-        })
+        try {
+          console.log('Setting Supabase session from registration')
+          // Import supabase client dynamically to avoid SSR issues
+          const { supabase } = await import('@/lib/supabase-client')
+          await supabase.auth.setSession({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token
+          })
+          console.log('Supabase session set successfully')
+        } catch (sessionError) {
+          console.warn('Failed to set Supabase session:', sessionError)
+          // Don't fail registration if session setting fails
+        }
       }
       
       // Reset loading state before redirect
