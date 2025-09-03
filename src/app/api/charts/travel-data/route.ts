@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           trip_type,
           status,
           created_at,
-          trip_activities!inner (
+          activities!inner (
             location_id,
             company_locations!inner (
               company_id
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
             )
           )
         `)
-        .eq('trip_activities.company_locations.company_id', companyId)
+        .eq('activities.company_locations.company_id', companyId)
         .neq('status', 'cancelled')
         .order('start_date', { ascending: true })
       
