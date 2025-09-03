@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         id, 
         email, 
         full_name,
-        title,
+        role,
         phone,
         whatsapp,
         user_type, 

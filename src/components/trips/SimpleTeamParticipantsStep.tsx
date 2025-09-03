@@ -38,7 +38,7 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
               id: 'daniel-id',
               email: 'daniel@wolthers.com',
               full_name: 'Daniel Wolthers',
-              title: 'Managing Director',
+              role: 'staff',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }
@@ -52,9 +52,9 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
         
         if (companiesResponse.ok) {
           const companiesData = await companiesResponse.json()
-          // Filter for buyer companies (not Wolthers)
-          const buyers = (companiesData.companies || []).filter((company: Company) => 
-            !company.name.toLowerCase().includes('wolthers')
+          // Filter for buyer companies only (category = 'buyer')
+          const buyers = (companiesData.companies || []).filter((company: Company & { category?: string }) => 
+            company.category === 'buyer'
           )
           setBuyerCompanies(buyers)
         } else {
@@ -70,7 +70,7 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           id: 'fallback-id',
           email: 'staff@wolthers.com',
           full_name: 'Wolthers Staff',
-          title: 'Staff Member',
+          role: 'staff',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -200,7 +200,7 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
                       {staff.full_name}
                     </h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {staff.title}
+                      {staff.role || 'Staff Member'}
                     </p>
                   </div>
                   {isSelected && (
