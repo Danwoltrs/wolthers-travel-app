@@ -76,7 +76,21 @@ export async function GET(
     const { data: company, error } = await supabase
       .from('companies')
       .select(`
-        *,
+        id,
+        name,
+        fantasy_name,
+        annual_trip_cost,
+        staff_count,
+        created_at,
+        updated_at,
+        client_type,
+        category,
+        legacy_client_id,
+        subcategories,
+        logo_url,
+        admin_approval_required,
+        email,
+        phone,
         company_locations!company_locations_company_id_fkey (
           id,
           name,

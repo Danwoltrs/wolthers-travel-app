@@ -36,7 +36,7 @@ export async function GET(
           user_id,
           role
         ),
-        companies!trip_participants_company_id_fkey (
+        companies (
           id,
           name
         )

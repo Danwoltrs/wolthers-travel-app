@@ -37,96 +37,26 @@ export async function GET(
 
     let documentsQuery
 
-    if (company.category === 'buyer') {
-      // For Buyers: All files and ALL trip notes from meetings they participated in (including all 5 notes from Cooxupe meetings)
-      documentsQuery = supabase
-        .from('trip_documents')
-        .select(`
-          id,
-          filename,
-          file_path,
-          file_size,
-          file_type,
-          uploaded_at,
-          description,
-          is_public,
-          trip_id,
-          document_type,
-          uploaded_by,
-          trips!inner (
-            id,
-            title,
-            trip_code,
-            trip_participants!inner (
-              company_id,
-              is_meeting_attendee
-            )
-          )
-        `)
-        .eq('trips.trip_participants.company_id', companyId)
-        .eq('trips.trip_participants.is_meeting_attendee', true) // Only meetings they attended
-        .eq('is_public', true)
-        .order('uploaded_at', { ascending: false })
-        
-    } else if (company.category === 'supplier') {
-      // For Suppliers: Files they sent to us + trip notes from meetings we had with them
-      documentsQuery = supabase
-        .from('trip_documents')
-        .select(`
-          id,
-          filename,
-          file_path,
-          file_size,
-          file_type,
-          uploaded_at,
-          description,
-          is_public,
-          trip_id,
-          document_type,
-          uploaded_by,
-          trips!inner (
-            id,
-            title,
-            trip_code,
-            trip_participants!inner (
-              company_id
-            )
-          )
-        `)
-        .eq('trips.trip_participants.company_id', companyId)
-        .or(`uploaded_by.eq.${companyId},document_type.eq.trip_notes`) // Files they uploaded OR trip notes
-        .eq('is_public', true)
-        .order('uploaded_at', { ascending: false })
-        
-    } else {
-      // For service providers (Wolthers) or other types: all documents they have access to
-      documentsQuery = supabase
-        .from('trip_documents')
-        .select(`
-          id,
-          filename,
-          file_path,
-          file_size,
-          file_type,
-          uploaded_at,
-          description,
-          is_public,
-          trip_id,
-          document_type,
-          uploaded_by,
-          trips!inner (
-            id,
-            title,
-            trip_code,
-            trip_participants!inner (
-              company_id
-            )
-          )
-        `)
-        .eq('trips.trip_participants.company_id', companyId)
-        .eq('is_public', true)
-        .order('uploaded_at', { ascending: false })
-    }
+    // Get documents associated with this company
+    // Since documents table doesn't have trip_id, we'll get documents directly by company_id
+    documentsQuery = supabase
+      .from('documents')
+      .select(`
+        id,
+        filename,
+        original_filename,
+        file_type,
+        file_size,
+        storage_path,
+        meeting_id,
+        company_id,
+        document_type,
+        created_at,
+        updated_at,
+        uploaded_by
+      `)
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
 
     const { data: documents, error } = await documentsQuery
 
@@ -141,24 +71,18 @@ export async function GET(
     // Transform data for frontend
     const transformedDocuments = documents?.map(doc => ({
       ...doc,
-      trip_title: doc.trips?.title,
-      trip_code: doc.trips?.trip_code,
+      file_path: doc.storage_path, // Map storage_path to file_path for frontend compatibility
+      uploaded_at: doc.created_at, // Map created_at to uploaded_at for frontend compatibility
       file_size_mb: doc.file_size ? (doc.file_size / 1024 / 1024).toFixed(2) : null
     })) || []
-
-    const permissionMessage = company.category === 'buyer' 
-      ? 'documents and all meeting notes from meetings attended'
-      : company.category === 'supplier'
-      ? 'documents sent and trip notes from meetings'
-      : 'accessible documents from trips'
 
     return NextResponse.json({
       documents: transformedDocuments,
       count: transformedDocuments.length,
       company_category: company.category,
       message: transformedDocuments.length === 0 
-        ? `No ${permissionMessage} available for this company`
-        : `Found ${transformedDocuments.length} ${permissionMessage}`
+        ? `No documents available for this company`
+        : `Found ${transformedDocuments.length} documents for this company`
     })
   } catch (error) {
     console.error('Error in company documents API:', error)
