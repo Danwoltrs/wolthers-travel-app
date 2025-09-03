@@ -22,6 +22,9 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
   )
 })
 import ReviewStep from './ReviewStep'
+import TeamParticipantsStep from './TeamParticipantsStep'
+import DestinationsDiscoveryStep from './DestinationsDiscoveryStep'
+import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
 import type { 
   Company, 
   User, 
@@ -90,29 +93,38 @@ export interface TripFormData {
   title: string
   description: string
   subject: string
-  companies: Company[]
-  participants: User[]
+  companies: Company[] // Buyer companies (traveling WITH you)
+  participants: User[] // Wolthers staff
   startDate: Date | null
   endDate: Date | null
   accessCode?: string  // Generated and optional trip code
   // Estimated Budget is now hidden and optional, commented out
   // estimatedBudget?: number
   
-  // Step 2: Itinerary
-  itineraryDays: ItineraryDay[]
+  // Step 2: Team & Participants (new structure)
+  buyerCompanies?: Company[] // Companies traveling with you
+  participantsWithDates?: ParticipantWithDates[] // Staff with date ranges
   
-  // Step 3: Team & Vehicles
+  // Step 3: Destinations & Discovery (new structure)
+  hostCompanies?: Company[] // Companies you will visit
+  selectedRegions?: string[] // AI-selected regions
+  participantCompanyMatrix?: { [hostId: string]: string[] } // Which buyers visit which hosts
+  
+  // Step 4: Calendar & Itinerary
+  itineraryDays: ItineraryDay[]
+  activities?: Activity[] // Calendar activities with travel time
+  
+  // Legacy fields for compatibility
   wolthersStaff: User[]
-  participantsWithDates?: ParticipantWithDates[]
   vehicles: Vehicle[]
   
-  // Step 4-6: Conference-specific data
+  // Conference-specific data
   meetings?: CalendarEvent[]
   hotels?: Hotel[]
   flights?: Flight[]
   
   // Enhanced data for cost tracking and company integration
-  companies?: CompanyWithLocations[]
+  companyLocations?: CompanyWithLocations[]
 }
 
 interface SaveStatus {
@@ -170,10 +182,10 @@ const getStepsForTripType = (tripType: TripType | null) => {
   } else if (tripType === 'in_land') {
     return [
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
-      { id: 2, name: 'Basic Information', description: 'Trip details and companies' },
-      { id: 3, name: 'Meetings & Schedule', description: 'Plan meetings, visits, and appointments' },
-      { id: 4, name: 'Itinerary Builder', description: 'Create daily activities and optimize routes' },
-      { id: 5, name: 'Team & Vehicles', description: 'Assign staff and transportation' },
+      { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
+      { id: 3, name: 'Team & Participants', description: 'Select Wolthers staff and buyer companies' },
+      { id: 4, name: 'Destinations & Discovery', description: 'AI-powered regional company discovery' },
+      { id: 5, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
       { id: 6, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
@@ -505,10 +517,10 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-none md:rounded-xl shadow-xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white dark:bg-[#0f1419] rounded-none md:rounded-2xl shadow-2xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#0a2e21] flex-shrink-0" style={{ backgroundColor: '#FBBF23' }}>
+        <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 rounded-t-none md:rounded-t-2xl" style={{ backgroundColor: '#FBBF23' }}>
           <div className="flex items-center space-x-3">
             <Plus className="w-6 h-6" style={{ color: '#006D5B' }} />
             <h2 className="text-lg md:text-xl font-semibold" style={{ color: '#006D5B' }}>
@@ -594,7 +606,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
         {/* Save Notification */}
         {showSaveNotification && (
-          <div className="absolute top-20 right-6 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+          <div className="absolute top-20 right-6 bg-green-500 dark:bg-green-600 text-white px-4 py-2 rounded-xl shadow-lg z-50 flex items-center space-x-2">
             <CheckCircle className="w-4 h-4" />
             <span>Progress saved successfully!</span>
             {saveStatus.continueUrl && currentStep === 3 && (
@@ -604,7 +616,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         )}
         
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0 h-full">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0 h-full bg-white dark:bg-[#0f1419]">
           {/* Step 1: Trip Type Selection */}
           {currentStep === 1 && (
             <TripTypeSelection
@@ -676,70 +688,21 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Meetings & Schedule Planning
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  Plan your meetings, client visits, facility tours, and appointments for this business trip.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
-                    <div className="text-center">
-                      <div className="text-blue-600 dark:text-blue-400 mb-3">🤝</div>
-                      <h3 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Client Meetings</h3>
-                      <p className="text-blue-700 dark:text-blue-300 text-sm">
-                        Schedule meetings with clients, partners, and stakeholders along your route.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border border-green-200 dark:border-green-800">
-                    <div className="text-center">
-                      <div className="text-green-600 dark:text-green-400 mb-3">🏭</div>
-                      <h3 className="font-medium text-green-900 dark:text-green-300 mb-2">Facility Visits</h3>
-                      <p className="text-green-700 dark:text-green-300 text-sm">
-                        Plan tours of production facilities, warehouses, and business locations.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6 border border-purple-200 dark:border-purple-800">
-                    <div className="text-center">
-                      <div className="text-purple-600 dark:text-purple-400 mb-3">📋</div>
-                      <h3 className="font-medium text-purple-900 dark:text-purple-300 mb-2">Business Appointments</h3>
-                      <p className="text-purple-700 dark:text-purple-300 text-sm">
-                        Organize business appointments, negotiations, and contract meetings.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-6 border border-orange-200 dark:border-orange-800">
-                    <div className="text-center">
-                      <div className="text-orange-600 dark:text-orange-400 mb-3">📊</div>
-                      <h3 className="font-medium text-orange-900 dark:text-orange-300 mb-2">Presentations</h3>
-                      <p className="text-orange-700 dark:text-orange-300 text-sm">
-                        Schedule presentations, demos, and business showcases with multiple companies.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Coming soon: Advanced meeting scheduler with calendar integration and automated routing optimization.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <TeamParticipantsStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 4 && (
-            <CalendarItineraryStep
+            <DestinationsDiscoveryStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 5 && (
-            <TeamVehicleStep
+            <EnhancedCalendarScheduleStep
               formData={formData}
               updateFormData={updateFormData}
             />
@@ -751,18 +714,18 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         </div>
 
         {/* Footer - Navigation Buttons */}
-        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-4 md:px-6 lg:px-8 py-4 md:py-5 flex justify-between flex-shrink-0 bg-gray-50 dark:bg-[#0f1419] items-center">
+        <div className="border-t border-pearl-200 dark:border-[#2a2a2a] px-4 md:px-6 lg:px-8 py-4 md:py-5 flex justify-between flex-shrink-0 bg-gray-50 dark:bg-[#1a1a1a] items-center rounded-b-none md:rounded-b-2xl">
           <div className="flex space-x-2 md:space-x-3">
             <button
               onClick={handleClose}
-              className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>
             {currentStep > 1 && (
               <button
                 onClick={handlePrevious}
-                className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center"
+                className="px-3 md:px-4 py-2 text-sm md:text-base text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-xl hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors flex items-center"
               >
                 <ArrowLeft className="w-4 h-4 mr-1 md:mr-2" />
                 <span className="hidden sm:inline">Previous</span>
@@ -777,7 +740,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               <button
                 onClick={() => saveProgress(formData, currentStep, true)}
                 disabled={saveStatus.isSaving}
-                className="hidden xs:flex px-2 md:px-3 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors items-center"
+                className="hidden xs:flex px-2 md:px-3 py-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-xl hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors items-center"
                 title="Save progress"
               >
                 {saveStatus.isSaving ? (
@@ -793,7 +756,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               <button
                 onClick={handleNext}
                 disabled={!canProceed()}
-                className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center"
+                className="px-3 md:px-4 py-2 text-sm md:text-base bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-xl transition-colors flex items-center"
                 style={{
                   backgroundColor: !canProceed() ? '#9CA3AF' : '#059669'
                 }}
@@ -818,7 +781,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               <button
                 onClick={handleSubmit}
                 disabled={!canProceed() || isSubmitting}
-                className="px-3 md:px-4 py-2 text-sm md:text-base rounded-lg transition-colors"
+                className="px-3 md:px-4 py-2 text-sm md:text-base rounded-xl transition-colors"
                 style={{
                   backgroundColor: (!canProceed() || isSubmitting) ? '#9CA3AF' : '#059669',
                   color: 'white'
