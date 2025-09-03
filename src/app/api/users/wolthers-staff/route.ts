@@ -72,7 +72,8 @@ export async function GET(request: NextRequest) {
       .select(`
         id, 
         email, 
-        full_name, 
+        full_name,
+        title,
         phone,
         whatsapp,
         user_type, 

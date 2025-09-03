@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, Building2, Plus, X } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Company } from '@/types'
@@ -10,42 +10,78 @@ interface SimpleTeamParticipantsStepProps {
 
 export default function SimpleTeamParticipantsStep({ formData, updateFormData }: SimpleTeamParticipantsStepProps) {
   const [newCompanyName, setNewCompanyName] = useState('')
+  const [wolthersStaff, setWolthersStaff] = useState<User[]>([])
+  const [buyerCompanies, setBuyerCompanies] = useState<Company[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock Wolthers staff for now to prevent API issues
-  const mockWolthersStaff: User[] = [
-    {
-      id: 'daniel-id',
-      email: 'daniel@wolthers.com',
-      full_name: 'Daniel Wolthers',
-      title: 'Managing Director',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'tom-id', 
-      email: 'tom@wolthers.com',
-      full_name: 'Tom Wolthers',
-      title: 'Operations Director',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'svenn-id',
-      email: 'svenn@wolthers.com', 
-      full_name: 'Svenn Wolthers',
-      title: 'Business Development',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'rasmus-id',
-      email: 'rasmus@wolthers.com',
-      full_name: 'Rasmus Wolthers', 
-      title: 'Quality Manager',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+  // Load real data from APIs
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      setError(null)
+      
+      try {
+        // Load Wolthers staff
+        const staffResponse = await fetch('/api/users/wolthers-staff', {
+          credentials: 'include'
+        })
+        
+        if (staffResponse.ok) {
+          const staffData = await staffResponse.json()
+          setWolthersStaff(staffData.staff || [])
+        } else {
+          console.warn('Failed to load Wolthers staff, using fallback')
+          // Fallback to mock data if API fails
+          setWolthersStaff([
+            {
+              id: 'daniel-id',
+              email: 'daniel@wolthers.com',
+              full_name: 'Daniel Wolthers',
+              title: 'Managing Director',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ])
+        }
+
+        // Load buyer companies
+        const companiesResponse = await fetch('/api/companies', {
+          credentials: 'include'
+        })
+        
+        if (companiesResponse.ok) {
+          const companiesData = await companiesResponse.json()
+          // Filter for buyer companies (not Wolthers)
+          const buyers = (companiesData.companies || []).filter((company: Company) => 
+            !company.name.toLowerCase().includes('wolthers')
+          )
+          setBuyerCompanies(buyers)
+        } else {
+          console.warn('Failed to load companies')
+          setBuyerCompanies([])
+        }
+        
+      } catch (err) {
+        console.error('Error loading data:', err)
+        setError('Failed to load team and company data')
+        // Use minimal fallback data
+        setWolthersStaff([{
+          id: 'fallback-id',
+          email: 'staff@wolthers.com',
+          full_name: 'Wolthers Staff',
+          title: 'Staff Member',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        setBuyerCompanies([])
+      } finally {
+        setIsLoading(false)
+      }
     }
-  ]
+
+    loadData()
+  }, [])
 
   const toggleStaffMember = (staff: User) => {
     const currentParticipants = formData.participants || []
@@ -58,6 +94,21 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
     } else {
       updateFormData({
         participants: [...currentParticipants, staff]
+      })
+    }
+  }
+
+  const toggleBuyerCompany = (company: Company) => {
+    const currentCompanies = formData.companies || []
+    const isSelected = currentCompanies.some(c => c.id === company.id)
+    
+    if (isSelected) {
+      updateFormData({
+        companies: currentCompanies.filter(c => c.id !== company.id)
+      })
+    } else {
+      updateFormData({
+        companies: [...currentCompanies, company]
       })
     }
   }
@@ -116,9 +167,22 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {mockWolthersStaff.map((staff) => {
-            const isSelected = (formData.participants || []).some(p => p.id === staff.id)
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500 dark:text-gray-400">Loading Wolthers staff...</div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        {!isLoading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {wolthersStaff.map((staff) => {
+              const isSelected = (formData.participants || []).some(p => p.id === staff.id)
             
             return (
               <div
@@ -147,8 +211,9 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
                 </div>
               </div>
             )
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
 
       {/* Buyer Companies Section */}
@@ -169,8 +234,55 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           Add companies that will be traveling WITH you (buyers/clients). Host companies will be added in the next step.
         </p>
 
-        {/* Add Company Form */}
+        {/* Existing Buyer Companies */}
+        {buyerCompanies.length > 0 && (
+          <div className="mb-6">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-emerald-300 mb-3">
+              Select from existing buyers ({buyerCompanies.length} available):
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {buyerCompanies.map((company) => {
+                const isSelected = (formData.companies || []).some(c => c.id === company.id)
+                
+                return (
+                  <div
+                    key={company.id}
+                    onClick={() => toggleBuyerCompany(company)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'border-gray-200 dark:border-[#2a2a2a] hover:border-emerald-300 dark:hover:border-emerald-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h5 className="font-medium text-gray-900 dark:text-gray-100">
+                          {company.name}
+                        </h5>
+                        {company.address && (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {company.address}
+                          </p>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Add New Company Form */}
         <div className="mb-4">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-emerald-300 mb-3">
+            Or add a new buyer company:
+          </h4>
           <div className="flex space-x-2">
             <input
               type="text"
