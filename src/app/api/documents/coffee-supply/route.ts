@@ -226,7 +226,7 @@ async function getSuppliers(
         return NextResponse.json({ error: 'Failed to fetch related companies', details: relatedError.message }, { status: 500 })
       }
 
-      // Transform to supplier format for the frontend
+      // Transform to supplier format for the frontend, filtering based on actual business relationships
       const suppliers = await Promise.all(
         relatedCompanies?.map(async (relatedCompany: any) => {
           // Get document count based on the folder organization logic
@@ -241,11 +241,100 @@ async function getSuppliers(
             documentQuery = documentQuery.eq('company_id', relatedCompany.id)
           } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(company.category)) {
             // For suppliers: show files they uploaded (from their own company)
-            // TODO: Would need meeting relationship filtering to show only files shared with this specific buyer
             documentQuery = documentQuery.eq('company_id', company.id)
           }
 
           const { count } = await documentQuery
+
+          // Check for actual business relationships (visits/trips/documents)
+          let hasVisits = false
+          let visitDetails = {
+            hasDocuments: count > 0,
+            hasPastTrips: false,
+            hasScheduledTrips: false,
+            documentCount: count || 0
+          }
+
+          // REQUIREMENT: Only show buyer folders when there are past or scheduled visits
+          
+          // Method 1: Check if there are any documents shared (indicates past interaction)
+          if (count > 0) {
+            hasVisits = true
+            visitDetails.hasDocuments = true
+          }
+
+          // Method 2: Check for past trips involving this company
+          if (!hasVisits) {
+            // Look for completed trips where this company was involved
+            const { data: pastTrips, error: pastTripError } = await supabase
+              .from('trips')
+              .select('id, status, start_date, end_date')
+              .eq('company_id', company.id) // Trips organized by the viewing company
+              .in('status', ['completed', 'ongoing'])
+              .lt('start_date', 'now()') // Past or current trips
+              .limit(1)
+
+            if (!pastTripError && pastTrips && pastTrips.length > 0) {
+              hasVisits = true
+              visitDetails.hasPastTrips = true
+            }
+          }
+
+          // Method 3: Check for scheduled future trips involving this company
+          if (!hasVisits) {
+            // Look for future trips where this company might be involved
+            const { data: futureTrips, error: futureTripError } = await supabase
+              .from('trips')
+              .select('id, status, start_date')
+              .eq('company_id', company.id) // Trips organized by the viewing company
+              .in('status', ['planning', 'confirmed'])
+              .gt('start_date', 'now()') // Future trips
+              .limit(1)
+
+            if (!futureTripError && futureTrips && futureTrips.length > 0) {
+              hasVisits = true
+              visitDetails.hasScheduledTrips = true
+            }
+          }
+
+          // Method 4: Check trip participants table if it exists (more accurate relationship tracking)
+          if (!hasVisits) {
+            try {
+              const { data: participantTrips, error: participantError } = await supabase
+                .from('trip_participants')
+                .select(`
+                  trip_id,
+                  trips!inner (
+                    id,
+                    status,
+                    company_id,
+                    start_date
+                  )
+                `)
+                .or(`company_id.eq.${relatedCompany.id},user_id.in.(select id from users where company_id = '${relatedCompany.id}')`)
+                .limit(1)
+
+              if (!participantError && participantTrips && participantTrips.length > 0) {
+                hasVisits = true
+                // Check if it's past or future
+                const trip = participantTrips[0].trips
+                if (trip.start_date && new Date(trip.start_date) < new Date()) {
+                  visitDetails.hasPastTrips = true
+                } else {
+                  visitDetails.hasScheduledTrips = true
+                }
+              }
+            } catch (participantCheckError) {
+              // Table might not exist, continue with other methods
+              console.log('trip_participants table check failed, continuing with basic document check')
+            }
+          }
+
+          // Fallback: If we have documents, assume there has been business interaction
+          if (!hasVisits && count > 0) {
+            hasVisits = true
+            visitDetails.hasDocuments = true
+          }
 
           return {
             id: relatedCompany.id,
@@ -254,7 +343,7 @@ async function getSuppliers(
             supplierId: relatedCompany.id,
             itemCount: count || 0,
             documentCount: count || 0,
-            folderCount: count > 0 ? 1 : 0, // Only show as folder if it has documents
+            folderCount: count > 0 ? 1 : 0,
             totalSize: 0,
             lastModified: new Date(relatedCompany.created_at),
             createdDate: new Date(relatedCompany.created_at),
@@ -266,7 +355,7 @@ async function getSuppliers(
               country: 'Unknown',
               contactPerson: '',
               email: '',
-              relationshipStatus: count > 0 ? 'active' : 'inactive',
+              relationshipStatus: hasVisits ? 'active' : 'inactive',
               supplierType: relatedCompany.category || 'cooperative',
               certifications: [],
               primaryCrops: ['arabica'],
@@ -277,21 +366,30 @@ async function getSuppliers(
                            company.category === 'service_provider' ? 'supplier' : 'buyer',
             viewingCompany: company.id,
             accessLevel: company.category === 'buyer' ? 'full' : 'restricted',
-            // New fields for empty folder handling
+            // New fields for visit-based folder filtering
+            hasVisits: hasVisits,
+            visitDetails: visitDetails,
             isEmpty: count === 0,
-            folderDescription: getFolderDescription(company.category, relatedCompany.category, relatedCompany.name, count || 0)
+            folderDescription: getFolderDescription(company.category, relatedCompany.category, relatedCompany.name, count || 0, visitDetails)
           }
         }) || []
       )
 
+      // CRITICAL FIX: Filter out folders with no visits/business relationships
+      const foldersWithVisits = suppliers.filter(supplier => supplier.hasVisits)
+
       return NextResponse.json({
         success: true,
         data: {
-          suppliers,
-          total: suppliers.length,
+          suppliers: foldersWithVisits,
+          total: foldersWithVisits.length,
           context: 'company-filtered',
           viewingCompany: company,
-          relationshipType: company.category === 'buyer' ? 'suppliers' : 'buyers'
+          relationshipType: company.category === 'buyer' ? 'suppliers' : 'buyers',
+          // Debug information
+          totalCompaniesFound: suppliers.length,
+          companiesWithVisits: foldersWithVisits.length,
+          filteredOut: suppliers.length - foldersWithVisits.length
         }
       })
     }
@@ -1304,17 +1402,21 @@ function inferUrgencyFromFile(fileName: string, description: string, tags: strin
   return 'medium'; // Default urgency
 }
 
-// Helper function to generate folder descriptions based on company relationship
-function getFolderDescription(viewerCategory: string, folderCompanyCategory: string, folderCompanyName: string, documentCount: number): string {
+// Helper function to generate folder descriptions based on company relationship and visit status
+function getFolderDescription(viewerCategory: string, folderCompanyCategory: string, folderCompanyName: string, documentCount: number, visitDetails?: any): string {
+  // Note: This function is now only called for companies that HAVE visits/interactions
+  // Empty folders without visits are filtered out before this function is called
+  
   if (documentCount === 0) {
+    // This case should be rare now, but can happen with scheduled future visits
     if (viewerCategory === 'buyer') {
-      return `No documents shared by ${folderCompanyName} during meetings yet.`;
+      return `Future meetings scheduled with ${folderCompanyName}. Documents will appear here after meetings.`;
     } else if (['supplier', 'exporter', 'cooperative', 'producer'].includes(viewerCategory)) {
-      return `No documents shared with ${folderCompanyName} during meetings yet.`;
+      return `Future meetings scheduled with ${folderCompanyName}. Share documents during meetings to see them here.`;
     } else if (viewerCategory === 'service_provider') {
-      return `No documents from ${folderCompanyName} during coordinated meetings yet.`;
+      return `Coordinated meetings with ${folderCompanyName} scheduled. Documents and notes will appear here.`;
     }
-    return `No documents available in this folder.`;
+    return `Scheduled meetings with ${folderCompanyName}. Documents will appear after interactions.`;
   } else {
     if (viewerCategory === 'buyer') {
       return `${documentCount} document${documentCount > 1 ? 's' : ''} shared by ${folderCompanyName} during meetings, plus meeting notes.`;
@@ -1323,6 +1425,6 @@ function getFolderDescription(viewerCategory: string, folderCompanyCategory: str
     } else if (viewerCategory === 'service_provider') {
       return `${documentCount} document${documentCount > 1 ? 's' : ''} from ${folderCompanyName} during coordinated meetings, plus all meeting notes.`;
     }
-    return `${documentCount} document${documentCount > 1 ? 's' : ''} in this folder.`;
+    return `${documentCount} document${documentCount > 1 ? 's' : ''} from business interactions with ${folderCompanyName}.`;
   }
 }
