@@ -4,6 +4,59 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+// Function to ensure the documents bucket exists
+async function ensureDocumentsBucket(supabase: ReturnType<typeof createClient>) {
+  try {
+    // Check if bucket exists
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+    
+    if (listError) {
+      console.error('Error listing buckets:', listError)
+      return false
+    }
+
+    const documentsBucket = buckets?.find(bucket => bucket.id === 'documents')
+    
+    if (!documentsBucket) {
+      console.log('📁 Documents bucket not found, attempting to create...')
+      
+      // Create the bucket
+      const { data: newBucket, error: createError } = await supabase.storage.createBucket('documents', {
+        public: true,
+        allowedMimeTypes: [
+          'image/jpeg',
+          'image/jpg', 
+          'image/png',
+          'image/gif',
+          'image/webp',
+          'image/avif',
+          'image/svg+xml',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/plain',
+          'text/csv'
+        ],
+        fileSizeLimit: 52428800 // 50MB
+      })
+
+      if (createError) {
+        console.error('Error creating documents bucket:', createError)
+        return false
+      }
+
+      console.log('✅ Documents bucket created successfully')
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error ensuring documents bucket:', error)
+    return false
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -112,10 +165,26 @@ export async function POST(
       )
     }
 
+    // Ensure documents bucket exists
+    const bucketReady = await ensureDocumentsBucket(supabase)
+    if (!bucketReady) {
+      console.error('Failed to ensure documents bucket exists')
+      return NextResponse.json(
+        { error: 'Storage configuration error. Please try again later.' },
+        { status: 500 }
+      )
+    }
+
     // Generate unique filename
     const timestamp = Date.now()
     const fileExtension = file.name.split('.').pop() || 'jpg'
     const fileName = `company-logos/${resolvedParams.id}/${timestamp}.${fileExtension}`
+
+    console.log('🔵 Logo Upload API: Uploading file:', {
+      fileName,
+      fileSize: file.size,
+      fileType: file.type
+    })
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -126,9 +195,26 @@ export async function POST(
       })
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      console.error('🔴 Logo Upload API: Upload error:', {
+        error: uploadError,
+        fileName,
+        companyId: resolvedParams.id,
+        fileType: file.type,
+        fileSize: file.size
+      })
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to upload file'
+      if (uploadError.message?.includes('Bucket not found')) {
+        errorMessage = 'Storage bucket not found. Please contact support.'
+      } else if (uploadError.message?.includes('File size')) {
+        errorMessage = 'File size exceeds limit. Please upload a smaller image.'
+      } else if (uploadError.message?.includes('mime type')) {
+        errorMessage = 'File type not supported. Please upload a valid image file.'
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to upload file' },
+        { error: errorMessage, details: uploadError.message },
         { status: 500 }
       )
     }
@@ -139,6 +225,12 @@ export async function POST(
       .getPublicUrl(fileName)
 
     const logoUrl = publicUrlData.publicUrl
+
+    console.log('✅ Logo Upload API: File uploaded successfully:', {
+      fileName,
+      logoUrl,
+      companyId: resolvedParams.id
+    })
 
     // Update company record with logo URL
     const { data: updatedCompany, error: updateError } = await supabase
