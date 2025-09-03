@@ -97,7 +97,7 @@ export function ScheduleTab({
       endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
     }
     
-    const activityDate = date || new Date(trip.startDate).toISOString().split('T')[0]
+    const activityDate = date || (trip.startDate instanceof Date ? trip.startDate.toISOString().split('T')[0] : new Date(trip.startDate).toISOString().split('T')[0])
     setFormData({
       title: '',
       description: '',

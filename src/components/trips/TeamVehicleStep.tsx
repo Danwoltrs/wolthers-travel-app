@@ -49,8 +49,8 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   // Check availability when dates or staff change
   useEffect(() => {
     if (formData.startDate && formData.endDate && (formData.wolthersStaff || []).length > 0) {
-      const startDate = formData.startDate.toISOString().split('T')[0]
-      const endDate = formData.endDate.toISOString().split('T')[0]
+      const startDate = formData.startDate instanceof Date ? formData.startDate.toISOString().split('T')[0] : formData.startDate
+      const endDate = formData.endDate instanceof Date ? formData.endDate.toISOString().split('T')[0] : formData.endDate
       
       const checks = (formData.wolthersStaff || []).map(staffMember => ({
         type: 'staff' as const,

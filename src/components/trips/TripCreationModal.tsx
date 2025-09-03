@@ -22,7 +22,7 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
   )
 })
 import ReviewStep from './ReviewStep'
-import TeamParticipantsStep from './TeamParticipantsStep'
+import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import DestinationsDiscoveryStep from './DestinationsDiscoveryStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
 import type { 
@@ -691,7 +691,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 3 && (
-            <TeamParticipantsStep
+            <SimpleTeamParticipantsStep
               formData={formData}
               updateFormData={updateFormData}
             />

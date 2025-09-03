@@ -47,8 +47,8 @@ export function OverviewTab({
   const [formData, setFormData] = useState({
     title: trip.title,
     description: trip.subject || '',
-    startDate: trip.startDate.toISOString().split('T')[0],
-    endDate: trip.endDate.toISOString().split('T')[0],
+    startDate: trip.startDate instanceof Date ? trip.startDate.toISOString().split('T')[0] : trip.startDate,
+    endDate: trip.endDate instanceof Date ? trip.endDate.toISOString().split('T')[0] : trip.endDate,
     status: trip.status,
     priority: 'medium',
     budget: '',
