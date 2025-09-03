@@ -265,21 +265,19 @@ export default function CompanyDashboard({
                 <div className="w-px h-6 bg-white/30"></div>
                 <div className="flex items-center gap-2">
                   {companyDetails?.logo_url ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       <Image
                         src={companyDetails.logo_url}
                         alt={company.fantasy_name || company.name}
-                        width={28}
-                        height={28}
-                        className="h-7 w-7 rounded object-contain bg-white/10 p-1"
+                        width={120}
+                        height={40}
+                        className="h-10 w-auto max-w-32 object-contain"
+                        priority
                       />
-                      <span className="text-white font-medium text-sm">
-                        {company.fantasy_name || company.name}
-                      </span>
                     </div>
                   ) : (
                     <span className="text-white font-medium text-sm">
-                      {company.name}
+                      {company.fantasy_name || company.name}
                     </span>
                   )}
                   
