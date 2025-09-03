@@ -498,14 +498,17 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         case 1:
           return formData.tripType !== null
         case 2:
-          return formData.title && formData.companies.length > 0 && formData.startDate && formData.endDate
+          // Basic Information: only require title, dates
+          return formData.title && formData.startDate && formData.endDate
         case 3:
-          // Meetings & Schedule step - for now, allow proceeding (implement validation later)
-          return true
+          // Team & Participants: require Wolthers staff
+          return formData.participants && formData.participants.length > 0
         case 4:
-          return formData.itineraryDays.length > 0
+          // Destinations & Discovery: allow proceeding (host companies optional)
+          return true
         case 5:
-          return formData.wolthersStaff.length > 0
+          // Calendar Schedule: allow proceeding (activities can be added later)
+          return true
         case 6:
           return true
         default:
