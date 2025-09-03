@@ -270,7 +270,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
           Calendar Schedule with Travel Optimization
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -281,7 +281,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       {/* Travel Optimization Controls */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-md font-medium text-gray-900 dark:text-golden-400">
+          <h3 className="text-md font-medium text-gray-900 dark:text-emerald-300">
             Travel Optimization Settings
           </h3>
           <div className="flex items-center space-x-4">
@@ -417,7 +417,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       {/* Participant Assignment Panel */}
       {selectedActivity && (
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-4">
             Activity Participants & Details
           </h3>
           

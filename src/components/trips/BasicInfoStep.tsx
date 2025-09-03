@@ -140,14 +140,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-medium mb-4" style={{ color: '#006D5B' }}>
+        <h2 className="text-lg font-medium mb-4 text-gray-900 dark:text-emerald-300">
           Basic Trip Information
         </h2>
       </div>
 
       {/* Trip Title */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium" style={{ color: '#333333' }}>
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
           Trip Title *
         </label>
         <div className="flex items-center space-x-2">
@@ -157,7 +157,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
               id="title"
               value={formData.title}
               onChange={(e) => updateFormData({ title: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
               placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
             />
           </div>
@@ -206,7 +206,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
 
       {/* Subject */}
       <div>
-        <label htmlFor="subject" className="block text-sm font-medium" style={{ color: '#333333' }}>
+        <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
           Subject
         </label>
         <input
@@ -214,14 +214,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           id="subject"
           value={formData.subject}
           onChange={(e) => updateFormData({ subject: e.target.value })}
-          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
           placeholder={formData.subject ? "" : "Brief description of the trip purpose"}
         />
       </div>
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium" style={{ color: '#333333' }}>
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
           Description
         </label>
         <textarea
@@ -229,14 +229,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           rows={3}
           value={formData.description}
           onChange={(e) => updateFormData({ description: e.target.value })}
-          className="mt-1 block w-full rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
           placeholder={formData.description ? "" : "Detailed description of the trip"}
         />
       </div>
 
       {/* Companies */}
       <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: '#333333' }}>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
           Companies (Optional)
         </label>
         
@@ -271,7 +271,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
               }}
               onFocus={() => setShowCompanyDropdown(true)}
               placeholder={companySearch ? "" : "Search for companies..."}
-              className="flex-1 rounded-lg border border-pearl-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400 hover:border-pearl-400 transition-all duration-200 sm:text-sm px-3 py-2"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
             />
             <button
               type="button"
@@ -316,7 +316,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       {/* Date Range */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="startDate" className="block text-sm font-medium" style={{ color: '#333333' }}>
+          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
             Start Date *
           </label>
           <div className="mt-1 relative">
@@ -329,14 +329,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                 const newDate = new Date(parseInt(inputDate[0]), parseInt(inputDate[1]) - 1, parseInt(inputDate[2]));
                 updateFormData({ startDate: newDate });
               }}
-              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
+              className="block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm px-3 py-2"
             />
             <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
           </div>
         </div>
         
         <div>
-          <label htmlFor="endDate" className="block text-sm font-medium" style={{ color: '#333333' }}>
+          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
             End Date *
           </label>
           <div className="mt-1 relative">
@@ -350,7 +350,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                 updateFormData({ endDate: newDate });
               }}
               min={formatDateForInput(formData.startDate)}
-              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm px-3 py-2"
+              className="block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm px-3 py-2"
             />
             <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
           </div>
@@ -379,7 +379,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
       {/* Participants Section */}
       {formData.companies.length > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#333333' }}>
+          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
             Participants
           </label>
           

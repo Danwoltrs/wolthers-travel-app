@@ -136,7 +136,7 @@ export default function DestinationsDiscoveryStep({ formData, updateFormData }: 
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
           Destinations & AI Discovery
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -159,7 +159,7 @@ export default function DestinationsDiscoveryStep({ formData, updateFormData }: 
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Building2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
                 Host Companies & Assignments
               </h3>
               <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -177,7 +177,7 @@ export default function DestinationsDiscoveryStep({ formData, updateFormData }: 
               <div key={hostCompany.id} className="border border-gray-200 dark:border-[#3a3a3a] rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-golden-400">
+                    <h4 className="font-medium text-gray-900 dark:text-emerald-300">
                       {hostCompany.name}
                     </h4>
                     {hostCompany.address && (

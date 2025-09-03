@@ -12,7 +12,7 @@ export default function TripTypeSelection({ selectedType, onTypeSelect }: TripTy
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-4">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-4">
           Choose Trip Type
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -57,7 +57,7 @@ export default function TripTypeSelection({ selectedType, onTypeSelect }: TripTy
                 }`} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-emerald-300">
                   Convention Trip
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -131,7 +131,7 @@ export default function TripTypeSelection({ selectedType, onTypeSelect }: TripTy
                 }`} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-emerald-300">
                   In-land Trip
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">

@@ -80,7 +80,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-golden-400 mb-2">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
           Team & Participants
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -92,7 +92,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
         <div className="flex items-center space-x-2 mb-4">
           <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
             Wolthers Team
           </h3>
           <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -131,7 +131,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <Building2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
               Buyer Companies
             </h3>
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -155,7 +155,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
         {showAddBuyerForm && (
           <div className="mb-6 p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg border border-gray-200 dark:border-[#3a3a3a]">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-gray-900 dark:text-golden-400">Add New Buyer Company</h4>
+              <h4 className="font-medium text-gray-900 dark:text-emerald-300">Add New Buyer Company</h4>
               <button
                 onClick={() => setShowAddBuyerForm(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -202,7 +202,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
           {buyerCompanies.map((buyerCompany) => (
             <div key={buyerCompany.id} className="border border-gray-200 dark:border-[#3a3a3a] rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900 dark:text-golden-400">
+                <h4 className="font-medium text-gray-900 dark:text-emerald-300">
                   {buyerCompany.name}
                 </h4>
                 <button
