@@ -4,7 +4,7 @@ import { useDialogs } from '@/hooks/use-modal'
 import TripTypeSelection, { TripType } from './TripTypeSelection'
 import { CoffeeEventCarousel } from '../trip/CoffeeEventCarousel'
 import BasicInfoStep from './BasicInfoStep'
-import EnhancedItineraryBuilderStep from './EnhancedItineraryBuilderStep'
+import CalendarItineraryStep from './CalendarItineraryStep'
 import MeetingAgendaStep from './MeetingAgendaStep'
 import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
@@ -728,7 +728,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 4 && (
-            <EnhancedItineraryBuilderStep
+            <CalendarItineraryStep
               formData={formData}
               updateFormData={updateFormData}
             />

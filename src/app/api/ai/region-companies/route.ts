@@ -13,38 +13,88 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Regional company filters and AI enhancement
-async function getRegionCompanies(regionId: string) {
-  // Get all supplier companies and filter based on subcategories
-  const { data: companies, error } = await supabase
+// Enhanced regional company filtering with actual location data
+async function getRegionCompanies(regionId: string, regionName?: string) {
+  console.log(`🔍 Searching for companies in region: ${regionId} (${regionName})`)
+  
+  // First try to find companies by exact region match
+  let { data: companies, error } = await supabase
     .from('companies')
     .select('*')
     .eq('category', 'supplier')
-    .limit(20) // Get more companies to filter from
+    .eq('region', regionName || regionId.replace('_', ' '))
+    .limit(15)
     
-  if (error) {
+  // If no companies found by region, try city-based matching
+  if (!companies || companies.length === 0) {
+    console.log(`🔍 No companies found by region, trying city-based matching...`)
+    
+    // Map region IDs to known cities
+    const regionCityMap: { [key: string]: string[] } = {
+      'sul_de_minas': ['Varginha', 'Guaxupé', 'Poços de Caldas', 'Três Pontas', 'Alfenas'],
+      'mogiana': ['Franca', 'São Sebastião do Paraíso', 'Altinópolis', 'Cravinhos'],
+      'cerrado': ['Patrocínio', 'Carmo do Paranaíba', 'Monte Carmelo', 'Rio Paranaíba'],
+      'matas_de_minas': ['Manhuaçu', 'Caratinga', 'Espera Feliz', 'Abre Campo'],
+      'santos': ['Santos', 'São Paulo', 'Campinas']
+    }
+    
+    const cities = regionCityMap[regionId] || []
+    if (cities.length > 0) {
+      const cityQueries = await Promise.all(
+        cities.map(city => 
+          supabase
+            .from('companies')
+            .select('*')
+            .eq('category', 'supplier')
+            .eq('city', city)
+            .limit(3)
+        )
+      )
+      
+      companies = cityQueries.flatMap(query => query.data || [])
+    }
+  }
+  
+  if (error && !companies) {
     console.error('Supabase error:', error)
     return []
   }
 
-  if (!companies) return []
+  if (!companies || companies.length === 0) {
+    console.log(`⚠️ No companies found for region ${regionId}, falling back to subcategory filtering`)
+    
+    // Fallback: Filter all companies by subcategories relevant to the region
+    const { data: allCompanies } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('category', 'supplier')
+      .limit(20)
+      
+    if (!allCompanies) return []
+    
+    const regionFilters = {
+      sul_de_minas: ['cooperatives', 'exporters'],
+      mogiana: ['cooperatives', 'exporters'],
+      cerrado: ['exporters', 'processors'],
+      matas_de_minas: ['cooperatives'],
+      santos: ['exporters'],
+      // Colombia regions
+      huila: ['exporters', 'cooperatives'],
+      narino: ['exporters', 'cooperatives'],
+      // Central America fallback
+      default: ['cooperatives', 'exporters']
+    }
 
-  // Filter companies based on region preferences
-  const regionFilters = {
-    sul_de_minas: ['cooperatives', 'exporters', 'farms'],
-    mogiana: ['farms', 'cooperatives'],
-    cerrado: ['farms', 'processors'],
-    matas_de_minas: ['associations', 'farms']
+    const allowedSubcategories = regionFilters[regionId as keyof typeof regionFilters] || regionFilters.default
+    
+    companies = allCompanies.filter(company => {
+      if (!company.subcategories || !Array.isArray(company.subcategories)) return false
+      return company.subcategories.some(sub => allowedSubcategories.includes(sub))
+    }).slice(0, 8)
   }
 
-  const allowedSubcategories = regionFilters[regionId as keyof typeof regionFilters] || ['cooperatives', 'farms', 'exporters']
-  
-  const filteredCompanies = companies.filter(company => {
-    if (!company.subcategories || !Array.isArray(company.subcategories)) return false
-    return company.subcategories.some(sub => allowedSubcategories.includes(sub))
-  })
-
-  return filteredCompanies.slice(0, 8) // Return up to 8 companies per region
+  console.log(`✅ Found ${companies.length} companies for region ${regionId}`)
+  return companies.slice(0, 10) // Return up to 10 companies per region
 }
 
 // AI enhancement for companies based on region
@@ -104,8 +154,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get real companies from Supabase for the region
-    const rawCompanies = await getRegionCompanies(regionId)
+    console.log(`🎯 Processing region request: ${regionId} (${regionName})`)
+
+    // Get real companies from Supabase for the region with enhanced location filtering
+    const rawCompanies = await getRegionCompanies(regionId, regionName)
     
     if (!rawCompanies.length) {
       return NextResponse.json(
@@ -160,12 +212,12 @@ Format as JSON with routing recommendations and enhanced company details.
 
     const aiInsights = aiResponse.choices[0]?.message?.content || ''
     
-    // Format companies for frontend consumption
+    // Format companies for frontend consumption with enhanced location data
     const suggestedCompanies = baseCompanies.map((company) => ({
       id: company.id,
       name: company.name,
       fantasyName: company.fantasy_name || company.name,
-      email: `contact@${company.fantasy_name?.toLowerCase().replace(/\s+/g, '') || 'company'}.com.br`,
+      email: company.email || `contact@${company.fantasy_name?.toLowerCase().replace(/\s+/g, '') || 'company'}.com.br`,
       clientType: company.clientType,
       totalTripCostsThisYear: company.annual_trip_cost || Math.floor(Math.random() * 50000) + 10000,
       isActive: true,
@@ -176,7 +228,16 @@ Format as JSON with routing recommendations and enhanced company details.
       recommendedTime: company.recommendedTime,
       aiRecommendation: company.aiRecommendation,
       subcategories: company.subcategories,
-      category: company.category
+      category: company.category,
+      // Enhanced location information
+      city: company.city,
+      state: company.state,
+      country: company.country,
+      region: company.region,
+      coordinates: company.latitude && company.longitude ? {
+        lat: parseFloat(company.latitude),
+        lng: parseFloat(company.longitude)
+      } : null
     }))
 
     return NextResponse.json({

@@ -244,8 +244,7 @@ export async function POST(request: NextRequest) {
               message: `Progress saved at step ${currentStep} (existing trip updated)`
             }
             
-            // Still update draft entry
-            await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
+            // Skip draft entry creation - using trips table with status='planning' instead
             
             return NextResponse.json(response)
           }
@@ -312,7 +311,7 @@ export async function POST(request: NextRequest) {
                   message: `Progress saved at step ${currentStep} (recent trip updated)`
                 }
                 
-                await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
+                // Skip draft entry creation - using trips table with status='planning' instead
                 
                 return NextResponse.json(response)
               }
@@ -602,7 +601,7 @@ export async function POST(request: NextRequest) {
 
     // Update or create trip draft entry
     if (finalTripId) {
-      await updateTripDraftEntry(supabase, finalTripId, currentStep, stepData, completionPercentage, tripType, accessCode, user.id, now)
+      // Skip draft entry creation - using trips table with status='planning' for drafts
     }
 
     const response: ProgressiveSaveResponse = {
@@ -929,75 +928,5 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
   }
 }
 
-// Helper function to update or create trip draft entry
-async function updateTripDraftEntry(
-  supabase: any, 
-  tripId: string, 
-  currentStep: number, 
-  stepData: any, 
-  completionPercentage: number, 
-  tripType: string, 
-  accessCode: string, 
-  userId: string, 
-  now: string
-) {
-  try {
-    console.log('📝 Updating trip draft entry for tripId:', tripId)
-    
-    // First try to update existing draft by trip_id
-    const { data: existingDraft, error: findError } = await supabase
-      .from('trip_drafts')
-      .select('id')
-      .eq('trip_id', tripId)
-      .single()
-
-    if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('⚠️ Error finding existing draft:', findError)
-    }
-
-    if (existingDraft) {
-      // Update existing draft
-      const { error: updateError } = await supabase
-        .from('trip_drafts')
-        .update({
-          current_step: currentStep,
-          draft_data: stepData,
-          completion_percentage: completionPercentage,
-          last_accessed_at: now,
-          updated_at: now,
-        })
-        .eq('trip_id', tripId)
-
-      if (updateError) {
-        console.error('⚠️ Failed to update existing draft:', updateError)
-      } else {
-        console.log('✅ Trip draft updated successfully')
-      }
-    } else {
-      // Create new draft
-      const { error: insertError } = await supabase
-        .from('trip_drafts')
-        .insert({
-          creator_id: userId,
-          trip_type: tripType,
-          trip_id: tripId,
-          current_step: currentStep,
-          draft_data: stepData,
-          completion_percentage: completionPercentage,
-          last_accessed_at: now,
-          updated_at: now,
-          access_token: accessCode ? `trip_${accessCode}` : null,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        })
-
-      if (insertError) {
-        console.error('⚠️ Failed to create new draft:', insertError)
-      } else {
-        console.log('✅ Trip draft created successfully')
-      }
-    }
-  } catch (draftError) {
-    console.error('⚠️ Draft operation failed:', draftError)
-    // Don't fail the request if draft update fails
-  }
-}
+// NOTE: Trip drafts are now handled using trips table with status='planning'
+// The separate trip_drafts table is no longer used to prevent duplication

@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
-import { MapPin, Building2, Users, Clock, Sparkles } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { MapPin, Building2, Users, Clock, Sparkles, Globe } from 'lucide-react'
 import type { Company } from '@/types'
 
-interface BrazilianCoffeeRegion {
+interface CoffeeRegion {
   id: string
   name: string
   description: string
@@ -10,9 +10,11 @@ interface BrazilianCoffeeRegion {
   characteristics: string
   color: string
   estimatedCompanies: number
+  country: string
 }
 
-const COFFEE_REGIONS: BrazilianCoffeeRegion[] = [
+// Base regions - will be enhanced with dynamic database regions
+const BASE_COFFEE_REGIONS: CoffeeRegion[] = [
   {
     id: 'sul_de_minas',
     name: 'Sul de Minas',
@@ -20,7 +22,8 @@ const COFFEE_REGIONS: BrazilianCoffeeRegion[] = [
     mainCities: ['Varginha', 'Guaxupé', 'Poços de Caldas', 'Três Pontas', 'Alfenas'],
     characteristics: 'Sweet coffees, cooperatives, traditional processing',
     color: '#22C55E',
-    estimatedCompanies: 45
+    estimatedCompanies: 45,
+    country: 'Brazil'
   },
   {
     id: 'mogiana',
@@ -29,7 +32,8 @@ const COFFEE_REGIONS: BrazilianCoffeeRegion[] = [
     mainCities: ['Franca', 'São Sebastião do Paraíso', 'Altinópolis', 'Cravinhos'],
     characteristics: 'High altitude, specialty coffees, family farms',
     color: '#EF4444',
-    estimatedCompanies: 28
+    estimatedCompanies: 28,
+    country: 'Brazil'
   },
   {
     id: 'cerrado',
@@ -38,7 +42,8 @@ const COFFEE_REGIONS: BrazilianCoffeeRegion[] = [
     mainCities: ['Patrocínio', 'Carmo do Paranaíba', 'Monte Carmelo', 'Rio Paranaíba'],
     characteristics: 'Large farms, mechanization, certified coffees',
     color: '#F59E0B',
-    estimatedCompanies: 32
+    estimatedCompanies: 32,
+    country: 'Brazil'
   },
   {
     id: 'matas_de_minas',
@@ -47,13 +52,25 @@ const COFFEE_REGIONS: BrazilianCoffeeRegion[] = [
     mainCities: ['Manhuaçu', 'Caratinga', 'Espera Feliz', 'Abre Campo'],
     characteristics: 'Mountain coffees, natural processing, small producers',
     color: '#8B5CF6',
-    estimatedCompanies: 18
+    estimatedCompanies: 18,
+    country: 'Brazil'
+  },
+  {
+    id: 'santos',
+    name: 'Santos',
+    description: 'Major coffee port and trading hub',
+    mainCities: ['Santos', 'São Paulo', 'Campinas'],
+    characteristics: 'Export services, logistics, port facilities',
+    color: '#06B6D4',
+    estimatedCompanies: 25,
+    country: 'Brazil'
   }
 ]
 
 interface RegionBasedCompanySelectorProps {
   onRegionSelect: (regionId: string, suggestedCompanies: Company[]) => void
   onCustomSearch: (searchTerm: string) => void
+  onNaturalLanguageSearch?: (searchTerm: string) => void
   selectedRegions: string[]
   isLoading?: boolean
 }
@@ -61,13 +78,97 @@ interface RegionBasedCompanySelectorProps {
 export default function RegionBasedCompanySelector({
   onRegionSelect,
   onCustomSearch,
+  onNaturalLanguageSearch,
   selectedRegions,
   isLoading = false
 }: RegionBasedCompanySelectorProps) {
   const [aiSuggesting, setAiSuggesting] = useState(false)
   const [customInput, setCustomInput] = useState('')
+  const [coffeeRegions, setCoffeeRegions] = useState<CoffeeRegion[]>(BASE_COFFEE_REGIONS)
+  const [loadingRegions, setLoadingRegions] = useState(false)
 
-  const handleRegionClick = async (region: BrazilianCoffeeRegion) => {
+  // Load dynamic regions from database on component mount
+  useEffect(() => {
+    loadDynamicRegions()
+  }, [])
+
+  const loadDynamicRegions = async () => {
+    try {
+      setLoadingRegions(true)
+      const response = await fetch('/api/regions/discover', {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const { dynamicRegions } = await response.json()
+        if (dynamicRegions && dynamicRegions.length > 0) {
+          // Merge base regions with dynamically discovered regions
+          const combinedRegions = [...BASE_COFFEE_REGIONS]
+          
+          dynamicRegions.forEach((dynRegion: any) => {
+            if (!combinedRegions.find(r => r.id === dynRegion.id)) {
+              combinedRegions.push({
+                ...dynRegion,
+                color: getColorForCountry(dynRegion.country)
+              })
+            }
+          })
+          
+          setCoffeeRegions(combinedRegions)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load dynamic regions:', error)
+    } finally {
+      setLoadingRegions(false)
+    }
+  }
+
+  const getColorForCountry = (country: string) => {
+    const colorMap: { [key: string]: string } = {
+      'Brazil': '#22C55E',
+      'Colombia': '#F59E0B', 
+      'Guatemala': '#8B5CF6',
+      'Honduras': '#EF4444',
+      'Costa Rica': '#06B6D4',
+      'Nicaragua': '#F97316',
+      'El Salvador': '#84CC16'
+    }
+    return colorMap[country] || '#6B7280'
+  }
+
+  // Natural language parsing function
+  const parseNaturalLanguageInput = (input: string) => {
+    const patterns = [
+      /(\w+)\s+for\s+(\d+)\s*(days?|nights?)/gi,
+      /(\w+)\s*[-–]\s*(\d+)\s*(days?|nights?)/gi,
+      /visit\s+(\w+)\s+(\d+)\s*(days?|nights?)/gi,
+      /(\w+)\s+(\d+)\s*(days?|nights?)/gi
+    ]
+
+    const locations = []
+    let match
+
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0 // Reset regex
+      while ((match = pattern.exec(input)) !== null) {
+        const location = match[1].toLowerCase()
+        const duration = parseInt(match[2])
+        const unit = match[3].toLowerCase()
+        
+        locations.push({
+          location: location.charAt(0).toUpperCase() + location.slice(1),
+          duration,
+          unit: unit.startsWith('night') ? 'nights' : 'days'
+        })
+      }
+    }
+
+    return locations
+  }
+
+  const handleRegionClick = async (region: CoffeeRegion) => {
     if (selectedRegions.includes(region.id)) return
     
     setAiSuggesting(true)
@@ -99,7 +200,22 @@ export default function RegionBasedCompanySelector({
     if (!customInput.trim()) return
     
     setAiSuggesting(true)
-    onCustomSearch(customInput)
+    
+    // Try to parse natural language input first
+    const parsedLocations = parseNaturalLanguageInput(customInput)
+    
+    if (parsedLocations.length > 0 && onNaturalLanguageSearch) {
+      console.log('Parsed locations:', parsedLocations)
+      onNaturalLanguageSearch(JSON.stringify({ 
+        type: 'natural_language', 
+        input: customInput,
+        locations: parsedLocations 
+      }))
+    } else {
+      // Fall back to custom search
+      onCustomSearch(customInput)
+    }
+    
     // Reset after a delay to show the processing state
     setTimeout(() => setAiSuggesting(false), 2000)
   }
@@ -118,7 +234,15 @@ export default function RegionBasedCompanySelector({
 
       {/* Region Selection Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {COFFEE_REGIONS.map((region) => {
+        {loadingRegions && (
+          <div className="col-span-full text-center py-4">
+            <div className="inline-flex items-center space-x-2 text-gray-600">
+              <Globe className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Discovering regions from database...</span>
+            </div>
+          </div>
+        )}
+        {coffeeRegions.map((region) => {
           const isSelected = selectedRegions.includes(region.id)
           const isProcessing = aiSuggesting && isSelected
           
@@ -149,6 +273,11 @@ export default function RegionBasedCompanySelector({
                   <h4 className="font-medium" style={{ color: '#006D5B' }}>
                     {region.name}
                   </h4>
+                  {region.country !== 'Brazil' && (
+                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                      {region.country}
+                    </span>
+                  )}
                 </div>
                 
                 {isProcessing && (
@@ -222,7 +351,7 @@ export default function RegionBasedCompanySelector({
         <div className="flex space-x-2">
           <input
             type="text"
-            placeholder="e.g., 3-day trip to visit specialty coffee farms in Minas Gerais"
+            placeholder="e.g., Santos for 2 days, Sul de Minas for 3 days, Cerrado for 2 nights"
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleAISearch()}
@@ -264,8 +393,8 @@ export default function RegionBasedCompanySelector({
         </div>
 
         <div className="mt-3 text-xs text-gray-500">
-          <strong>Try examples:</strong> "Visit 5 farms in Sul de Minas over 2 days", 
-          "Mogiana specialty coffee tour", "Cerrado cooperative visits"
+          <strong>Try examples:</strong> "Santos for 2 days then Sul de Minas for 3 days", 
+          "Mogiana 2 nights, Cerrado 1 day", "Visit Colombia Huila for 3 days"
         </div>
       </div>
 
