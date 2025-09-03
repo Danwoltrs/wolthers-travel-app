@@ -175,12 +175,28 @@ export default function Dashboard() {
   
   // Combine ongoing, upcoming, draft trips from main query, and additional draft trips
   // Ensure draft trips are always included in current trips
-  const currentTrips = [
+  const allCurrentTrips = [
     ...ongoingTrips, 
     ...upcomingTrips,
     ...planningDraftTrips,
     ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
   ]
+  
+  // Remove duplicates by ID to prevent duplicate cards
+  const currentTrips = allCurrentTrips.filter((trip, index, array) => 
+    array.findIndex(t => t.id === trip.id) === index
+  )
+  
+  // Debug logging to help identify duplicate sources
+  if (allCurrentTrips.length !== currentTrips.length) {
+    console.log('🔍 Duplicate trips detected:')
+    console.log('Before deduplication:', allCurrentTrips.length, 'trips')
+    console.log('After deduplication:', currentTrips.length, 'trips')
+    console.log('ongoingTrips:', ongoingTrips.length)
+    console.log('upcomingTrips:', upcomingTrips.length) 
+    console.log('planningDraftTrips:', planningDraftTrips.length)
+    console.log('draftTripsAsTrips:', draftTripsAsTrips.length)
+  }
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
