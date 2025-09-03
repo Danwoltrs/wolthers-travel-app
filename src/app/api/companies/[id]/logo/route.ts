@@ -11,6 +11,8 @@ export async function POST(
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const resolvedParams = await params
+    
+    console.log('🔵 Logo Upload API: Company ID:', resolvedParams.id)
 
     // Authentication check
     const authHeader = request.headers.get('authorization')
@@ -54,8 +56,21 @@ export async function POST(
 
     // Authorization check - Wolthers staff can upload for any company, external admins for their own
     if (currentUser) {
+      console.log('🔵 Logo Upload API: Current user:', {
+        email: currentUser.email,
+        is_global_admin: currentUser.is_global_admin,
+        company_id: currentUser.company_id,
+        user_type: currentUser.user_type
+      })
+      
       const isWolthersStaff = currentUser.is_global_admin || currentUser.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0'
       const isExternalAdmin = currentUser.user_type === 'admin' && currentUser.company_id === resolvedParams.id
+      
+      console.log('🔵 Logo Upload API: Authorization check:', {
+        isWolthersStaff,
+        isExternalAdmin,
+        companyIdMatch: currentUser.company_id === resolvedParams.id
+      })
       
       if (!isWolthersStaff && !isExternalAdmin) {
         return NextResponse.json(

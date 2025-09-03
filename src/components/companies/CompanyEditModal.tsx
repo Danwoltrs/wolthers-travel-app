@@ -11,8 +11,6 @@ interface Company {
   fantasy_name?: string
   category: 'buyer' | 'supplier' | 'service_provider'
   subcategories?: string[]
-  staff_count?: number
-  annual_trip_cost?: number
   logo_url?: string
 }
 
@@ -68,8 +66,6 @@ export default function CompanyEditModal({
         fantasy_name: company.fantasy_name || '',
         category: company.category,
         subcategories: company.subcategories || [],
-        staff_count: company.staff_count || 0,
-        annual_trip_cost: company.annual_trip_cost || 0,
         logo_url: company.logo_url
       })
       setLogoPreview(company.logo_url || null)
@@ -593,40 +589,6 @@ export default function CompanyEditModal({
                     </div>
                   )}
 
-                  {/* Staff Count & Annual Cost */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="staff_count" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Staff Count
-                      </label>
-                      <input
-                        type="number"
-                        id="staff_count"
-                        min="0"
-                  value={formData.staff_count || ''}
-                  onChange={(e) => handleInputChange('staff_count', parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Annual Trip Cost */}
-              <div>
-                <label htmlFor="annual_trip_cost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Annual Trip Cost (USD)
-                </label>
-                <input
-                  type="number"
-                  id="annual_trip_cost"
-                  min="0"
-                  step="0.01"
-                  value={formData.annual_trip_cost || ''}
-                  onChange={(e) => handleInputChange('annual_trip_cost', parseFloat(e.target.value) || 0)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
                 </div>
               )}
 

@@ -8,6 +8,17 @@ const nextConfig = {
     // This is set to true to handle enum comparison issues during deployment
     ignoreBuildErrors: true,
   },
+  // Configure external image domains for Next.js Image component
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/**',
+      },
+    ],
+  },
   // Allow cross-origin requests from local network devices for mobile testing
   async rewrites() {
     return []
