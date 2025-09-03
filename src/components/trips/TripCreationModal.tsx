@@ -32,6 +32,9 @@ import type {
   CompanyWithLocations 
 } from '@/types'
 
+// Import ParticipantWithDates from TeamVehicleStep
+import type { ParticipantWithDates } from './TeamVehicleStep'
+
 // Define additional data types for hotels, flights, and meetings
 interface Hotel {
   id: string
@@ -100,6 +103,7 @@ export interface TripFormData {
   
   // Step 3: Team & Vehicles
   wolthersStaff: User[]
+  participantsWithDates?: ParticipantWithDates[]
   vehicles: Vehicle[]
   
   // Step 4-6: Conference-specific data

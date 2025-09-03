@@ -8,6 +8,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { useAuth } from '@/contexts/AuthContext'
+
+// Activity participant interface for many-to-many relationship
+export interface ActivityParticipant {
+  id: string
+  activity_id: string
+  participant_id: string
+  role: 'attendee' | 'organizer' | 'optional'
+  attendance_status: 'invited' | 'confirmed' | 'declined' | 'attended'
+  user_id?: string
+  user_name?: string
+  user_email?: string
+  company_name?: string
+  is_partial?: boolean
+  participation_start_date?: string
+  participation_end_date?: string
+}
+
 // Database Activity type that matches Supabase schema
 export interface Activity {
   id: string
@@ -30,6 +47,15 @@ export interface Activity {
   meeting_id?: string
   hotel_id?: string
   flight_id?: string
+  // New multi-participant support fields
+  visibility_level?: 'all' | 'specific' | 'private'
+  assigned_team_ids?: string[]
+  activity_type?: 'meeting' | 'travel' | 'meal' | 'accommodation' | 'free_time'
+  company_id?: string
+  company_name?: string
+  is_parallel_allowed?: boolean
+  // Participant information (populated from join)
+  participants?: ActivityParticipant[]
   created_at?: string
   updated_at?: string
   created_by?: string

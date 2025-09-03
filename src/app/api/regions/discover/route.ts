@@ -25,11 +25,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Group regions by country and create dynamic region objects
+    // Group regions and avoid duplicates with base regions
     const regionMap = new Map()
     
     regions?.forEach((company) => {
-      const regionKey = `${company.region.toLowerCase().replace(/\s+/g, '_')}_${company.country.toLowerCase()}`
+      // For Brazil, use region name only to match BASE_COFFEE_REGIONS
+      // For other countries, include country to distinguish
+      const regionKey = company.country === 'Brazil' 
+        ? company.region.toLowerCase().replace(/\s+/g, '_')
+        : `${company.region.toLowerCase().replace(/\s+/g, '_')}_${company.country.toLowerCase()}`
       
       if (!regionMap.has(regionKey)) {
         // Get company count for this region
@@ -40,7 +44,9 @@ export async function GET(request: NextRequest) {
           state: company.state,
           cities: new Set([company.city]),
           companiesCount: 1,
-          description: `Coffee region in ${company.country}`,
+          description: company.country === 'Brazil' 
+            ? getRegionCharacteristics(company.region, company.country)
+            : `Coffee region in ${company.country}`,
           characteristics: getRegionCharacteristics(company.region, company.country)
         })
       } else {

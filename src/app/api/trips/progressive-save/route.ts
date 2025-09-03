@@ -198,21 +198,23 @@ export async function POST(request: NextRequest) {
       if (clientTempId) {
         console.log('🔍 Checking for existing trip with clientTempId:', clientTempId)
         
-        // Strategy 1: Check by clientTempId in metadata
+        // Strategy 1: Check by clientTempId in metadata (most reliable)
         const { data: existingTripByTempId, error: tempIdError } = await supabase
           .from('trips')
-          .select('id, access_code, completion_step')
+          .select('id, access_code, completion_step, created_at')
           .eq('metadata->client_temp_id', clientTempId)
           .eq('creator_id', user.id)
-          .single()
+          .order('created_at', { ascending: false })
+          .limit(1)
         
-        if (!tempIdError && existingTripByTempId) {
-          finalTripId = existingTripByTempId.id
-          accessCode = existingTripByTempId.access_code || ''
+        if (!tempIdError && existingTripByTempId && Array.isArray(existingTripByTempId) ? existingTripByTempId[0] : existingTripByTempId) {
+          const trip = Array.isArray(existingTripByTempId) ? existingTripByTempId[0] : existingTripByTempId
+          finalTripId = trip.id
+          accessCode = trip.access_code || ''
           console.log('♾️ Found existing trip by clientTempId:', clientTempId, 'tripId:', finalTripId, 'accessCode:', accessCode)
           
           // Update existing trip with new step data and prevent regression
-          const updateStep = Math.max(currentStep, existingTripByTempId.completion_step || 0)
+          const updateStep = Math.max(currentStep, trip.completion_step || 0)
           
           const { error: updateError } = await supabase
             .from('trips')
@@ -322,6 +324,95 @@ export async function POST(request: NextRequest) {
       
       // Create new trip when reaching step 3 (basic information) and no existing trip found
       if (currentStep >= 3 && !finalTripId) {
+        console.log('🔄 Final safety check - checking for ANY recent trips to prevent race conditions...')
+        
+        // FINAL SAFETY CHECK: Use database-level locking/advisory lock pattern to prevent race conditions
+        const lockId = Math.floor(Math.abs(hash(user.id + (clientTempId || 'no-temp-id') + tripType))) % 2147483647
+        console.log('🔒 Acquiring advisory lock with ID:', lockId)
+        
+        let lockAcquired = false
+        try {
+          const { data } = await supabase.rpc('pg_try_advisory_lock', { key: lockId })
+          lockAcquired = !!data
+        } catch (lockError) {
+          console.log('⚠️ Advisory lock function not available, proceeding without lock:', lockError.message)
+        }
+        
+        if (lockAcquired) {
+          console.log('✅ Advisory lock acquired, proceeding with creation check')
+          
+          // Double-check for existing trips now that we have the lock
+          const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
+          const { data: veryRecentTrips } = await supabase
+            .from('trips')
+            .select('id, access_code, title, completion_step')
+            .eq('creator_id', user.id)
+            .eq('status', 'planning')
+            .gte('created_at', oneMinuteAgo)
+            .order('created_at', { ascending: false })
+            .limit(5)
+          
+          if (veryRecentTrips && veryRecentTrips.length > 0) {
+            console.log(`🔍 Found ${veryRecentTrips.length} very recent trips, checking for duplicates...`)
+            
+            const tripData = extractTripData(stepData, currentStep)
+            const matchingTrip = veryRecentTrips.find(trip => 
+              trip.title === tripData.title || 
+              (clientTempId && trip.metadata?.client_temp_id === clientTempId)
+            )
+            
+            if (matchingTrip) {
+              finalTripId = matchingTrip.id
+              accessCode = matchingTrip.access_code || ''
+              console.log('🛡️ Final safety check found matching trip, using existing:', finalTripId)
+              
+              // Update the existing trip
+              const updateStep = Math.max(currentStep, matchingTrip.completion_step || 0)
+              const { error: updateError } = await supabase
+                .from('trips')
+                .update({
+                  completion_step: updateStep,
+                  step_data: stepData,
+                  creation_status: getCreationStatus(updateStep),
+                  last_edited_at: now,
+                  last_edited_by: user.id,
+                  is_draft: updateStep < 5,
+                  metadata: {
+                    ...((matchingTrip as any).metadata || {}),
+                    ...(clientTempId ? { client_temp_id: clientTempId } : {})
+                  }
+                })
+                .eq('id', finalTripId)
+              
+              // Release the advisory lock
+              try {
+                await supabase.rpc('pg_advisory_unlock', { key: lockId })
+              } catch (unlockError) {
+                console.log('⚠️ Could not release advisory lock:', unlockError.message)
+              }
+              
+              if (!updateError) {
+                await updateTripExtendedData(supabase, finalTripId, stepData, user.id, now)
+                
+                const response: ProgressiveSaveResponse = {
+                  success: true,
+                  tripId: finalTripId,
+                  accessCode: accessCode,
+                  continueUrl: accessCode ? `/trips/continue/${accessCode}` : '',
+                  savedAt: now,
+                  message: `Progress saved at step ${currentStep} (safety check found existing trip)`
+                }
+                
+                return NextResponse.json(response)
+              }
+            }
+          }
+          
+          console.log('🆕 No duplicates found in final check, proceeding with creation')
+        } else {
+          console.log('⚠️ Could not acquire advisory lock, proceeding without lock (potential race condition)')
+        }
+        
         // IMPROVED ACCESS CODE PRIORITY LOGIC
         console.log('🎫 Access code generation - analyzing priority sources:')
         console.log('  - stepData.accessCode (predefined):', stepData.accessCode)
@@ -426,6 +517,16 @@ export async function POST(request: NextRequest) {
         }
 
         finalTripId = newTrip.id
+        
+        // Release the advisory lock now that trip creation is complete
+        if (lockAcquired) {
+          try {
+            await supabase.rpc('pg_advisory_unlock', { key: lockId })
+            console.log('🔓 Advisory lock released after successful trip creation')
+          } catch (unlockError) {
+            console.log('⚠️ Could not release advisory lock after creation:', unlockError.message)
+          }
+        }
 
         // Also create trip participants for Wolthers staff if they exist in step data
         if (stepData.wolthersStaff && Array.isArray(stepData.wolthersStaff) && stepData.wolthersStaff.length > 0) {
@@ -926,6 +1027,17 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     console.error('⚠️ Failed to update extended trip data:', error)
     // Don't throw error - this shouldn't fail the entire save operation
   }
+}
+
+// Simple hash function for generating advisory lock IDs
+function hash(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash
 }
 
 // NOTE: Trip drafts are now handled using trips table with status='planning'
