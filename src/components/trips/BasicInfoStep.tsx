@@ -1,11 +1,8 @@
 import React, { useState } from 'react'
-import { Plus, X, Calendar, Users, Hash } from 'lucide-react'
+import { X, Calendar, Users, Hash } from 'lucide-react'
 import { TripFormData } from './TripCreationModal'
-import { ClientType } from '@/types'
-import type { Company, User } from '@/types'
-import UnifiedCompanyCreationModal from '../companies/UnifiedCompanyCreationModal'
+import type { User } from '@/types'
 import UserCreationModal from './UserCreationModal'
-import { generateTripCode } from '@/lib/tripCodeGenerator'
 import { useTripCodeValidation } from '@/hooks/useTripCodeValidation'
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 
@@ -14,43 +11,6 @@ interface BasicInfoStepProps {
   updateFormData: (data: Partial<TripFormData>) => void
 }
 
-
-// Mock data - will be replaced with API calls
-const availableCompanies: Company[] = [
-  {
-    id: '1',
-    name: 'Cooxupe Coffee Cooperative',
-    fantasyName: 'Cooxupe',
-    email: 'contact@cooxupe.com.br',
-    clientType: ClientType.EXPORTERS_COOPS,
-    totalTripCostsThisYear: 15000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '2',
-    name: 'Swiss Coffee Trading AG',
-    fantasyName: 'Swiss Coffee',
-    email: 'info@swisscoffee.ch',
-    clientType: ClientType.EXPORTERS_COOPS,
-    totalTripCostsThisYear: 25000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '3',
-    name: 'Brasil Coffee Exports',
-    fantasyName: 'BCE',
-    email: 'export@bce.com.br',
-    clientType: ClientType.EXPORTERS_COOPS,
-    totalTripCostsThisYear: 18000,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-]
 
 export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
   // Check if this is a predefined event (from convention selection)
@@ -79,36 +39,9 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     }
   }, [formData.accessCode, code, setCode])
 
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
-  const [companySearch, setCompanySearch] = useState('')
-  const [showCompanyModal, setShowCompanyModal] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<string | undefined>()
 
-  const filteredCompanies = availableCompanies.filter(
-    company => 
-      !formData.companies.some(c => c.id === company.id) &&
-      (company.name.toLowerCase().includes(companySearch.toLowerCase()) ||
-       company.fantasyName?.toLowerCase().includes(companySearch.toLowerCase()))
-  )
-
-  const addCompany = (company: Company) => {
-    updateFormData({ companies: [...formData.companies, company] })
-    setCompanySearch('')
-    setShowCompanyDropdown(false)
-  }
-
-  const removeCompany = (companyId: string) => {
-    updateFormData({ 
-      companies: formData.companies.filter(c => c.id !== companyId),
-      participants: formData.participants.filter(p => p.companyId !== companyId)
-    })
-  }
-
-  const handleCompanyCreated = (company: Company) => {
-    updateFormData({ companies: [...formData.companies, company] })
-    setShowCompanyModal(false)
-  }
 
   const handleUserCreated = (user: User) => {
     updateFormData({ participants: [...formData.participants, user] })
@@ -231,84 +164,6 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         />
       </div>
 
-      {/* Companies */}
-      <div>
-        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
-          Companies (Optional)
-        </label>
-        
-        {/* Selected Companies */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {formData.companies.map(company => (
-            <div
-              key={company.id}
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-sage-100 text-sage-800 border border-sage-200"
-            >
-              <span>{company.fantasyName || company.name}</span>
-              <button
-                onClick={() => removeCompany(company.id)}
-                className="ml-2 hover:text-sage-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-
-
-        {/* Traditional Company Search */}
-        <div className="relative">
-          <div className="flex items-center">
-            <input
-              type="text"
-              value={companySearch}
-              onChange={(e) => {
-                setCompanySearch(e.target.value)
-                setShowCompanyDropdown(true)
-              }}
-              onFocus={() => setShowCompanyDropdown(true)}
-              placeholder={companySearch ? "" : "Search for companies..."}
-              className="flex-1 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
-            />
-            <button
-              type="button"
-              onClick={() => setShowCompanyModal(true)}
-              className="ml-2 btn-secondary"
-              title="Add new company"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Company Dropdown */}
-          {showCompanyDropdown && companySearch && (
-            <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 max-h-60 overflow-auto">
-              {filteredCompanies.length > 0 ? (
-                filteredCompanies.map(company => (
-                  <button
-                    key={company.id}
-                    onClick={() => addCompany(company)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {company.fantasyName || company.name}
-                    </div>
-                    {company.fantasyName && (
-                      <div className="text-sm text-gray-500 dark:text-latte-400">
-                        {company.name}
-                      </div>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <div className="px-4 py-2 text-sm text-gray-500 dark:text-latte-400">
-                  No companies found
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Date Range */}
       <div className="grid grid-cols-2 gap-4">
@@ -373,94 +228,44 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         </div>
       </div> */}
 
-      {/* Participants Section */}
-      {formData.companies.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
-            Participants
-          </label>
-          
-          {/* Selected Participants */}
+      {/* Participants Section - Simplified without company dependencies */}
+      <div>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
+          Participants (Optional)
+        </label>
+        
+        {/* Selected Participants */}
+        {formData.participants.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {formData.participants.map(participant => {
-              const company = formData.companies.find(c => c.id === participant.companyId)
-              return (
-                <div
-                  key={participant.id}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200"
+            {formData.participants.map(participant => (
+              <div
+                key={participant.id}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200"
+              >
+                <Users className="w-3 h-3 mr-1" />
+                <span>{participant.fullName}</span>
+                <button
+                  onClick={() => removeParticipant(participant.id)}
+                  className="ml-2 hover:text-blue-600 transition-colors"
                 >
-                  <Users className="w-3 h-3 mr-1" />
-                  <span>{participant.fullName}</span>
-                  {company && (
-                    <span className="text-blue-600 text-xs ml-1">
-                      ({company.fantasyName || company.name})
-                    </span>
-                  )}
-                  <button
-                    onClick={() => removeParticipant(participant.id)}
-                    className="ml-2 hover:text-blue-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )
-            })}
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
           </div>
-
-          {/* Add Participants by Company */}
-          <div className="space-y-3">
-            {formData.companies.map(company => {
-              const companyParticipants = formData.participants.filter(p => p.companyId === company.id)
-              return (
-                <div key={company.id} className="border border-pearl-200 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white">
-                      {company.fantasyName || company.name}
-                    </h4>
-                    <button
-                      onClick={() => openUserModalForCompany(company.id)}
-                      className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Contact
-                    </button>
-                  </div>
-                  
-                  {companyParticipants.length > 0 ? (
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      {companyParticipants.length} contact{companyParticipants.length !== 1 ? 's' : ''} added
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      No contacts added yet
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            
-            {/* Add general participant not tied to a company */}
-            <button
-              onClick={() => openUserModalForCompany()}
-              className="w-full text-left p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-            >
-              <Plus className="w-4 h-4 inline mr-2" />
-              Add general participant (not tied to a company)
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+        
+        {/* Add participant button */}
+        <button
+          onClick={() => openUserModalForCompany()}
+          className="w-full text-left p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+        >
+          <Users className="w-4 h-4 inline mr-2" />
+          Add participant
+        </button>
+      </div>
       
       {/* Modals */}
-      <UnifiedCompanyCreationModal
-        isOpen={showCompanyModal}
-        onClose={() => setShowCompanyModal(false)}
-        onCompanyCreated={handleCompanyCreated}
-        initialSearch={companySearch}
-        context="trip_creation"
-        companyType="supplier"
-      />
-      
       <UserCreationModal
         isOpen={showUserModal}
         onClose={() => {
@@ -469,7 +274,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         }}
         onUserCreated={handleUserCreated}
         preSelectedCompanyId={selectedCompanyForUser}
-        availableCompanies={formData.companies}
+        availableCompanies={[]}
       />
     </div>
   )

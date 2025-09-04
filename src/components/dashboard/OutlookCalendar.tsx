@@ -995,7 +995,14 @@ export function OutlookCalendar({
         {/* Calendar Grid */}
         <div className="overflow-x-auto">
           <div className="flex justify-center px-2 md:px-4 lg:px-6">
-            <div className="w-full" style={{ minWidth: `${100 + calendarDays.length * 180 + 100}px` }}>
+            <div 
+              className="w-full" 
+              style={{ 
+                minWidth: `${100 + calendarDays.length * 180 + 100}px`,
+                // For large screens, use full width when there are many days
+                width: calendarDays.length > 7 ? '100%' : `${100 + calendarDays.length * 180 + 100}px`
+              }}
+            >
               {/* Day Headers */}
               <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
                 gridTemplateColumns: `minmax(80px, 120px) repeat(${calendarDays.length}, 1fr) minmax(80px, 120px)` 

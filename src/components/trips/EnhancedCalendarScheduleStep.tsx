@@ -24,6 +24,15 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   const participants = formData.participants || []
   const buyerCompanies = formData.companies || []
 
+  // Debug logging for AI generation
+  console.log('📋 [Calendar Debug] Form data for AI generation:', {
+    hostCompaniesCount: hostCompanies.length,
+    hostCompanies: hostCompanies.map(hc => hc.name),
+    hasStartDate: !!formData.startDate,
+    hasEndDate: !!formData.endDate,
+    hasGeneratedInitial
+  })
+
   // Convert formData to TripCard format expected by OutlookCalendar
   const mockTrip: TripCard = useMemo(() => {
     const startDate = formData.startDate || new Date()
