@@ -113,6 +113,7 @@ export interface TripFormData {
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
   activities?: Activity[] // Calendar activities with travel time
+  generatedActivities?: Activity[] // AI-generated activities for temp trips
   
   // Legacy fields for compatibility
   wolthersStaff: User[]

@@ -999,8 +999,8 @@ export function OutlookCalendar({
               className="w-full" 
               style={{ 
                 minWidth: `${100 + calendarDays.length * 180 + 100}px`,
-                // For large screens, use full width when there are many days
-                width: calendarDays.length > 7 ? '100%' : `${100 + calendarDays.length * 180 + 100}px`
+                // For large screens, use full width when there are 5 or more days
+                width: calendarDays.length >= 5 ? '100%' : `${100 + calendarDays.length * 180 + 100}px`
               }}
             >
               {/* Day Headers */}

@@ -56,18 +56,35 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   }, [formData])
 
   // Initialize activity manager for this temporary trip
-  const {
-    activities,
-    loading,
-    error,
-    refreshing,
-    updateActivity,
-    updateActivityDebounced,
-    getActivitiesByDate,
-    createActivity,
-    deleteActivity,
-    forceRefreshActivities
-  } = useActivityManager(mockTrip.id)
+  const activityManager = useActivityManager(mockTrip.id)
+  
+  // For temp trips, use generatedActivities from formData instead of database activities
+  const tempActivities = formData.generatedActivities || []
+  const activities = mockTrip.id.startsWith('temp-trip-') ? tempActivities : activityManager.activities
+  const loading = mockTrip.id.startsWith('temp-trip-') ? false : activityManager.loading
+  const error = mockTrip.id.startsWith('temp-trip-') ? null : activityManager.error
+  const refreshing = mockTrip.id.startsWith('temp-trip-') ? isGeneratingAI : activityManager.refreshing
+  
+  // For temp trips, create simplified versions of activity manager functions
+  const updateActivity = activityManager.updateActivity
+  const updateActivityDebounced = activityManager.updateActivityDebounced
+  const createActivity = activityManager.createActivity
+  const deleteActivity = activityManager.deleteActivity
+  const forceRefreshActivities = activityManager.forceRefreshActivities
+  
+  // Create getActivitiesByDate function for temp trips
+  const getActivitiesByDate = () => {
+    if (mockTrip.id.startsWith('temp-trip-')) {
+      // Group temp activities by date
+      return tempActivities.reduce((acc, activity) => {
+        const date = activity.activity_date
+        if (!acc[date]) acc[date] = []
+        acc[date].push(activity)
+        return acc
+      }, {} as Record<string, Activity[]>)
+    }
+    return activityManager.getActivitiesByDate()
+  }
 
   // Generate initial AI itinerary when component mounts and we have required data
   // Now includes automatic generation for temp trips during creation
@@ -237,9 +254,38 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
 
       console.log(`✅ [AI Itinerary] Generated ${generatedActivities.length} optimized activities`)
 
-      // Create activities in the database
-      for (const activityData of generatedActivities) {
-        await createActivity(activityData)
+      // Store generated activities in formData for temporary trips during creation
+      // For temp trips, we don't create real database activities but simulate them
+      if (mockTrip.id.startsWith('temp-trip-')) {
+        // Store activities in formData for later use during final trip creation
+        const tempActivities = generatedActivities.map((activityData, index) => ({
+          id: `temp-activity-${Date.now()}-${index}`,
+          title: activityData.title,
+          description: activityData.description || '',
+          activity_date: activityData.date,
+          start_time: activityData.startTime,
+          end_time: activityData.endTime,
+          type: activityData.activityType as any,
+          location: activityData.location,
+          notes: activityData.notes,
+          trip_id: mockTrip.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          priority_level: activityData.priority,
+          visibility_level: activityData.visibility_level
+        }))
+        
+        // Store in formData for trip creation
+        updateFormData({ 
+          generatedActivities: tempActivities 
+        })
+        
+        console.log('✅ [AI Itinerary] Generated activities stored in formData for temp trip')
+      } else {
+        // For real trips, create activities in the database
+        for (const activityData of generatedActivities) {
+          await createActivity(activityData)
+        }
       }
 
       setHasGeneratedInitial(true)
