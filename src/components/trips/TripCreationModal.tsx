@@ -105,7 +105,7 @@ export interface TripFormData {
   buyerCompanies?: Company[] // Companies traveling with you
   participantsWithDates?: ParticipantWithDates[] // Staff with date ranges
   
-  // Step 3: Destinations & Discovery (new structure)
+  // Step 3: Host/Visits Selector (new structure)
   hostCompanies?: Company[] // Companies you will visit
   selectedRegions?: string[] // AI-selected regions
   participantCompanyMatrix?: { [hostId: string]: string[] } // Which buyers visit which hosts
@@ -184,7 +184,7 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
       { id: 3, name: 'Team & Participants', description: 'Select Wolthers staff and buyer companies' },
-      { id: 4, name: 'Destinations & Discovery', description: 'AI-powered regional company discovery' },
+      { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 5, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
       { id: 6, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
@@ -509,7 +509,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Team & Participants: require Wolthers staff
           return formData.participants && formData.participants.length > 0
         case 4:
-          // Destinations & Discovery: allow proceeding (host companies optional)
+          // Host/Visits Selector: allow proceeding (host companies optional)
           return true
         case 5:
           // Calendar Schedule: allow proceeding (activities can be added later)

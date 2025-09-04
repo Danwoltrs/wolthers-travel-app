@@ -111,11 +111,12 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     const matchesRegion = selectedRegion === 'all' || 
       extractRegion(locationStr).toLowerCase().includes(selectedRegion.toLowerCase())
     
-    // Only show supplier/host companies (exclude buyers and Wolthers)
+    // Only show supplier/host companies (exclude buyers, Wolthers, and already selected)
     const isSupplier = company.category === 'supplier' || company.client_type === 'supplier' || 
                       companyAny.category === 'supplier' || companyAny.client_type === 'supplier'
     const notBuyerCompany = !buyerCompanies.some(buyer => buyer.id === company.id)
     const notWolthers = !company.name.toLowerCase().includes('wolthers')
+    const notAlreadySelected = !hostCompanies.some(host => host.id === company.id)
     
     // Debug log to see what's being filtered
     if (company.name.toLowerCase().includes('blaser')) {
@@ -128,11 +129,12 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
         isSupplier,
         notBuyerCompany,
         notWolthers,
-        finalResult: matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers
+        notAlreadySelected,
+        finalResult: matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers && notAlreadySelected
       })
     }
     
-    return matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers
+    return matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers && notAlreadySelected
   }).sort((a, b) => {
     // Sort by region first, then by company name
     const aCompany = a as any
@@ -227,16 +229,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
-          Select Host Companies
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Choose companies that will host your travel group during the trip.
-        </p>
-      </div>
-
       {/* Search and Filter Controls */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -367,7 +359,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                 {hostCompanies.length} Host {hostCompanies.length === 1 ? 'Company' : 'Companies'} Selected
               </h4>
               <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                {hostCompanies.map(hc => hc.name).join(', ')}
+                {hostCompanies.map(hc => hc.fantasy_name || hc.name).join(', ')}
               </p>
             </div>
             <button

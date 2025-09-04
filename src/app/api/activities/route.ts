@@ -62,6 +62,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Trip ID is required' }, { status: 400 })
     }
 
+    // For temporary trips (during creation), return empty activities array
+    if (tripId.startsWith('temp-trip-')) {
+      return NextResponse.json([])
+    }
+
     // Create server-side Supabase client
     const supabase = createSupabaseServiceClient()
 
@@ -153,6 +158,18 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const activityData = await request.json()
+
+    // For temporary trips (during creation), return a mock activity without saving to DB
+    if (activityData.trip_id && activityData.trip_id.startsWith('temp-trip-')) {
+      const mockActivity = {
+        id: `temp-activity-${Date.now()}`,
+        ...activityData,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockActivity)
+    }
 
     // Prepare activity data with server-side user ID
     const newActivity = {

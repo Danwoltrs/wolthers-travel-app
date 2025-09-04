@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle, Navigation } from 'lucide-react'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import { useActivityManager, type Activity, type ActivityFormData } from '@/hooks/useActivityManager'
 import type { TripCard } from '@/types'
-import { ActivitySplitModal } from './ActivitySplitModal'
+import ActivitySplitModal from './ActivitySplitModal'
+import { loadGoogleMapsAPI, geocodeLocation, optimizeRoute, calculateTravelTime, formatDuration, type Location } from '@/lib/google-maps-utils'
 
 interface CalendarScheduleStepProps {
   formData: TripFormData
@@ -59,12 +60,10 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   } = useActivityManager(mockTrip.id)
 
   // Generate initial AI itinerary when component mounts and we have required data
-  // Skip AI generation for temporary trips (trip creation workflow)
+  // Now includes automatic generation for temp trips during creation
   useEffect(() => {
-    // Only generate AI itinerary if this is a real trip (not a temp trip in creation)
-    const isRealTrip = !mockTrip.id.startsWith('temp-trip-')
-    
-    if (!hasGeneratedInitial && isRealTrip && hostCompanies.length > 0 && formData.startDate && formData.endDate) {
+    if (!hasGeneratedInitial && hostCompanies.length > 0 && formData.startDate && formData.endDate) {
+      console.log('🤖 [AI Itinerary] Auto-generating itinerary with', hostCompanies.length, 'host companies')
       generateInitialAIItinerary()
       setHasGeneratedInitial(true)
     }
@@ -78,30 +77,112 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
 
     setIsGeneratingAI(true)
     try {
-      // Generate activities based on host companies
+      console.log('🗺️ [AI Itinerary] Starting Google Maps-optimized itinerary generation...')
+      
+      // Load Google Maps API
+      await loadGoogleMapsAPI()
+      
+      // Geocode all host company locations
+      const locations: (Location & { company: any })[] = []
+      for (const hostCompany of hostCompanies) {
+        const address = hostCompany.address || `${hostCompany.city || ''} ${hostCompany.state || ''}`.trim() || hostCompany.name
+        console.log(`📍 [AI Itinerary] Geocoding: ${hostCompany.name} at ${address}`)
+        
+        const location = await geocodeLocation(address)
+        if (location) {
+          locations.push({
+            ...location,
+            company: hostCompany,
+            name: hostCompany.fantasy_name || hostCompany.name
+          })
+          console.log(`✅ [AI Itinerary] Geocoded ${hostCompany.name}: ${location.lat}, ${location.lng}`)
+        } else {
+          console.warn(`⚠️ [AI Itinerary] Failed to geocode ${hostCompany.name}`)
+          // Add fallback location
+          locations.push({
+            lat: -19.9167, lng: -43.9345, // Belo Horizonte fallback
+            address: address,
+            name: hostCompany.fantasy_name || hostCompany.name,
+            company: hostCompany
+          })
+        }
+      }
+
+      // Optimize route for travel efficiency
+      console.log('🚗 [AI Itinerary] Optimizing travel route...')
+      const optimizedLocations = await optimizeRoute(locations)
+      
+      // Calculate travel times between consecutive locations
+      const travelTimes: number[] = []
+      for (let i = 0; i < optimizedLocations.length - 1; i++) {
+        const travelInfo = await calculateTravelTime(optimizedLocations[i], optimizedLocations[i + 1])
+        if (travelInfo) {
+          travelTimes.push(travelInfo.duration.value) // seconds
+          console.log(`🚗 [AI Itinerary] Travel time from ${optimizedLocations[i].name} to ${optimizedLocations[i + 1].name}: ${formatDuration(travelInfo.duration.value)}`)
+        } else {
+          travelTimes.push(3600) // Default 1 hour if calculation fails
+        }
+      }
+
+      // Generate activities based on optimized route and travel times
+      const tripDurationDays = Math.ceil((formData.endDate!.getTime() - formData.startDate!.getTime()) / (1000 * 60 * 60 * 24))
       const generatedActivities: ActivityFormData[] = []
+      
+      let currentDate = new Date(formData.startDate!)
+      let currentTime = 9 * 60 // 9:00 AM in minutes
+      let dayIndex = 0
 
-      hostCompanies.forEach((hostCompany, index) => {
-        // Create a visit activity for each host company
-        const dayIndex = index % Math.max(1, Math.ceil((formData.endDate!.getTime() - formData.startDate!.getTime()) / (1000 * 60 * 60 * 24)))
-        const activityDate = new Date(formData.startDate!)
-        activityDate.setDate(activityDate.getDate() + dayIndex)
+      for (let i = 0; i < optimizedLocations.length; i++) {
+        const location = optimizedLocations[i]
+        const company = location.company
+        
+        // Add travel time from previous location (except for first location)
+        if (i > 0) {
+          const travelMinutes = Math.ceil(travelTimes[i - 1] / 60) + 30 // Add 30min buffer
+          currentTime += travelMinutes
+          
+          // If travel pushes us past reasonable business hours (6 PM), move to next day
+          if (currentTime > 18 * 60) {
+            dayIndex++
+            if (dayIndex >= tripDurationDays) {
+              console.warn('⚠️ [AI Itinerary] Trip duration exceeded, truncating activities')
+              break
+            }
+            currentDate = new Date(formData.startDate!)
+            currentDate.setDate(currentDate.getDate() + dayIndex)
+            currentTime = 9 * 60 // Start at 9 AM
+          }
+        }
 
+        // Create visit activity
+        const startTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
+        const visitDuration = 4 * 60 // 4 hours default
+        const endTimeMinutes = currentTime + visitDuration
+        const endTime = `${Math.floor(endTimeMinutes / 60).toString().padStart(2, '0')}:${(endTimeMinutes % 60).toString().padStart(2, '0')}`
+
+        const travelNote = i > 0 ? `\n🚗 Travel time from previous location: ${formatDuration(travelTimes[i - 1])}` : ''
+        
         const activity: ActivityFormData = {
-          title: `Visit ${hostCompany.name}`,
-          description: `Business meeting and facility tour at ${hostCompany.name}`,
-          date: activityDate.toISOString().split('T')[0],
-          startTime: '09:00',
-          endTime: '13:00',
-          location: hostCompany.address || hostCompany.name,
+          title: `Visit ${company.fantasy_name || company.name}`,
+          description: `Business meeting and facility tour at ${company.name}${travelNote}`,
+          date: currentDate.toISOString().split('T')[0],
+          startTime,
+          endTime,
+          location: location.address || location.name,
           activityType: 'meeting',
           priority: 'high',
-          notes: `Host company visit - ${hostCompany.name}`,
+          notes: `🏢 Host company visit\n📍 Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}${travelNote}`,
           visibility_level: 'all'
         }
 
         generatedActivities.push(activity)
-      })
+        console.log(`📅 [AI Itinerary] Created activity: ${activity.title} on ${activity.date} from ${startTime} to ${endTime}`)
+        
+        // Update current time for next activity
+        currentTime = endTimeMinutes + 60 // Add 1 hour break
+      }
+
+      console.log(`✅ [AI Itinerary] Generated ${generatedActivities.length} optimized activities`)
 
       // Create activities in the database
       for (const activityData of generatedActivities) {
@@ -110,7 +191,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
 
       setHasGeneratedInitial(true)
     } catch (error) {
-      console.error('Error generating AI itinerary:', error)
+      console.error('❌ [AI Itinerary] Error generating itinerary:', error)
     } finally {
       setIsGeneratingAI(false)
     }
@@ -177,42 +258,32 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         </p>
       </div>
 
-      {/* AI Generation */}
-      {!hasGeneratedInitial && hostCompanies.length > 0 && (
+      {/* AI Generation Status */}
+      {isGeneratingAI && (
         <div className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-medium text-emerald-900 dark:text-emerald-300 mb-2">
-                AI Itinerary Generation
+              <h3 className="font-medium text-emerald-900 dark:text-emerald-300 mb-2 flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>AI Itinerary Generation</span>
               </h3>
               <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                Generate an optimized itinerary based on your host companies.
+                Creating optimized itinerary with Google Maps travel time calculations...
               </p>
             </div>
-            <button
-              onClick={generateInitialAIItinerary}
-              disabled={isGeneratingAI}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center space-x-2"
-            >
-              {isGeneratingAI ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4" />
-                  <span>Generate AI Itinerary</span>
-                </>
-              )}
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center space-x-2">
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-emerald-700 dark:text-emerald-300">
                 {hostCompanies.length} Host Companies
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Navigation className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-emerald-700 dark:text-emerald-300">
+                Route Optimization
               </span>
             </div>
             <div className="flex items-center space-x-2">

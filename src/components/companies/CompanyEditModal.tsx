@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Building, Loader2, Check, Upload, Camera, MapPin, User, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import EnhancedAddressForm from './EnhancedAddressForm'
 
 interface Company {
   id: string
@@ -12,6 +13,7 @@ interface Company {
   category: 'buyer' | 'supplier' | 'service_provider'
   subcategories?: string[]
   logo_url?: string
+  address?: string
   city?: string
   state?: string
   region?: string
@@ -71,6 +73,7 @@ export default function CompanyEditModal({
         category: company.category,
         subcategories: company.subcategories || [],
         logo_url: company.logo_url,
+        address: company.address || '',
         city: company.city || '',
         state: company.state || '',
         region: company.region || '',
@@ -597,74 +600,28 @@ export default function CompanyEditModal({
                     </div>
                   )}
 
-                  {/* Primary Location Information */}
+                  {/* Enhanced Primary Location Information */}
                   <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Primary Location</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      AI-Enhanced Location Management
+                    </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      This information is used for company region classification and display.
+                      AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro.
                     </p>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          City *
-                        </label>
-                        <input
-                          type="text"
-                          id="city"
-                          value={formData.city || ''}
-                          onChange={(e) => handleInputChange('city', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                          disabled={isLoading}
-                          placeholder="e.g. Carmo do Paranaíba"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          State *
-                        </label>
-                        <input
-                          type="text"
-                          id="state"
-                          value={formData.state || ''}
-                          onChange={(e) => handleInputChange('state', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                          disabled={isLoading}
-                          placeholder="e.g. Minas Gerais"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="region" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Region *
-                        </label>
-                        <input
-                          type="text"
-                          id="region"
-                          value={formData.region || ''}
-                          onChange={(e) => handleInputChange('region', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                          disabled={isLoading}
-                          placeholder="e.g. Cerrado, Sul de Minas"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Country *
-                        </label>
-                        <input
-                          type="text"
-                          id="country"
-                          value={formData.country || ''}
-                          onChange={(e) => handleInputChange('country', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                          disabled={isLoading}
-                          placeholder="Brazil"
-                        />
-                      </div>
-                    </div>
+                    <EnhancedAddressForm
+                      data={{
+                        address: formData.address,
+                        city: formData.city,
+                        state: formData.state,
+                        region: formData.region,
+                        country: formData.country
+                      }}
+                      onChange={(updates) => {
+                        setFormData(prev => ({ ...prev, ...updates }))
+                      }}
+                      showFullAddress={true}
+                    />
                   </div>
 
                 </div>
