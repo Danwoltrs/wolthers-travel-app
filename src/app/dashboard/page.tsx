@@ -5,7 +5,6 @@ import { Plus, Loader2 } from 'lucide-react'
 import TripCard from '@/components/dashboard/TripCard'
 import QuickViewModal from '@/components/dashboard/QuickViewModal'
 import TripCreationModal from '@/components/trips/TripCreationModal'
-import AuthDebug from '@/components/debug/AuthDebug'
 import CachePerformanceMonitor from '@/components/debug/CachePerformanceMonitor'
 import SystemValidation from '@/components/admin/SystemValidation'
 import PasswordChangePrompt from '@/components/auth/PasswordChangePrompt'
@@ -321,7 +320,6 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 xl:pt-0 mt-[60px] xl:mt-0">
         
         {/* Debug info - temporary */}
-        <AuthDebug />
         
         {/* Offline indicator */}
         {isOffline && (

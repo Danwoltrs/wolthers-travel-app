@@ -55,6 +55,7 @@ export const BRAZILIAN_COFFEE_REGIONS = {
 export const MAJOR_BRAZILIAN_CITIES: BrazilianLocation[] = [
   // Major business centers
   { city: 'São Paulo', state: 'São Paulo', stateCode: 'SP', region: 'Sudeste', coordinates: { lat: -23.5505, lng: -46.6333 } },
+  { city: 'Santos', state: 'São Paulo', stateCode: 'SP', region: 'Sudeste', coordinates: { lat: -23.9608, lng: -46.3333 } },
   { city: 'Rio de Janeiro', state: 'Rio de Janeiro', stateCode: 'RJ', region: 'Sudeste', coordinates: { lat: -22.9068, lng: -43.1729 } },
   { city: 'Belo Horizonte', state: 'Minas Gerais', stateCode: 'MG', region: 'Sudeste', coordinates: { lat: -19.9167, lng: -43.9345 } },
   { city: 'Brasília', state: 'Distrito Federal', stateCode: 'DF', region: 'Centro-Oeste', coordinates: { lat: -15.8267, lng: -47.9218 } },
@@ -173,7 +174,8 @@ export function getRegionByCity(cityName: string, stateName?: string): string {
     'muriae': 'Zona da Mata',
     'franca': 'Alta Mogiana',
     'altinópolis': 'Alta Mogiana',
-    'altinopolis': 'Alta Mogiana'
+    'altinopolis': 'Alta Mogiana',
+    'santos': 'Sudeste'  // Santos port city - important coffee trading hub
   }
   
   // Check specific mappings first
@@ -213,4 +215,60 @@ export function getRegionByCity(cityName: string, stateName?: string): string {
   }
   
   return stateToRegion[state || ''] || 'Brasil'
+}
+
+// Travel time calculation between cities (in hours)
+export function calculateTravelTime(fromCity: string, toCity: string): number {
+  const fromLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase() === fromCity.toLowerCase()
+  )
+  const toLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase() === toCity.toLowerCase()
+  )
+  
+  if (!fromLocation?.coordinates || !toLocation?.coordinates) {
+    return 2 // Default 2 hours if coordinates not found
+  }
+  
+  // Calculate distance using Haversine formula
+  const distance = calculateDistance(
+    fromLocation.coordinates.lat, fromLocation.coordinates.lng,
+    toLocation.coordinates.lat, toLocation.coordinates.lng
+  )
+  
+  // Estimate travel time: average speed 60 km/h for Brazilian roads
+  const travelTimeHours = distance / 60
+  
+  // Round to nearest 0.5 hours and ensure minimum 0.5 hours
+  return Math.max(0.5, Math.round(travelTimeHours * 2) / 2)
+}
+
+// Haversine formula to calculate distance between two points
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c // Distance in kilometers
+}
+
+// Check if cities are in the same region (for grouping meetings)
+export function areCitiesInSameRegion(city1: string, city2: string): boolean {
+  const loc1 = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase() === city1.toLowerCase()
+  )
+  const loc2 = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase() === city2.toLowerCase()
+  )
+  
+  if (!loc1 || !loc2) return false
+  
+  // Consider cities in same region if they're in the same coffee region or state
+  return loc1.coffeeRegion === loc2.coffeeRegion || 
+         loc1.stateCode === loc2.stateCode ||
+         (loc1.region === loc2.region && calculateTravelTime(city1, city2) <= 2)
 }

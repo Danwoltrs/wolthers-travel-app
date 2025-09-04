@@ -327,7 +327,7 @@ export default function CompanyEditModal({
 
   const subcategoryOptions = {
     buyer: ['exporters', 'importers', 'brokers'],
-    supplier: ['producers', 'processors', 'cooperatives', 'farms'],
+    supplier: ['producers', 'cooperative', 'exporter'],
     service_provider: ['laboratory', 'logistics', 'consulting']
   }
 

@@ -10,6 +10,7 @@ import { Calendar, MapPin, Users, Clock, AlertCircle } from 'lucide-react'
 import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
+import ConfirmationModal from '@/components/ui/ConfirmationModal'
 
 interface OverviewTabProps {
   trip: TripCard
@@ -29,6 +30,7 @@ interface OverviewTabProps {
   activitiesLoading?: boolean
   tripError?: any
   sortedDates?: string[]
+  onClose?: () => void
 }
 
 export function OverviewTab({ 
@@ -42,7 +44,8 @@ export function OverviewTab({
   groupedActivities = {},
   activitiesLoading = false,
   tripError = null,
-  sortedDates = []
+  sortedDates = [],
+  onClose
 }: OverviewTabProps) {
   const [formData, setFormData] = useState({
     title: trip.title,
@@ -56,46 +59,14 @@ export function OverviewTab({
     notes: ''
   })
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const handleFieldChange = useCallback(async (field: string, value: any) => {
     // Special handling for status change to "cancelled"
     if (field === 'status' && value === 'cancelled') {
-      const shouldDelete = window.confirm(
-        `⚠️ Trip Cancellation Confirmation\n\n` +
-        `This will PERMANENTLY DELETE the trip "${trip.title}" and:\n` +
-        `• Remove all activities and schedule\n` +
-        `• Delete all participant assignments\n` +
-        `• Send cancellation emails to hosts and team\n` +
-        `• Cannot be undone\n\n` +
-        `Are you sure you want to cancel and delete this trip?`
-      )
-      
-      if (shouldDelete) {
-        try {
-          // Call deletion API
-          const response = await fetch(`/api/trips/${trip.id}/delete`, {
-            method: 'DELETE',
-            credentials: 'include'
-          })
-          
-          if (response.ok) {
-            // Success - trip deleted, close modal and refresh
-            alert('✅ Trip cancelled and deleted successfully. Cancellation emails will be sent to all participants and hosts.')
-            window.location.href = '/dashboard' // Refresh dashboard
-            return
-          } else {
-            const error = await response.json()
-            alert(`❌ Failed to delete trip: ${error.error || 'Unknown error'}`)
-            return
-          }
-        } catch (error) {
-          console.error('Delete trip error:', error)
-          alert('❌ Failed to delete trip. Please try again.')
-          return
-        }
-      } else {
-        // User cancelled the deletion, don't change status
-        return
-      }
+      setShowDeleteConfirm(true)
+      return // Don't proceed with status change, wait for confirmation
     }
     
     // Normal field updates
@@ -121,6 +92,33 @@ export function OverviewTab({
 
   const isFieldValid = (field: string): boolean => {
     return validationState.fieldStates[field]?.isValid !== false
+  }
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true)
+    try {
+      // Call deletion API
+      const response = await fetch(`/api/trips/${trip.id}/delete`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        // Success - trip deleted, close modal and refresh
+        setShowDeleteConfirm(false)
+        if (onClose) {
+          onClose() // This will trigger refreshSilently() in the dashboard
+        }
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Unknown error')
+      }
+    } catch (error) {
+      console.error('Delete trip error:', error)
+      // Keep modal open so user can retry or cancel
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // If in view mode, show the overview information
@@ -874,6 +872,26 @@ export function OverviewTab({
           </ul>
         </div>
       )}
+
+      {/* Trip Cancellation Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Trip Cancellation Confirmation"
+        message={`This will PERMANENTLY DELETE the trip "${trip.title}" and:
+
+• Remove all activities and schedule
+• Delete all participant assignments  
+• Send cancellation emails to hosts and team
+• Cannot be undone
+
+Are you sure you want to cancel and delete this trip?`}
+        confirmText="Delete Trip"
+        cancelText="Keep Trip"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

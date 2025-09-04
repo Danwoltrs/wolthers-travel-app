@@ -407,6 +407,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   activitiesLoading={activitiesLoading}
                   tripError={tripError}
                   sortedDates={sortedDates}
+                  onClose={onClose}
                 />
               )}
               

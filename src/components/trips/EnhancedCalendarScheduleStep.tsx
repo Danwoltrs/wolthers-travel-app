@@ -6,7 +6,7 @@ import { useActivityManager, type Activity, type ActivityFormData } from '@/hook
 import type { TripCard } from '@/types'
 import ActivitySplitModal from './ActivitySplitModal'
 import { loadGoogleMapsAPI, geocodeLocation, optimizeRoute, calculateTravelTime, formatDuration, type Location } from '@/lib/google-maps-utils'
-import { detectLocationFromAddress, getRegionByCity } from '@/lib/brazilian-locations'
+import { detectLocationFromAddress, getRegionByCity, calculateTravelTime as calculateLocalTravelTime, areCitiesInSameRegion } from '@/lib/brazilian-locations'
 
 interface CalendarScheduleStepProps {
   formData: TripFormData
@@ -216,11 +216,35 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       for (let i = 0; i < optimizedLocations.length; i++) {
         const location = optimizedLocations[i]
         const company = location.company
+        const currentCity = company.city || 'Unknown'
+        const previousCity = i > 0 ? optimizedLocations[i - 1].company.city || 'Unknown' : null
         
-        // Add travel time from previous location (except for first location)
-        if (i > 0) {
-          const travelMinutes = Math.ceil(travelTimes[i - 1] / 60) + 30 // Add 30min buffer
-          currentTime += travelMinutes
+        // Add travel activity from previous location (except for first location)
+        if (i > 0 && previousCity) {
+          const localTravelHours = calculateLocalTravelTime(previousCity, currentCity)
+          const travelMinutes = Math.ceil(localTravelHours * 60)
+          
+          // Create explicit travel activity
+          const travelStartTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
+          const travelEndTimeMinutes = currentTime + travelMinutes
+          const travelEndTime = `${Math.floor(travelEndTimeMinutes / 60).toString().padStart(2, '0')}:${(travelEndTimeMinutes % 60).toString().padStart(2, '0')}`
+          
+          const travelActivity: ActivityFormData = {
+            title: `Drive to ${currentCity}`,
+            description: `Travel from ${previousCity} to ${currentCity} (${localTravelHours}h drive)`,
+            activity_date: currentDate.toISOString().split('T')[0],
+            start_time: travelStartTime,
+            end_time: travelEndTime,
+            location: `${previousCity} → ${currentCity}`,
+            type: 'travel',
+            notes: `🚗 Estimated driving time: ${localTravelHours} hours\n📍 Route: ${previousCity} to ${currentCity}`,
+            is_confirmed: false
+          }
+          
+          generatedActivities.push(travelActivity)
+          console.log(`🚗 [AI Itinerary] Created travel activity: ${previousCity} → ${currentCity} (${localTravelHours}h)`)
+          
+          currentTime = travelEndTimeMinutes
           
           // If travel pushes us past reasonable business hours (6 PM), move to next day
           if (currentTime > 18 * 60) {
@@ -235,31 +259,35 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           }
         }
 
+        // Determine meeting duration based on city (Santos gets max 2h, others 4h)
+        const isSantosArea = currentCity.toLowerCase().includes('santos')
+        const visitDuration = isSantosArea ? 2 * 60 : 4 * 60 // 2h for Santos, 4h for others
+        
         // Create visit activity
         const startTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
-        const visitDuration = 4 * 60 // 4 hours default
         const endTimeMinutes = currentTime + visitDuration
         const endTime = `${Math.floor(endTimeMinutes / 60).toString().padStart(2, '0')}:${(endTimeMinutes % 60).toString().padStart(2, '0')}`
 
-        const travelNote = i > 0 ? `\n🚗 Travel time from previous location: ${formatDuration(travelTimes[i - 1])}` : ''
+        const meetingType = isSantosArea ? '🏭 Port & logistics meeting' : '🏢 Business meeting & facility tour'
+        const durationNote = isSantosArea ? ' (2h focused meeting)' : ' (4h comprehensive visit)'
         
         const activity: ActivityFormData = {
           title: `Visit ${company.fantasy_name || company.name}`,
-          description: `Business meeting and facility tour at ${company.name}${travelNote}`,
-          activity_date: currentDate.toISOString().split('T')[0], // Fix: use activity_date not date
-          start_time: startTime, // Fix: use start_time not startTime
-          end_time: endTime, // Fix: use end_time not endTime
+          description: `${meetingType} at ${company.name}${durationNote}`,
+          activity_date: currentDate.toISOString().split('T')[0],
+          start_time: startTime,
+          end_time: endTime,
           location: location.address || location.name,
-          type: 'meeting', // Fix: use type not activityType
-          notes: `🏢 Host company visit\n📍 Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}${travelNote}`,
+          type: 'meeting',
+          notes: `${meetingType}\n📍 ${currentCity} - Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}\n⏱️ Duration: ${visitDuration/60}h${durationNote}`,
           is_confirmed: false
         }
 
         generatedActivities.push(activity)
-        console.log(`📅 [AI Itinerary] Created activity: ${activity.title} on ${activity.activity_date} from ${startTime} to ${endTime}`)
+        console.log(`📅 [AI Itinerary] Created activity: ${activity.title} on ${activity.activity_date} from ${startTime} to ${endTime} (${visitDuration/60}h)`)
         
-        // Update current time for next activity
-        currentTime = endTimeMinutes + 60 // Add 1 hour break
+        // Update current time for next activity (add 1h break between meetings)
+        currentTime = endTimeMinutes + 60
       }
 
       console.log(`✅ [AI Itinerary] Generated ${generatedActivities.length} optimized activities`)
