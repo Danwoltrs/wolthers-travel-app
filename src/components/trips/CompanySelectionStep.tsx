@@ -55,9 +55,11 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   }, [])
 
   // Extract unique regions from companies
-  const regions = ['all', ...new Set((availableCompanies || []).map(c => 
-    c.address ? extractRegion(c.address) : 'Unknown'
-  ).filter(Boolean))]
+  const regions = ['all', ...new Set((availableCompanies || []).map(c => {
+    const companyAny = c as any
+    const locationStr = companyAny.address || companyAny.city || companyAny.state || ''
+    return locationStr ? extractRegion(locationStr) : 'Unknown'
+  }).filter(Boolean))]
 
   function extractRegion(address: string): string {
     if (!address || address.trim() === '') return 'Unknown'
@@ -98,18 +100,39 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
 
   // Filter companies based on search and region
   const filteredCompanies = (availableCompanies || []).filter(company => {
+    const companyAny = company as any
     const matchesSearch = !searchTerm || 
       company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      company.fantasy_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyAny.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyAny.city?.toLowerCase().includes(searchTerm.toLowerCase())
     
+    const locationStr = companyAny.address || companyAny.city || companyAny.state || ''
     const matchesRegion = selectedRegion === 'all' || 
-      extractRegion(company.address || '').toLowerCase().includes(selectedRegion.toLowerCase())
+      extractRegion(locationStr).toLowerCase().includes(selectedRegion.toLowerCase())
     
-    // Exclude companies that are already buyer companies AND exclude Wolthers & Associates
+    // Only show supplier/host companies (exclude buyers and Wolthers)
+    const isSupplier = company.category === 'supplier' || company.client_type === 'supplier' || 
+                      companyAny.category === 'supplier' || companyAny.client_type === 'supplier'
     const notBuyerCompany = !buyerCompanies.some(buyer => buyer.id === company.id)
     const notWolthers = !company.name.toLowerCase().includes('wolthers')
     
-    return matchesSearch && matchesRegion && notBuyerCompany && notWolthers
+    // Debug log to see what's being filtered
+    if (company.name.toLowerCase().includes('blaser')) {
+      console.log('🔍 Blaser filtering:', {
+        name: company.name,
+        category: company.category,
+        client_type: company.client_type,
+        companyCategory: companyAny.category,
+        companyClientType: companyAny.client_type,
+        isSupplier,
+        notBuyerCompany,
+        notWolthers,
+        finalResult: matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers
+      })
+    }
+    
+    return matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers
   })
 
   const addHostCompany = (company: Company) => {
@@ -252,16 +275,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-[#2a2a2a]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Company Name
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Company
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Location
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Region
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
@@ -274,34 +297,31 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                       index % 2 === 0 ? 'bg-white dark:bg-[#1a1a1a]' : 'bg-gray-50 dark:bg-[#1f1f1f]'
                     }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-emerald-300">
-                        {company.name}
+                        {company.fantasy_name || company.name}
                       </div>
-                      {company.fantasy_name && company.fantasy_name !== company.name && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {company.fantasy_name}
-                        </div>
-                      )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {company.address ? (
+                        {(company as any).address || (company as any).city ? (
                           <div className="flex items-start">
                             <MapPin className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
-                            <span className="break-all">{company.address}</span>
+                            <span className="break-words max-w-xs">
+                              {(company as any).address || `${(company as any).city || ''}, ${(company as any).state || ''}`}
+                            </span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 italic">No address</span>
+                          <span className="text-gray-400 dark:text-gray-500 italic">—</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {extractRegion(company.address || '')}
+                        {extractRegion((company as any).address || (company as any).city || (company as any).state || '')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <button
                         onClick={() => addHostCompany(company)}
                         className="inline-flex items-center px-3 py-1.5 border border-emerald-300 dark:border-emerald-600 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
