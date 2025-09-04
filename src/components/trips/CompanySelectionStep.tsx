@@ -40,7 +40,9 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
           throw new Error('Failed to fetch companies')
         }
         
-        const companies = await response.json()
+        const data = await response.json()
+        // The API returns { companies: [...] }
+        const companies = Array.isArray(data.companies) ? data.companies : []
         setAvailableCompanies(companies)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load companies')
@@ -53,7 +55,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   }, [])
 
   // Extract unique regions from companies
-  const regions = ['all', ...new Set(availableCompanies.map(c => 
+  const regions = ['all', ...new Set((availableCompanies || []).map(c => 
     c.address ? extractRegion(c.address) : 'Unknown'
   ).filter(Boolean))]
 
@@ -64,7 +66,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   }
 
   // Filter companies based on search and region
-  const filteredCompanies = availableCompanies.filter(company => {
+  const filteredCompanies = (availableCompanies || []).filter(company => {
     const matchesSearch = !searchTerm || 
       company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       company.address?.toLowerCase().includes(searchTerm.toLowerCase())
