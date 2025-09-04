@@ -53,4 +53,4 @@ next-env.d.ts
 wolthers-travel-app/
 
 # Sensitive configuration files with credentials
-AZURE_SETUP.md
+AZURE_SETUP.md// Trigger deployment - Thu Sep  4 12:46:46 -03 2025
