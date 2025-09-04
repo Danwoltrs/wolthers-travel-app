@@ -12,6 +12,10 @@ interface Company {
   category: 'buyer' | 'supplier' | 'service_provider'
   subcategories?: string[]
   logo_url?: string
+  city?: string
+  state?: string
+  region?: string
+  country?: string
 }
 
 interface Location {
@@ -66,7 +70,11 @@ export default function CompanyEditModal({
         fantasy_name: company.fantasy_name || '',
         category: company.category,
         subcategories: company.subcategories || [],
-        logo_url: company.logo_url
+        logo_url: company.logo_url,
+        city: company.city || '',
+        state: company.state || '',
+        region: company.region || '',
+        country: company.country || 'Brazil'
       })
       setLogoPreview(company.logo_url || null)
       
@@ -372,7 +380,7 @@ export default function CompanyEditModal({
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Locations ({locations.length})
+              Office Locations ({locations.length})
             </button>
           </div>
         </div>
@@ -589,6 +597,76 @@ export default function CompanyEditModal({
                     </div>
                   )}
 
+                  {/* Primary Location Information */}
+                  <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Primary Location</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      This information is used for company region classification and display.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          City *
+                        </label>
+                        <input
+                          type="text"
+                          id="city"
+                          value={formData.city || ''}
+                          onChange={(e) => handleInputChange('city', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                          disabled={isLoading}
+                          placeholder="e.g. Carmo do Paranaíba"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="state" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          State *
+                        </label>
+                        <input
+                          type="text"
+                          id="state"
+                          value={formData.state || ''}
+                          onChange={(e) => handleInputChange('state', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                          disabled={isLoading}
+                          placeholder="e.g. Minas Gerais"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="region" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Region *
+                        </label>
+                        <input
+                          type="text"
+                          id="region"
+                          value={formData.region || ''}
+                          onChange={(e) => handleInputChange('region', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                          disabled={isLoading}
+                          placeholder="e.g. Cerrado, Sul de Minas"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Country *
+                        </label>
+                        <input
+                          type="text"
+                          id="country"
+                          value={formData.country || ''}
+                          onChange={(e) => handleInputChange('country', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                          disabled={isLoading}
+                          placeholder="Brazil"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -596,7 +674,12 @@ export default function CompanyEditModal({
               {activeTab === 'locations' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Office Locations</h3>
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">Additional Office Locations</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Add other branches, warehouses, or offices. Primary location is managed in Basic Information tab.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={addLocation}
@@ -696,15 +779,15 @@ export default function CompanyEditModal({
                   {locations.length === 0 && (
                     <div className="text-center py-8">
                       <MapPin className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No locations added</h3>
-                      <p className="text-gray-500 dark:text-gray-400 mb-4">Add your first office location to get started.</p>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No additional locations</h3>
+                      <p className="text-gray-500 dark:text-gray-400 mb-4">Add branches, warehouses, or other office locations.</p>
                       <button
                         type="button"
                         onClick={addLocation}
                         className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
                         <Plus className="w-4 h-4 mr-2" />
-                        Add First Location
+                        Add Additional Location
                       </button>
                     </div>
                   )}

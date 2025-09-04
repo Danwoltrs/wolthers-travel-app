@@ -40,7 +40,11 @@ export default function UnifiedCompanyCreationModal({
     name: '',
     fantasyName: '',
     category: companyType,
-    subcategories: [] as string[]
+    subcategories: [] as string[],
+    city: '',
+    state: '',
+    region: '',
+    country: 'Brazil'
   })
   const [picData, setPicData] = useState<PICData | null>(null)
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
@@ -63,7 +67,11 @@ export default function UnifiedCompanyCreationModal({
         name: '',
         fantasyName: '',
         category: companyType,
-        subcategories: []
+        subcategories: [],
+        city: '',
+        state: '',
+        region: '',
+        country: 'Brazil'
       })
       setPicData(null)
       setAdditionalLocations([])
@@ -263,7 +271,13 @@ export default function UnifiedCompanyCreationModal({
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            company: companyData,
+            company: {
+              ...companyData,
+              city: companyData.city || '',
+              state: companyData.state || '',
+              region: companyData.region || '',
+              country: companyData.country || 'Brazil'
+            },
             headquarters: {
               name: 'Main Headquarters',
               address_line1: 'Address to be filled',
@@ -439,6 +453,68 @@ export default function UnifiedCompanyCreationModal({
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="Commercial name or brand"
                   />
+                </div>
+              </div>
+
+              {/* Primary Location Information */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Primary Location</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  This information is used for company region classification and display.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      value={companyData.city}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="e.g. Carmo do Paranaíba"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      State *
+                    </label>
+                    <input
+                      type="text"
+                      value={companyData.state}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, state: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="e.g. Minas Gerais"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Region *
+                    </label>
+                    <input
+                      type="text"
+                      value={companyData.region}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, region: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="e.g. Cerrado, Sul de Minas"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Country *
+                    </label>
+                    <input
+                      type="text"
+                      value={companyData.country}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, country: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="Brazil"
+                    />
+                  </div>
                 </div>
               </div>
 
