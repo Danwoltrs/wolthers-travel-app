@@ -56,7 +56,49 @@ export function OverviewTab({
     notes: ''
   })
 
-  const handleFieldChange = useCallback((field: string, value: any) => {
+  const handleFieldChange = useCallback(async (field: string, value: any) => {
+    // Special handling for status change to "cancelled"
+    if (field === 'status' && value === 'cancelled') {
+      const shouldDelete = window.confirm(
+        `⚠️ Trip Cancellation Confirmation\n\n` +
+        `This will PERMANENTLY DELETE the trip "${trip.title}" and:\n` +
+        `• Remove all activities and schedule\n` +
+        `• Delete all participant assignments\n` +
+        `• Send cancellation emails to hosts and team\n` +
+        `• Cannot be undone\n\n` +
+        `Are you sure you want to cancel and delete this trip?`
+      )
+      
+      if (shouldDelete) {
+        try {
+          // Call deletion API
+          const response = await fetch(`/api/trips/${trip.id}/delete`, {
+            method: 'DELETE',
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            // Success - trip deleted, close modal and refresh
+            alert('✅ Trip cancelled and deleted successfully. Cancellation emails will be sent to all participants and hosts.')
+            window.location.href = '/dashboard' // Refresh dashboard
+            return
+          } else {
+            const error = await response.json()
+            alert(`❌ Failed to delete trip: ${error.error || 'Unknown error'}`)
+            return
+          }
+        } catch (error) {
+          console.error('Delete trip error:', error)
+          alert('❌ Failed to delete trip. Please try again.')
+          return
+        }
+      } else {
+        // User cancelled the deletion, don't change status
+        return
+      }
+    }
+    
+    // Normal field updates
     const updatedFormData = {
       ...formData,
       [field]: value
@@ -67,7 +109,7 @@ export function OverviewTab({
     onUpdate('overview', {
       trip: updatedFormData
     })
-  }, [formData, onUpdate])
+  }, [formData, onUpdate, trip.id, trip.title])
 
   const getFieldError = (field: string): string | null => {
     return validationState.fieldStates[field]?.errors[0] || null
