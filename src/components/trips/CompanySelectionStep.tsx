@@ -60,9 +60,40 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   ).filter(Boolean))]
 
   function extractRegion(address: string): string {
-    // Simple region extraction - you might want to make this more sophisticated
-    const parts = address.split(',').map(p => p.trim())
-    return parts[parts.length - 1] || parts[parts.length - 2] || 'Unknown'
+    if (!address || address.trim() === '') return 'Unknown'
+    
+    // Enhanced region extraction for Brazilian addresses and international
+    const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0)
+    
+    if (parts.length === 0) return 'Unknown'
+    
+    // Look for country/state patterns
+    const lastPart = parts[parts.length - 1]
+    const secondLastPart = parts.length > 1 ? parts[parts.length - 2] : null
+    
+    // Check for Brazil state patterns
+    const brazilianStates = ['MG', 'SP', 'RJ', 'ES', 'PR', 'SC', 'RS', 'BA', 'CE', 'PE', 'GO', 'MT', 'MS', 'TO', 'RO', 'AC', 'AM', 'RR', 'PA', 'AP', 'MA', 'PI', 'AL', 'SE', 'PB', 'RN', 'DF']
+    
+    // If last part is Brazil, use second last (likely state)
+    if (lastPart.toLowerCase().includes('brazil') || lastPart.toLowerCase().includes('brasil')) {
+      return secondLastPart || 'Brazil'
+    }
+    
+    // If we have a Brazilian state code
+    if (brazilianStates.includes(lastPart.toUpperCase())) {
+      return `${lastPart.toUpperCase()}, Brazil`
+    }
+    
+    if (secondLastPart && brazilianStates.includes(secondLastPart.toUpperCase())) {
+      return `${secondLastPart.toUpperCase()}, Brazil`
+    }
+    
+    // For international addresses, use country (usually last part)
+    if (parts.length >= 2) {
+      return lastPart
+    }
+    
+    return lastPart || 'Unknown'
   }
 
   // Filter companies based on search and region
@@ -74,10 +105,11 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     const matchesRegion = selectedRegion === 'all' || 
       extractRegion(company.address || '').toLowerCase().includes(selectedRegion.toLowerCase())
     
-    // Exclude companies that are already buyer companies
+    // Exclude companies that are already buyer companies AND exclude Wolthers & Associates
     const notBuyerCompany = !buyerCompanies.some(buyer => buyer.id === company.id)
+    const notWolthers = !company.name.toLowerCase().includes('wolthers')
     
-    return matchesSearch && matchesRegion && notBuyerCompany
+    return matchesSearch && matchesRegion && notBuyerCompany && notWolthers
   })
 
   const addHostCompany = (company: Company) => {
@@ -167,13 +199,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Search */}
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+              <Search className="w-4 h-4 text-gray-400" />
+            </div>
             <input
               type="text"
               placeholder="Search companies by name or location..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+              style={{ paddingLeft: '36px' }}
+              className="w-full pr-4 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             />
           </div>
 
@@ -194,11 +229,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
         </div>
       </div>
 
-      {/* Available Companies Grid */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-4">
-          Available Companies ({filteredCompanies.length})
-        </h3>
+      {/* Available Companies Table */}
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
+            Available Host Companies ({filteredCompanies.length})
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            Select companies that will host your travel group. You can configure visit details in the calendar step.
+          </p>
+        </div>
         
         {filteredCompanies.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -208,199 +248,97 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             }
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCompanies.map(company => (
-              <div 
-                key={company.id}
-                className="border border-gray-200 dark:border-[#3a3a3a] rounded-lg p-4 hover:border-emerald-500 dark:hover:border-emerald-400 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 dark:text-emerald-300">
-                      {company.name}
-                    </h4>
-                    {company.address && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {company.address}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => addHostCompany(company)}
-                    className="p-1 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                    title="Add as host company"
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-[#2a2a2a]">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Company Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Region
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-[#1a1a1a] divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+                {filteredCompanies.map((company, index) => (
+                  <tr 
+                    key={company.id}
+                    className={`hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors ${
+                      index % 2 === 0 ? 'bg-white dark:bg-[#1a1a1a]' : 'bg-gray-50 dark:bg-[#1f1f1f]'
+                    }`}
                   >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="text-xs text-gray-400 dark:text-gray-500">
-                  Region: {extractRegion(company.address || 'Unknown')}
-                </div>
-              </div>
-            ))}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-emerald-300">
+                        {company.name}
+                      </div>
+                      {company.fantasy_name && company.fantasy_name !== company.name && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {company.fantasy_name}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 dark:text-gray-300">
+                        {company.address ? (
+                          <div className="flex items-start">
+                            <MapPin className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
+                            <span className="break-all">{company.address}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 italic">No address</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-gray-300">
+                        {extractRegion(company.address || '')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => addHostCompany(company)}
+                        className="inline-flex items-center px-3 py-1.5 border border-emerald-300 dark:border-emerald-600 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {/* Selected Host Companies */}
+      {/* Selected Companies Summary */}
       {hostCompanies.length > 0 && (
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Building2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
-                Selected Host Companies
-              </h3>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                ({hostCompanies.length} selected)
-              </span>
-            </div>
-          </div>
-
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-            Configure visit details and assign which buyer companies will visit each host.
-          </p>
-
-          <div className="space-y-6">
-            {hostCompanies.map((hostCompany) => (
-              <div key={hostCompany.id} className="border border-gray-200 dark:border-[#3a3a3a] rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-emerald-300">
-                      {hostCompany.name}
-                    </h4>
-                    {hostCompany.address && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {hostCompany.address}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => removeHostCompany(hostCompany.id)}
-                    className="text-red-500 hover:text-red-700 text-sm p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Buyer Company Assignments */}
-                  <div>
-                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Visiting Buyer Companies
-                    </h5>
-                    <div className="space-y-2">
-                      {buyerCompanies.length > 0 ? (
-                        buyerCompanies.map((buyer) => (
-                          <label key={buyer.id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={hostCompany.visitingParticipants.includes(buyer.id)}
-                              onChange={() => toggleParticipantForHost(hostCompany.id, buyer.id)}
-                              className="rounded border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]"
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {buyer.name}
-                            </span>
-                          </label>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No buyer companies added yet
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Visit Preferences */}
-                  <div>
-                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Visit Preferences
-                    </h5>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">Duration (hours)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="24"
-                          value={hostCompany.estimatedVisitDuration || 4}
-                          onChange={(e) => updateHostCompany(hostCompany.id, {
-                            estimatedVisitDuration: parseInt(e.target.value) || 4
-                          })}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-[#2a2a2a] rounded bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">Preferred Time</label>
-                        <select
-                          value={hostCompany.preferredVisitTime || 'morning'}
-                          onChange={(e) => updateHostCompany(hostCompany.id, {
-                            preferredVisitTime: e.target.value as 'morning' | 'afternoon' | 'full_day'
-                          })}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-[#2a2a2a] rounded bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                        >
-                          <option value="morning">Morning</option>
-                          <option value="afternoon">Afternoon</option>
-                          <option value="full_day">Full Day</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Visit Notes
-                    </label>
-                    <textarea
-                      value={hostCompany.notes || ''}
-                      onChange={(e) => updateHostCompany(hostCompany.id, { notes: e.target.value })}
-                      placeholder="Special requirements, contact details, agenda items..."
-                      rows={3}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Summary */}
-      {hostCompanies.length > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700 p-4">
-          <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Selection Summary</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700 p-4">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-blue-700 dark:text-blue-300 font-medium">
-                Host Companies: {hostCompanies.length}
-              </span>
-              <ul className="mt-1 text-blue-600 dark:text-blue-400">
-                {hostCompanies.map(hc => (
-                  <li key={hc.id}>
-                    • {hc.name} 
-                    {hc.visitingParticipants.length > 0 && (
-                      <span className="text-xs"> ({hc.visitingParticipants.length} buyers)</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <h4 className="font-medium text-emerald-900 dark:text-emerald-300 mb-1">
+                {hostCompanies.length} Host {hostCompanies.length === 1 ? 'Company' : 'Companies'} Selected
+              </h4>
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                {hostCompanies.map(hc => hc.name).join(', ')}
+              </p>
             </div>
-            <div>
-              <span className="text-blue-700 dark:text-blue-300 font-medium">
-                Total Visit Hours: {hostCompanies.reduce((sum, hc) => sum + (hc.estimatedVisitDuration || 4), 0)}
-              </span>
-              <div className="mt-1 text-blue-600 dark:text-blue-400">
-                <div>Morning visits: {hostCompanies.filter(hc => hc.preferredVisitTime === 'morning').length}</div>
-                <div>Afternoon visits: {hostCompanies.filter(hc => hc.preferredVisitTime === 'afternoon').length}</div>
-                <div>Full day visits: {hostCompanies.filter(hc => hc.preferredVisitTime === 'full_day').length}</div>
-              </div>
-            </div>
+            <button
+              onClick={() => {
+                setHostCompanies([])
+                updateFormData({ hostCompanies: [] })
+              }}
+              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-sm"
+            >
+              Clear All
+            </button>
           </div>
         </div>
       )}

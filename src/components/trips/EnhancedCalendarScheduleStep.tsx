@@ -23,21 +23,26 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   const buyerCompanies = formData.companies || []
 
   // Convert formData to TripCard format expected by OutlookCalendar
-  const mockTrip: TripCard = useMemo(() => ({
-    id: 'temp-trip-' + Date.now(),
-    title: formData.title || 'New Trip',
-    description: formData.description || '',
-    startDate: formData.startDate ? formData.startDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    endDate: formData.endDate ? formData.endDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    status: 'planning' as const,
-    progress: 0,
-    daysRemaining: Math.ceil((new Date(formData.endDate || new Date()).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
-    accessCode: formData.accessCode || 'TEMP-CODE',
-    companies: formData.companies || [],
-    staff: formData.participants || [],
-    hotels: [],
-    flights: []
-  }), [formData])
+  const mockTrip: TripCard = useMemo(() => {
+    const startDate = formData.startDate || new Date()
+    const endDate = formData.endDate || new Date()
+    
+    return {
+      id: 'temp-trip-' + Date.now(),
+      title: formData.title || 'New Trip',
+      description: formData.description || '',
+      startDate: startDate, // Keep as Date object for OutlookCalendar
+      endDate: endDate, // Keep as Date object for OutlookCalendar
+      status: 'planning' as const,
+      progress: 0,
+      daysRemaining: Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      accessCode: formData.accessCode || 'TEMP-CODE',
+      companies: formData.companies || [],
+      staff: formData.participants || [],
+      hotels: [],
+      flights: []
+    }
+  }, [formData])
 
   // Initialize activity manager for this temporary trip
   const {
