@@ -141,8 +141,8 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     const bCompany = b as any
     const aLocation = aCompany.address || aCompany.city || aCompany.state || ''
     const bLocation = bCompany.address || bCompany.city || bCompany.state || ''
-    const aRegion = extractRegion(aLocation)
-    const bRegion = extractRegion(bLocation)
+    const aRegion = extractCoffeeRegion(a as any)
+    const bRegion = extractCoffeeRegion(b as any)
     
     if (aRegion !== bRegion) {
       // Sort regions alphabetically, but put 'Unknown' last
@@ -330,7 +330,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {extractRegion((company as any).address || (company as any).city || (company as any).state || '')}
+                        {extractCoffeeRegion(company as any)}
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
