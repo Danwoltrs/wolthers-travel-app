@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, memo } from 'react'
 import { useDrag, useDrop } from 'react-dnd'
-import { Plus, Minus, Clock, MapPin, User, Check, RefreshCw } from 'lucide-react'
+import { Plus, Minus, Clock, MapPin, User, Check, RefreshCw, GitFork } from 'lucide-react'
 import type { TripCard } from '@/types'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
@@ -31,6 +31,7 @@ interface OutlookCalendarProps {
   onRemoveFirstDay?: () => Promise<void>
   onActivityCreate: (timeSlot: string, date: string) => void
   onActivityEdit: (activity: Activity) => void
+  onActivitySplit?: (activity: Activity) => void
   forceRefreshActivities?: () => Promise<void>
 }
 
@@ -70,12 +71,14 @@ const ActivityCard = memo(function ActivityCard({
   activity, 
   onEdit,
   onResize,
+  onSplit,
   displayDate,
   isOptimistic = false
 }: { 
   activity: Activity
   onEdit: (activity: Activity) => void 
   onResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
+  onSplit?: (activity: Activity) => void
   displayDate?: string // The date this card is being displayed on (for multi-day activities)
   isOptimistic?: boolean // Whether this is an optimistic update
 }) {
@@ -427,6 +430,25 @@ const ActivityCard = memo(function ActivityCard({
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/50 rounded-full" />
         </div>
       )}
+      {/* Fork/Split icon - positioned absolutely in top-right corner */}
+      {onSplit && (
+        <div
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          style={{ zIndex: 20 }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onSplit(activity)
+            }}
+            className="w-5 h-5 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+            title="Split/Fork Activity"
+          >
+            <GitFork className="w-3 h-3 text-white" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="font-medium text-white truncate">
@@ -514,7 +536,8 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   onActivityCreate, 
   onActivityEdit,
   onActivityDrop,
-  onActivityResize
+  onActivityResize,
+  onActivitySplit
 }: {
   timeSlot: TimeSlot
   date: CalendarDay
@@ -523,6 +546,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   onActivityEdit: (activity: Activity) => void
   onActivityDrop: (item: DragItem, targetDate: string, targetTime: string) => void
   onActivityResize?: (activity: Activity, newStartTime: string, newEndTime: string, newStartDate?: string, newEndDate?: string) => void
+  onActivitySplit?: (activity: Activity) => void
 }) {
   const [isProcessingDrop, setIsProcessingDrop] = useState(false)
   
@@ -690,6 +714,7 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
             activity={activity}
             onEdit={onActivityEdit}
             onResize={onActivityResize}
+            onSplit={onActivitySplit}
             displayDate={date.dateString}
             isOptimistic={activity.id.startsWith('temp-')}
           />
@@ -713,6 +738,7 @@ export function OutlookCalendar({
   onRemoveFirstDay,
   onActivityCreate, 
   onActivityEdit,
+  onActivitySplit,
   forceRefreshActivities
 }: OutlookCalendarProps) {
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null)
@@ -1084,6 +1110,7 @@ export function OutlookCalendar({
                           onActivityEdit={onActivityEdit}
                           onActivityDrop={handleActivityDrop}
                           onActivityResize={handleActivityResize}
+                          onActivitySplit={onActivitySplit}
                         />
                       </div>
                     ))}

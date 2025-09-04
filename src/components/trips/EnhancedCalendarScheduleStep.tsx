@@ -1,38 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle, Car, Route } from 'lucide-react'
+import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle } from 'lucide-react'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import { useActivityManager, type Activity, type ActivityFormData } from '@/hooks/useActivityManager'
-import type { TripCard, Company } from '@/types'
-import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
+import type { TripCard } from '@/types'
+import { ActivitySplitModal } from './ActivitySplitModal'
 
 interface CalendarScheduleStepProps {
   formData: TripFormData
   updateFormData: (data: Partial<TripFormData>) => void
 }
 
-interface TravelTimeData {
-  fromLocation: string
-  toLocation: string
-  duration: number // minutes
-  distance: number // kilometers
-  mode: 'driving' | 'walking' | 'transit'
-}
-
-interface EnhancedActivity extends Activity {
-  travelTimeBefore?: TravelTimeData
-  participantIds?: string[] // Which participants attend this activity
-  hostCompanyId?: string // Which host company this activity is at
-  teamLeadId?: string // Wolthers team lead for this activity
-}
-
 export default function CalendarScheduleStep({ formData, updateFormData }: CalendarScheduleStepProps) {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [isCalculatingTravelTimes, setIsCalculatingTravelTimes] = useState(false)
   const [hasGeneratedInitial, setHasGeneratedInitial] = useState(false)
-  const [selectedActivity, setSelectedActivity] = useState<EnhancedActivity | null>(null)
-  const [travelOptimization, setTravelOptimization] = useState<'time' | 'distance'>('time')
-  const [showTravelTimes, setShowTravelTimes] = useState(true)
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
+  const [splitModalActivity, setSplitModalActivity] = useState<Activity | null>(null)
 
   // Get host companies and participants for activity assignment
   const hostCompanies = formData.hostCompanies || []
@@ -50,11 +33,11 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
     progress: 0,
     daysRemaining: Math.ceil((new Date(formData.endDate || new Date()).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
     accessCode: formData.accessCode || 'TEMP-CODE',
-    companies: hostCompanies, // Use host companies for calendar
-    staff: participants,
+    companies: formData.companies || [],
+    staff: formData.participants || [],
     hotels: [],
     flights: []
-  }), [formData, hostCompanies, participants])
+  }), [formData])
 
   // Initialize activity manager for this temporary trip
   const {
@@ -70,158 +53,37 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
     forceRefreshActivities
   } = useActivityManager(mockTrip.id)
 
-  // Google Maps API integration for travel time calculation
-  const calculateTravelTime = async (origin: string, destination: string): Promise<TravelTimeData | null> => {
-    try {
-      // This would integrate with your existing Google Maps service
-      const response = await fetch('/api/google-maps/distance-matrix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          origins: [origin],
-          destinations: [destination],
-          mode: 'driving',
-          units: 'metric'
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to calculate travel time')
-      }
-
-      const data = await response.json()
-      
-      if (data.rows?.[0]?.elements?.[0]?.status === 'OK') {
-        const element = data.rows[0].elements[0]
-        return {
-          fromLocation: origin,
-          toLocation: destination,
-          duration: Math.ceil(element.duration.value / 60), // Convert seconds to minutes
-          distance: Math.ceil(element.distance.value / 1000), // Convert meters to kilometers
-          mode: 'driving'
-        }
-      }
-
-      return null
-    } catch (error) {
-      console.error('Error calculating travel time:', error)
-      return null
+  // Generate initial AI itinerary when component mounts and we have required data
+  useEffect(() => {
+    if (!hasGeneratedInitial && hostCompanies.length > 0 && formData.startDate && formData.endDate) {
+      generateInitialAIItinerary()
+      setHasGeneratedInitial(true)
     }
-  }
+  }, [hostCompanies, formData.startDate, formData.endDate, hasGeneratedInitial])
 
-  // Calculate travel times for all activities
-  const calculateAllTravelTimes = async () => {
-    if (activities.length < 2) return
-
-    setIsCalculatingTravelTimes(true)
-    
-    try {
-      const sortedActivities = [...activities].sort((a, b) => {
-        const dateA = new Date(`${a.date}T${a.startTime || '00:00'}`)
-        const dateB = new Date(`${b.date}T${b.startTime || '00:00'}`)
-        return dateA.getTime() - dateB.getTime()
-      })
-
-      const updatedActivities: EnhancedActivity[] = []
-
-      for (let i = 0; i < sortedActivities.length; i++) {
-        const currentActivity = sortedActivities[i] as EnhancedActivity
-        const previousActivity = i > 0 ? sortedActivities[i - 1] as EnhancedActivity : null
-
-        if (previousActivity && previousActivity.location && currentActivity.location) {
-          // Calculate travel time from previous activity to current one
-          const travelTime = await calculateTravelTime(
-            previousActivity.location,
-            currentActivity.location
-          )
-
-          if (travelTime) {
-            currentActivity.travelTimeBefore = travelTime
-          }
-        }
-
-        updatedActivities.push(currentActivity)
-      }
-
-      // Update activities with travel time data
-      for (const activity of updatedActivities) {
-        if (activity.travelTimeBefore) {
-          await updateActivity(activity.id, {
-            travelTimeBefore: activity.travelTimeBefore
-          })
-        }
-      }
-
-    } catch (error) {
-      console.error('Error calculating travel times:', error)
-    } finally {
-      setIsCalculatingTravelTimes(false)
-    }
-  }
-
-  // Auto-generate travel time activities
-  const insertTravelActivities = async () => {
-    const sortedActivities = [...activities].sort((a, b) => {
-      const dateA = new Date(`${a.date}T${a.startTime || '00:00'}`)
-      const dateB = new Date(`${b.date}T${b.startTime || '00:00'}`)
-      return dateA.getTime() - dateB.getTime()
-    })
-
-    for (let i = 1; i < sortedActivities.length; i++) {
-      const currentActivity = sortedActivities[i] as EnhancedActivity
-      const previousActivity = sortedActivities[i - 1] as EnhancedActivity
-
-      if (currentActivity.travelTimeBefore && currentActivity.travelTimeBefore.duration > 15) {
-        // Only create travel activities for trips longer than 15 minutes
-        const travelStartTime = new Date(`${currentActivity.date}T${currentActivity.startTime || '00:00'}`)
-        travelStartTime.setMinutes(travelStartTime.getMinutes() - currentActivity.travelTimeBefore.duration - 10) // 10min buffer
-
-        const travelEndTime = new Date(travelStartTime)
-        travelEndTime.setMinutes(travelEndTime.getMinutes() + currentActivity.travelTimeBefore.duration)
-
-        const travelActivity: ActivityFormData = {
-          title: `Travel to ${currentActivity.title}`,
-          description: `Drive from ${currentActivity.travelTimeBefore.fromLocation} to ${currentActivity.travelTimeBefore.toLocation}`,
-          date: currentActivity.date,
-          startTime: travelStartTime.toTimeString().slice(0, 5),
-          endTime: travelEndTime.toTimeString().slice(0, 5),
-          location: `En route: ${currentActivity.travelTimeBefore.fromLocation} → ${currentActivity.travelTimeBefore.toLocation}`,
-          activityType: 'travel',
-          priority: 'medium',
-          notes: `Distance: ${currentActivity.travelTimeBefore.distance}km, Duration: ${currentActivity.travelTimeBefore.duration}min`,
-          visibility_level: 'all'
-        }
-
-        await createActivity(travelActivity)
-      }
-    }
-  }
-
-  // Generate AI-powered itinerary with travel optimization
-  const generateAIItinerary = async () => {
-    if (!formData.hostCompanies || formData.hostCompanies.length === 0) {
+  const generateInitialAIItinerary = async () => {
+    if (!hostCompanies || hostCompanies.length === 0) {
+      console.log('No host companies selected, skipping AI generation')
       return
     }
 
     setIsGeneratingAI(true)
-
     try {
-      // Generate activities based on host companies and participant assignments
+      // Generate activities based on host companies
       const generatedActivities: ActivityFormData[] = []
 
-      for (const hostCompany of formData.hostCompanies) {
+      hostCompanies.forEach((hostCompany, index) => {
         // Create a visit activity for each host company
-        const visitDuration = 4 // Default 4 hours
-        const startTime = '09:00'
-        const endTime = '13:00'
+        const dayIndex = index % Math.max(1, Math.ceil((formData.endDate!.getTime() - formData.startDate!.getTime()) / (1000 * 60 * 60 * 24)))
+        const activityDate = new Date(formData.startDate!)
+        activityDate.setDate(activityDate.getDate() + dayIndex)
 
         const activity: ActivityFormData = {
           title: `Visit ${hostCompany.name}`,
           description: `Business meeting and facility tour at ${hostCompany.name}`,
-          date: formData.startDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-          startTime,
-          endTime,
+          date: activityDate.toISOString().split('T')[0],
+          startTime: '09:00',
+          endTime: '13:00',
           location: hostCompany.address || hostCompany.name,
           activityType: 'meeting',
           priority: 'high',
@@ -230,18 +92,12 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         }
 
         generatedActivities.push(activity)
-      }
+      })
 
-      // Create activities in batches to avoid overwhelming the system
+      // Create activities in the database
       for (const activityData of generatedActivities) {
         await createActivity(activityData)
       }
-
-      // Calculate travel times after activities are created
-      setTimeout(async () => {
-        await calculateAllTravelTimes()
-        await insertTravelActivities()
-      }, 1000)
 
       setHasGeneratedInitial(true)
     } catch (error) {
@@ -251,19 +107,53 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
     }
   }
 
-  // Activity creation with participant assignment
-  const createActivityWithParticipants = async (activityData: ActivityFormData & {
-    participantIds?: string[]
-    hostCompanyId?: string
-    teamLeadId?: string
-  }) => {
-    const enhancedActivity: ActivityFormData = {
-      ...activityData,
-      // Store participant assignments in notes or custom fields
-      notes: `${activityData.notes || ''}\nParticipants: ${activityData.participantIds?.join(', ') || 'All'}\nTeam Lead: ${activityData.teamLeadId || 'TBD'}\nHost Company: ${activityData.hostCompanyId || 'N/A'}`
+  // Handle extending trip (add days before or after)
+  const handleExtendTrip = (direction: 'before' | 'after') => {
+    if (!formData.startDate || !formData.endDate) return
+
+    const newStartDate = new Date(formData.startDate)
+    const newEndDate = new Date(formData.endDate)
+
+    if (direction === 'before') {
+      newStartDate.setDate(newStartDate.getDate() - 1)
+    } else {
+      newEndDate.setDate(newEndDate.getDate() + 1)
     }
 
-    return await createActivity(enhancedActivity)
+    updateFormData({
+      startDate: newStartDate,
+      endDate: newEndDate
+    })
+  }
+
+  // Handle activity creation from time slot click
+  const handleActivityCreate = (timeSlot: string, date: string) => {
+    setSelectedActivity({
+      id: `temp-${Date.now()}`,
+      title: '',
+      description: '',
+      activity_date: date,
+      start_time: timeSlot,
+      end_time: timeSlot,
+      location: '',
+      activity_type: 'meeting',
+      priority: 'medium',
+      notes: '',
+      visibility_level: 'all',
+      trip_id: mockTrip.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as Activity)
+  }
+
+  // Handle activity editing
+  const handleActivityEdit = (activity: Activity) => {
+    setSelectedActivity(activity)
+  }
+
+  // Handle activity splitting
+  const handleActivitySplit = (activity: Activity) => {
+    setSplitModalActivity(activity)
   }
 
   return (
@@ -271,77 +161,11 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       {/* Header */}
       <div>
         <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
-          Calendar Schedule with Travel Optimization
+          Calendar Schedule
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Create your itinerary with AI-powered route optimization and automatic travel time calculations.
+          Create your itinerary by adding activities to the calendar below.
         </p>
-      </div>
-
-      {/* Travel Optimization Controls */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-md font-medium text-gray-900 dark:text-emerald-300">
-            Travel Optimization Settings
-          </h3>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowTravelTimes(!showTravelTimes)}
-              className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                showTravelTimes 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'bg-gray-200 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              {showTravelTimes ? 'Hide' : 'Show'} Travel Times
-            </button>
-            <button
-              onClick={calculateAllTravelTimes}
-              disabled={isCalculatingTravelTimes || activities.length < 2}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center space-x-1"
-            >
-              {isCalculatingTravelTimes ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Calculating...</span>
-                </>
-              ) : (
-                <>
-                  <Route className="w-4 h-4" />
-                  <span>Calculate Travel Times</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Optimization Priority
-            </label>
-            <select
-              value={travelOptimization}
-              onChange={(e) => setTravelOptimization(e.target.value as 'time' | 'distance')}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-            >
-              <option value="time">Minimize Travel Time</option>
-              <option value="distance">Minimize Distance</option>
-            </select>
-          </div>
-          <div className="flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <Car className="w-5 h-5 mr-2" />
-            Google Maps Integration
-          </div>
-          <div className="flex items-center justify-center">
-            <button
-              onClick={insertTravelActivities}
-              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors"
-            >
-              Auto-Insert Travel Activities
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* AI Generation */}
@@ -353,11 +177,11 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                 AI Itinerary Generation
               </h3>
               <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                Generate an optimized itinerary based on your host companies and participant assignments.
+                Generate an optimized itinerary based on your host companies.
               </p>
             </div>
             <button
-              onClick={generateAIItinerary}
+              onClick={generateInitialAIItinerary}
               disabled={isGeneratingAI}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center space-x-2"
             >
@@ -393,72 +217,31 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-emerald-700 dark:text-emerald-300">
-                Route Optimization
+                Smart Scheduling
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Calendar Component with Travel Time Display */}
+      {/* Calendar Component */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
-        <OptimizedDndProvider>
-          <OutlookCalendar 
-            trip={mockTrip}
-            showTimeConflicts={true}
-            showTravelTimes={showTravelTimes}
-            onActivityCreate={createActivityWithParticipants}
-            onActivityUpdate={updateActivity}
-            onActivityDelete={deleteActivity}
-          />
-        </OptimizedDndProvider>
+        <OutlookCalendar 
+          trip={mockTrip}
+          activities={activities}
+          loading={loading || isGeneratingAI}
+          error={error}
+          refreshing={refreshing}
+          updateActivity={updateActivity}
+          updateActivityDebounced={updateActivityDebounced}
+          getActivitiesByDate={getActivitiesByDate}
+          onExtendTrip={handleExtendTrip}
+          onActivityCreate={handleActivityCreate}
+          onActivityEdit={handleActivityEdit}
+          onActivitySplit={handleActivitySplit}
+          forceRefreshActivities={forceRefreshActivities}
+        />
       </div>
-
-      {/* Participant Assignment Panel */}
-      {selectedActivity && (
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-4">
-            Activity Participants & Details
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Participant Assignment */}
-            <div>
-              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Participating Buyer Companies
-              </h4>
-              <div className="space-y-2">
-                {buyerCompanies.map((company) => (
-                  <label key={company.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {company.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Team Lead Assignment */}
-            <div>
-              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Wolthers Team Lead
-              </h4>
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
-                <option value="">Select team lead...</option>
-                {participants.map(staff => (
-                  <option key={staff.id} value={staff.id}>
-                    {staff.full_name || staff.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Summary Statistics */}
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700 p-4">
@@ -486,6 +269,63 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           </div>
         </div>
       </div>
+
+      {/* Activity Split Modal */}
+      {splitModalActivity && (
+        <ActivitySplitModal
+          activity={splitModalActivity}
+          onClose={() => setSplitModalActivity(null)}
+          onSplit={async (splitData) => {
+            // Create two new activities based on the split data
+            const originalActivity = splitModalActivity!
+            
+            // Create Activity A
+            const activityA: ActivityFormData = {
+              title: `${originalActivity.title} (Group A)`,
+              description: originalActivity.description || '',
+              date: originalActivity.activity_date,
+              startTime: splitData.groupA.startTime,
+              endTime: splitData.groupA.endTime,
+              location: originalActivity.location || '',
+              activityType: originalActivity.activity_type || 'meeting',
+              priority: originalActivity.priority || 'medium',
+              notes: `Split from: ${originalActivity.title}\nGroup A participants: ${splitData.groupA.participants.map(p => p.name).join(', ')}`,
+              visibility_level: originalActivity.visibility_level || 'all'
+            }
+
+            // Create Activity B
+            const activityB: ActivityFormData = {
+              title: `${originalActivity.title} (Group B)`,
+              description: originalActivity.description || '',
+              date: splitData.splitType === 'sequential' ? splitData.groupB.date : originalActivity.activity_date,
+              startTime: splitData.groupB.startTime,
+              endTime: splitData.groupB.endTime,
+              location: originalActivity.location || '',
+              activityType: originalActivity.activity_type || 'meeting',
+              priority: originalActivity.priority || 'medium',
+              notes: `Split from: ${originalActivity.title}\nGroup B participants: ${splitData.groupB.participants.map(p => p.name).join(', ')}`,
+              visibility_level: originalActivity.visibility_level || 'all'
+            }
+
+            try {
+              // Create the new activities
+              await createActivity(activityA)
+              await createActivity(activityB)
+              
+              // Delete the original activity
+              await deleteActivity(originalActivity.id)
+              
+              console.log('Activity successfully split into two groups')
+            } catch (error) {
+              console.error('Error splitting activity:', error)
+            } finally {
+              setSplitModalActivity(null)
+            }
+          }}
+          participants={participants}
+          companies={[...hostCompanies, ...buyerCompanies]}
+        />
+      )}
     </div>
   )
 }

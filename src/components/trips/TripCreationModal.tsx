@@ -23,7 +23,7 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
 })
 import ReviewStep from './ReviewStep'
 import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
-import DestinationsDiscoveryStep from './DestinationsDiscoveryStep'
+import CompanySelectionStep from './CompanySelectionStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
 import type { 
   Company, 
@@ -461,6 +461,11 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       error: null
     })
     onClose()
+    
+    // Hard refresh to show saved drafts immediately
+    if (formData.tripType && (currentStep > 2 || (formData.title || formData.companies.length > 0))) {
+      window.location.reload()
+    }
   }
 
   const canProceed = () => {
@@ -698,7 +703,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 4 && (
-            <DestinationsDiscoveryStep
+            <CompanySelectionStep
               formData={formData}
               updateFormData={updateFormData}
             />

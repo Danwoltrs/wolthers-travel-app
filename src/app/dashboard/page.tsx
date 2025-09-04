@@ -249,9 +249,9 @@ export default function Dashboard() {
   }, [handleCreateTrip])
 
   const handleTripCreated = (trip: any) => {
-    // Refresh trips data silently to show the newly created trip
+    // Hard refresh to show the newly created trip immediately
     console.log('Trip created:', trip)
-    refreshSilently()
+    window.location.reload()
   }
 
   const closeModal = () => {
