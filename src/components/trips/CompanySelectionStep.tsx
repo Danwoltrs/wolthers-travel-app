@@ -98,7 +98,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     return lastPart || 'Unknown'
   }
 
-  // Filter companies based on search and region
+  // Filter and sort companies based on search and region
   const filteredCompanies = (availableCompanies || []).filter(company => {
     const companyAny = company as any
     const matchesSearch = !searchTerm || 
@@ -133,6 +133,26 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     }
     
     return matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers
+  }).sort((a, b) => {
+    // Sort by region first, then by company name
+    const aCompany = a as any
+    const bCompany = b as any
+    const aLocation = aCompany.address || aCompany.city || aCompany.state || ''
+    const bLocation = bCompany.address || bCompany.city || bCompany.state || ''
+    const aRegion = extractRegion(aLocation)
+    const bRegion = extractRegion(bLocation)
+    
+    if (aRegion !== bRegion) {
+      // Sort regions alphabetically, but put 'Unknown' last
+      if (aRegion === 'Unknown') return 1
+      if (bRegion === 'Unknown') return -1
+      return aRegion.localeCompare(bRegion)
+    }
+    
+    // Within same region, sort by company name
+    const aName = a.fantasy_name || a.name
+    const bName = b.fantasy_name || b.name
+    return aName.localeCompare(bName)
   })
 
   const addHostCompany = (company: Company) => {

@@ -59,12 +59,16 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   } = useActivityManager(mockTrip.id)
 
   // Generate initial AI itinerary when component mounts and we have required data
+  // Skip AI generation for temporary trips (trip creation workflow)
   useEffect(() => {
-    if (!hasGeneratedInitial && hostCompanies.length > 0 && formData.startDate && formData.endDate) {
+    // Only generate AI itinerary if this is a real trip (not a temp trip in creation)
+    const isRealTrip = !mockTrip.id.startsWith('temp-trip-')
+    
+    if (!hasGeneratedInitial && isRealTrip && hostCompanies.length > 0 && formData.startDate && formData.endDate) {
       generateInitialAIItinerary()
       setHasGeneratedInitial(true)
     }
-  }, [hostCompanies, formData.startDate, formData.endDate, hasGeneratedInitial])
+  }, [hostCompanies, formData.startDate, formData.endDate, hasGeneratedInitial, mockTrip.id])
 
   const generateInitialAIItinerary = async () => {
     if (!hostCompanies || hostCompanies.length === 0) {
