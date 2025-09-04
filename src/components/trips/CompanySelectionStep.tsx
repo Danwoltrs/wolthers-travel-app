@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { MapPin, Building2, Users, Search, Plus, X } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { Company } from '@/types'
+import { detectLocationFromAddress, getRegionByCity } from '@/lib/brazilian-locations'
 
 interface CompanySelectionStepProps {
   formData: TripFormData
@@ -54,48 +55,48 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     fetchCompanies()
   }, [])
 
-  // Extract unique regions from companies
+  // Extract unique coffee regions from companies using our Brazilian locations database
   const regions = ['all', ...new Set((availableCompanies || []).map(c => {
     const companyAny = c as any
-    const locationStr = companyAny.address || companyAny.city || companyAny.state || ''
-    return locationStr ? extractRegion(locationStr) : 'Unknown'
-  }).filter(Boolean))]
+    return extractCoffeeRegion(companyAny)
+  }).filter(region => region && region !== 'Unknown'))]
 
-  function extractRegion(address: string): string {
-    if (!address || address.trim() === '') return 'Unknown'
-    
-    // Enhanced region extraction for Brazilian addresses and international
-    const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0)
-    
-    if (parts.length === 0) return 'Unknown'
-    
-    // Look for country/state patterns
-    const lastPart = parts[parts.length - 1]
-    const secondLastPart = parts.length > 1 ? parts[parts.length - 2] : null
-    
-    // Check for Brazil state patterns
-    const brazilianStates = ['MG', 'SP', 'RJ', 'ES', 'PR', 'SC', 'RS', 'BA', 'CE', 'PE', 'GO', 'MT', 'MS', 'TO', 'RO', 'AC', 'AM', 'RR', 'PA', 'AP', 'MA', 'PI', 'AL', 'SE', 'PB', 'RN', 'DF']
-    
-    // If last part is Brazil, use second last (likely state)
-    if (lastPart.toLowerCase().includes('brazil') || lastPart.toLowerCase().includes('brasil')) {
-      return secondLastPart || 'Brazil'
+  function extractCoffeeRegion(company: any): string {
+    // Try to get region from existing company data first
+    if (company.region && company.region !== 'Unknown') {
+      return company.region
     }
     
-    // If we have a Brazilian state code
-    if (brazilianStates.includes(lastPart.toUpperCase())) {
-      return `${lastPart.toUpperCase()}, Brazil`
+    // Use our AI location detection for smart region mapping
+    const address = company.address || ''
+    const city = company.city || ''
+    const state = company.state || ''
+    
+    if (address) {
+      const detectedLocation = detectLocationFromAddress(address)
+      if (detectedLocation && detectedLocation.coffeeRegion) {
+        return detectedLocation.coffeeRegion
+      }
     }
     
-    if (secondLastPart && brazilianStates.includes(secondLastPart.toUpperCase())) {
-      return `${secondLastPart.toUpperCase()}, Brazil`
+    // Try city-based detection
+    if (city) {
+      const regionFromCity = getRegionByCity(city, state)
+      if (regionFromCity && regionFromCity !== 'Brasil') {
+        return regionFromCity
+      }
     }
     
-    // For international addresses, use country (usually last part)
-    if (parts.length >= 2) {
-      return lastPart
+    // Check for international companies
+    if (address && !address.toLowerCase().includes('brazil') && !address.toLowerCase().includes('brasil')) {
+      // Extract country for international companies
+      const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0)
+      if (parts.length >= 2) {
+        return parts[parts.length - 1] // Country
+      }
     }
     
-    return lastPart || 'Unknown'
+    return 'Other'
   }
 
   // Filter and sort companies based on search and region
@@ -107,9 +108,8 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       companyAny.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       companyAny.city?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const locationStr = companyAny.address || companyAny.city || companyAny.state || ''
     const matchesRegion = selectedRegion === 'all' || 
-      extractRegion(locationStr).toLowerCase().includes(selectedRegion.toLowerCase())
+      extractCoffeeRegion(companyAny) === selectedRegion
     
     // Only show supplier/host companies (exclude buyers, Wolthers, and already selected)
     const isSupplier = company.category === 'supplier' || company.client_type === 'supplier' || 

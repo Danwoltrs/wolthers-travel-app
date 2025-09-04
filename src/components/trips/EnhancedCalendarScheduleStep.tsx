@@ -6,6 +6,7 @@ import { useActivityManager, type Activity, type ActivityFormData } from '@/hook
 import type { TripCard } from '@/types'
 import ActivitySplitModal from './ActivitySplitModal'
 import { loadGoogleMapsAPI, geocodeLocation, optimizeRoute, calculateTravelTime, formatDuration, type Location } from '@/lib/google-maps-utils'
+import { detectLocationFromAddress, getRegionByCity } from '@/lib/brazilian-locations'
 
 interface CalendarScheduleStepProps {
   formData: TripFormData
@@ -108,9 +109,52 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         }
       }
 
-      // Optimize route for travel efficiency
-      console.log('🚗 [AI Itinerary] Optimizing travel route...')
-      const optimizedLocations = await optimizeRoute(locations)
+      // Group locations by coffee regions for better travel optimization
+      console.log('🗺️ [AI Itinerary] Grouping companies by coffee regions...')
+      const locationsByRegion = new Map<string, (Location & { company: any })[]>()
+      
+      for (const location of locations) {
+        const company = location.company
+        let region = 'Other'
+        
+        // Try to detect coffee region from company address/city
+        const address = company.address || `${company.city || ''} ${company.state || ''}`.trim()
+        if (address) {
+          const detectedLocation = detectLocationFromAddress(address)
+          if (detectedLocation?.coffeeRegion) {
+            region = detectedLocation.coffeeRegion
+          } else if (company.city) {
+            const cityRegion = getRegionByCity(company.city, company.state)
+            if (cityRegion && cityRegion !== 'Brasil') {
+              region = cityRegion
+            }
+          }
+        }
+        
+        if (!locationsByRegion.has(region)) {
+          locationsByRegion.set(region, [])
+        }
+        locationsByRegion.get(region)!.push(location)
+        
+        console.log(`📍 [AI Itinerary] ${company.name} assigned to region: ${region}`)
+      }
+      
+      // Optimize route within each region, then combine regions efficiently
+      console.log('🚗 [AI Itinerary] Optimizing travel route by regions...')
+      let optimizedLocations: (Location & { company: any })[] = []
+      
+      const regionNames = Array.from(locationsByRegion.keys()).sort()
+      for (const regionName of regionNames) {
+        const regionLocations = locationsByRegion.get(regionName)!
+        if (regionLocations.length > 1) {
+          // Optimize within region
+          const optimizedRegionLocations = await optimizeRoute(regionLocations)
+          optimizedLocations.push(...optimizedRegionLocations)
+        } else {
+          optimizedLocations.push(...regionLocations)
+        }
+        console.log(`🗺️ [AI Itinerary] Optimized ${regionLocations.length} companies in ${regionName}`)
+      }
       
       // Calculate travel times between consecutive locations
       const travelTimes: number[] = []
@@ -247,16 +291,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
-          Calendar Schedule
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Create your itinerary by adding activities to the calendar below.
-        </p>
-      </div>
+    <div className="space-y-6">
 
       {/* AI Generation Status */}
       {isGeneratingAI && (
