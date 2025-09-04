@@ -36,7 +36,7 @@ export function useTripCodeValidation(
       'event': 'event',
       'business': 'business',
       'client_visit': 'client_visit',
-      'in_land': 'business'
+      'in_land': 'business'  // in_land trips use title-based generation
     }
     
     const mappedTripType = tripTypeMap[formData.tripType || 'business'] || 'business'
@@ -111,7 +111,11 @@ export function useTripCodeValidation(
 
   // Automatically generate or validate the code when form data changes
   useEffect(() => {
-    if (formData && formData.title && formData.startDate && !hasBeenManuallyEdited) {
+    // For in_land trips, generate code as soon as title is available
+    const isInLandTrip = formData?.tripType === 'in_land'
+    const canGenerate = formData && formData.title && (formData.startDate || isInLandTrip)
+    
+    if (canGenerate && !hasBeenManuallyEdited) {
       // Only auto-generate if no code exists and hasn't been manually edited
       if (!code || (initialCode === '' && code !== initialCode)) {
         const generatedCode = generateSmartTripCode(formData)
@@ -125,7 +129,7 @@ export function useTripCodeValidation(
     } else if (code) {
       validateTripCode(code)
     }
-  }, [code, formData?.title, formData?.startDate, formData?.companies, formData, validateTripCode, generateSmartTripCode, initialCode, hasBeenManuallyEdited])
+  }, [code, formData?.title, formData?.startDate, formData?.companies, formData?.tripType, formData, validateTripCode, generateSmartTripCode, initialCode, hasBeenManuallyEdited])
 
   // Handler to update trip code
   const handleCodeChange = useCallback((newCode: string) => {

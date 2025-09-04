@@ -49,6 +49,48 @@ function abbreviateCompanyName(name: string): string {
   return abbreviation || name.substring(0, 4).toUpperCase()
 }
 
+// Utility to create smart codes from trip titles for in-land trips
+function generateTitleBasedCode(title: string, month: number, year: number): string {
+  if (!title) return ''
+  
+  // Clean the title and remove common words
+  const commonWords = ['trip', 'visit', 'meeting', 'conference', 'event', 'the', 'and', 'to', 'at', 'in', 'of', 'for']
+  const words = title.toLowerCase()
+    .split(/\s+/)
+    .filter(word => 
+      word.length > 1 && 
+      !commonWords.includes(word) &&
+      !/^\d+$/.test(word) // Remove pure numbers
+    )
+  
+  if (words.length === 0) {
+    return `TRIP-${getMonthAbbreviation(month)}${formatYear(year)}`
+  }
+  
+  // Handle special company names that should be preserved
+  const specialNames: { [key: string]: string } = {
+    'douqué': 'Douque',
+    'douque': 'Douque', 
+    'mitsui': 'Mitsui',
+    'keyence': 'Keyence',
+    'wolthers': 'Wolthers'
+  }
+  
+  // Take first significant word (usually company/location name)
+  let mainWord = words[0]
+  
+  // Apply special name formatting
+  if (specialNames[mainWord]) {
+    mainWord = specialNames[mainWord]
+  } else {
+    // Capitalize first letter
+    mainWord = mainWord.charAt(0).toUpperCase() + mainWord.slice(1)
+  }
+  
+  // Format: MainWord-MonYY (e.g., "Douque-Sep25")
+  return `${mainWord}-${getMonthAbbreviation(month)}${formatYear(year)}`
+}
+
 // Formats month abbreviation
 function getMonthAbbreviation(month: number): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -100,7 +142,18 @@ export function makeTripSlug(params: TripSlugParams): string {
     return `${titleCode}-${year}`
   }
 
-  // Normal Origin trips
+  // Business/In-land trips - prioritize title-based generation
+  if (trip_type === 'business' || trip_type === 'client_visit') {
+    // Try title-based generation first for in-land trips
+    if (title) {
+      const titleCode = generateTitleBasedCode(title, month, year)
+      if (titleCode && !titleCode.startsWith('TRIP-')) {
+        return titleCode
+      }
+    }
+  }
+
+  // Normal company-based trips (fallback or when no title)
   if (companies.length === 0) {
     return `TRIP-${formatYear(year)}${formatMonth(month)}${Math.floor(Math.random() * 100)}`
   }
