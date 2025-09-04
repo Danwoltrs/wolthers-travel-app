@@ -71,13 +71,13 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     formData
   )
   
-  // Ensure the code matches formData.accessCode for predefined events
+  // Initialize the code from formData if not already set
   React.useEffect(() => {
-    if (isPredefinedEvent && formData.accessCode && code !== formData.accessCode) {
-      console.log('🎯 Syncing predefined access code:', formData.accessCode)
+    if (formData.accessCode && !code) {
+      console.log('🎯 Initializing access code:', formData.accessCode)
       setCode(formData.accessCode)
     }
-  }, [isPredefinedEvent, formData.accessCode, code, setCode])
+  }, [formData.accessCode, code, setCode])
 
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [companySearch, setCompanySearch] = useState('')
@@ -161,7 +161,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
               placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
             />
           </div>
-          {formData.startDate && (
+          {(formData.startDate || formData.tripType === 'in_land') && (
             <div className="flex items-center space-x-2 mt-1">
               <div className="flex items-center">
                 <Hash className="w-4 h-4 text-gray-400 mr-1" />
@@ -170,21 +170,18 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                   id="accessCode"
                   value={code}
                   onChange={(e) => {
-                    if (!isPredefinedEvent) {
-                      const newCode = e.target.value.toUpperCase()
-                      setCode(newCode)
-                      updateFormData({ accessCode: newCode })
-                    }
+                    const newCode = e.target.value.toUpperCase()
+                    setCode(newCode)
+                    updateFormData({ accessCode: newCode })
                   }}
-                  readOnly={isPredefinedEvent}
+                  readOnly={false}
                   className={`
                     w-40 px-2 py-1 text-sm font-mono border-none outline-none
                     ${validationResult.isValid ? 'text-gray-800' : 'text-red-600'}
-                    ${isPredefinedEvent ? 'text-green-700 bg-green-50 cursor-not-allowed' : ''}
                     placeholder-gray-400
                   `}
-                  placeholder={code || "Generating..."}
-                  title={isPredefinedEvent ? "Generated from selected event (locked)" : "Editable Trip Code"}
+                  placeholder={code || (formData.startDate ? "Generating..." : "Enter trip code")}
+                  title="Editable Trip Code"
                 />
                 {validationResult.isChecking ? (
                   <RefreshCw className="w-4 h-4 animate-spin text-gray-400 ml-1" />

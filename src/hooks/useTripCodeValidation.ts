@@ -106,26 +106,13 @@ export function useTripCodeValidation(
     []
   )
 
+  // Track if the code has been manually edited by the user
+  const [hasBeenManuallyEdited, setHasBeenManuallyEdited] = useState(false)
+
   // Automatically generate or validate the code when form data changes
   useEffect(() => {
-    // Check if this is a predefined event - don't overwrite predefined codes
-    const isPredefinedEvent = (
-      (formData as any)?.selectedConvention?.is_predefined === true ||
-      ((formData as any)?.selectedConvention && formData?.accessCode && formData.accessCode.includes('-'))
-    )
-    
-    if (formData && formData.title && formData.startDate) {
-      // Don't auto-generate for predefined events that already have a code
-      if (isPredefinedEvent && formData.accessCode) {
-        // Just validate the existing predefined code
-        if (code !== formData.accessCode) {
-          setCode(formData.accessCode)
-        }
-        validateTripCode(formData.accessCode)
-        return
-      }
-      
-      // Only auto-generate if no code exists or if key parameters changed
+    if (formData && formData.title && formData.startDate && !hasBeenManuallyEdited) {
+      // Only auto-generate if no code exists and hasn't been manually edited
       if (!code || (initialCode === '' && code !== initialCode)) {
         const generatedCode = generateSmartTripCode(formData)
         if (generatedCode && generatedCode !== code) {
@@ -138,11 +125,12 @@ export function useTripCodeValidation(
     } else if (code) {
       validateTripCode(code)
     }
-  }, [code, formData?.title, formData?.startDate, formData?.companies, formData, validateTripCode, generateSmartTripCode, initialCode])
+  }, [code, formData?.title, formData?.startDate, formData?.companies, formData, validateTripCode, generateSmartTripCode, initialCode, hasBeenManuallyEdited])
 
   // Handler to update trip code
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode)
+    setHasBeenManuallyEdited(true) // Mark as manually edited when user types
     validateTripCode(newCode)
   }, [validateTripCode])
 
