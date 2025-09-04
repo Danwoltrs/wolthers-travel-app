@@ -992,17 +992,10 @@ export function OutlookCalendar({
           </div>
         </div>
 
-        {/* Calendar Grid */}
+        {/* Calendar Grid - Full Width and Flexible */}
         <div className="overflow-x-auto">
-          <div className="flex justify-center px-2 md:px-4 lg:px-6">
-            <div 
-              className="w-full" 
-              style={{ 
-                minWidth: `${100 + calendarDays.length * 180 + 100}px`,
-                // For large screens, use full width when there are 5 or more days
-                width: calendarDays.length >= 5 ? '100%' : `${100 + calendarDays.length * 180 + 100}px`
-              }}
-            >
+          <div className="w-full">
+            <div className="w-full min-w-fit">
               {/* Day Headers */}
               <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
                 gridTemplateColumns: `minmax(80px, 120px) repeat(${calendarDays.length}, 1fr) minmax(80px, 120px)` 
@@ -1022,7 +1015,7 @@ export function OutlookCalendar({
                 {calendarDays.map((day, index) => (
                   <div
                     key={day.dateString}
-                    className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center min-w-[160px] md:min-w-[180px]"
+                    className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center"
                   >
                     {/* Day header with inline remove buttons */}
                     <div className="flex items-center justify-between">
@@ -1107,7 +1100,7 @@ export function OutlookCalendar({
                     {calendarDays.map((day) => (
                       <div
                         key={`${day.dateString}-${timeSlot.time}`}
-                        className="border-r border-gray-200 dark:border-gray-700 min-w-[160px] md:min-w-[180px]"
+                        className="border-r border-gray-200 dark:border-gray-700"
                       >
                         <TimeSlotComponent
                           timeSlot={timeSlot}

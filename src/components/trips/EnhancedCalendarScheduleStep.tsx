@@ -65,6 +65,17 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   const error = mockTrip.id.startsWith('temp-trip-') ? null : activityManager.error
   const refreshing = mockTrip.id.startsWith('temp-trip-') ? isGeneratingAI : activityManager.refreshing
   
+  // Debug logging for temp activities
+  console.log('🔍 [Calendar Debug] Activity states:', {
+    tripId: mockTrip.id,
+    isTemp: mockTrip.id.startsWith('temp-trip-'),
+    tempActivitiesCount: tempActivities.length,
+    activitiesCount: activities.length,
+    tempActivities: tempActivities.map(a => ({ id: a.id, title: a.title, date: a.activity_date, time: a.start_time })),
+    formDataHasGenerated: !!formData.generatedActivities,
+    isGeneratingAI
+  })
+  
   // For temp trips, create simplified versions of activity manager functions
   const updateActivity = activityManager.updateActivity
   const updateActivityDebounced = activityManager.updateActivityDebounced
@@ -235,18 +246,17 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         const activity: ActivityFormData = {
           title: `Visit ${company.fantasy_name || company.name}`,
           description: `Business meeting and facility tour at ${company.name}${travelNote}`,
-          date: currentDate.toISOString().split('T')[0],
-          startTime,
-          endTime,
+          activity_date: currentDate.toISOString().split('T')[0], // Fix: use activity_date not date
+          start_time: startTime, // Fix: use start_time not startTime
+          end_time: endTime, // Fix: use end_time not endTime
           location: location.address || location.name,
-          activityType: 'meeting',
-          priority: 'high',
+          type: 'meeting', // Fix: use type not activityType
           notes: `🏢 Host company visit\n📍 Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}${travelNote}`,
-          visibility_level: 'all'
+          is_confirmed: false
         }
 
         generatedActivities.push(activity)
-        console.log(`📅 [AI Itinerary] Created activity: ${activity.title} on ${activity.date} from ${startTime} to ${endTime}`)
+        console.log(`📅 [AI Itinerary] Created activity: ${activity.title} on ${activity.activity_date} from ${startTime} to ${endTime}`)
         
         // Update current time for next activity
         currentTime = endTimeMinutes + 60 // Add 1 hour break
@@ -262,17 +272,16 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           id: `temp-activity-${Date.now()}-${index}`,
           title: activityData.title,
           description: activityData.description || '',
-          activity_date: activityData.date,
-          start_time: activityData.startTime,
-          end_time: activityData.endTime,
-          type: activityData.activityType as any,
+          activity_date: activityData.activity_date, // Fixed field name
+          start_time: activityData.start_time, // Fixed field name
+          end_time: activityData.end_time, // Fixed field name
+          type: activityData.type as any, // Fixed field name
           location: activityData.location,
           notes: activityData.notes,
           trip_id: mockTrip.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          priority_level: activityData.priority,
-          visibility_level: activityData.visibility_level
+          is_confirmed: activityData.is_confirmed
         }))
         
         // Store in formData for trip creation
