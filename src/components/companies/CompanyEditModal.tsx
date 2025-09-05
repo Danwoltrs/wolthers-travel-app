@@ -575,7 +575,7 @@ export default function CompanyEditModal({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Subcategories
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-wrap gap-4">
                         {subcategoryOptions[formData.category].map(subcategory => (
                           <label key={subcategory} className="flex items-center">
                             <input

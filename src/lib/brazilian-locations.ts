@@ -219,11 +219,40 @@ export function getRegionByCity(cityName: string, stateName?: string): string {
 
 // Travel time calculation between cities (in hours)
 export function calculateTravelTime(fromCity: string, toCity: string): number {
+  const fromCityLower = fromCity.toLowerCase()
+  const toCityLower = toCity.toLowerCase()
+  
+  // Same city - no travel time
+  if (fromCityLower === toCityLower) {
+    return 0
+  }
+  
+  // Santos area optimization - most visits within walking distance
+  if (isSantosArea(fromCity) && isSantosArea(toCity)) {
+    return 0 // Walking distance in Santos port area
+  }
+  
+  // Varginha area optimization - short drives between offices
+  if (isVarginhaArea(fromCity) && isVarginhaArea(toCity)) {
+    return 0.1 // 5-10 minutes drive, round up to minimal time
+  }
+  
+  // Same coffee region - reduced travel time
+  if (areCitiesInSameRegion(fromCity, toCity)) {
+    const region1 = getRegionByCity(fromCity)
+    const region2 = getRegionByCity(toCity)
+    
+    if (region1 === region2 && region1 !== 'Brasil') {
+      // Same coffee region - optimized travel
+      return 0.5
+    }
+  }
+  
   const fromLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
-    loc.city.toLowerCase() === fromCity.toLowerCase()
+    loc.city.toLowerCase() === fromCityLower
   )
   const toLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
-    loc.city.toLowerCase() === toCity.toLowerCase()
+    loc.city.toLowerCase() === toCityLower
   )
   
   if (!fromLocation?.coordinates || !toLocation?.coordinates) {
@@ -256,6 +285,28 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c // Distance in kilometers
 }
 
+// Helper function to check if city is in Santos port area
+export function isSantosArea(cityName: string): boolean {
+  const city = cityName.toLowerCase()
+  return city.includes('santos') || 
+         city.includes('guarujá') || 
+         city.includes('guaruja') ||
+         city.includes('cubatão') ||
+         city.includes('cubatao') ||
+         city.includes('são vicente') ||
+         city.includes('sao vicente')
+}
+
+// Helper function to check if city is in Varginha area
+export function isVarginhaArea(cityName: string): boolean {
+  const city = cityName.toLowerCase()
+  return city.includes('varginha') ||
+         city.includes('três pontas') ||
+         city.includes('tres pontas') ||
+         city.includes('alfenas') ||
+         city.includes('machado')
+}
+
 // Check if cities are in the same region (for grouping meetings)
 export function areCitiesInSameRegion(city1: string, city2: string): boolean {
   const loc1 = ALL_BRAZILIAN_LOCATIONS.find(loc => 
@@ -271,4 +322,194 @@ export function areCitiesInSameRegion(city1: string, city2: string): boolean {
   return loc1.coffeeRegion === loc2.coffeeRegion || 
          loc1.stateCode === loc2.stateCode ||
          (loc1.region === loc2.region && calculateTravelTime(city1, city2) <= 2)
+}
+
+// Get optimal meeting duration based on city (Santos gets shorter meetings)
+export function getOptimalMeetingDuration(cityName: string): number {
+  if (isSantosArea(cityName)) {
+    return 2 // 2 hours for Santos port meetings (more efficient)
+  }
+  
+  if (isVarginhaArea(cityName)) {
+    return 3 // 3 hours for Varginha area (medium duration)
+  }
+  
+  return 4 // 4 hours for other locations (comprehensive visits)
+}
+
+// Calculate maximum meetings per day for a city
+export function getMaxMeetingsPerDay(cityName: string): number {
+  if (isSantosArea(cityName)) {
+    return 5 // Can fit 5 x 2-hour meetings in Santos (walking distance)
+  }
+  
+  if (isVarginhaArea(cityName)) {
+    return 3 // Can fit 3 x 3-hour meetings in Varginha (short drives)
+  }
+  
+  return 2 // Standard 2 x 4-hour meetings for other cities
+}
+
+// Enhanced city detection from company address
+export function extractCityFromAddress(address: string): string {
+  if (!address) return ''
+  
+  const addressLower = address.toLowerCase()
+  
+  // First try exact matches in our known cities
+  for (const location of ALL_BRAZILIAN_LOCATIONS) {
+    if (addressLower.includes(location.city.toLowerCase())) {
+      return location.city
+    }
+  }
+  
+  // If no exact match, try to extract from common address patterns
+  const patterns = [
+    /([\w\s]+),\s*[\w\s]*\s*-\s*[A-Z]{2}/,  // City, State - XX
+    /([\w\s]+)\s*-\s*[A-Z]{2}/,            // City - XX
+    /,\s*([\w\s]+),/,                     // , City,
+    /^([\w\s]+),/,                        // City,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = address.match(pattern)
+    if (match && match[1]) {
+      const extractedCity = match[1].trim()
+      // Validate the extracted city is reasonable (not just numbers or single chars)
+      if (extractedCity.length > 2 && !/^\d+$/.test(extractedCity)) {
+        return extractedCity
+      }
+    }
+  }
+  
+  return '' // No city found
+}
+
+// Check if two companies are in the same city (enhanced logic)
+export function areCompaniesInSameCity(company1: any, company2: any): boolean {
+  if (!company1 || !company2) return false
+  
+  // Extract city names from company data
+  const city1 = company1.city || extractCityFromAddress(company1.address || '') || ''
+  const city2 = company2.city || extractCityFromAddress(company2.address || '') || ''
+  
+  if (!city1 || !city2) return false
+  
+  const city1Lower = city1.toLowerCase().trim()
+  const city2Lower = city2.toLowerCase().trim()
+  
+  // Direct city name comparison
+  if (city1Lower === city2Lower) return true
+  
+  // Check if they're in special areas (Santos, Varginha) that are treated as same city
+  if (isSantosArea(city1) && isSantosArea(city2)) return true
+  if (isVarginhaArea(city1) && isVarginhaArea(city2)) return true
+  
+  // Check if they're in the same metro area or region
+  if (areCitiesInSameRegion(city1, city2)) {
+    const travelTime = calculateTravelTime(city1, city2)
+    // Consider same city if travel time is very short (30 minutes or less)
+    return travelTime <= 0.5
+  }
+  
+  return false
+}
+
+// Starting point optimization logic
+export function getStartingPointStrategy(startingPoint: string): {
+  name: string
+  routingStrategy: 'port-inland' | 'north-south' | 'hub-spoke' | 'fly-drive' | 'custom'
+  priorityRegions: string[]
+  description: string
+} {
+  switch (startingPoint) {
+    case 'santos':
+      return {
+        name: 'Santos Port Strategy',
+        routingStrategy: 'port-inland',
+        priorityRegions: ['Santos/Port Area', 'São Paulo Metropolitan', 'Sul de Minas', 'Cerrado Mineiro'],
+        description: 'Start with port/logistics operations, then work inland to coffee regions'
+      }
+    
+    case 'cerrado':
+      return {
+        name: 'Cerrado Regional Strategy',
+        routingStrategy: 'north-south',
+        priorityRegions: ['Cerrado Mineiro', 'Sul de Minas', 'Alta Mogiana', 'Zona da Mata'],
+        description: 'North-to-south routing through prime coffee-growing regions'
+      }
+    
+    case 'uberlandia':
+      return {
+        name: 'Fly-in Drive Strategy',
+        routingStrategy: 'fly-drive',
+        priorityRegions: ['Cerrado Mineiro', 'Sul de Minas', 'Alta Mogiana'],
+        description: 'Fly into Uberlândia, rent car, explore surrounding coffee regions'
+      }
+    
+    case 'sao_paulo':
+      return {
+        name: 'Metropolitan Hub Strategy',
+        routingStrategy: 'hub-spoke',
+        priorityRegions: ['São Paulo Metropolitan', 'Alta Mogiana', 'Sul de Minas', 'Santos/Port Area'],
+        description: 'Use São Paulo as central hub with day trips to various regions'
+      }
+    
+    default:
+      return {
+        name: 'Custom Strategy',
+        routingStrategy: 'custom',
+        priorityRegions: [],
+        description: `Custom routing starting from ${startingPoint}`
+      }
+  }
+}
+
+// Optimize company order based on starting point
+export function optimizeCompanyOrderByStartingPoint(
+  companies: any[],
+  startingPoint: string
+): { company: any, city: string, region: string, priority: number }[] {
+  const strategy = getStartingPointStrategy(startingPoint)
+  
+  return companies.map(company => {
+    const city = company.city || extractCityFromAddress(company.address || '') || 'Unknown'
+    const region = getRegionByCity(city, company.state)
+    
+    // Calculate priority based on starting point strategy
+    let priority = 100 // Default priority
+    
+    switch (strategy.routingStrategy) {
+      case 'port-inland':
+        if (isSantosArea(city)) priority = 10
+        else if (city.toLowerCase().includes('são paulo')) priority = 20
+        else if (region === 'Sul de Minas') priority = 30
+        else if (region === 'Cerrado Mineiro') priority = 40
+        break
+      
+      case 'north-south':
+        if (region === 'Cerrado Mineiro') priority = 10
+        else if (region === 'Sul de Minas') priority = 20
+        else if (region === 'Alta Mogiana') priority = 30
+        else if (region === 'Zona da Mata') priority = 40
+        break
+      
+      case 'fly-drive':
+        // Prioritize by distance from Uberlândia
+        if (region === 'Cerrado Mineiro') priority = 10
+        else if (region === 'Sul de Minas') priority = 20
+        else if (region === 'Alta Mogiana') priority = 30
+        break
+      
+      case 'hub-spoke':
+        // Prioritize by accessibility from São Paulo
+        if (city.toLowerCase().includes('são paulo')) priority = 10
+        else if (region === 'Alta Mogiana') priority = 20
+        else if (region === 'Sul de Minas') priority = 30
+        else if (isSantosArea(city)) priority = 40
+        break
+    }
+    
+    return { company, city, region, priority }
+  }).sort((a, b) => a.priority - b.priority)
 }

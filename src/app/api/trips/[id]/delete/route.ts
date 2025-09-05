@@ -94,17 +94,47 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     console.log(`Deleting trip with status: ${trip.status}`)
     
     // Delete related data first (cascading delete)
+    console.log('🗑️ Deleting related trip data...')
+    
+    // Delete activities (modern approach)
+    await supabase.from('activities').delete().eq('trip_id', tripId)
+    console.log('✅ Activities deleted')
+    
     // Delete trip participants
     await supabase.from('trip_participants').delete().eq('trip_id', tripId)
+    console.log('✅ Trip participants deleted')
     
     // Delete trip vehicles
     await supabase.from('trip_vehicles').delete().eq('trip_id', tripId)
+    console.log('✅ Trip vehicles deleted')
     
-    // Delete itinerary items
+    // Delete itinerary items (legacy support)
     await supabase.from('itinerary_items').delete().eq('trip_id', tripId)
+    console.log('✅ Itinerary items deleted')
+    
+    // Delete trip hotels
+    await supabase.from('trip_hotels').delete().eq('trip_id', tripId)
+    console.log('✅ Trip hotels deleted')
+    
+    // Delete trip flights
+    await supabase.from('trip_flights').delete().eq('trip_id', tripId)
+    console.log('✅ Trip flights deleted')
+    
+    // Delete trip meetings and their attendees
+    const { data: meetings } = await supabase.from('trip_meetings').select('id').eq('trip_id', tripId)
+    if (meetings && meetings.length > 0) {
+      // Delete meeting attendees first
+      for (const meeting of meetings) {
+        await supabase.from('meeting_attendees').delete().eq('meeting_id', meeting.id)
+      }
+      // Delete meetings
+      await supabase.from('trip_meetings').delete().eq('trip_id', tripId)
+    }
+    console.log('✅ Trip meetings and attendees deleted')
     
     // Delete any drafts
     await supabase.from('trip_drafts').delete().eq('trip_id', tripId)
+    console.log('✅ Trip drafts deleted')
     
     // Finally delete the trip
     const { error: deleteError } = await supabase

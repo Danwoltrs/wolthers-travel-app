@@ -827,6 +827,10 @@ function extractTripData(stepData: any, currentStep: number): any {
     data.description = stepData.description
   }
   
+  if (stepData.startingPoint) {
+    data.starting_point = stepData.startingPoint
+  }
+  
   // Handle dates - they could be Date objects or strings
   // Ensure dates are stored as UTC midnight to avoid timezone issues
   if (stepData.startDate) {

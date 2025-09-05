@@ -16,6 +16,7 @@ import type { TripCard } from '@/types'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OptimizedDndProvider } from '@/components/shared/OptimizedDndProvider'
 import { calculateDuration } from '@/lib/utils'
+import { recalculateTravelTimes, type TravelTimeUpdate } from '@/lib/travel-recalculation'
 
 interface OutlookCalendarProps {
   trip: TripCard
@@ -917,6 +918,23 @@ export function OutlookCalendar({
           end_time: swapEndTime
         })
       ])
+      
+      // Recalculate travel times for both affected dates
+      console.log('📋 [Travel Recalc] Recalculating travel times after activity swap...')
+      const allActivities = Object.values(activitiesByDate).flat()
+      const updates1 = recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
+      const updates2 = recalculateTravelTimes(allActivities, targetSlotActivity.id, item.originalDate, item.originalTime)
+      
+      // Apply travel time updates
+      await Promise.all([...updates1, ...updates2].map(async (update) => {
+        if (update.shouldCreate && update.travelDetails) {
+          console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${update.travelDetails.duration}h ${update.travelDetails.type})`)
+          // Create new travel activity would go here
+        } else if (update.shouldDelete) {
+          console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
+          // Delete obsolete travel activity would go here
+        }
+      }))
     } else {
       // Move activity to new slot - preserve original duration
       await updateActivity(activity.id, {
@@ -924,6 +942,22 @@ export function OutlookCalendar({
         start_time: targetTime,
         end_time: newEndTime
       })
+      
+      // Recalculate travel times for the target date
+      console.log('📋 [Travel Recalc] Recalculating travel times after activity move...')
+      const allActivities = Object.values(activitiesByDate).flat()
+      const updates = recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
+      
+      // Apply travel time updates
+      await Promise.all(updates.map(async (update) => {
+        if (update.shouldCreate && update.travelDetails) {
+          console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${update.travelDetails.duration}h ${update.travelDetails.type})`)
+          // Create new travel activity would go here
+        } else if (update.shouldDelete) {
+          console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
+          // Delete obsolete travel activity would go here
+        }
+      }))
     }
   }, [activitiesByDate, updateActivity])
 

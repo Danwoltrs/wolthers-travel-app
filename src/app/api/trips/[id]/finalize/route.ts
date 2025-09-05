@@ -205,7 +205,47 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
       .eq('trip_id', tripId)
       .limit(1)
 
+    const { data: existingActivities } = await supabase
+      .from('activities')
+      .select('id')
+      .eq('trip_id', tripId)
+      .limit(1)
+
     // Only migrate data if it doesn't already exist (avoid duplicates)
+    
+    // Insert generated activities if they don't exist (from AI itinerary generation)
+    if (!existingActivities || existingActivities.length === 0) {
+      if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
+        console.log('📅 Migrating generated activities to normalized table')
+        
+        const activityInserts = stepData.generatedActivities.map((activity: any) => ({
+          trip_id: tripId,
+          title: activity.title,
+          description: activity.description || '',
+          activity_date: activity.activity_date,
+          start_time: activity.start_time,
+          end_time: activity.end_time,
+          location: activity.location || '',
+          activity_type: activity.type || 'meeting',
+          priority: activity.priority || 'medium',
+          notes: activity.notes || '',
+          visibility_level: activity.visibility_level || 'all',
+          is_confirmed: activity.is_confirmed || false,
+          created_at: now,
+          updated_at: now
+        }))
+
+        const { error: activitiesError } = await supabase
+          .from('activities')
+          .insert(activityInserts)
+
+        if (activitiesError) {
+          console.error('⚠️ Failed to migrate generated activities:', activitiesError)
+        } else {
+          console.log('✅ Generated activities migrated successfully')
+        }
+      }
+    }
     
     // Insert hotels if they don't exist
     if (!existingHotels || existingHotels.length === 0) {

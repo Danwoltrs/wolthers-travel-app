@@ -24,6 +24,7 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
 import ReviewStep from './ReviewStep'
 import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'
+import StartingPointSelectionStep from './StartingPointSelectionStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
 import type { 
   Company, 
@@ -110,6 +111,9 @@ export interface TripFormData {
   selectedRegions?: string[] // AI-selected regions
   participantCompanyMatrix?: { [hostId: string]: string[] } // Which buyers visit which hosts
   
+  // Step 4: Starting Point Selection
+  startingPoint?: string // Starting location for the trip
+  
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
   activities?: Activity[] // Calendar activities with travel time
@@ -118,6 +122,9 @@ export interface TripFormData {
   // Legacy fields for compatibility
   wolthersStaff: User[]
   vehicles: Vehicle[]
+  
+  // Vehicle allocation data
+  vehicleAssignments?: any[]  // Vehicle assignment data from vehicle allocation system
   
   // Conference-specific data
   meetings?: CalendarEvent[]
@@ -162,6 +169,7 @@ const initialFormData: TripFormData = {
   itineraryDays: [],
   wolthersStaff: [],
   vehicles: [],
+  vehicleAssignments: [],
   meetings: [],
   hotels: [],
   flights: []
@@ -186,8 +194,9 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
       { id: 3, name: 'Team & Participants', description: 'Select Wolthers staff and buyer companies' },
       { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
-      { id: 5, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 6, name: 'Review & Create', description: 'Review and finalize trip' }
+      { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
+      { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
+      { id: 7, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
     return [
@@ -513,9 +522,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Host/Visits Selector: allow proceeding (host companies optional)
           return true
         case 5:
+          // Starting Point Selection: require starting point selection
+          return formData.startingPoint && formData.startingPoint.trim() !== ''
+        case 6:
           // Calendar Schedule: allow proceeding (activities can be added later)
           return true
-        case 6:
+        case 7:
           return true
         default:
           return false
@@ -711,13 +723,20 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 5 && (
-            <EnhancedCalendarScheduleStep
+            <StartingPointSelectionStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 6 && (
+            <EnhancedCalendarScheduleStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 7 && (
             <ReviewStep formData={formData} />
           )}
         </div>

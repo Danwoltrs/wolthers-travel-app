@@ -6,7 +6,7 @@ import { useActivityManager, type Activity, type ActivityFormData } from '@/hook
 import type { TripCard } from '@/types'
 import ActivitySplitModal from './ActivitySplitModal'
 import { loadGoogleMapsAPI, geocodeLocation, optimizeRoute, calculateTravelTime, formatDuration, type Location } from '@/lib/google-maps-utils'
-import { detectLocationFromAddress, getRegionByCity, calculateTravelTime as calculateLocalTravelTime, areCitiesInSameRegion } from '@/lib/brazilian-locations'
+import { detectLocationFromAddress, getRegionByCity, calculateTravelTime as calculateLocalTravelTime, areCitiesInSameRegion, isSantosArea, isVarginhaArea, getOptimalMeetingDuration, getMaxMeetingsPerDay, extractCityFromAddress, areCompaniesInSameCity, getStartingPointStrategy, optimizeCompanyOrderByStartingPoint } from '@/lib/brazilian-locations'
 
 interface CalendarScheduleStepProps {
   formData: TripFormData
@@ -146,51 +146,57 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         }
       }
 
-      // Group locations by coffee regions for better travel optimization
-      console.log('🗺️ [AI Itinerary] Grouping companies by coffee regions...')
-      const locationsByRegion = new Map<string, (Location & { company: any })[]>()
+      // Enhanced starting point-aware optimization
+      console.log('🎯 [AI Itinerary] Applying starting point optimization strategy...')
+      const startingPointStrategy = getStartingPointStrategy(formData.startingPoint || 'santos')
+      console.log(`📍 [AI Itinerary] Using ${startingPointStrategy.name} - ${startingPointStrategy.description}`)
       
-      for (const location of locations) {
-        const company = location.company
-        let region = 'Other'
-        
-        // Try to detect coffee region from company address/city
-        const address = company.address || `${company.city || ''} ${company.state || ''}`.trim()
-        if (address) {
-          const detectedLocation = detectLocationFromAddress(address)
-          if (detectedLocation?.coffeeRegion) {
-            region = detectedLocation.coffeeRegion
-          } else if (company.city) {
-            const cityRegion = getRegionByCity(company.city, company.state)
-            if (cityRegion && cityRegion !== 'Brasil') {
-              region = cityRegion
-            }
-          }
-        }
-        
-        if (!locationsByRegion.has(region)) {
-          locationsByRegion.set(region, [])
-        }
-        locationsByRegion.get(region)!.push(location)
-        
-        console.log(`📍 [AI Itinerary] ${company.name} assigned to region: ${region}`)
-      }
+      // Optimize company order based on starting point
+      const optimizedCompanyData = optimizeCompanyOrderByStartingPoint(hostCompanies, formData.startingPoint || 'santos')
+      console.log('🗺️ [AI Itinerary] Companies prioritized by starting point strategy:')
+      optimizedCompanyData.forEach((item, index) => {
+        console.log(`  ${index + 1}. ${item.company.name} (${item.city}) - Priority: ${item.priority}`)
+      })
       
-      // Optimize route within each region, then combine regions efficiently
-      console.log('🚗 [AI Itinerary] Optimizing travel route by regions...')
+      // Group by city to minimize intra-city travel
+      console.log('🏙️ [AI Itinerary] Grouping companies by city to eliminate unnecessary travel...')
+      const companiesByCity = new Map<string, typeof optimizedCompanyData>()
+      
+      optimizedCompanyData.forEach(item => {
+        const cityKey = item.city.toLowerCase().trim()
+        if (!companiesByCity.has(cityKey)) {
+          companiesByCity.set(cityKey, [])
+        }
+        companiesByCity.get(cityKey)!.push(item)
+      })
+      
+      // Create optimized locations list respecting city grouping and starting point strategy
+      console.log('🚗 [AI Itinerary] Creating optimized route with enhanced same-city logic...')
       let optimizedLocations: (Location & { company: any })[] = []
       
-      const regionNames = Array.from(locationsByRegion.keys()).sort()
-      for (const regionName of regionNames) {
-        const regionLocations = locationsByRegion.get(regionName)!
-        if (regionLocations.length > 1) {
-          // Optimize within region
-          const optimizedRegionLocations = await optimizeRoute(regionLocations)
-          optimizedLocations.push(...optimizedRegionLocations)
-        } else {
-          optimizedLocations.push(...regionLocations)
+      // Process cities in priority order
+      const processedCities = new Set<string>()
+      for (const item of optimizedCompanyData) {
+        const cityKey = item.city.toLowerCase().trim()
+        if (processedCities.has(cityKey)) continue
+        
+        const cityCompanies = companiesByCity.get(cityKey) || []
+        const cityLocations = cityCompanies.map(companyData => {
+          const location = locations.find(loc => loc.company.id === companyData.company.id)
+          return location
+        }).filter(Boolean) as (Location & { company: any })[]
+        
+        if (cityLocations.length > 1) {
+          // Multiple companies in same city - optimize within city
+          console.log(`🏙️ [AI Itinerary] Optimizing ${cityLocations.length} companies within ${item.city}`)
+          const optimizedCityLocations = await optimizeRoute(cityLocations)
+          optimizedLocations.push(...optimizedCityLocations)
+        } else if (cityLocations.length === 1) {
+          optimizedLocations.push(cityLocations[0])
         }
-        console.log(`🗺️ [AI Itinerary] Optimized ${regionLocations.length} companies in ${regionName}`)
+        
+        processedCities.add(cityKey)
+        console.log(`✅ [AI Itinerary] Processed ${cityLocations.length} companies in ${item.city}`)
       }
       
       // Calculate travel times between consecutive locations
@@ -219,32 +225,65 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         const currentCity = company.city || 'Unknown'
         const previousCity = i > 0 ? optimizedLocations[i - 1].company.city || 'Unknown' : null
         
-        // Add travel activity from previous location (except for first location)
+        // Enhanced same-city logic: Add travel activity only when companies are in different cities
         if (i > 0 && previousCity) {
-          const localTravelHours = calculateLocalTravelTime(previousCity, currentCity)
-          const travelMinutes = Math.ceil(localTravelHours * 60)
+          const previousCompany = optimizedLocations[i - 1].company
+          const currentCompany = location.company
           
-          // Create explicit travel activity
-          const travelStartTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
-          const travelEndTimeMinutes = currentTime + travelMinutes
-          const travelEndTime = `${Math.floor(travelEndTimeMinutes / 60).toString().padStart(2, '0')}:${(travelEndTimeMinutes % 60).toString().padStart(2, '0')}`
+          // Use enhanced same-city detection
+          const isSameCity = areCompaniesInSameCity(previousCompany, currentCompany)
           
-          const travelActivity: ActivityFormData = {
-            title: `Drive to ${currentCity}`,
-            description: `Travel from ${previousCity} to ${currentCity} (${localTravelHours}h drive)`,
-            activity_date: currentDate.toISOString().split('T')[0],
-            start_time: travelStartTime,
-            end_time: travelEndTime,
-            location: `${previousCity} → ${currentCity}`,
-            type: 'travel',
-            notes: `🚗 Estimated driving time: ${localTravelHours} hours\n📍 Route: ${previousCity} to ${currentCity}`,
-            is_confirmed: false
+          if (!isSameCity) {
+            // Different cities - calculate travel time
+            const localTravelHours = calculateLocalTravelTime(previousCity, currentCity)
+            const travelMinutes = Math.ceil(localTravelHours * 60)
+            
+            // Only create travel activity if there's significant travel time (> 10 minutes)
+            if (localTravelHours > 0.15) {
+              const travelStartTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
+              const travelEndTimeMinutes = currentTime + travelMinutes
+              const travelEndTime = `${Math.floor(travelEndTimeMinutes / 60).toString().padStart(2, '0')}:${(travelEndTimeMinutes % 60).toString().padStart(2, '0')}`
+              
+              // Enhanced travel descriptions based on starting point strategy
+              const strategy = getStartingPointStrategy(formData.startingPoint || 'santos')
+              let travelDescription = `Travel from ${previousCity} to ${currentCity} (${localTravelHours}h drive)`
+              
+              if (strategy.routingStrategy === 'port-inland' && isSantosArea(previousCity)) {
+                travelDescription = `Drive inland from Santos port to ${currentCity} coffee region (${localTravelHours}h)`
+              } else if (strategy.routingStrategy === 'north-south') {
+                travelDescription = `Continue south through coffee regions: ${previousCity} → ${currentCity} (${localTravelHours}h)`
+              } else if (strategy.routingStrategy === 'fly-drive') {
+                travelDescription = `Rental car drive from ${previousCity} to ${currentCity} (${localTravelHours}h)`
+              } else if (strategy.routingStrategy === 'hub-spoke') {
+                travelDescription = `Day trip from São Paulo hub to ${currentCity} (${localTravelHours}h each way)`
+              }
+              
+              const travelActivity: ActivityFormData = {
+                title: `${localTravelHours <= 0.5 ? 'Short Drive' : 'Drive'} to ${currentCity}`,
+                description: travelDescription,
+                activity_date: currentDate.toISOString().split('T')[0],
+                start_time: travelStartTime,
+                end_time: travelEndTime,
+                location: `${previousCity} → ${currentCity}`,
+                type: 'travel',
+                notes: `🚗 Travel time: ${localTravelHours} hours\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing`,
+                is_confirmed: false
+              }
+              
+              generatedActivities.push(travelActivity)
+              console.log(`🚗 [AI Itinerary] Created travel activity: ${previousCity} → ${currentCity} (${localTravelHours}h) - Different cities`)
+              
+              currentTime = travelEndTimeMinutes
+            } else {
+              // Short travel - just add buffer time
+              currentTime += 30 // 30 minutes buffer for short trips
+              console.log(`🚙 [AI Itinerary] Short travel: ${previousCity} → ${currentCity} (${localTravelHours}h) - Buffer added`)
+            }
+          } else {
+            // Same city - no travel activity needed, just add meeting buffer
+            currentTime += 15 // 15 minutes buffer between same-city meetings
+            console.log(`🏙️ [AI Itinerary] Same city: ${previousCompany.name} → ${currentCompany.name} in ${currentCity} (no travel activity)`)
           }
-          
-          generatedActivities.push(travelActivity)
-          console.log(`🚗 [AI Itinerary] Created travel activity: ${previousCity} → ${currentCity} (${localTravelHours}h)`)
-          
-          currentTime = travelEndTimeMinutes
           
           // If travel pushes us past reasonable business hours (6 PM), move to next day
           if (currentTime > 18 * 60) {
@@ -259,17 +298,47 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           }
         }
 
-        // Determine meeting duration based on city (Santos gets max 2h, others 4h)
-        const isSantosArea = currentCity.toLowerCase().includes('santos')
-        const visitDuration = isSantosArea ? 2 * 60 : 4 * 60 // 2h for Santos, 4h for others
+        // Determine meeting duration using optimized logic
+        const visitDuration = getOptimalMeetingDuration(currentCity) * 60 // Convert hours to minutes
         
         // Create visit activity
         const startTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
         const endTimeMinutes = currentTime + visitDuration
         const endTime = `${Math.floor(endTimeMinutes / 60).toString().padStart(2, '0')}:${(endTimeMinutes % 60).toString().padStart(2, '0')}`
 
-        const meetingType = isSantosArea ? '🏭 Port & logistics meeting' : '🏢 Business meeting & facility tour'
-        const durationNote = isSantosArea ? ' (2h focused meeting)' : ' (4h comprehensive visit)'
+        // Enhanced meeting types based on starting point strategy and location
+        const strategy = getStartingPointStrategy(formData.startingPoint || 'santos')
+        let meetingType = '🏢 Business meeting & facility tour'
+        let durationNote = ' (4h comprehensive visit)'
+        
+        if (isSantosArea(currentCity)) {
+          meetingType = '🏭 Port & logistics meeting'
+          durationNote = ' (2h focused meeting - walking distance)'
+          if (strategy.routingStrategy === 'port-inland') {
+            durationNote += ' - Starting point priority'
+          }
+        } else if (isVarginhaArea(currentCity)) {
+          meetingType = '☕ Coffee region business visit'
+          durationNote = ' (3h coffee region visit - short drives)'
+        } else {
+          // Customize meeting type based on region and strategy
+          const region = getRegionByCity(currentCity, company.state)
+          if (region.includes('Cerrado')) {
+            meetingType = '🌾 Cerrado coffee producer visit'
+            if (strategy.routingStrategy === 'north-south' || strategy.routingStrategy === 'fly-drive') {
+              durationNote = ' (4h comprehensive visit - strategy optimized)'
+            }
+          } else if (region.includes('Mogiana')) {
+            meetingType = '☕ Alta Mogiana specialty coffee visit'
+          } else if (region.includes('Zona da Mata')) {
+            meetingType = '🍃 Traditional coffee farm visit'
+          } else if (currentCity.toLowerCase().includes('são paulo')) {
+            meetingType = '🏙️ Metropolitan business meeting'
+            if (strategy.routingStrategy === 'hub-spoke') {
+              durationNote = ' (3h hub meeting - return same day)'
+            }
+          }
+        }
         
         const activity: ActivityFormData = {
           title: `Visit ${company.fantasy_name || company.name}`,
@@ -279,7 +348,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           end_time: endTime,
           location: location.address || location.name,
           type: 'meeting',
-          notes: `${meetingType}\n📍 ${currentCity} - Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}\n⏱️ Duration: ${visitDuration/60}h${durationNote}`,
+          notes: `${meetingType}\n📍 ${currentCity} - Coordinates: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}\n⏱️ Duration: ${visitDuration/60}h${durationNote}\n🎯 Strategy: ${strategy.name}\n🗺️ Starting point: ${formData.startingPoint || 'Santos'}`,
           is_confirmed: false
         }
 
@@ -395,7 +464,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                 <span>AI Itinerary Generation</span>
               </h3>
               <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                Creating optimized itinerary with Google Maps travel time calculations...
+                Creating starting point-optimized itinerary with enhanced same-city logic...
               </p>
             </div>
           </div>
@@ -404,13 +473,13 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
             <div className="flex items-center space-x-2">
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-emerald-700 dark:text-emerald-300">
-                {hostCompanies.length} Host Companies
+                Starting: {formData.startingPoint || 'Santos'}
               </span>
             </div>
             <div className="flex items-center space-x-2">
               <Navigation className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-emerald-700 dark:text-emerald-300">
-                Route Optimization
+                {hostCompanies.length} Host Companies
               </span>
             </div>
             <div className="flex items-center space-x-2">
@@ -424,7 +493,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-emerald-700 dark:text-emerald-300">
-                Smart Scheduling
+                Smart City Grouping
               </span>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { UserRole, VehicleStatus } from '@/types'
 import MultiSelectSearch, { MultiSelectOption } from '@/components/ui/MultiSelectSearch'
 import { useWolthersStaff } from '@/hooks/useWolthersStaff'
 import { useBulkAvailabilityCheck } from '@/hooks/useAvailabilityCheck'
+import VehicleAllocationSection from './VehicleAllocationSection'
 
 // Extended participant interface with date ranges
 export interface ParticipantWithDates extends User {
@@ -379,34 +380,28 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
 
       {/* Right Column - Driver Assignment & Vehicles */}
       <div className="space-y-6">
-        {/* Driver Assignment */}
-        <div>
-          <div className="flex items-center mb-4">
-            <UserCheck className="w-5 h-5 text-gray-400 mr-2" />
-            <h3 className="text-md font-medium text-gray-900 dark:text-white">
-              Driver Assignment
-            </h3>
-          </div>
-          <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Driver assignment coming soon. Selected team members can serve as drivers when needed.
-            </p>
-          </div>
-        </div>
-
-        {/* Vehicles */}
+        {/* Vehicle Allocation */}
         <div>
           <div className="flex items-center mb-4">
             <Car className="w-5 h-5 text-gray-400 mr-2" />
             <h3 className="text-md font-medium text-gray-900 dark:text-white">
-              Transportation
+              Transportation & Vehicle Allocation
             </h3>
           </div>
-          <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Vehicle assignment available soon. Support for both company vehicles and rental options coming.
-            </p>
-          </div>
+          
+          {formData.startDate && formData.endDate && (formData.wolthersStaff || []).length > 0 ? (
+            <VehicleAllocationSection 
+              formData={formData}
+              updateFormData={updateFormData}
+              participantsWithDates={participantsWithDates}
+            />
+          ) : (
+            <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Please complete team selection and ensure trip dates are set to enable vehicle allocation.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
