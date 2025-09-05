@@ -697,6 +697,38 @@ export async function POST(request: NextRequest) {
           
           console.log('✅ Meetings created successfully')
         }
+
+        // Save generated activities if they exist (from AI itinerary generation)
+        if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
+          console.log('📅 Creating generated activities:', stepData.generatedActivities.length)
+          
+          const activityInserts = stepData.generatedActivities.map((activity: any) => ({
+            trip_id: finalTripId,
+            title: activity.title,
+            description: activity.description || '',
+            activity_date: activity.activity_date,
+            start_time: activity.start_time,
+            end_time: activity.end_time,
+            location: activity.location || '',
+            activity_type: activity.type || 'meeting',
+            priority: activity.priority || 'medium',
+            notes: activity.notes || '',
+            visibility_level: activity.visibility_level || 'all',
+            is_confirmed: activity.is_confirmed || false,
+            created_at: now,
+            updated_at: now
+          }))
+
+          const { error: activitiesError } = await supabase
+            .from('activities')
+            .insert(activityInserts)
+
+          if (activitiesError) {
+            console.error('⚠️ Failed to create generated activities:', activitiesError)
+          } else {
+            console.log('✅ Generated activities created successfully')
+          }
+        }
       }
     }
 
@@ -918,6 +950,9 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     
     // Delete meetings and their related data (cascading delete will handle attendees)
     await supabase.from('trip_meetings').delete().eq('trip_id', tripId)
+    
+    // Also delete existing activities (we'll re-insert them if they exist in stepData)
+    await supabase.from('activities').delete().eq('trip_id', tripId)
 
     // Re-insert hotels
     if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
@@ -1023,6 +1058,41 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
 
           await supabase.from('meeting_attendees').insert(attendeeInserts)
         }
+      }
+    }
+
+    // Re-insert generated activities (from AI itinerary generation)
+    if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
+      console.log('📅 Updating generated activities:', stepData.generatedActivities.length)
+      
+      // Clear existing activities first
+      await supabase.from('activities').delete().eq('trip_id', tripId)
+      
+      const activityInserts = stepData.generatedActivities.map((activity: any) => ({
+        trip_id: tripId,
+        title: activity.title,
+        description: activity.description || '',
+        activity_date: activity.activity_date,
+        start_time: activity.start_time,
+        end_time: activity.end_time,
+        location: activity.location || '',
+        activity_type: activity.type || 'meeting',
+        priority: activity.priority || 'medium',
+        notes: activity.notes || '',
+        visibility_level: activity.visibility_level || 'all',
+        is_confirmed: activity.is_confirmed || false,
+        created_at: now,
+        updated_at: now
+      }))
+
+      const { error: activitiesError } = await supabase
+        .from('activities')
+        .insert(activityInserts)
+
+      if (activitiesError) {
+        console.error('⚠️ Failed to update generated activities:', activitiesError)
+      } else {
+        console.log('✅ Generated activities updated successfully')
       }
     }
 
