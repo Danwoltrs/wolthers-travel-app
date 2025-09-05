@@ -442,17 +442,17 @@ export function areCompaniesInSameCity(company1: any, company2: any): boolean {
 // Starting point optimization logic
 export function getStartingPointStrategy(startingPoint: string): {
   name: string
-  routingStrategy: 'port-inland' | 'north-south' | 'hub-spoke' | 'fly-drive' | 'custom'
+  routingStrategy: 'port-inland' | 'north-south' | 'hub-spoke' | 'fly-drive' | 'airport-pickup' | 'custom'
   priorityRegions: string[]
   description: string
 } {
   switch (startingPoint) {
     case 'santos':
       return {
-        name: 'Santos Port Strategy',
+        name: 'Santos HQ Strategy',
         routingStrategy: 'port-inland',
         priorityRegions: ['Santos/Port Area', 'São Paulo Metropolitan', 'Sul de Minas', 'Cerrado Mineiro'],
-        description: 'Start with port/logistics operations, then work inland to coffee regions'
+        description: 'Visit Wolthers HQ and exporters in Santos, then work inland to coffee regions'
       }
     
     case 'cerrado':
@@ -465,10 +465,10 @@ export function getStartingPointStrategy(startingPoint: string): {
     
     case 'uberlandia':
       return {
-        name: 'Fly-in Drive Strategy',
+        name: 'Fly to Cerrado Strategy',
         routingStrategy: 'fly-drive',
         priorityRegions: ['Cerrado Mineiro', 'Sul de Minas', 'Alta Mogiana'],
-        description: 'Fly into Uberlândia, rent car, explore surrounding coffee regions'
+        description: 'Fly to Cerrado - with either rental or Wolthers driver to pick us up'
       }
     
     case 'sao_paulo':
@@ -477,6 +477,14 @@ export function getStartingPointStrategy(startingPoint: string): {
         routingStrategy: 'hub-spoke',
         priorityRegions: ['São Paulo Metropolitan', 'Alta Mogiana', 'Sul de Minas', 'Santos/Port Area'],
         description: 'Use São Paulo as central hub with day trips to various regions'
+      }
+    
+    case 'gru_airport':
+      return {
+        name: 'GRU Airport Pickup Strategy',
+        routingStrategy: 'airport-pickup',
+        priorityRegions: ['São Paulo Metropolitan', 'Santos/Port Area', 'Sul de Minas', 'Cerrado Mineiro'],
+        description: 'Pick up from GRU airport, then drive to Santos, São Paulo, or Interior'
       }
     
     default:
@@ -519,7 +527,7 @@ export function optimizeCompanyOrderByStartingPoint(
         break
       
       case 'fly-drive':
-        // Prioritize by distance from Uberlândia
+        // Prioritize by distance from Uberlândia/Cerrado
         if (region === 'Cerrado Mineiro') priority = 10
         else if (region === 'Sul de Minas') priority = 20
         else if (region === 'Alta Mogiana') priority = 30
@@ -531,6 +539,15 @@ export function optimizeCompanyOrderByStartingPoint(
         else if (region === 'Alta Mogiana') priority = 20
         else if (region === 'Sul de Minas') priority = 30
         else if (isSantosArea(city)) priority = 40
+        break
+      
+      case 'airport-pickup':
+        // GRU Airport pickup - prioritize by proximity to airport/São Paulo
+        if (city.toLowerCase().includes('são paulo')) priority = 10
+        else if (isSantosArea(city)) priority = 20 // Easy drive from GRU to Santos
+        else if (region === 'Alta Mogiana') priority = 30 // Interior drive
+        else if (region === 'Sul de Minas') priority = 40
+        else if (region === 'Cerrado Mineiro') priority = 50
         break
     }
     

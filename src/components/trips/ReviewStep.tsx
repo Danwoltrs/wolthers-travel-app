@@ -86,7 +86,24 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         </h3>
         
         <div className="space-y-3">
-          {(formData.wolthersStaff || []).length > 0 && (
+          {/* Show participants from formData.participants (selected Wolthers staff) */}
+          {(formData.participants || []).length > 0 && (
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                Wolthers Staff ({(formData.participants || []).length})
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(formData.participants || []).map(staff => (
+                  <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
+                    {staff.fullName || staff.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Legacy support for formData.wolthersStaff */}
+          {(formData.wolthersStaff || []).length > 0 && !(formData.participants || []).length && (
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 Wolthers Staff ({(formData.wolthersStaff || []).length})

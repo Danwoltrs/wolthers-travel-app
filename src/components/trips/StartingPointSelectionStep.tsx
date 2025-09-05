@@ -19,7 +19,7 @@ const startingPointOptions: StartingPointOption[] = [
   {
     id: 'santos',
     name: 'Santos',
-    description: 'Start with port/logistics operations and work inland',
+    description: 'Visit Wolthers HQ and exporters in Santos',
     icon: <Ship className="w-6 h-6" />,
     color: 'bg-blue-500'
   },
@@ -32,8 +32,8 @@ const startingPointOptions: StartingPointOption[] = [
   },
   {
     id: 'uberlandia',
-    name: 'Uberlândia',
-    description: 'Fly in, rent car, and explore surrounding regions',
+    name: 'Fly to Cerrado',
+    description: 'Fly to Cerrado - with either rental or Wolthers driver to pick us up',
     icon: <Plane className="w-6 h-6" />,
     color: 'bg-purple-500'
   },
@@ -43,6 +43,13 @@ const startingPointOptions: StartingPointOption[] = [
     description: 'Metropolitan hub with easy access to multiple regions',
     icon: <Car className="w-6 h-6" />,
     color: 'bg-orange-500'
+  },
+  {
+    id: 'gru_airport',
+    name: 'GRU Airport Pickup',
+    description: 'Pick up from GRU airport, then drive to Santos, São Paulo, or Interior',
+    icon: <Plane className="w-6 h-6" />,
+    color: 'bg-indigo-500'
   }
 ]
 
@@ -93,7 +100,7 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
       </div>
 
       {/* Starting Point Options Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {startingPointOptions.map((option) => (
           <button
             key={option.id}

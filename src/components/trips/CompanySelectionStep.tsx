@@ -136,22 +136,28 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     
     return matchesSearch && matchesRegion && isSupplier && notBuyerCompany && notWolthers && notAlreadySelected
   }).sort((a, b) => {
-    // Sort by region first, then by company name
+    // Sort by region first, then by city, then by company name
     const aCompany = a as any
     const bCompany = b as any
-    const aLocation = aCompany.address || aCompany.city || aCompany.state || ''
-    const bLocation = bCompany.address || bCompany.city || bCompany.state || ''
-    const aRegion = extractCoffeeRegion(a as any)
-    const bRegion = extractCoffeeRegion(b as any)
+    const aRegion = extractCoffeeRegion(aCompany)
+    const bRegion = extractCoffeeRegion(bCompany)
+    const aCity = (aCompany.city || '').toLowerCase().trim()
+    const bCity = (bCompany.city || '').toLowerCase().trim()
     
+    // First, sort by region
     if (aRegion !== bRegion) {
-      // Sort regions alphabetically, but put 'Unknown' last
-      if (aRegion === 'Unknown') return 1
-      if (bRegion === 'Unknown') return -1
+      // Sort regions alphabetically, but put 'Unknown' and 'Other' last
+      if (aRegion === 'Unknown' || aRegion === 'Other') return 1
+      if (bRegion === 'Unknown' || bRegion === 'Other') return -1
       return aRegion.localeCompare(bRegion)
     }
     
-    // Within same region, sort by company name
+    // Within same region, sort by city to group companies by location
+    if (aCity !== bCity) {
+      return aCity.localeCompare(bCity)
+    }
+    
+    // Within same city, sort by company name
     const aName = a.fantasy_name || a.name
     const bName = b.fantasy_name || b.name
     return aName.localeCompare(bName)
@@ -316,12 +322,29 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {(company as any).address || (company as any).city ? (
+                        {(company as any).city || (company as any).address ? (
                           <div className="flex items-start">
                             <MapPin className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
-                            <span className="break-words max-w-xs">
-                              {(company as any).address || `${(company as any).city || ''}, ${(company as any).state || ''}`}
-                            </span>
+                            <div className="break-words max-w-xs">
+                              {/* Show city prominently if available */}
+                              {(company as any).city && (
+                                <div className="font-medium text-emerald-600 dark:text-emerald-400">
+                                  {(company as any).city}
+                                </div>
+                              )}
+                              {/* Show full address if different from city */}
+                              {(company as any).address && (
+                                <div className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
+                                  {(company as any).address}
+                                </div>
+                              )}
+                              {/* Fallback to state if no city */}
+                              {!(company as any).city && (company as any).state && (
+                                <div className="text-gray-600 dark:text-gray-400">
+                                  {(company as any).state}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-500 italic">—</span>
