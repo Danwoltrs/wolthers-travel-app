@@ -8,11 +8,14 @@ import { useWolthersStaff } from '@/hooks/useWolthersStaff'
 import { useBulkAvailabilityCheck } from '@/hooks/useAvailabilityCheck'
 import VehicleAllocationSection from './VehicleAllocationSection'
 
-// Extended participant interface with date ranges
+// Extended participant interface with date ranges and driver capability
 export interface ParticipantWithDates extends User {
   participationStartDate?: Date
   participationEndDate?: Date
   isPartial?: boolean
+  isDriver?: boolean
+  drivingLicense?: string // License class (B, C, D, etc.)
+  canDriveManual?: boolean
 }
 
 interface TeamVehicleStepProps {
@@ -28,6 +31,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   const [showConflictWarning, setShowConflictWarning] = useState(false)
   const [participantsWithDates, setParticipantsWithDates] = useState<ParticipantWithDates[]>([])
   const [showDateRanges, setShowDateRanges] = useState(false)
+  const [showDriverSettings, setShowDriverSettings] = useState(false)
 
   // Early return with fallback if there's an issue
   if (typeof window === 'undefined') {
@@ -115,7 +119,10 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             ...staff,
             participationStartDate: formData.startDate,
             participationEndDate: formData.endDate,
-            isPartial: false
+            isPartial: false,
+            isDriver: false,
+            drivingLicense: 'B',
+            canDriveManual: false
           }
         })
         return newParticipants
@@ -151,6 +158,38 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             isPartial,
             participationStartDate: isPartial ? participant.participationStartDate : formData.startDate,
             participationEndDate: isPartial ? participant.participationEndDate : formData.endDate
+          }
+        }
+        return participant
+      })
+    )
+  }
+
+  // Handle driver designation toggle
+  const handleDriverToggle = (participantId: string, isDriver: boolean) => {
+    setParticipantsWithDates(prev =>
+      prev.map(participant => {
+        if (participant.id === participantId) {
+          return {
+            ...participant,
+            isDriver,
+            drivingLicense: isDriver ? participant.drivingLicense || 'B' : undefined,
+            canDriveManual: isDriver ? participant.canDriveManual || false : undefined
+          }
+        }
+        return participant
+      })
+    )
+  }
+
+  // Handle driver license changes
+  const handleDriverLicenseChange = (participantId: string, field: 'drivingLicense' | 'canDriveManual', value: string | boolean) => {
+    setParticipantsWithDates(prev =>
+      prev.map(participant => {
+        if (participant.id === participantId) {
+          return {
+            ...participant,
+            [field]: value
           }
         }
         return participant
@@ -371,6 +410,129 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Driver Assignment Section */}
+          {(formData.wolthersStaff || []).length > 0 && (
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <UserCheck className="w-5 h-5 text-gray-400 mr-2" />
+                  <h4 className="text-md font-medium text-gray-900 dark:text-white">
+                    Driver Assignment
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDriverSettings(!showDriverSettings)}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                >
+                  {showDriverSettings ? 'Hide' : 'Configure'} Driver Settings
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Select which team members can drive during the trip. This helps with vehicle assignments and route planning.
+              </p>
+              
+              {/* Quick driver selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+                {participantsWithDates.map(participant => (
+                  <label key={participant.id} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={participant.isDriver || false}
+                      onChange={(e) => handleDriverToggle(participant.id, e.target.checked)}
+                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {participant.fullName}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {participant.isDriver ? 'Driver' : 'Passenger'}
+                      </div>
+                    </div>
+                    {participant.isDriver && (
+                      <div className="text-xs text-green-600 dark:text-green-400">
+                        🏎️
+                      </div>
+                    )}
+                  </label>
+                ))}
+              </div>
+              
+              {/* Detailed driver settings */}
+              {showDriverSettings && (
+                <div className="space-y-4">
+                  {participantsWithDates.filter(p => p.isDriver).map(participant => (
+                    <div key={participant.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center mb-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-white">
+                            {participant.fullName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {participant.fullName}
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">
+                            🏎️ Designated Driver
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            License Type
+                          </label>
+                          <select
+                            value={participant.drivingLicense || 'B'}
+                            onChange={(e) => handleDriverLicenseChange(participant.id, 'drivingLicense', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="B">Category B (Car/SUV)</option>
+                            <option value="C">Category C (Truck)</option>
+                            <option value="D">Category D (Bus)</option>
+                            <option value="BE">Category BE (Car + Trailer)</option>
+                          </select>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`manual-${participant.id}`}
+                            checked={participant.canDriveManual || false}
+                            onChange={(e) => handleDriverLicenseChange(participant.id, 'canDriveManual', e.target.checked)}
+                            className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor={`manual-${participant.id}`} className="text-xs text-gray-700 dark:text-gray-300">
+                            Can drive manual transmission
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {participantsWithDates.filter(p => p.isDriver).length === 0 && (
+                    <div className="text-center p-4 text-gray-500 dark:text-gray-400">
+                      No drivers selected. Please select at least one team member who can drive.
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Driver summary */}
+              {participantsWithDates.filter(p => p.isDriver).length > 0 && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    <strong>{participantsWithDates.filter(p => p.isDriver).length}</strong> driver{participantsWithDates.filter(p => p.isDriver).length !== 1 ? 's' : ''} selected for this trip
+                  </p>
                 </div>
               )}
             </div>

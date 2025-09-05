@@ -228,42 +228,7 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         </div>
       </div> */}
 
-      {/* Participants Section - Simplified without company dependencies */}
-      <div>
-        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-emerald-200">
-          Participants (Optional)
-        </label>
-        
-        {/* Selected Participants */}
-        {formData.participants.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {formData.participants.map(participant => (
-              <div
-                key={participant.id}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200"
-              >
-                <Users className="w-3 h-3 mr-1" />
-                <span>{participant.fullName}</span>
-                <button
-                  onClick={() => removeParticipant(participant.id)}
-                  className="ml-2 hover:text-blue-600 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Add participant button */}
-        <button
-          onClick={() => openUserModalForCompany()}
-          className="w-full text-left p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-        >
-          <Users className="w-4 h-4 inline mr-2" />
-          Add participant
-        </button>
-      </div>
+      {/* Participants are now handled in the Team & Vehicle Selection step */}
       
       {/* Modals */}
       <UserCreationModal

@@ -68,17 +68,8 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
     }
   };
 
-  // Mock data for demonstration since API might not be implemented yet
-  const mockData: MileageData[] = [
-    { month: "2024-06", distance: 1200, fuel_cost: 380, efficiency: 12.5, trips: 8 },
-    { month: "2024-07", distance: 1580, fuel_cost: 490, efficiency: 11.8, trips: 12 },
-    { month: "2024-08", distance: 890, fuel_cost: 295, efficiency: 13.2, trips: 6 },
-    { month: "2024-09", distance: 2100, fuel_cost: 680, efficiency: 12.1, trips: 15 },
-    { month: "2024-10", distance: 1650, fuel_cost: 520, efficiency: 12.8, trips: 11 },
-    { month: "2024-11", distance: 1950, fuel_cost: 615, efficiency: 12.4, trips: 14 },
-  ];
-
-  const data = mileageData.length > 0 ? mileageData : mockData;
+  // Use only real data, no mock data
+  const data = mileageData;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -97,10 +88,10 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
   };
 
   // Calculate summary statistics
-  const totalDistance = data.reduce((sum, item) => sum + item.distance, 0);
-  const totalFuelCost = data.reduce((sum, item) => sum + item.fuel_cost, 0);
+  const totalDistance = data.length > 0 ? data.reduce((sum, item) => sum + item.distance, 0) : 0;
+  const totalFuelCost = data.length > 0 ? data.reduce((sum, item) => sum + item.fuel_cost, 0) : 0;
   const avgEfficiency = data.length > 0 ? data.reduce((sum, item) => sum + item.efficiency, 0) / data.length : 0;
-  const totalTrips = data.reduce((sum, item) => sum + item.trips, 0);
+  const totalTrips = data.length > 0 ? data.reduce((sum, item) => sum + item.trips, 0) : 0;
 
   // Calculate trends
   const lastMonthDistance = data.length > 1 ? data[data.length - 1].distance : 0;
@@ -167,18 +158,24 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Distance</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {formatMileage(totalDistance)} km
+            {data.length > 0 ? `${formatMileage(totalDistance)} km` : '— km'}
           </p>
-          <div className="flex items-center gap-1 mt-1">
-            {distanceTrend >= 0 ? (
-              <TrendingUp className="h-3 w-3 text-green-600" />
-            ) : (
-              <TrendingDown className="h-3 w-3 text-red-600" />
-            )}
-            <span className={`text-xs ${distanceTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {Math.abs(distanceTrendPercentage).toFixed(1)}% vs last month
+          {data.length > 1 ? (
+            <div className="flex items-center gap-1 mt-1">
+              {distanceTrend >= 0 ? (
+                <TrendingUp className="h-3 w-3 text-green-600" />
+              ) : (
+                <TrendingDown className="h-3 w-3 text-red-600" />
+              )}
+              <span className={`text-xs ${distanceTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {Math.abs(distanceTrendPercentage).toFixed(1)}% vs last month
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              — vs last month
             </span>
-          </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -187,10 +184,10 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Fuel Cost</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {formatCurrency(totalFuelCost)}
+            {data.length > 0 ? formatCurrency(totalFuelCost) : 'R$ —,—'}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-            {formatCurrency(totalFuelCost / (totalDistance || 1) * 100)}/100km
+            {data.length > 0 ? `${formatCurrency(totalFuelCost / (totalDistance || 1) * 100)}/100km` : 'R$ —,—/100km'}
           </p>
         </div>
 
@@ -200,18 +197,24 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Avg Efficiency</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {avgEfficiency.toFixed(1)} km/L
+            {data.length > 0 ? `${avgEfficiency.toFixed(1)} km/L` : '—,— km/L'}
           </p>
-          <div className="flex items-center gap-1 mt-1">
-            {efficiencyTrend >= 0 ? (
-              <TrendingUp className="h-3 w-3 text-green-600" />
-            ) : (
-              <TrendingDown className="h-3 w-3 text-red-600" />
-            )}
-            <span className={`text-xs ${efficiencyTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {Math.abs(efficiencyTrend).toFixed(1)} vs last month
+          {data.length > 1 ? (
+            <div className="flex items-center gap-1 mt-1">
+              {efficiencyTrend >= 0 ? (
+                <TrendingUp className="h-3 w-3 text-green-600" />
+              ) : (
+                <TrendingDown className="h-3 w-3 text-red-600" />
+              )}
+              <span className={`text-xs ${efficiencyTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {Math.abs(efficiencyTrend).toFixed(1)} vs last month
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              —,— vs last month
             </span>
-          </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -220,10 +223,10 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Trips</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {totalTrips}
+            {data.length > 0 ? totalTrips : '—'}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-            {(totalDistance / (totalTrips || 1)).toFixed(0)} km/trip avg
+            {data.length > 0 ? `${(totalDistance / (totalTrips || 1)).toFixed(0)} km/trip avg` : '— km/trip avg'}
           </p>
         </div>
       </div>
@@ -338,9 +341,11 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
                 🎯 Most Efficient Month
               </h5>
               <p className="text-sm text-blue-800 dark:text-blue-400">
-                {data.length > 0 && 
-                  getMonthName(data.reduce((max, item) => item.efficiency > max.efficiency ? item : max).month)
-                } with {data.length > 0 && Math.max(...data.map(item => item.efficiency)).toFixed(1)} km/L
+                {data.length > 0 ? (
+                  <>
+                    {getMonthName(data.reduce((max, item) => item.efficiency > max.efficiency ? item : max).month)} with {Math.max(...data.map(item => item.efficiency)).toFixed(1)} km/L
+                  </>
+                ) : '— with —,— km/L'}
               </p>
             </div>
 
@@ -349,7 +354,7 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
                 📊 Average Monthly Usage
               </h5>
               <p className="text-sm text-green-800 dark:text-green-400">
-                {formatMileage(Math.round(totalDistance / (data.length || 1)))} km per month
+                {data.length > 0 ? `${formatMileage(Math.round(totalDistance / data.length))} km per month` : '— km per month'}
               </p>
             </div>
 
@@ -358,7 +363,7 @@ export default function VehicleMileageChart({ vehicle }: VehicleMileageChartProp
                 ⛽ Fuel Cost Analysis
               </h5>
               <p className="text-sm text-orange-800 dark:text-orange-400">
-                {formatCurrency(totalFuelCost / (data.length || 1))} average monthly cost
+                {data.length > 0 ? `${formatCurrency(totalFuelCost / data.length)} average monthly cost` : 'R$ —,— average monthly cost'}
               </p>
             </div>
 

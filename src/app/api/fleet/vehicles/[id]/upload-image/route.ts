@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { verify } from 'jsonwebtoken'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -12,17 +13,23 @@ export async function POST(
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Authentication check
-    const cookieStore = cookies()
-    const token = cookieStore.get('auth-token')?.value
+    // Authentication check - use the same pattern as other working APIs
+    const authToken = request.cookies.get('auth-token')?.value
     
-    if (!token) {
+    if (!authToken) {
+      console.log('🔑 Vehicle Upload API: No auth-token cookie found')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // Get user information from token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    // Verify JWT token (same as other APIs)
+    let authenticatedUser: any = null
+    try {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      const decoded = verify(authToken, secret) as any
+      authenticatedUser = decoded
+      console.log('🔑 Vehicle Upload API: Authenticated user:', authenticatedUser.email)
+    } catch (tokenError) {
+      console.error('🔑 Vehicle Upload API: Token verification failed:', tokenError)
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
     }
 
@@ -193,16 +200,23 @@ export async function DELETE(
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Authentication check
-    const cookieStore = cookies()
-    const token = cookieStore.get('auth-token')?.value
+    // Authentication check - use the same pattern as other working APIs
+    const authToken = request.cookies.get('auth-token')?.value
     
-    if (!token) {
+    if (!authToken) {
+      console.log('🔑 Vehicle Delete Image API: No auth-token cookie found')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    // Verify JWT token (same as other APIs)
+    let authenticatedUser: any = null
+    try {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      const decoded = verify(authToken, secret) as any
+      authenticatedUser = decoded
+      console.log('🔑 Vehicle Delete Image API: Authenticated user:', authenticatedUser.email)
+    } catch (tokenError) {
+      console.error('🔑 Vehicle Delete Image API: Token verification failed:', tokenError)
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
     }
 
