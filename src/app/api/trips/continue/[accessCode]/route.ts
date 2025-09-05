@@ -16,10 +16,18 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
   try {
     let user: any = null
     
-    // Authentication logic (same as other endpoints)
+    // Enhanced authentication logic supporting both header and cookie auth
     const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
       const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
 
       try {
@@ -33,8 +41,10 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
 
         if (!userError && userData) {
           user = userData
+          console.log(`🔐 [Continue Trip] Authenticated user: ${user.email}`)
         }
       } catch (jwtError) {
+        console.warn('JWT decode failed, trying Supabase session auth:', jwtError.message)
         // Try Supabase session authentication
         const supabaseClient = createServerSupabaseClient()
         
@@ -50,6 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
 
             if (!userError && userData) {
               user = userData
+              console.log(`🔐 [Continue Trip] Authenticated via Supabase: ${user.email}`)
             }
           }
         }
@@ -87,7 +98,9 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
       .single()
 
     if (tripError || !trip) {
-      // Try to find by access token in trip_drafts
+      console.log(`🔍 [Continue Trip] Trip not found by access code: ${accessCode}`)
+      
+      // Try to find by access token in trip_drafts table first
       const { data: draft, error: draftError } = await supabase
         .from('trip_drafts')
         .select(`
@@ -97,40 +110,88 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
         .eq('access_token', `trip_${accessCode}`)
         .single()
 
-      if (draftError || !draft) {
-        return NextResponse.json(
-          { 
-            success: false,
-            message: 'Trip not found or access code expired' 
-          },
-          { status: 404 }
-        )
+      if (draft && !draftError) {
+        console.log(`✅ [Continue Trip] Found trip in drafts table`)
+        
+        // Check if user has permission to access this draft
+        const canAccess = 
+          draft.creator_id === user.id ||
+          user.is_global_admin
+
+        if (!canAccess) {
+          return NextResponse.json(
+            { 
+              success: false,
+              message: 'You do not have permission to access this trip' 
+            },
+            { status: 403 }
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          draft,
+          trip: draft.trips,
+          currentStep: draft.current_step || 1,
+          canEdit: true,
+          permissions: ['edit'],
+          message: 'Draft trip loaded successfully'
+        })
+      }
+      
+      // If not found in drafts, try looking for planning status trips (which are essentially drafts)
+      console.log(`🔍 [Continue Trip] Not in trip_drafts, checking planning status trips...`)
+      
+      const { data: planningTrip, error: planningError } = await supabase
+        .from('trips')
+        .select(`
+          *,
+          trip_access_permissions (user_id, permission_type, expires_at),
+          trip_participants (user_id, role, company_id),
+          company_user_roles (user_id, role, can_edit_all_company_trips)
+        `)
+        .eq('access_code', accessCode)
+        .eq('status', 'planning')
+        .single()
+        
+      if (planningTrip && !planningError) {
+        console.log(`✅ [Continue Trip] Found planning status trip: ${planningTrip.title}`)
+        
+        // Check basic permissions for planning trips
+        const canAccess = 
+          planningTrip.creator_id === user.id ||
+          user.is_global_admin ||
+          planningTrip.trip_participants?.some((tp: any) => tp.user_id === user.id)
+
+        if (!canAccess) {
+          return NextResponse.json(
+            { 
+              success: false,
+              message: 'You do not have permission to access this trip' 
+            },
+            { status: 403 }
+          )
+        }
+        
+        return NextResponse.json({
+          success: true,
+          trip: planningTrip,
+          draft: null,
+          currentStep: planningTrip.completion_step || 7, // Default to team assignment step for planning trips
+          canEdit: planningTrip.creator_id === user.id || user.is_global_admin,
+          permissions: planningTrip.creator_id === user.id ? ['view', 'edit', 'admin'] : ['view'],
+          message: 'Planning trip loaded successfully - you can continue editing'
+        })
       }
 
-      // Check if user has permission to access this draft
-      const canAccess = 
-        draft.creator_id === user.id ||
-        user.is_global_admin
-
-      if (!canAccess) {
-        return NextResponse.json(
-          { 
-            success: false,
-            message: 'You do not have permission to access this trip' 
-          },
-          { status: 403 }
-        )
-      }
-
-      return NextResponse.json({
-        success: true,
-        draft,
-        trip: draft.trips,
-        currentStep: draft.current_step || 1,
-        canEdit: true,
-        permissions: ['edit'],
-        message: 'Draft trip loaded successfully'
-      })
+      console.log(`❌ [Continue Trip] Trip not found anywhere: ${accessCode}`)
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Trip not found or access code expired' 
+        },
+        { status: 404 }
+      )
     }
 
     // Check permissions for the found trip

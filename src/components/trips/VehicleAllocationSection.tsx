@@ -11,7 +11,8 @@ import {
   Calendar,
   Clock,
   User,
-  Truck
+  Truck,
+  UserCheck
 } from 'lucide-react';
 import { TripFormData } from './TripCreationModal';
 import { ParticipantWithDates } from './TeamVehicleStep';
@@ -44,6 +45,7 @@ export default function VehicleAllocationSection({
   const [selectedTab, setSelectedTab] = useState<'available' | 'assignments' | 'rentals'>('available');
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [localAssignments, setLocalAssignments] = useState<any[]>([]);
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<string, string>>({});
 
   // Search for available vehicles when component mounts or key data changes
   useEffect(() => {
@@ -80,10 +82,36 @@ export default function VehicleAllocationSection({
       : 1
   );
 
+  // Get available drivers (internal team members who can drive)
+  const availableDrivers = participantsWithDates.filter(p => p.isDriver);
+  
+  // Handle driver selection for a specific vehicle
+  const handleDriverSelection = (vehicleId: string, driverId: string) => {
+    setSelectedDrivers(prev => ({
+      ...prev,
+      [vehicleId]: driverId
+    }));
+  };
+
   const handleVehicleAssignment = (vehicleId: string, assignmentType: 'company_vehicle' | 'rental_request') => {
+    console.log('🚗 [Vehicle Assignment] Creating assignment:', { vehicleId, assignmentType })
+    
+    // Find selected driver for this vehicle
+    const selectedDriverId = selectedDrivers[vehicleId]
+    const selectedDriver = selectedDriverId 
+      ? participantsWithDates.find(p => p.id === selectedDriverId)
+      : availableDrivers[0] // Default to first available driver
+    
+    if (!selectedDriver && availableDrivers.length > 0) {
+      alert('Please select a driver for this vehicle')
+      return
+    }
+    
     const newAssignment = {
       vehicleId: assignmentType === 'company_vehicle' ? vehicleId : undefined,
       assignmentType,
+      driverId: selectedDriver?.id,
+      driverName: selectedDriver?.fullName,
       startDate: formData.startDate instanceof Date 
         ? formData.startDate.toISOString().split('T')[0] 
         : formData.startDate,
@@ -94,13 +122,15 @@ export default function VehicleAllocationSection({
       notes: assignmentType === 'rental_request' ? 'Rental car required' : undefined
     };
 
-    setLocalAssignments(prev => [...prev, newAssignment]);
+    const updatedAssignments = [...localAssignments, newAssignment]
+    setLocalAssignments(updatedAssignments);
     
     // Update form data
     updateFormData({
-      vehicleAssignments: [...localAssignments, newAssignment]
+      vehicleAssignments: updatedAssignments
     });
 
+    console.log('✅ [Vehicle Assignment] Assignment created:', newAssignment)
     setSelectedTab('assignments');
   };
 
@@ -276,12 +306,38 @@ export default function VehicleAllocationSection({
                             <span>Est. transfer cost: ${vehicle.estimatedTransferCost}</span>
                           </div>
                         )}
+                        
+                        {/* Driver Selection */}
+                        {availableDrivers.length > 0 && (
+                          <div className="mt-3">
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Select Driver:
+                            </label>
+                            <select
+                              value={selectedDrivers[vehicle.id] || ''}
+                              onChange={(e) => handleDriverSelection(vehicle.id, e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                              <option value="">Choose driver...</option>
+                              {availableDrivers.map(driver => (
+                                <option key={driver.id} value={driver.id}>
+                                  {driver.fullName} {driver.drivingLicense ? `(${driver.drivingLicense})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="flex flex-col space-y-2">
                         <button
                           onClick={() => handleVehicleAssignment(vehicle.id, 'company_vehicle')}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                          disabled={availableDrivers.length > 0 && !selectedDrivers[vehicle.id]}
+                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                            availableDrivers.length > 0 && !selectedDrivers[vehicle.id]
+                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                              : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
                         >
                           Assign
                         </button>
@@ -333,6 +389,12 @@ export default function VehicleAllocationSection({
                             }`}>
                               {assignment.assignmentType === 'company_vehicle' ? 'Company Vehicle' : 'Rental Request'}
                             </span>
+                            {assignment.driverName && (
+                              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 flex items-center">
+                                <UserCheck className="w-3 h-3 mr-1" />
+                                {assignment.driverName}
+                              </span>
+                            )}
                           </div>
                           
                           {vehicle && (
@@ -424,12 +486,20 @@ export default function VehicleAllocationSection({
                                   ))}
                                 </div>
                               </div>
-                              <button
-                                onClick={() => handleVehicleAssignment('', 'rental_request')}
-                                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm"
-                              >
-                                Request Rental
-                              </button>
+                              <div className="flex flex-col space-y-2">
+                                <button
+                                  onClick={() => handleVehicleAssignment('', 'rental_request')}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Request Rental
+                                </button>
+                                <button
+                                  onClick={() => handleVehicleAssignment('external-driver', 'rental_request')}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm text-xs"
+                                >
+                                  External Driver
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}

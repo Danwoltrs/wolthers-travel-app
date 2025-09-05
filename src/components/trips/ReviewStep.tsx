@@ -60,20 +60,50 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         )}
       </div>
 
-      {/* Companies */}
+      {/* Companies & Representatives */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
         <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center">
           <Building className="w-4 h-4 mr-2" />
-          Companies ({(formData.companies || []).length})
+          Companies & Representatives ({(formData.companies || []).length})
         </h3>
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-3">
           {(formData.companies || []).map(company => (
-            <span
-              key={company.id}
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
-            >
-              {company.fantasyName || company.name}
-            </span>
+            <div key={company.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {company.fantasyName || company.name}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {company.city}, {company.state}
+                </span>
+              </div>
+              
+              {/* Company Representatives */}
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center mb-1">
+                  <Users className="w-3 h-3 mr-1" />
+                  <span className="font-medium">Representatives:</span>
+                </div>
+                <div className="ml-4">
+                  {company.representatives && company.representatives.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {company.representatives.map((rep: any, index: number) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
+                        >
+                          {rep.name} {rep.role && `(${rep.role})`}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400 text-xs">
+                      No representatives added - add during company selection step
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

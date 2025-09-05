@@ -295,56 +295,86 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           // Use enhanced same-city detection
           const isSameCity = areCompaniesInSameCity(previousCompany, currentCompany)
           
+          console.log(`🏙️ [AI Itinerary] Checking travel between cities:`, {
+            previous: { city: previousCity, company: previousCompany.name },
+            current: { city: currentCity, company: currentCompany.name },
+            isSameCity,
+            willCreateTravel: !isSameCity
+          })
+          
           if (!isSameCity) {
-            // Different cities - calculate travel time
-            const localTravelHours = calculateLocalTravelTime(previousCity, currentCity)
-            const travelMinutes = Math.ceil(localTravelHours * 60)
+            // Different cities - calculate travel time using Google Maps API first, fallback to local calculation
+            let travelTimeHours = 0
+            let travelMethod = 'estimated'
             
-            // Only create travel activity if there's significant travel time (> 10 minutes)
-            if (localTravelHours > 0.15) {
+            try {
+              // Try Google Maps API for accurate travel time
+              const previousLocation = optimizedLocations[i - 1]
+              const currentLocation = location
+              const travelInfo = await calculateTravelTime(previousLocation, currentLocation)
+              
+              if (travelInfo) {
+                travelTimeHours = travelInfo.duration.value / 3600 // Convert seconds to hours
+                travelMethod = 'google_maps'
+                console.log(`🗺️ [AI Itinerary] Google Maps travel time: ${previousCity} → ${currentCity}: ${travelTimeHours.toFixed(2)}h`)
+              } else {
+                throw new Error('Google Maps API failed')
+              }
+            } catch (error) {
+              // Fallback to local calculation
+              travelTimeHours = calculateLocalTravelTime(previousCity, currentCity)
+              console.log(`📍 [AI Itinerary] Fallback local travel time: ${previousCity} → ${currentCity}: ${travelTimeHours.toFixed(2)}h`)
+            }
+            
+            const travelMinutes = Math.ceil(travelTimeHours * 60)
+            
+            // Create travel activity for any travel time > 0.1 hours (6 minutes)
+            if (travelTimeHours > 0.1) {
               const travelStartTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
               const travelEndTimeMinutes = currentTime + travelMinutes
               const travelEndTime = `${Math.floor(travelEndTimeMinutes / 60).toString().padStart(2, '0')}:${(travelEndTimeMinutes % 60).toString().padStart(2, '0')}`
               
-              // Enhanced travel descriptions based on starting point strategy
+              // Enhanced travel descriptions with duration included in title
               const strategy = getStartingPointStrategy(formData.startingPoint || 'santos')
-              let travelDescription = `Travel from ${previousCity} to ${currentCity} (${localTravelHours}h drive)`
+              const roundedHours = Math.round(travelTimeHours * 10) / 10 // Round to 1 decimal place
+              let travelTitle = `Drive from ${previousCity} to ${currentCity} (${roundedHours}h)`
+              let travelDescription = `Travel from ${previousCity} to ${currentCity} (${roundedHours} hour drive)`
               
               if (strategy.routingStrategy === 'port-inland' && isSantosArea(previousCity)) {
-                travelDescription = `Drive inland from Santos port to ${currentCity} coffee region (${localTravelHours}h)`
+                travelDescription = `Drive inland from Santos port to ${currentCity} coffee region (${roundedHours} hour drive)`
               } else if (strategy.routingStrategy === 'north-south') {
-                travelDescription = `Continue south through coffee regions: ${previousCity} → ${currentCity} (${localTravelHours}h)`
+                travelDescription = `Continue south through coffee regions: ${previousCity} → ${currentCity} (${roundedHours} hour drive)`
               } else if (strategy.routingStrategy === 'fly-drive') {
-                travelDescription = `Rental car drive from ${previousCity} to ${currentCity} (${localTravelHours}h)`
+                travelDescription = `Rental car drive from ${previousCity} to ${currentCity} (${roundedHours} hour drive)`
               } else if (strategy.routingStrategy === 'hub-spoke') {
-                travelDescription = `Day trip from São Paulo hub to ${currentCity} (${localTravelHours}h each way)`
+                travelDescription = `Drive from ${previousCity} to ${currentCity} (${roundedHours} hour drive each way)`
               }
               
               const travelActivity: ActivityFormData = {
-                title: `${localTravelHours <= 0.5 ? 'Short Drive' : 'Drive'} to ${currentCity}`,
+                title: travelTitle,
                 description: travelDescription,
                 activity_date: currentDate.toISOString().split('T')[0],
                 start_time: travelStartTime,
                 end_time: travelEndTime,
                 location: `${previousCity} → ${currentCity}`,
                 type: 'travel',
-                notes: `🚗 Travel time: ${localTravelHours} hours\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing`,
+                notes: `🚗 Travel time: ${roundedHours} hours (${travelMethod})\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing\n⏱️ Duration: ${travelMinutes} minutes`,
                 is_confirmed: false
               }
               
               generatedActivities.push(travelActivity)
-              console.log(`🚗 [AI Itinerary] Created travel activity: ${previousCity} → ${currentCity} (${localTravelHours}h) - Different cities`)
+              console.log(`🚗 [AI Itinerary] ✅ Created travel activity: ${previousCity} → ${currentCity} (${roundedHours}h via ${travelMethod})`)
               
               currentTime = travelEndTimeMinutes
             } else {
-              // Short travel - just add buffer time
-              currentTime += 30 // 30 minutes buffer for short trips
-              console.log(`🚙 [AI Itinerary] Short travel: ${previousCity} → ${currentCity} (${localTravelHours}h) - Buffer added`)
+              // Very short travel - just add buffer time
+              currentTime += 30 // 30 minutes buffer for very short trips
+              console.log(`🚙 [AI Itinerary] Very short travel: ${previousCity} → ${currentCity} (${travelTimeHours.toFixed(2)}h) - Buffer added`)
             }
           } else {
             // Same city - no travel activity needed, just add meeting buffer
             currentTime += 15 // 15 minutes buffer between same-city meetings
-            console.log(`🏙️ [AI Itinerary] Same city: ${previousCompany.name} → ${currentCompany.name} in ${currentCity} (no travel activity)`)
+            console.log(`🏙️ [AI Itinerary] Same city detected: ${previousCompany.name} → ${currentCompany.name} in ${currentCity} (no travel activity)`)
           }
           
           // If travel pushes us past reasonable business hours (6 PM), move to next day

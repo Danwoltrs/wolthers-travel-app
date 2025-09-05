@@ -68,8 +68,38 @@ export default function ContinueTripPage() {
   }
 
   const handleContinueEditing = () => {
-    // Redirect to dashboard with edit modal for this trip
-    router.push(`/dashboard?edit=${accessCode}`)
+    // Open the trip creation modal directly with the loaded data
+    setShowModal(true)
+  }
+  
+  // Convert trip data back to TripFormData format
+  const convertToFormData = (tripOrDraft: any): TripFormData => {
+    const data = tripOrDraft.trip || tripOrDraft
+    console.log('🔄 [Continue Trip] Converting trip data to form data:', {
+      hasTrip: !!data,
+      title: data?.title,
+      type: data?.type,
+      startDate: data?.start_date,
+      endDate: data?.end_date
+    })
+    
+    return {
+      tripType: data?.type || data?.trip_type || 'in_land',
+      title: data?.title || '',
+      description: data?.description || '',
+      subject: data?.subject || '',
+      startDate: data?.start_date ? new Date(data.start_date) : new Date(),
+      endDate: data?.end_date ? new Date(data.end_date) : new Date(),
+      accessCode: data?.access_code || accessCode,
+      companies: data?.companies || [],
+      hostCompanies: data?.host_companies || [],
+      participants: data?.participants || [],
+      wolthersStaff: data?.wolthers_staff || [],
+      participantsWithDates: data?.participants_with_dates || [],
+      startingPoint: data?.starting_point || 'santos',
+      generatedActivities: data?.generated_activities || [],
+      vehicleAssignments: data?.vehicle_assignments || []
+    }
   }
 
   const handleTripCreated = (trip: any) => {
@@ -337,7 +367,7 @@ export default function ContinueTripPage() {
           onTripCreated={handleTripCreated}
           resumeData={{
             tripId: trip?.id,
-            formData: getFormDataFromTrip(),
+            formData: convertToFormData(tripData),
             currentStep: tripData.currentStep
           }}
         />
