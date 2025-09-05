@@ -167,9 +167,9 @@ export default function Dashboard() {
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
-  // Filter for draft trips (planning status with is_draft flag)
+  // Filter for draft trips (planning status only - ignore is_draft flag for completed trips)
   const planningDraftTrips = trips.filter(trip => {
-    return (trip as any).status === 'planning' && (trip as any).is_draft !== false
+    return (trip as any).status === 'planning'
   })
   
   // Combine ongoing, upcoming, draft trips from main query, and additional draft trips
@@ -199,9 +199,9 @@ export default function Dashboard() {
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
-    // Exclude draft trips from past trips
-    const isDraftTrip = (trip as any).status === 'planning' && (trip as any).is_draft !== false
-    return calculatedStatus === 'completed' && !isDraftTrip
+    // Exclude only planning trips from past trips (completed trips should show regardless of is_draft flag)
+    const isPlanningTrip = (trip as any).status === 'planning'
+    return calculatedStatus === 'completed' && !isPlanningTrip
   })
 
   const handleTripClick = (trip: TripCardType) => {
