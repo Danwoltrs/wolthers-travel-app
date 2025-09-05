@@ -485,7 +485,9 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
 
   // Handle activity creation from time slot click
   const handleActivityCreate = (timeSlot: string, date: string) => {
-    setSelectedActivity({
+    console.log('🎯 [Trip Creation] handleActivityCreate called:', { timeSlot, date })
+    
+    const newActivity = {
       id: `temp-${Date.now()}`,
       title: '',
       description: '',
@@ -500,7 +502,10 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       trip_id: mockTrip.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    } as Activity)
+    } as Activity
+    
+    console.log('📝 [Trip Creation] Setting selectedActivity for editing:', newActivity)
+    setSelectedActivity(newActivity)
   }
 
   // Handle activity editing

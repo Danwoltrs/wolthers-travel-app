@@ -235,18 +235,15 @@ export default function VehicleDetailsModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-start md:items-center justify-center z-50 p-0 sm:p-2 md:p-4 overflow-y-auto">
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-2xl max-w-[95vw] xl:max-w-[90vw] max-h-[95vh] min-h-[60vh] flex flex-col border border-pearl-200 dark:border-[#2a2a2a]">
         {/* Header */}
-        <div className="bg-[#FBBF23] dark:bg-[#09261d] text-white dark:text-golden-400 px-6 py-4 rounded-t-lg border-b border-pearl-200 dark:border-[#0a2e21]">
+        <div className="bg-emerald-600 dark:bg-[#09261d] text-white px-6 py-4 rounded-t-lg border-b border-pearl-200 dark:border-[#0a2e21]">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Car className="h-6 w-6 text-[#006D5B] dark:text-golden-400" />
-              <div>
-                <h2 className="text-xl font-semibold text-[#006D5B] dark:text-golden-400">
-                  {currentVehicle.model} ({currentVehicle.year})
-                </h2>
-                <p className="text-[#333333] dark:text-golden-300 text-sm">
-                  {currentVehicle.color} • {currentVehicle.license_plate}
-                </p>
-              </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white dark:text-white">
+                {currentVehicle.model} ({currentVehicle.year})
+              </h2>
+              <p className="text-white/90 dark:text-white text-sm">
+                {currentVehicle.color} • {currentVehicle.license_plate}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <div className={cn(
@@ -266,7 +263,7 @@ export default function VehicleDetailsModal({
               )}
               <button
                 onClick={onClose}
-                className="text-[#333333] dark:text-golden-400 hover:text-[#006D5B] dark:hover:text-golden-300 transition-colors"
+                className="text-white/90 dark:text-white hover:text-white dark:hover:text-white/80 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
