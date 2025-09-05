@@ -669,6 +669,165 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
           companies={[...hostCompanies, ...buyerCompanies]}
         />
       )}
+
+      {/* Activity Editor Modal */}
+      {selectedActivity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] mx-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
+                {selectedActivity.id.startsWith('temp-') ? 'Create New Activity' : 'Edit Activity'}
+              </h3>
+              <button
+                onClick={() => {
+                  console.log('🚫 [Trip Creation] Closing activity editor')
+                  setSelectedActivity(null)
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={selectedActivity.title || ''}
+                  onChange={(e) => {
+                    setSelectedActivity(prev => prev ? { ...prev, title: e.target.value } : null)
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Activity title"
+                />
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedActivity.activity_date}
+                    onChange={(e) => {
+                      setSelectedActivity(prev => prev ? { ...prev, activity_date: e.target.value } : null)
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Time
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="time"
+                      value={selectedActivity.start_time}
+                      onChange={(e) => {
+                        setSelectedActivity(prev => prev ? { ...prev, start_time: e.target.value } : null)
+                      }}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                    />
+                    <input
+                      type="time"
+                      value={selectedActivity.end_time}
+                      onChange={(e) => {
+                        setSelectedActivity(prev => prev ? { ...prev, end_time: e.target.value } : null)
+                      }}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={selectedActivity.location || ''}
+                  onChange={(e) => {
+                    setSelectedActivity(prev => prev ? { ...prev, location: e.target.value } : null)
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Activity location"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={selectedActivity.description || ''}
+                  onChange={(e) => {
+                    setSelectedActivity(prev => prev ? { ...prev, description: e.target.value } : null)
+                  }}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Activity description"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🚫 [Trip Creation] Cancelling activity creation')
+                    setSelectedActivity(null)
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-200 dark:hover:bg-[#333333] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('💾 [Trip Creation] Saving activity:', selectedActivity)
+                    
+                    if (selectedActivity.id.startsWith('temp-')) {
+                      // New activity - add to formData.generatedActivities
+                      const newActivity: ActivityFormData = {
+                        title: selectedActivity.title || 'Untitled Activity',
+                        description: selectedActivity.description || '',
+                        date: selectedActivity.activity_date,
+                        startTime: selectedActivity.start_time,
+                        endTime: selectedActivity.end_time,
+                        location: selectedActivity.location || '',
+                        activityType: selectedActivity.activity_type || 'meeting',
+                        priority: selectedActivity.priority || 'medium',
+                        notes: selectedActivity.notes || '',
+                        visibility_level: selectedActivity.visibility_level || 'all'
+                      }
+                      
+                      const currentActivities = formData.generatedActivities || []
+                      const updatedActivities = [...currentActivities, newActivity]
+                      
+                      console.log('✅ [Trip Creation] Adding new activity to form data')
+                      updateFormData({ generatedActivities: updatedActivities })
+                    }
+                    
+                    setSelectedActivity(null)
+                  }}
+                  className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+                >
+                  Save Activity
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

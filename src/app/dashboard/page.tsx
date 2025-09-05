@@ -248,35 +248,54 @@ export default function Dashboard() {
   }, [handleCreateTrip])
 
   const handleTripCreated = async (trip: any) => {
-    console.log('Trip created:', trip)
+    console.log('🎉 [Dashboard] Trip created callback triggered with data:', trip)
     
     // Close the modal first
     setShowTripCreationModal(false)
     setResumeData(null)
+    console.log('✅ [Dashboard] Modal closed and resume data cleared')
     
     // Try multiple approaches to refresh the trip list
     try {
       // First try silent refresh (less disruptive)
-      console.log('Attempting silent refresh...')
+      console.log('🔄 [Dashboard] Attempting silent refresh...')
       await refreshSilently()
-      console.log('Silent refresh successful')
+      console.log('✅ [Dashboard] Silent refresh successful')
       
-      // Give the cache a moment to update
-      setTimeout(() => {
-        console.log('Trip list updated successfully')
+      // Give the cache a moment to update and check if trip appears
+      setTimeout(async () => {
+        console.log('⏰ [Dashboard] Checking trip list after 500ms delay...')
+        console.log('📋 [Dashboard] Current trips count:', trips.length)
+        console.log('🔍 [Dashboard] Looking for trip with ID:', trip.id)
+        console.log('🔍 [Dashboard] Looking for trip with access code:', trip.accessCode)
+        
+        const foundById = trips.find(t => t.id === trip.id)
+        const foundByCode = trips.find(t => (t as any).accessCode === trip.accessCode)
+        
+        console.log('🔍 [Dashboard] Found by ID:', !!foundById)
+        console.log('🔍 [Dashboard] Found by access code:', !!foundByCode)
+        
+        if (!foundById && !foundByCode) {
+          console.warn('⚠️ [Dashboard] Trip not found in list after silent refresh, trip may not have been finalized properly')
+          console.log('📊 [Dashboard] All trip IDs in current list:', trips.map(t => t.id))
+          console.log('📊 [Dashboard] All access codes in current list:', trips.map(t => (t as any).accessCode))
+        } else {
+          console.log('✅ [Dashboard] Trip found in list - finalization successful!')
+        }
       }, 500)
     } catch (silentError) {
-      console.warn('Silent refresh failed, trying force refresh:', silentError)
+      console.warn('❌ [Dashboard] Silent refresh failed, trying force refresh:', silentError)
       
       try {
         // If silent refresh fails, try force refresh
+        console.log('🔄 [Dashboard] Attempting force refresh...')
         await refetch()
-        console.log('Force refresh successful')
+        console.log('✅ [Dashboard] Force refresh successful')
       } catch (forceError) {
-        console.error('All refresh attempts failed:', forceError)
+        console.error('💥 [Dashboard] All refresh attempts failed:', forceError)
         
         // Only use hard refresh as last resort after a delay
-        console.log('Falling back to hard refresh in 2 seconds...')
+        console.log('🔄 [Dashboard] Falling back to hard refresh in 2 seconds...')
         setTimeout(() => {
           window.location.reload()
         }, 2000)

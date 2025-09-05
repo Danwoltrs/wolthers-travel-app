@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    console.log('🎯 [Finalize API] Trip finalization request received')
     let user: any = null
     
     // Authentication logic
@@ -63,8 +64,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { id: tripId } = await params
+    console.log('📋 [Finalize API] Trip ID to finalize:', tripId)
+    
     const supabase = createServerSupabaseClient()
     const now = new Date().toISOString()
+    console.log('🕐 [Finalize API] Finalization timestamp:', now)
 
     // Check if user has permission to edit this trip
     const { data: existingTrip, error: tripError } = await supabase
@@ -80,11 +84,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .single()
 
     if (tripError || !existingTrip) {
+      console.error('❌ [Finalize API] Trip not found or error:', tripError)
       return NextResponse.json(
         { error: 'Trip not found' },
         { status: 404 }
       )
     }
+
+    console.log('✅ [Finalize API] Trip found:', {
+      id: existingTrip.id,
+      status: existingTrip.status,
+      is_draft: existingTrip.is_draft,
+      creator_id: existingTrip.creator_id
+    })
 
     // Check permissions
     const hasPermission = 
@@ -130,6 +142,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Update trip to finalized status
+    console.log('🔄 [Finalize API] Updating trip to finalized status...')
     const { error: updateError } = await supabase
       .from('trips')
       .update({
@@ -144,7 +157,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq('id', tripId)
 
     if (updateError) {
-      console.error('Failed to finalize trip:', updateError)
+      console.error('❌ [Finalize API] Failed to finalize trip:', updateError)
       return NextResponse.json(
         { 
           error: 'Failed to finalize trip', 
@@ -153,6 +166,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         { status: 500 }
       )
     }
+
+    console.log('✅ [Finalize API] Trip status updated successfully to confirmed')
 
     // Remove the draft entry since the trip is now finalized
     const { error: draftDeleteError } = await supabase
@@ -165,6 +180,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       // Don't fail the request for this cleanup error
     }
 
+    console.log('🎉 [Finalize API] Trip finalization completed successfully!')
+    console.log('📋 [Finalize API] Final trip ID:', tripId)
+    
     return NextResponse.json({
       success: true,
       message: 'Trip finalized successfully',

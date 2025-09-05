@@ -196,7 +196,8 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
       { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 7, name: 'Review & Create', description: 'Review and finalize trip' }
+      { id: 7, name: 'Team Assignment', description: 'Assign vehicles and drivers' },
+      { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
     return [
@@ -404,37 +405,52 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
+      console.log('🚀 [TripCreation] Starting trip finalization process...')
+      console.log('📋 [TripCreation] Current saveStatus:', saveStatus)
+      console.log('📝 [TripCreation] Form data to finalize:', formData)
+      
       // First save the final step data
+      console.log('💾 [TripCreation] Saving final step data...')
       await saveProgress(formData, currentStep, false)
+      console.log('✅ [TripCreation] Final step data saved successfully')
       
       // If we have a trip ID from progressive saves, finalize it
       if (saveStatus.tripId) {
-        console.log('Finalizing existing trip:', saveStatus.tripId)
+        console.log('🎯 [TripCreation] Finalizing existing trip with ID:', saveStatus.tripId)
+        console.log('🔗 [TripCreation] Access code:', saveStatus.accessCode)
         
         const response = await fetch(`/api/trips/${saveStatus.tripId}/finalize`, {
           method: 'PATCH',
           credentials: 'include'
         })
         
+        console.log('🌐 [TripCreation] Finalize API response status:', response.status)
+        
         if (!response.ok) {
           const error = await response.json()
+          console.error('❌ [TripCreation] Finalize API failed:', error)
           throw new Error(error.message || 'Failed to finalize trip')
         }
         
         const result = await response.json()
-        console.log('Trip finalized successfully:', result)
+        console.log('✅ [TripCreation] Trip finalized successfully:', result)
         
-        onTripCreated?.({ 
+        const tripData = { 
           id: saveStatus.tripId, 
           accessCode: saveStatus.accessCode,
           ...formData 
-        })
+        }
+        
+        console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
+        onTripCreated?.(tripData)
         
         // Clear temp ID after successful creation
         sessionStorage.removeItem('trip-creation-temp-id')
+        console.log('🧹 [TripCreation] Cleared session storage temp ID')
       } else {
         // Create new trip directly if no progressive save occurred
-        console.log('Creating new trip directly:', formData)
+        console.log('⚠️ [TripCreation] No trip ID found, creating new trip directly')
+        console.log('📝 [TripCreation] Form data for direct creation:', formData)
         
         const newTrip = {
           id: `trip-${Date.now()}`,
@@ -442,15 +458,19 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           createdAt: new Date()
         }
         
+        console.log('📤 [TripCreation] Calling onTripCreated for direct creation with:', newTrip)
         onTripCreated?.(newTrip)
       }
       
+      console.log('🚪 [TripCreation] Closing modal...')
       handleClose()
+      console.log('🏁 [TripCreation] Trip finalization process completed successfully!')
     } catch (error) {
-      console.error('Error finalizing trip:', error)
+      console.error('💥 [TripCreation] Error during trip finalization:', error)
       await alert(`Failed to finalize trip: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Finalization Failed', 'error')
     } finally {
       setIsSubmitting(false)
+      console.log('🔄 [TripCreation] Reset submitting state')
     }
   }
 
@@ -737,6 +757,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 7 && (
+            <TeamVehicleStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 8 && (
             <ReviewStep formData={formData} />
           )}
         </div>

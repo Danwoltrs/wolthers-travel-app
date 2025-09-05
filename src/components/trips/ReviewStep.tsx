@@ -86,6 +86,14 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         </h3>
         
         <div className="space-y-4">
+          {/* Debug logging */}
+          {console.log('🔍 [ReviewStep] Participants data:', {
+            participantsLength: (formData.participants || []).length,
+            participants: formData.participants,
+            wolthersStaffLength: (formData.wolthersStaff || []).length,
+            wolthersStaff: formData.wolthersStaff
+          })}
+          
           {/* Show participants from formData.participants (selected Wolthers staff) */}
           {(formData.participants || []).length > 0 && (
             <div>
@@ -93,37 +101,49 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
                 Wolthers Staff ({(formData.participants || []).length})
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {(formData.participants || []).map(staff => (
+                {(formData.participants || []).map(staff => {
+                  console.log('👤 [ReviewStep] Staff member:', staff)
+                  return (
+                    <div key={staff.id} className="text-sm">
+                      <div className="text-gray-700 dark:text-gray-300 font-medium">
+                        {staff.fullName || staff.full_name || staff.name || 'Unnamed Staff'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {staff.email}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Enhanced fallback display for debugging */}
+          {!(formData.participants || []).length && (formData.wolthersStaff || []).length > 0 && (
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                Wolthers Staff - Legacy ({(formData.wolthersStaff || []).length})
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(formData.wolthersStaff || []).map(staff => (
                   <div key={staff.id} className="text-sm">
                     <div className="text-gray-700 dark:text-gray-300 font-medium">
-                      {staff.fullName || staff.name}
+                      {staff.fullName || staff.full_name || staff.name || 'Unnamed Staff'}
                     </div>
-                    {(staff as any).isDriver && (
-                      <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center">
-                        <Car className="w-3 h-3 mr-1" />
-                        Driver - {(staff as any).drivingLicense || 'B'} License
-                        {(staff as any).canDriveManual && ' (Manual)'}
-                      </div>
-                    )}
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {staff.email}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
           
-          {/* Legacy support for formData.wolthersStaff */}
-          {(formData.wolthersStaff || []).length > 0 && !(formData.participants || []).length && (
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                Wolthers Staff ({(formData.wolthersStaff || []).length})
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {(formData.wolthersStaff || []).map(staff => (
-                  <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
-                    {staff.fullName}
-                  </div>
-                ))}
-              </div>
+          {/* Show empty state with debugging info */}
+          {!(formData.participants || []).length && !(formData.wolthersStaff || []).length && (
+            <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+              No team members selected
+              {console.log('⚠️ [ReviewStep] No participants or wolthersStaff found')}
             </div>
           )}
           
