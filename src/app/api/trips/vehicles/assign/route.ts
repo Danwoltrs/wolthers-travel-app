@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
+import { verify } from 'jsonwebtoken';
 
 interface VehicleAssignmentRequest {
   tripId: string;
@@ -38,18 +38,46 @@ interface VehicleAssignmentRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
+    // Authentication check
+    const authHeader = request.headers.get('authorization');
+    const cookieToken = request.cookies.get('auth-token')?.value;
+    
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (cookieToken) {
+      token = cookieToken;
+    }
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    
+    // Verify token and get user
+    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret';
+    let user: any = null;
+    
+    try {
+      const decoded = verify(token, secret) as any;
+      const supabase = createSupabaseServiceClient();
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.userId)
+        .single();
+      
+      if (userData) {
+        user = userData;
       }
-    );
+    } catch (error) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 });
+    }
+    
+    const supabase = createSupabaseServiceClient();
 
     const body: VehicleAssignmentRequest = await request.json();
     const { tripId, assignments } = body;
