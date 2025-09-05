@@ -159,7 +159,7 @@ export default function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg leading-tight">
               {vehicle.model}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 dark:text-white mt-1">
               {vehicle.color} • {vehicle.license_plate}
             </p>
           </div>

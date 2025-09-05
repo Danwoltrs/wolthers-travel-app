@@ -104,10 +104,21 @@ export function OverviewTab({
       })
       
       if (response.ok) {
-        // Success - trip deleted, close modal and refresh
+        // Success - trip deleted, close modal immediately 
         setShowDeleteConfirm(false)
         if (onClose) {
-          onClose() // This will trigger refreshSilently() in the dashboard
+          onClose() // Close modal immediately like draft deletion
+        }
+        
+        // Force immediate cache refresh like trip creation
+        try {
+          // Trigger a hard refresh to clear all cached data immediately
+          console.log('🔄 [Trip Deletion] Forcing cache refresh after trip deletion')
+          setTimeout(() => {
+            window.location.reload()
+          }, 100) // Small delay to let modal close
+        } catch (refreshError) {
+          console.warn('Cache refresh failed, trip was deleted but may require manual refresh:', refreshError)
         }
       } else {
         const error = await response.json()

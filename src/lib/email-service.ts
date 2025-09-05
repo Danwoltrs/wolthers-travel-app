@@ -22,6 +22,17 @@ export interface ApprovalEmailData {
   adminName: string
 }
 
+export interface TripCancellationEmailData {
+  email: string
+  name: string
+  tripTitle: string
+  tripDates: string
+  cancellationReason?: string
+  cancelledBy: string
+  originalStartDate: string
+  originalEndDate: string
+}
+
 export class EmailService {
   private static async sendEmail(to: string, subject: string, html: string) {
     try {
@@ -226,6 +237,101 @@ export class EmailService {
     } catch (error) {
       console.error('[EMAIL SERVICE] Error sending approval email:', error)
       return { success: false, error: 'Failed to send approval email' }
+    }
+  }
+
+  static async sendTripCancellationEmail(data: TripCancellationEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const subject = `Trip Cancelled: ${data.tripTitle}`
+      
+      const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Trip Cancelled - ${data.tripTitle}</title>
+        </head>
+        <body style="margin: 0; padding: 40px 20px; background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; border: 1px solid #e9ecef;">
+            
+            <!-- Logo Header -->
+            <div style="padding: 40px 30px 20px; text-align: center;">
+              <img src="https://wolthers.com/images/wolthers-logo-green.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
+              <h1 style="color: #dc2626; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2;">
+                Trip Cancelled
+              </h1>
+              <p style="color: #666666; margin: 10px 0 0; font-size: 16px; line-height: 1.4;">
+                Important update about your scheduled trip
+              </p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 0 30px 40px;">
+              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                Hello ${data.name},
+              </p>
+              
+              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                We regret to inform you that the following trip has been cancelled:
+              </p>
+              
+              <!-- Trip Details Box -->
+              <div style="margin: 30px 0; padding: 20px; background-color: #fef2f2; border-radius: 8px; border-left: 4px solid #dc2626;">
+                <h3 style="color: #dc2626; margin: 0 0 10px; font-size: 18px; font-weight: 600;">
+                  ${data.tripTitle}
+                </h3>
+                <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0;">
+                  <strong>Original Dates:</strong> ${data.tripDates}
+                </p>
+                <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 5px 0 0;">
+                  <strong>Cancelled by:</strong> ${data.cancelledBy}
+                </p>
+                ${data.cancellationReason ? `
+                <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 10px 0 0;">
+                  <strong>Reason:</strong> ${data.cancellationReason}
+                </p>
+                ` : ''}
+              </div>
+              
+              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 20px 0;">
+                All associated activities, meetings, and accommodations have been cancelled. If you had any personal arrangements connected to this trip, please review and adjust them accordingly.
+              </p>
+              
+              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 20px 0;">
+                We apologize for any inconvenience this may cause. If you have questions about this cancellation or need assistance with alternative arrangements, please contact the trip organizer or Wolthers team.
+              </p>
+              
+              <!-- Contact Info -->
+              <div style="margin: 30px 0; padding: 20px; background-color: #f0fdf4; border-radius: 8px; border-left: 4px solid #059669;">
+                <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0; font-weight: 500;">
+                  <strong>Need Support?</strong> Contact your trip coordinator or email support@wolthers.com for assistance.
+                </p>
+              </div>
+              
+              <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 20px 0 0;">
+                Thank you for your understanding.
+              </p>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #666666; font-size: 14px; margin: 0; line-height: 1.6;">
+                © ${new Date().getFullYear()} Wolthers & Associates. All rights reserved.<br>
+                <a href="https://trips.wolthers.com" style="color: #059669; text-decoration: none;">trips.wolthers.com</a>
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+
+      const result = await this.sendEmail(data.email, subject, html)
+      return result
+
+    } catch (error) {
+      console.error('[EMAIL SERVICE] Error sending trip cancellation email:', error)
+      return { success: false, error: 'Failed to send trip cancellation email' }
     }
   }
 }

@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
         rental_company,
         rental_contact_info,
         rental_cost_per_day,
+        image_url,
+        gallery_images,
         created_at,
         updated_at
       `)
@@ -137,6 +139,8 @@ export async function POST(request: NextRequest) {
         rental_company,
         rental_contact_info,
         rental_cost_per_day,
+        image_url,
+        gallery_images,
         created_at,
         updated_at
       `)

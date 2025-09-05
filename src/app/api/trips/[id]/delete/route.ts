@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
+import { EmailService, TripCancellationEmailData } from '@/lib/email-service'
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -93,7 +94,22 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // Note: The UI already confirmed this is a cancellation with user consent
     console.log(`Deleting trip with status: ${trip.status}`)
     
-    // Delete related data first (cascading delete)
+    // FIRST: Get data needed for email notifications BEFORE deletion
+    console.log('📧 [Trip Cancellation] Fetching notification data before deletion...')
+    
+    // Get trip participants for email notifications (fetch before deletion)
+    const { data: participants } = await supabase
+      .from('trip_participants')
+      .select('users(id, email, full_name, name)')
+      .eq('trip_id', tripId)
+    
+    // Get company contacts from trip activities (fetch before deletion)  
+    const { data: activities } = await supabase
+      .from('activities')
+      .select('host, location')
+      .eq('trip_id', tripId)
+    
+    // SECOND: Delete related data (cascading delete)
     console.log('🗑️ Deleting related trip data...')
     
     // Delete activities (modern approach)
@@ -150,45 +166,97 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       )
     }
     
-    // Send cancellation email notifications (basic implementation)
+    // THIRD: Send real cancellation email notifications using Resend
     try {
-      // Get trip participants for email notifications
-      const { data: participants } = await supabase
-        .from('trip_participants')
-        .select('users(email, full_name)')
-        .eq('trip_id', tripId)
+      console.log('📧 [Trip Cancellation] Sending email notifications via Resend...')
       
-      // Get trip activities to notify hosts
-      const { data: activities } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('trip_id', tripId)
+      // Format trip dates
+      const startDate = new Date(trip.start_date).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+      const endDate = new Date(trip.end_date).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+      const tripDates = startDate === endDate ? startDate : `${startDate} - ${endDate}`
       
-      // Log email notifications (in a real implementation, you'd send actual emails)
-      console.log('📧 [Trip Cancellation] Email notifications would be sent to:')
+      const emailPromises: Promise<any>[] = []
       
-      // Notify Wolthers staff
+      // Send emails to Wolthers staff participants
       if (participants && participants.length > 0) {
-        participants.forEach(p => {
-          if (p.users) {
-            console.log(`   ✉️ Staff: ${p.users.full_name} (${p.users.email})`)
+        for (const p of participants) {
+          if (p.users && p.users.email) {
+            const emailData: TripCancellationEmailData = {
+              email: p.users.email,
+              name: p.users.full_name || p.users.name || 'Team Member',
+              tripTitle: trip.title,
+              tripDates,
+              cancelledBy: user.full_name || user.name || 'Administrator',
+              originalStartDate: trip.start_date,
+              originalEndDate: trip.end_date
+            }
+            
+            console.log(`   📤 Sending to Staff: ${emailData.name} (${emailData.email})`)
+            emailPromises.push(EmailService.sendTripCancellationEmail(emailData))
+          }
+        }
+      }
+      
+      // Get company contacts from activities hosts (if any)
+      if (activities && activities.length > 0) {
+        const hostCompanies = [...new Set(activities.map(a => a.host).filter(Boolean))]
+        
+        for (const hostName of hostCompanies) {
+          // Try to find company contact info
+          const { data: companyContacts } = await supabase
+            .from('companies')
+            .select('name, email, contact_person')
+            .ilike('name', `%${hostName}%`)
+            .limit(1)
+            .single()
+          
+          if (companyContacts && companyContacts.email) {
+            const emailData: TripCancellationEmailData = {
+              email: companyContacts.email,
+              name: companyContacts.contact_person || 'Host Company',
+              tripTitle: trip.title,
+              tripDates,
+              cancelledBy: user.full_name || user.name || 'Wolthers Team',
+              originalStartDate: trip.start_date,
+              originalEndDate: trip.end_date
+            }
+            
+            console.log(`   📤 Sending to Host: ${hostName} (${companyContacts.email})`)
+            emailPromises.push(EmailService.sendTripCancellationEmail(emailData))
+          } else {
+            console.log(`   ⚠️ No email found for host: ${hostName}`)
+          }
+        }
+      }
+      
+      // Send all emails in parallel
+      const emailResults = await Promise.allSettled(emailPromises)
+      const successCount = emailResults.filter(r => r.status === 'fulfilled' && r.value.success).length
+      const failCount = emailResults.length - successCount
+      
+      console.log(`📧 Email notifications sent: ${successCount} successful, ${failCount} failed`)
+      
+      if (failCount > 0) {
+        emailResults.forEach((result, index) => {
+          if (result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)) {
+            console.error(`   ❌ Email ${index + 1} failed:`, result.status === 'rejected' ? result.reason : result.value.error)
           }
         })
       }
       
-      // Notify hosts (companies mentioned in activities)
-      if (activities && activities.length > 0) {
-        const hostCompanies = [...new Set(activities.map(a => a.host).filter(Boolean))]
-        hostCompanies.forEach(host => {
-          console.log(`   ✉️ Host: ${host}`)
-        })
-      }
-      
-      console.log(`📧 Subject: "Trip Cancelled: ${trip.title}"`)
-      console.log(`📧 Message: Trip scheduled for ${trip.start_date} has been cancelled and all activities removed.`)
     } catch (emailError) {
-      console.error('Warning: Email notification failed:', emailError)
-      // Don't fail the deletion if email fails
+      console.error('Warning: Email notification process failed:', emailError)
+      // Don't fail the deletion if email fails - trip cancellation is more important
     }
     
     console.log('✅ Trip deleted successfully')

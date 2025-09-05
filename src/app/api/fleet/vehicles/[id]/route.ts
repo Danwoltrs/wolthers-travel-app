@@ -1,47 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { authenticateFleetRequest } from "@/lib/fleet-auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
-
-    // Get user session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const authResult = await authenticateFleetRequest(request);
     
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" }, 
-        { status: 401 }
-      );
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
-
-    // Check user permissions
-    const { data: userData, error: userDataError } = await supabase
-      .from('users')
-      .select('company_id, role, is_global_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (userDataError || !userData) {
-      return NextResponse.json(
-        { error: "User data not found" },
-        { status: 403 }
-      );
-    }
-
-    const isWolthersStaff = userData.is_global_admin || 
-      userData.company_id === "840783f4-866d-4bdb-9b5d-5d0facf62db0";
-    const isCarManager = userData.role === "car_manager";
-
-    if (!isWolthersStaff && !isCarManager) {
-      return NextResponse.json(
-        { error: "Access denied - fleet management access required" },
-        { status: 403 }
-      );
-    }
+    
+    const { supabase } = authResult;
 
     // Fetch specific vehicle
     const { data: vehicle, error: vehicleError } = await supabase
@@ -66,6 +37,8 @@ export async function GET(
         rental_company,
         rental_contact_info,
         rental_cost_per_day,
+        image_url,
+        gallery_images,
         created_at,
         updated_at
       `)
@@ -97,42 +70,13 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
-
-    // Get user session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const authResult = await authenticateFleetRequest(request);
     
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" }, 
-        { status: 401 }
-      );
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
-
-    // Check user permissions
-    const { data: userData, error: userDataError } = await supabase
-      .from('users')
-      .select('company_id, role, is_global_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (userDataError || !userData) {
-      return NextResponse.json(
-        { error: "User data not found" },
-        { status: 403 }
-      );
-    }
-
-    const isWolthersStaff = userData.is_global_admin || 
-      userData.company_id === "840783f4-866d-4bdb-9b5d-5d0facf62db0";
-    const isCarManager = userData.role === "car_manager";
-
-    if (!isWolthersStaff && !isCarManager) {
-      return NextResponse.json(
-        { error: "Access denied - fleet management access required" },
-        { status: 403 }
-      );
-    }
+    
+    const { supabase } = authResult;
 
     const body = await request.json();
     
@@ -211,6 +155,8 @@ export async function PATCH(
         rental_company,
         rental_contact_info,
         rental_cost_per_day,
+        image_url,
+        gallery_images,
         created_at,
         updated_at
       `)
@@ -243,7 +189,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const authResult = await authenticateFleetRequest(request);
+    
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    
+    const { supabase } = authResult;
 
     // Get user session
     const { data: { user }, error: userError } = await supabase.auth.getUser();
