@@ -254,14 +254,33 @@ export default function Dashboard() {
     setShowTripCreationModal(false)
     setResumeData(null)
     
-    // Force refresh trips data to show the new trip immediately
+    // Try multiple approaches to refresh the trip list
     try {
-      await refetch() // Use force refresh instead of silent refresh
-      console.log('Trip list refreshed successfully')
-    } catch (error) {
-      console.error('Failed to refresh trip list:', error)
-      // Fallback to hard refresh only if soft refresh fails
-      window.location.reload()
+      // First try silent refresh (less disruptive)
+      console.log('Attempting silent refresh...')
+      await refreshSilently()
+      console.log('Silent refresh successful')
+      
+      // Give the cache a moment to update
+      setTimeout(() => {
+        console.log('Trip list updated successfully')
+      }, 500)
+    } catch (silentError) {
+      console.warn('Silent refresh failed, trying force refresh:', silentError)
+      
+      try {
+        // If silent refresh fails, try force refresh
+        await refetch()
+        console.log('Force refresh successful')
+      } catch (forceError) {
+        console.error('All refresh attempts failed:', forceError)
+        
+        // Only use hard refresh as last resort after a delay
+        console.log('Falling back to hard refresh in 2 seconds...')
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
     }
   }
 

@@ -78,24 +78,33 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         </div>
       </div>
 
-      {/* Team */}
+      {/* Team & Drivers */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
         <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center">
           <Users className="w-4 h-4 mr-2" />
-          Team Members
+          Team Members & Drivers
         </h3>
         
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Show participants from formData.participants (selected Wolthers staff) */}
           {(formData.participants || []).length > 0 && (
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 Wolthers Staff ({(formData.participants || []).length})
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {(formData.participants || []).map(staff => (
-                  <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
-                    {staff.fullName || staff.name}
+                  <div key={staff.id} className="text-sm">
+                    <div className="text-gray-700 dark:text-gray-300 font-medium">
+                      {staff.fullName || staff.name}
+                    </div>
+                    {(staff as any).isDriver && (
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center">
+                        <Car className="w-3 h-3 mr-1" />
+                        Driver - {(staff as any).drivingLicense || 'B'} License
+                        {(staff as any).canDriveManual && ' (Manual)'}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -118,17 +127,14 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
             </div>
           )}
           
-          {(formData as any).drivers && (formData as any).drivers.length > 0 && (
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                Drivers ({(formData as any).drivers.length})
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {(formData as any).drivers.map((driver: any) => (
-                  <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
-                    {driver.fullName}
-                  </div>
-                ))}
+          {/* Show driver count summary */}
+          {(formData.participants || []).filter((p: any) => p.isDriver).length > 0 && (
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-700">
+              <div className="flex items-center text-emerald-700 dark:text-emerald-400">
+                <Car className="w-4 h-4 mr-2" />
+                <span className="text-sm font-medium">
+                  {(formData.participants || []).filter((p: any) => p.isDriver).length} Staff Member(s) Available as Driver(s)
+                </span>
               </div>
             </div>
           )}

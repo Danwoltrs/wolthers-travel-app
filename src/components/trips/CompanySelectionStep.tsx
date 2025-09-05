@@ -297,6 +297,9 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     Company
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    City
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Location
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -320,31 +323,22 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                         {company.fantasy_name || company.name}
                       </div>
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-gray-300">
+                        {(company as any).city ? (
+                          <div className="font-medium text-emerald-600 dark:text-emerald-400">
+                            {(company as any).city}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 italic">—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
-                        {(company as any).city || (company as any).address ? (
-                          <div className="flex items-start">
-                            <MapPin className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
-                            <div className="break-words max-w-xs">
-                              {/* Show city prominently if available */}
-                              {(company as any).city && (
-                                <div className="font-medium text-emerald-600 dark:text-emerald-400">
-                                  {(company as any).city}
-                                </div>
-                              )}
-                              {/* Show full address if different from city */}
-                              {(company as any).address && (
-                                <div className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
-                                  {(company as any).address}
-                                </div>
-                              )}
-                              {/* Fallback to state if no city */}
-                              {!(company as any).city && (company as any).state && (
-                                <div className="text-gray-600 dark:text-gray-400">
-                                  {(company as any).state}
-                                </div>
-                              )}
-                            </div>
+                        {(company as any).address ? (
+                          <div className="break-words max-w-xs text-gray-600 dark:text-gray-400 text-xs">
+                            {(company as any).address}
                           </div>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-500 italic">—</span>
