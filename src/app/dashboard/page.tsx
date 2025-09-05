@@ -228,10 +228,10 @@ export default function Dashboard() {
   }
 
 
-  const handleCreateTrip = () => {
+  const handleCreateTrip = React.useCallback(() => {
     setResumeData(null) // Clear any resume data
     setShowTripCreationModal(true)
-  }
+  }, [])
 
   const handleContinueTrip = (draftData: any) => {
     setResumeData(draftData)
