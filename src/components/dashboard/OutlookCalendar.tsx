@@ -106,7 +106,7 @@ const ActivityCard = memo(function ActivityCard({
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
       }),
-      canDrag: () => !isResizing && !isOptimistic, // Prevent drag when resizing or during optimistic updates
+      canDrag: () => !isResizing, // Allow drag for temp activities, just prevent during resizing
       end: () => {
         // Enhanced end handling with proper state cleanup
         setTimeout(() => {

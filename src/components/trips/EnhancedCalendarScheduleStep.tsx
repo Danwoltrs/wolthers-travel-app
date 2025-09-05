@@ -77,11 +77,73 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   })
   
   // For temp trips, create simplified versions of activity manager functions
-  const updateActivity = activityManager.updateActivity
-  const updateActivityDebounced = activityManager.updateActivityDebounced
-  const createActivity = activityManager.createActivity
-  const deleteActivity = activityManager.deleteActivity
-  const forceRefreshActivities = activityManager.forceRefreshActivities
+  // DISABLE SAVING during temp trip creation - only update local state
+  const updateActivity = mockTrip.id.startsWith('temp-trip-') 
+    ? async (activityId: string, updates: Partial<ActivityFormData>) => {
+        console.log('🔄 [Temp Trip] Simulating activity update (no save):', { activityId, updates })
+        // Update activities in formData instead of database
+        const currentActivities = formData.generatedActivities || []
+        const updatedActivities = currentActivities.map(activity => 
+          activity.id === activityId ? { ...activity, ...updates } : activity
+        )
+        updateFormData({ generatedActivities: updatedActivities })
+        return null
+      }
+    : activityManager.updateActivity
+    
+  const updateActivityDebounced = mockTrip.id.startsWith('temp-trip-')
+    ? async (activityId: string, updates: Partial<ActivityFormData>, delay?: number) => {
+        console.log('🔄 [Temp Trip] Simulating debounced update (no save):', { activityId, updates })
+        // Update activities in formData instead of database - no debouncing needed
+        const currentActivities = formData.generatedActivities || []
+        const updatedActivities = currentActivities.map(activity => 
+          activity.id === activityId ? { ...activity, ...updates } : activity
+        )
+        updateFormData({ generatedActivities: updatedActivities })
+      }
+    : activityManager.updateActivityDebounced
+    
+  const createActivity = mockTrip.id.startsWith('temp-trip-')
+    ? async (activityData: ActivityFormData) => {
+        console.log('🔄 [Temp Trip] Simulating activity creation (no save):', activityData)
+        // Create temp activity and add to formData
+        const tempActivity = {
+          id: `temp-activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          title: activityData.title,
+          description: activityData.description || '',
+          activity_date: activityData.activity_date,
+          start_time: activityData.start_time,
+          end_time: activityData.end_time,
+          type: activityData.type as any,
+          location: activityData.location,
+          notes: activityData.notes,
+          trip_id: mockTrip.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_confirmed: activityData.is_confirmed || false
+        }
+        
+        const currentActivities = formData.generatedActivities || []
+        updateFormData({ generatedActivities: [...currentActivities, tempActivity] })
+        return tempActivity
+      }
+    : activityManager.createActivity
+    
+  const deleteActivity = mockTrip.id.startsWith('temp-trip-')
+    ? async (activityId: string) => {
+        console.log('🔄 [Temp Trip] Simulating activity deletion (no save):', activityId)
+        const currentActivities = formData.generatedActivities || []
+        const filteredActivities = currentActivities.filter(activity => activity.id !== activityId)
+        updateFormData({ generatedActivities: filteredActivities })
+      }
+    : activityManager.deleteActivity
+    
+  const forceRefreshActivities = mockTrip.id.startsWith('temp-trip-')
+    ? async () => {
+        console.log('🔄 [Temp Trip] Simulating refresh (no database call)')
+        // No-op for temp trips
+      }
+    : activityManager.forceRefreshActivities
   
   // Create getActivitiesByDate function for temp trips
   const getActivitiesByDate = () => {

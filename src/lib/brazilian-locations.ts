@@ -22,7 +22,10 @@ export const BRAZILIAN_COFFEE_REGIONS = {
     { city: 'Três Pontas', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.3676, lng: -45.5084 } },
     { city: 'Machado', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.6739, lng: -45.9204 } },
     { city: 'Guaxupé', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.3084, lng: -46.7115 } },
-    { city: 'Monte Belo', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.3273, lng: -46.3739 } }
+    { city: 'Monte Belo', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.3273, lng: -46.3739 } },
+    // Additional Sul de Minas locations
+    { city: 'Carmo do Rio Claro', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -20.9873, lng: -46.0984 } },
+    { city: 'Monte Santo de Minas', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -21.1873, lng: -46.9784 } }
   ],
   'Cerrado Mineiro': [
     { city: 'Patrocínio', state: 'Minas Gerais', stateCode: 'MG', coordinates: { lat: -18.9439, lng: -46.9929 } },
@@ -219,22 +222,41 @@ export function getRegionByCity(cityName: string, stateName?: string): string {
 
 // Travel time calculation between cities (in hours)
 export function calculateTravelTime(fromCity: string, toCity: string): number {
-  const fromCityLower = fromCity.toLowerCase()
-  const toCityLower = toCity.toLowerCase()
+  const fromCityLower = fromCity.toLowerCase().trim()
+  const toCityLower = toCity.toLowerCase().trim()
+  
+  console.log(`🚗 [Travel Calc] Calculating travel: ${fromCity} → ${toCity}`)
   
   // Same city - no travel time
   if (fromCityLower === toCityLower) {
+    console.log(`🏙️ [Travel Calc] Same city detected: ${fromCity} = ${toCity} (0h)`)
     return 0
   }
   
   // Santos area optimization - most visits within walking distance
   if (isSantosArea(fromCity) && isSantosArea(toCity)) {
+    console.log(`🚶 [Travel Calc] Santos area walking distance: ${fromCity} ↔ ${toCity} (0h)`)
     return 0 // Walking distance in Santos port area
   }
   
   // Varginha area optimization - short drives between offices
   if (isVarginhaArea(fromCity) && isVarginhaArea(toCity)) {
+    console.log(`🚙 [Travel Calc] Varginha area short drive: ${fromCity} ↔ ${toCity} (0.1h)`)
     return 0.1 // 5-10 minutes drive, round up to minimal time
+  }
+  
+  // Enhanced same-city detection using company names/addresses
+  const fromLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase().includes(fromCityLower) || fromCityLower.includes(loc.city.toLowerCase())
+  )
+  const toLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
+    loc.city.toLowerCase().includes(toCityLower) || toCityLower.includes(loc.city.toLowerCase())
+  )
+  
+  // If both cities are found and are actually the same city (fuzzy matching)
+  if (fromLocation && toLocation && fromLocation.city.toLowerCase() === toLocation.city.toLowerCase()) {
+    console.log(`🏙️ [Travel Calc] Fuzzy same city match: ${fromCity} = ${toCity} via ${fromLocation.city} (0h)`)
+    return 0
   }
   
   // Same coffee region - reduced travel time
@@ -243,19 +265,14 @@ export function calculateTravelTime(fromCity: string, toCity: string): number {
     const region2 = getRegionByCity(toCity)
     
     if (region1 === region2 && region1 !== 'Brasil') {
-      // Same coffee region - optimized travel
-      return 0.5
+      console.log(`☕ [Travel Calc] Same coffee region: ${fromCity} ↔ ${toCity} in ${region1} (0.5h)`)
+      return 0.5 // Same coffee region - optimized travel
     }
   }
   
-  const fromLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
-    loc.city.toLowerCase() === fromCityLower
-  )
-  const toLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
-    loc.city.toLowerCase() === toCityLower
-  )
-  
+  // Try to find locations with better fuzzy matching
   if (!fromLocation?.coordinates || !toLocation?.coordinates) {
+    console.log(`⚠️ [Travel Calc] Missing coordinates for ${fromCity} or ${toCity}, using default 2h`)
     return 2 // Default 2 hours if coordinates not found
   }
   
@@ -265,11 +282,16 @@ export function calculateTravelTime(fromCity: string, toCity: string): number {
     toLocation.coordinates.lat, toLocation.coordinates.lng
   )
   
+  console.log(`📏 [Travel Calc] Distance: ${distance.toFixed(2)} km between ${fromLocation.city} and ${toLocation.city}`)
+  
   // Estimate travel time: average speed 60 km/h for Brazilian roads
   const travelTimeHours = distance / 60
   
   // Round to nearest 0.5 hours and ensure minimum 0.5 hours
-  return Math.max(0.5, Math.round(travelTimeHours * 2) / 2)
+  const finalTime = Math.max(0.5, Math.round(travelTimeHours * 2) / 2)
+  console.log(`⏱️ [Travel Calc] Final travel time: ${finalTime}h for ${fromCity} → ${toCity}`)
+  
+  return finalTime
 }
 
 // Haversine formula to calculate distance between two points
@@ -304,7 +326,9 @@ export function isVarginhaArea(cityName: string): boolean {
          city.includes('três pontas') ||
          city.includes('tres pontas') ||
          city.includes('alfenas') ||
-         city.includes('machado')
+         city.includes('machado') ||
+         city.includes('guaxupé') ||
+         city.includes('guaxupe')
 }
 
 // Check if cities are in the same region (for grouping meetings)
