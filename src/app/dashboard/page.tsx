@@ -24,7 +24,7 @@ export default function Dashboard() {
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-    const { trips, loading, error, isOffline, refreshSilently } = useSmartTrips()
+    const { trips, loading, error, isOffline, refreshSilently, refetch } = useSmartTrips()
 
     // Check if user can create trips (Wolthers staff or external company admins)
     // Must be called before any conditional returns to maintain hook order
@@ -247,10 +247,22 @@ export default function Dashboard() {
     return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
   }, [handleCreateTrip])
 
-  const handleTripCreated = (trip: any) => {
-    // Hard refresh to show the newly created trip immediately
+  const handleTripCreated = async (trip: any) => {
     console.log('Trip created:', trip)
-    window.location.reload()
+    
+    // Close the modal first
+    setShowTripCreationModal(false)
+    setResumeData(null)
+    
+    // Force refresh trips data to show the new trip immediately
+    try {
+      await refetch() // Use force refresh instead of silent refresh
+      console.log('Trip list refreshed successfully')
+    } catch (error) {
+      console.error('Failed to refresh trip list:', error)
+      // Fallback to hard refresh only if soft refresh fails
+      window.location.reload()
+    }
   }
 
   const closeModal = () => {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Users, Car, Building, DollarSign } from 'lucide-react'
+import { Calendar, Users, Car, Building, DollarSign, MapPin } from 'lucide-react'
 import { formatDateRange } from '@/lib/utils'
 
 interface ReviewStepProps {
@@ -140,9 +140,61 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         <h3 className="font-medium text-gray-900 dark:text-white mb-3">
           Itinerary Summary
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {(formData.itineraryDays || []).length} days planned
-        </p>
+        
+        {/* Generated Activities Display */}
+        {formData.generatedActivities && formData.generatedActivities.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {formData.generatedActivities.length} activities planned across {' '}
+              {[...new Set(formData.generatedActivities.map(a => a.activity_date))].length} days
+            </p>
+            
+            {/* Group activities by date */}
+            {[...new Set(formData.generatedActivities.map(a => a.activity_date))]
+              .sort()
+              .map(date => {
+                const dayActivities = formData.generatedActivities!.filter(a => a.activity_date === date)
+                const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })
+                
+                return (
+                  <div key={date} className="border-l-2 border-blue-200 dark:border-blue-800 pl-3 ml-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      {formattedDate}
+                    </h4>
+                    <div className="space-y-1">
+                      {dayActivities.map((activity, idx) => (
+                        <div key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start">
+                          <span className="text-gray-400 mr-2 mt-0.5">•</span>
+                          <div>
+                            <span className="text-gray-500 mr-2">
+                              {activity.start_time} - {activity.end_time}
+                            </span>
+                            <span className="text-gray-700 dark:text-gray-300">
+                              {activity.title}
+                            </span>
+                            {activity.location && (
+                              <div className="text-gray-500 text-xs mt-0.5">
+                                📍 {activity.location}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            }
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {(formData.itineraryDays || []).length} days planned
+          </p>
+        )}
       </div>
     </div>
   )
