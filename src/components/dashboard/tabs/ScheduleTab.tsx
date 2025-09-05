@@ -86,6 +86,8 @@ export function ScheduleTab({
 
   // Handle new activity creation
   const handleNewActivity = useCallback((timeSlot?: string, date?: string) => {
+    console.log('🆕 handleNewActivity called:', { timeSlot, date })
+    
     setEditingActivity(null)
     setSelectedDate(date || '')
     
@@ -98,7 +100,8 @@ export function ScheduleTab({
     }
     
     const activityDate = date || (trip.startDate instanceof Date ? trip.startDate.toISOString().split('T')[0] : new Date(trip.startDate).toISOString().split('T')[0])
-    setFormData({
+    
+    const formData = {
       title: '',
       description: '',
       start_time: timeSlot || '',
@@ -112,7 +115,11 @@ export function ScheduleTab({
       currency: 'BRL',
       is_confirmed: false,
       notes: ''
-    })
+    }
+    
+    console.log('📝 Setting form data:', formData)
+    setFormData(formData)
+    console.log('🔧 Opening activity editor modal')
     setShowActivityEditor(true)
   }, [trip.startDate])
 

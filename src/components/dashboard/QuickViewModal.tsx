@@ -220,6 +220,41 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   // Get real trip details from Supabase
   const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(localTrip.id)
   
+  // Handle sync errors gracefully
+  if (tripError) {
+    console.error('Trip sync error detected:', tripError)
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl max-w-md w-full p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertCircle className="w-6 h-6 text-red-500" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">Sync Error</h3>
+          </div>
+          
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Unable to load trip details. This may happen when trip data is being updated or if there are connection issues.
+          </p>
+          
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-200 dark:hover:bg-[#333333] transition-colors"
+            >
+              Refresh Page
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
   // Get activity data using the activity manager
   const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = useActivityManager(localTrip.id || '')
   

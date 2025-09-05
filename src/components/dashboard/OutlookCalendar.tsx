@@ -682,8 +682,18 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   })
 
   const handleSlotClick = () => {
+    console.log('🎯 TimeSlot clicked:', {
+      time: timeSlot.time,
+      date: date.dateString,
+      hasActivities: slotActivities.length > 0,
+      activitiesCount: slotActivities.length
+    })
+    
     if (slotActivities.length === 0) {
+      console.log('📅 Creating new activity for empty slot')
       onActivityCreate(timeSlot.time, date.dateString)
+    } else {
+      console.log('⚠️ Slot has activities, not creating new one')
     }
   }
 
