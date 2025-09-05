@@ -3,13 +3,19 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Upload, X, Camera, Trash2, Star, StarOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import FocalPointSelector from "./FocalPointSelector";
+
+interface FocalPoint {
+  x: number;
+  y: number;
+}
 
 interface VehicleImageUploadProps {
   vehicleId?: string;
   currentImages?: string[];
   primaryImage?: string;
   onImagesChange?: (images: string[], primaryImage?: string) => void;
-  onUpload?: (files: File[], setPrimary?: boolean) => Promise<void>;
+  onUpload?: (files: File[], setPrimary?: boolean, focalPoints?: FocalPoint[]) => Promise<void>;
   onDelete?: (imageUrl: string) => Promise<void>;
   onSetPrimary?: (imageUrl: string) => Promise<void>;
   maxImages?: number;
@@ -32,6 +38,9 @@ export default function VehicleImageUpload({
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<File[]>([]);
+  const [focalPoints, setFocalPoints] = useState<FocalPoint[]>([]);
+  const [showFocalPointSelector, setShowFocalPointSelector] = useState(false);
+  const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +90,10 @@ export default function VehicleImageUpload({
     
     setError(null);
     setPreviewFiles(fileArray);
+    // Initialize focal points with center defaults
+    setFocalPoints(fileArray.map(() => ({ x: 50, y: 50 })));
+    setCurrentPreviewIndex(0);
+    setShowFocalPointSelector(fileArray.length > 0);
     
     if (onImagesChange && !vehicleId) {
       // For new vehicles, just update the preview
@@ -110,8 +123,11 @@ export default function VehicleImageUpload({
     setError(null);
     
     try {
-      await onUpload(previewFiles, setPrimary);
+      await onUpload(previewFiles, setPrimary, focalPoints);
       setPreviewFiles([]);
+      setFocalPoints([]);
+      setShowFocalPointSelector(false);
+      setCurrentPreviewIndex(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -144,10 +160,27 @@ export default function VehicleImageUpload({
 
   const clearPreview = () => {
     setPreviewFiles([]);
+    setFocalPoints([]);
+    setShowFocalPointSelector(false);
+    setCurrentPreviewIndex(0);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleFocalPointSet = (focalPoint: FocalPoint) => {
+    const newFocalPoints = [...focalPoints];
+    newFocalPoints[currentPreviewIndex] = focalPoint;
+    setFocalPoints(newFocalPoints);
+  };
+
+  const nextPreviewImage = () => {
+    setCurrentPreviewIndex((prev) => (prev + 1) % previewFiles.length);
+  };
+
+  const previousPreviewImage = () => {
+    setCurrentPreviewIndex((prev) => (prev - 1 + previewFiles.length) % previewFiles.length);
   };
 
   return (
@@ -232,6 +265,41 @@ export default function VehicleImageUpload({
             ))}
           </div>
           
+          {/* Focal Point Selector */}
+          {showFocalPointSelector && previewFiles.length > 0 && (
+            <div className="space-y-4">
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Set Focal Points ({currentPreviewIndex + 1} of {previewFiles.length})
+                  </h4>
+                  {previewFiles.length > 1 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={previousPreviewImage}
+                        className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={nextPreviewImage}
+                        className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <FocalPointSelector
+                  imageUrl={URL.createObjectURL(previewFiles[currentPreviewIndex])}
+                  initialFocalPoint={focalPoints[currentPreviewIndex]}
+                  onFocalPointSet={handleFocalPointSet}
+                />
+              </div>
+            </div>
+          )}
+
           {vehicleId && (
             <div className="flex gap-2">
               <button

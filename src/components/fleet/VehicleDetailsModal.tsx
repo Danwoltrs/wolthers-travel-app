@@ -39,6 +39,8 @@ interface Vehicle {
   notes: string | null;
   image_url: string | null;
   gallery_images: string[] | null;
+  focal_point_x?: number | null;
+  focal_point_y?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -122,7 +124,7 @@ export default function VehicleDetailsModal({
     }
   };
 
-  const handleImageUpload = async (files: File[], setPrimary?: boolean) => {
+  const handleImageUpload = async (files: File[], setPrimary?: boolean, focalPoints?: Array<{x: number, y: number}>) => {
     if (!files.length) return;
     
     setUploading(true);
@@ -133,6 +135,9 @@ export default function VehicleDetailsModal({
       });
       if (setPrimary) {
         formData.append('set_primary', 'true');
+      }
+      if (focalPoints && focalPoints.length > 0) {
+        formData.append('focal_points', JSON.stringify(focalPoints));
       }
 
       const response = await fetch(`/api/fleet/vehicles/${vehicle.id}/upload-image`, {
@@ -151,6 +156,8 @@ export default function VehicleDetailsModal({
         ...currentVehicle,
         image_url: result.data.primaryImage,
         gallery_images: result.data.galleryImages,
+        focal_point_x: result.data.focalPointX,
+        focal_point_y: result.data.focalPointY,
       };
       
       setCurrentVehicle(updatedVehicle);
@@ -184,6 +191,8 @@ export default function VehicleDetailsModal({
         ...currentVehicle,
         image_url: result.data.primaryImage,
         gallery_images: result.data.galleryImages,
+        focal_point_x: result.data.focalPointX,
+        focal_point_y: result.data.focalPointY,
       };
       
       setCurrentVehicle(updatedVehicle);

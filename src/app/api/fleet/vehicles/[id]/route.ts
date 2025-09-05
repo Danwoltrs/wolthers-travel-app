@@ -39,6 +39,8 @@ export async function GET(
         rental_cost_per_day,
         image_url,
         gallery_images,
+        focal_point_x,
+        focal_point_y,
         created_at,
         updated_at
       `)
@@ -157,6 +159,8 @@ export async function PATCH(
         rental_cost_per_day,
         image_url,
         gallery_images,
+        focal_point_x,
+        focal_point_y,
         created_at,
         updated_at
       `)

@@ -30,6 +30,8 @@ interface Vehicle {
   notes: string | null;
   image_url: string | null;
   gallery_images: string[] | null;
+  focal_point_x?: number | null;
+  focal_point_y?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -129,7 +131,12 @@ export default function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
           <img
             src={vehicle.image_url}
             alt={`${vehicle.model} - ${vehicle.license_plate}`}
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover"
+            style={{
+              objectPosition: vehicle.focal_point_x && vehicle.focal_point_y
+                ? `${vehicle.focal_point_x}% ${vehicle.focal_point_y}%`
+                : 'center'
+            }}
           />
         ) : (
           <Car className="h-16 w-16 text-[#8B6F47] dark:text-[#A0B3A8]" />

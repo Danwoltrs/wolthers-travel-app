@@ -49,6 +49,22 @@ export async function POST(
     const formData = await request.formData()
     const files = formData.getAll('images') as File[]
     const setPrimary = formData.get('set_primary') === 'true'
+    const focalPointsData = formData.get('focal_points')
+    let focalPoints: Array<{x: number, y: number}> = []
+    
+    // Parse focal points if provided
+    if (focalPointsData) {
+      try {
+        focalPoints = JSON.parse(focalPointsData.toString())
+      } catch (error) {
+        console.warn('Invalid focal points data:', error)
+        // Default to center for all images
+        focalPoints = files.map(() => ({ x: 50, y: 50 }))
+      }
+    } else {
+      // Default to center for all images
+      focalPoints = files.map(() => ({ x: 50, y: 50 }))
+    }
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No images provided' }, { status: 400 })
@@ -102,7 +118,7 @@ export async function POST(
     // Get current vehicle data
     const { data: currentVehicle } = await supabase
       .from('vehicles')
-      .select('image_url, gallery_images')
+      .select('image_url, gallery_images, focal_point_x, focal_point_y')
       .eq('id', vehicleId)
       .single()
 
@@ -113,14 +129,22 @@ export async function POST(
     const shouldSetPrimary = setPrimary || !currentVehicle?.image_url
     const primaryImageUrl = shouldSetPrimary ? imageUrls[0] : currentVehicle?.image_url
 
+    // Update focal point if setting a new primary image
+    let updateData: any = {
+      image_url: primaryImageUrl,
+      gallery_images: newGallery,
+      updated_at: new Date().toISOString()
+    }
+
+    if (shouldSetPrimary && focalPoints.length > 0) {
+      updateData.focal_point_x = focalPoints[0].x
+      updateData.focal_point_y = focalPoints[0].y
+    }
+
     // Update vehicle record
     const { error: updateError } = await supabase
       .from('vehicles')
-      .update({
-        image_url: primaryImageUrl,
-        gallery_images: newGallery,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', vehicleId)
 
     if (updateError) {
@@ -140,7 +164,9 @@ export async function POST(
         successCount: uploadResults.length,
         errorCount: errors.length,
         primaryImage: primaryImageUrl,
-        galleryImages: newGallery
+        galleryImages: newGallery,
+        focalPointX: shouldSetPrimary && focalPoints.length > 0 ? focalPoints[0].x : currentVehicle?.focal_point_x,
+        focalPointY: shouldSetPrimary && focalPoints.length > 0 ? focalPoints[0].y : currentVehicle?.focal_point_y
       }
     })
 
