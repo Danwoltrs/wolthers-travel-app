@@ -33,6 +33,14 @@ export interface TripCancellationEmailData {
   originalEndDate: string
 }
 
+export interface TripInviteEmailData {
+  email: string
+  tripName: string
+  startDate?: string | null
+  endDate?: string | null
+  inviteLink: string
+}
+
 export class EmailService {
   private static async sendEmail(to: string, subject: string, html: string) {
     try {
@@ -334,6 +342,33 @@ export class EmailService {
       return { success: false, error: 'Failed to send trip cancellation email' }
     }
   }
+
+  static async sendTripInviteEmail(data: TripInviteEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const subject = `You’ve been invited to join ${data.tripName}`
+      const dateInfo = data.startDate && data.endDate ? `<p>${data.startDate} - ${data.endDate}</p>` : ''
+      const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Trip Invitation</title>
+        </head>
+        <body>
+          <p>You have been invited to join <strong>${data.tripName}</strong>.</p>
+          ${dateInfo}
+          <p><a href="${data.inviteLink}">Create your account</a> to view the trip details.</p>
+        </body>
+        </html>
+      `
+      return await this.sendEmail(data.email, subject, html)
+    } catch (error) {
+      console.error('[EMAIL SERVICE] Error sending trip invite email:', error)
+      return { success: false, error: 'Failed to send trip invite email' }
+    }
+  }
 }
 
 export default EmailService
+
