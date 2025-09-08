@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, Trash2, Share2, Calendar, Building2, User, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface DraftTrip {
   id: string
@@ -27,6 +28,7 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
   const [drafts, setDrafts] = useState<DraftTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     loadDraftTrips()
@@ -46,7 +48,8 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
       const response = await fetch('/api/trips/drafts', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        next: { tags: ['trips', `trips:user:${user?.id}`] }
       })
 
       if (!response.ok) {

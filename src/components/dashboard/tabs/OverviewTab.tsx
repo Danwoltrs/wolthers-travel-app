@@ -11,6 +11,10 @@ import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import { useTripActions } from '@/hooks/useSmartTrips'
+import { cancelTrip } from '@/lib/trip-actions'
 
 interface OverviewTabProps {
   trip: TripCard
@@ -61,6 +65,9 @@ export function OverviewTab({
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
+  const { user } = useAuth()
+  const { removeTrip } = useTripActions()
 
   const handleFieldChange = useCallback(async (field: string, value: any) => {
     // Special handling for status change to "cancelled"
@@ -97,36 +104,13 @@ export function OverviewTab({
   const handleDeleteConfirm = async () => {
     setIsDeleting(true)
     try {
-      // Call deletion API
-      const response = await fetch(`/api/trips/${trip.id}/delete`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        // Success - trip deleted, close modal immediately 
-        setShowDeleteConfirm(false)
-        if (onClose) {
-          onClose() // Close modal immediately like draft deletion
-        }
-        
-        // Force immediate cache refresh like trip creation
-        try {
-          // Trigger a hard refresh to clear all cached data immediately
-          console.log('🔄 [Trip Deletion] Forcing cache refresh after trip deletion')
-          setTimeout(() => {
-            window.location.reload()
-          }, 100) // Small delay to let modal close
-        } catch (refreshError) {
-          console.warn('Cache refresh failed, trip was deleted but may require manual refresh:', refreshError)
-        }
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Unknown error')
-      }
+      await removeTrip(trip.id)
+      await cancelTrip(trip.id, user?.id || '')
+      setShowDeleteConfirm(false)
+      onClose?.()
+      router.refresh()
     } catch (error) {
       console.error('Delete trip error:', error)
-      // Keep modal open so user can retry or cancel
     } finally {
       setIsDeleting(false)
     }
