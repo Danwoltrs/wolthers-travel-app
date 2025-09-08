@@ -10,13 +10,13 @@ import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
 import dynamic from 'next/dynamic'
 
-// Dynamically import TeamVehicleStep to prevent SSR issues
-const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
+// Dynamically import DriverVehicleStep to prevent SSR issues
+const DriverVehicleStep = dynamic(() => import('./DriverVehicleStep'), {
   ssr: false,
   loading: () => (
     <div className="space-y-8">
       <div className="flex items-center justify-center py-8">
-        <div className="text-gray-500 dark:text-gray-400">Loading team assignment...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading driver & vehicle...</div>
       </div>
     </div>
   )
@@ -122,6 +122,15 @@ export interface TripFormData {
   // Legacy fields for compatibility
   wolthersStaff: User[]
   vehicles: Vehicle[]
+  drivers: User[]
+
+  // Basic vehicle selection
+  selectedVehicleId?: string
+  rentalVehicle?: {
+    provider: string
+    pickup: string
+    dropoff: string
+  } | null
   
   // Vehicle allocation data
   vehicleAssignments?: any[]  // Vehicle assignment data from vehicle allocation system
@@ -169,6 +178,9 @@ const initialFormData: TripFormData = {
   itineraryDays: [],
   wolthersStaff: [],
   vehicles: [],
+  drivers: [],
+  selectedVehicleId: undefined,
+  rentalVehicle: null,
   vehicleAssignments: [],
   meetings: [],
   hotels: [],
@@ -185,7 +197,7 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
       { id: 5, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
       { id: 6, name: 'Flights & Travel', description: 'Arrange international flights and travel' },
-      { id: 7, name: 'Team Assignment', description: 'Assign Wolthers staff and logistics' },
+      { id: 7, name: 'Drivers & Vehicle', description: 'Assign driver and vehicle' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else if (tripType === 'in_land') {
@@ -196,7 +208,7 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
       { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 7, name: 'Team Assignment', description: 'Assign vehicles and drivers' },
+      { id: 7, name: 'Drivers & Vehicle', description: 'Assign driver and vehicle' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
@@ -521,8 +533,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Flights & Travel step - optional but allow proceeding
           return true
         case 7:
-          // Team Assignment step - require staff selection
-          return formData.wolthersStaff.length > 0
+          // Drivers & Vehicle step - require driver and vehicle/rental
+          return formData.drivers.length > 0 &&
+            (!!formData.selectedVehicleId || !!formData.rentalVehicle)
         case 8:
           return true
         default:
@@ -548,7 +561,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Calendar Schedule: allow proceeding (activities can be added later)
           return true
         case 7:
-          return true
+          return formData.drivers.length > 0 &&
+            (!!formData.selectedVehicleId || !!formData.rentalVehicle)
         default:
           return false
       }
@@ -559,7 +573,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white dark:bg-[#0f1419] rounded-none md:rounded-2xl shadow-2xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-[#0f1419] rounded-none md:rounded-2xl shadow-2xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[95vh] flex flex-col">
         {/* Header */}
         <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 rounded-t-none md:rounded-t-2xl" style={{ backgroundColor: '#FBBF23' }}>
           <div className="flex items-center space-x-3">
@@ -710,7 +724,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'convention' && currentStep === 7 && (
-            <TeamVehicleStep
+            <DriverVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
@@ -757,7 +771,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 7 && (
-            <TeamVehicleStep
+            <DriverVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
