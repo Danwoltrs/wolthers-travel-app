@@ -21,7 +21,7 @@ export async function createTrip(tripId: string, userId: string) {
 
   revalidateTag('trips')
   revalidateTag(`trips:user:${userId}`)
-  await sendTripNotification({ type: 'create', tripId })
+  await sendTripNotification({ type: 'created', tripId })
   return data
 }
 
@@ -39,6 +39,6 @@ export async function cancelTrip(tripId: string, userId: string) {
 
   revalidateTag('trips')
   revalidateTag(`trips:user:${userId}`)
-  await sendTripNotification({ type: 'cancel', tripId })
+  await sendTripNotification({ type: 'cancelled', tripId })
   return { success: true }
 }

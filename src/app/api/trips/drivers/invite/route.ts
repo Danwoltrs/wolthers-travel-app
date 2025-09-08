@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import { sendTripNotification } from '@/lib/send-trip-notification'
+import { revalidateTag } from 'next/cache'
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,7 +51,10 @@ export async function POST(req: NextRequest) {
       { onConflict: 'trip_id,user_id' }
     )
 
-    await sendTripNotification({ type: 'invited', tripId, email })
+    await sendTripNotification({ type: 'invited', tripId, inviteEmail: email })
+
+    revalidateTag('trips')
+    revalidateTag(`trips:user:${userId}`)
 
     const { data: user } = await supabase
       .from('users')

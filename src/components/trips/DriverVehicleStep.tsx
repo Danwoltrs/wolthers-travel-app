@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Vehicle } from '@/types'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   formData: TripFormData
@@ -13,6 +14,7 @@ export default function DriverVehicleStep({ formData, updateFormData }: Props) {
   const [showInvite, setShowInvite] = useState(false)
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     const load = async () => {
@@ -62,6 +64,7 @@ export default function DriverVehicleStep({ formData, updateFormData }: Props) {
       if (data.user) {
         setDrivers(prev => [...prev, data.user])
         updateFormData({ drivers: [data.user] })
+        router.refresh()
       }
     } catch (err) {
       console.error('Invite driver failed', err)

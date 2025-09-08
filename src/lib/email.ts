@@ -15,17 +15,18 @@ export interface OTPEmailData {
 }
 
 export interface GuestInvitationEmailData {
-  to: string;
-  guestName: string;
-  tripTitle: string;
-  tripStartDate: string;
-  tripEndDate: string;
-  invitedBy: string;
-  invitationToken: string;
-  tripId: string;
-  acceptUrl: string;
-  companyName?: string;
-  message?: string;
+  to: string
+  guestName?: string
+  tripTitle: string
+  tripStartDate: string
+  tripEndDate: string
+  invitedBy: string
+  tripId: string
+  invitationToken?: string
+  acceptUrl?: string
+  companyName?: string
+  message?: string
+  variant?: 'guest' | 'driver'
 }
 
 // Generate a 6-digit OTP
@@ -77,8 +78,8 @@ function getCleanTemplate(data: OTPEmailData): string {
   `;
 }
 
-// Guest Invitation Email Template
-function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
+// Guest Invitation Email Template with variant support
+export function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -87,6 +88,14 @@ function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
       day: 'numeric'
     });
   };
+
+  const isDriver = data.variant === 'driver'
+
+  const headerTitle = isDriver ? "Driver Invitation" : "You're Invited!"
+  const headerText = isDriver
+    ? `${data.invitedBy} has invited you to drive for an upcoming trip`
+    : `${data.invitedBy} has invited you to join an upcoming trip`
+  const ctaLabel = isDriver ? 'View Trip' : 'Accept Invitation'
 
   return `
     <!DOCTYPE html>
@@ -104,9 +113,9 @@ function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 40px;">
-          <h1 style="margin: 0 0 16px 0; font-size: 28px; font-weight: 600; color: #1a1a1a; line-height: 1.2;">You're Invited!</h1>
+          <h1 style="margin: 0 0 16px 0; font-size: 28px; font-weight: 600; color: #1a1a1a; line-height: 1.2;">${headerTitle}</h1>
           <p style="margin: 0; color: #666; font-size: 18px; line-height: 1.4;">
-            ${data.invitedBy} has invited you to join an upcoming trip
+            ${headerText}
           </p>
         </div>
         
@@ -135,23 +144,27 @@ function getGuestInvitationTemplate(data: GuestInvitationEmailData): string {
         </div>
         ` : ''}
         
+        ${data.acceptUrl ? `
         <!-- Call to Action -->
         <div style="text-align: center; margin-bottom: 32px;">
           <a href="${data.acceptUrl}" style="display: inline-block; background: #059669; color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-size: 18px; font-weight: 600; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); transition: all 0.2s ease;">
-            Accept Invitation
+            ${ctaLabel}
           </a>
         </div>
+        ` : ''}
         
         <!-- Additional Info -->
         <div style="border-top: 1px solid #e5e5e5; padding-top: 24px; text-align: center;">
-          <p style="margin: 0 0 16px 0; color: #666; font-size: 14px; line-height: 1.5;">
-            Click the button above to accept this invitation and join the trip. You'll be able to view trip details, itinerary, and connect with other participants.
+          ${data.acceptUrl ? `
+          <p style=\"margin: 0 0 16px 0; color: #666; font-size: 14px; line-height: 1.5;\">
+            Click the button above to ${isDriver ? 'view the trip details' : 'accept this invitation and join the trip'}. You'll be able to view trip details, itinerary, and connect with other participants.
           </p>
-          
-          <p style="margin: 0; color: #999; font-size: 12px;">
-            This invitation will expire in 7 days. If you're having trouble with the button above, copy and paste this link into your browser:<br>
-            <span style="word-break: break-all; color: #059669;">${data.acceptUrl}</span>
+
+          <p style=\"margin: 0; color: #999; font-size: 12px;\">
+            ${isDriver ? '' : 'This invitation will expire in 7 days.'} If you're having trouble with the button above, copy and paste this link into your browser:<br>
+            <span style=\"word-break: break-all; color: #059669;\">${data.acceptUrl}</span>
           </p>
+          ` : ''}
         </div>
         
         <!-- Footer -->
@@ -199,14 +212,18 @@ export async function sendOTPEmail(data: OTPEmailData): Promise<{ success: boole
 
 export async function sendGuestInvitationEmail(data: GuestInvitationEmailData): Promise<{ success: boolean; error?: string }> {
   try {
-    const htmlContent = getGuestInvitationTemplate(data);
-    
+    const htmlContent = getGuestInvitationTemplate(data)
+
+    const subject = data.variant === 'driver'
+      ? `Driver Invitation: ${data.tripTitle}`
+      : `Trip Invitation: ${data.tripTitle}`
+
     const result = await resend.emails.send({
       from: 'Wolthers Travel <trips@trips.wolthers.com>',
       to: data.to,
-      subject: `Trip Invitation: ${data.tripTitle}`,
+      subject,
       html: htmlContent,
-    });
+    })
 
     if (result.error) {
       console.error('Guest invitation email sending failed:', result.error);
