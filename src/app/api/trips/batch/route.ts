@@ -13,6 +13,7 @@ interface BatchOperation {
   resourceId?: string
   data?: any
   timestamp: number
+  mutationId?: string
 }
 
 interface BatchRequest {
@@ -128,7 +129,24 @@ async function processOperation(
   operation: BatchOperation,
   userId: string
 ): Promise<BatchResult> {
-  const { id, type, resourceId, data, timestamp } = operation
+  const { id, type, resourceId, data, timestamp, mutationId } = operation
+
+  // Idempotency: record mutation and short-circuit if already processed
+  if (mutationId) {
+    const { error: mutationError } = await supabase
+      .from('mutations')
+      .insert({ id: mutationId, user_id: userId, operation: type })
+      .select('id')
+      .single()
+    if (mutationError) {
+      if (mutationError.code === '23505') {
+        return { operationId: id, success: true }
+      }
+      const err = new Error(`Mutation log failed: ${mutationError.message}`) as Error & { statusCode?: number }
+      err.statusCode = 500
+      throw err
+    }
+  }
 
   try {
     switch (type) {

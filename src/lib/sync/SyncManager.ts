@@ -41,8 +41,10 @@ export class SyncManager {
   private queueManager: QueueManager
   private conflictResolver: ConflictResolver
   private tripCacheManager: CacheManager<TripCard[]>
-  
+
   private syncTimer: NodeJS.Timeout | null = null
+  private retryTimer: NodeJS.Timeout | null = null
+  private retryDelay = 5000 // start at 5s
   private syncInProgress = false
   private stats: SyncStats = {
     queueSize: 0,
@@ -51,6 +53,12 @@ export class SyncManager {
     failedOperations: 0,
     successfulOperations: 0,
     conflictsResolved: 0
+  }
+
+  // Lightweight state tracking for error handling
+  private state: { status: 'active' | 'paused'; lastError: Error | null } = {
+    status: 'active',
+    lastError: null
   }
   
   private eventListeners: Map<SyncEventType, Array<(event: SyncEvent) => void>> = new Map()
@@ -120,13 +128,13 @@ export class SyncManager {
     
     this.syncTimer = setInterval(() => {
       if (!this.syncInProgress && networkManager.isOnline) {
-        this.processQueue()
+        void this.processQueue().catch(err => this.handleError(err))
       }
     }, this.config.syncInterval)
 
     // Initial sync
     if (networkManager.isOnline) {
-      setTimeout(() => this.processQueue(), 1000)
+      setTimeout(() => void this.processQueue().catch(err => this.handleError(err)), 1000)
     }
   }
 
@@ -139,6 +147,32 @@ export class SyncManager {
       this.syncTimer = null
       console.log('SyncManager: Background sync paused')
     }
+  }
+
+  /**
+   * Handle sync errors without destroying the manager
+   */
+  private handleError(error: any) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    console.error('SyncManager: Sync error:', err)
+    this.state.status = 'paused'
+    this.state.lastError = err
+    this.pauseSync()
+    this.scheduleRetry()
+  }
+
+  /**
+   * Schedule a retry with exponential backoff
+   */
+  private scheduleRetry() {
+    if (this.retryTimer) return
+    const delay = this.retryDelay
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      this.state.status = 'active'
+      this.startSync()
+    }, delay)
+    this.retryDelay = Math.min(this.retryDelay * 3, 120000)
   }
 
   /**
@@ -156,7 +190,7 @@ export class SyncManager {
 
     // If online and not currently syncing, process immediately
     if (networkManager.isOnline && !this.syncInProgress) {
-      setTimeout(() => this.processQueue(), 100)
+      setTimeout(() => void this.processQueue().catch(err => this.handleError(err)), 100)
     }
   }
 
@@ -208,9 +242,11 @@ export class SyncManager {
       })
 
       console.log(`SyncManager: Sync complete - ${successfulIds.length} successful, ${failedOperations.length} failed`)
+      this.state.lastError = null
+      this.retryDelay = 5000
 
     } catch (error) {
-      console.error('SyncManager: Batch processing failed:', error)
+      this.handleError(error)
       this.emitEvent({
         type: 'sync_error',
         timestamp: Date.now(),
@@ -345,7 +381,8 @@ export class SyncManager {
         type: op.type,
         resourceId: op.resourceId,
         data: op.data ? this.validateAndCleanData(op.data) : op.data,
-        timestamp: op.timestamp
+        timestamp: op.timestamp,
+        mutationId: op.mutationId
       }))
 
       const response = await fetch('/api/trips/batch', {
@@ -410,6 +447,15 @@ export class SyncManager {
         break
       default:
         throw new Error(`Unsupported operation: ${type}_${resource}`)
+    }
+
+    // Attach mutation ID for idempotency if available
+    if (operation.mutationId) {
+      if (method === 'DELETE') {
+        body = { clientMutationId: operation.mutationId }
+      } else {
+        body = { ...(body || {}), clientMutationId: operation.mutationId }
+      }
     }
 
     const response = await fetch(endpoint, {

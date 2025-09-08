@@ -375,6 +375,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         resource: 'trip',
         resourceId: trip.id,
         data: trip,
+        mutationId: crypto.randomUUID(),
         timestamp: Date.now(),
         priority: 1,
         retryCount: 0
@@ -411,6 +412,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         resource: 'trip',
         resourceId: tripId,
         data: updates,
+        mutationId: crypto.randomUUID(),
         timestamp: Date.now(),
         priority: 2,
         retryCount: 0
@@ -443,6 +445,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         resource: 'trip',
         resourceId: tripId,
         data: undefined,
+        mutationId: crypto.randomUUID(),
         timestamp: Date.now(),
         priority: 3, // Higher priority for deletes
         retryCount: 0

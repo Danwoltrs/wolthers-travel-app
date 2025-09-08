@@ -17,6 +17,7 @@ export interface QueuedOperation {
   resource: ResourceType
   resourceId?: string // For updates/deletes
   data?: any // Operation payload
+  mutationId?: string // Idempotency key for server-side deduplication
   timestamp: number
   priority: number // Lower number = higher priority
   retryCount: number
