@@ -8,6 +8,7 @@ import { performanceOptimizer, measurePerformance } from '@/lib/cache/performanc
 import type { TripCard } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase-client'
+import { cleanStorageOnBoot } from '@/lib/storage/safeStorage'
 
 // Get environment-appropriate configuration
 const systemConfig = getCacheSystemConfig()
@@ -116,6 +117,10 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
   const syncManagerRef = useRef<SyncManager | null>(null)
   const { user } = useAuth()
   const userId = user?.id || 'anonymous'
+
+  useEffect(() => {
+    cleanStorageOnBoot()
+  }, [])
 
   /**
    * Fetch trips from API with authentication

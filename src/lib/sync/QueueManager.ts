@@ -6,6 +6,8 @@
  * operation deduplication.
  */
 
+import { safeGet, safeSet } from '@/lib/storage/safeStorage'
+
 export type OperationType = 'create' | 'update' | 'delete' | 'patch'
 export type ResourceType = 'trip' | 'participant' | 'activity' | 'document' | 'expense'
 
@@ -300,19 +302,16 @@ export class QueueManager {
    */
   private loadFromStorage(): void {
     try {
-      const stored = localStorage.getItem(this.storageKey)
-      if (!stored) return
+      const data = safeGet<{ operations: QueuedOperation[] }>(this.storageKey)
+      if (!data || !Array.isArray(data.operations)) return
 
-      const data = JSON.parse(stored)
-      if (Array.isArray(data.operations)) {
-        data.operations.forEach((op: QueuedOperation) => {
-          // Validate operation structure
-          if (op.id && op.type && op.resource && typeof op.timestamp === 'number') {
-            this.queue.set(op.id, op)
-          }
-        })
-        console.log(`QueueManager: Loaded ${this.queue.size} operations from storage`)
-      }
+      data.operations.forEach((op: QueuedOperation) => {
+        // Validate operation structure
+        if (op.id && op.type && op.resource && typeof op.timestamp === 'number') {
+          this.queue.set(op.id, op)
+        }
+      })
+      console.log(`QueueManager: Loaded ${this.queue.size} operations from storage`)
     } catch (error) {
       console.error('QueueManager: Failed to load from storage:', error)
       // Clear corrupted storage
@@ -329,7 +328,7 @@ export class QueueManager {
         operations: Array.from(this.queue.values()),
         timestamp: Date.now()
       }
-      localStorage.setItem(this.storageKey, JSON.stringify(data))
+      safeSet(this.storageKey, data)
     } catch (error) {
       console.error('QueueManager: Failed to save to storage:', error)
       
@@ -350,7 +349,7 @@ export class QueueManager {
             operations: Array.from(this.queue.values()),
             timestamp: Date.now()
           }
-          localStorage.setItem(this.storageKey, JSON.stringify(data))
+          safeSet(this.storageKey, data)
           console.log(`QueueManager: Removed ${toRemove} old operations to free storage space`)
         } catch (retryError) {
           console.error('QueueManager: Failed to save even after cleanup:', retryError)

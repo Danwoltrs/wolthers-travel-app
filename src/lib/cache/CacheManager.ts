@@ -3,6 +3,8 @@
  * Provides instant loading with background updates for optimal UX
  */
 
+import { safeGet, safeSet } from '@/lib/storage/safeStorage'
+
 export interface CacheItem<T> {
   data: T
   timestamp: number
@@ -193,11 +195,9 @@ export class CacheManager<T> {
   private getFromStorage(key: string): CacheItem<T> | null {
     try {
       if (typeof window === 'undefined') return null
-      const stored = localStorage.getItem(`${this.config.storageKey}:${key}`)
-      if (!stored) return null
+      const parsed = safeGet<CacheItem<T>>(`${this.config.storageKey}:${key}`)
+      if (!parsed) return null
 
-      const parsed = JSON.parse(stored) as CacheItem<T>
-      
       // Validate cache item structure
       if (!parsed.data || !parsed.timestamp || !parsed.expires || !parsed.staleExpires) {
         return null
@@ -213,7 +213,7 @@ export class CacheManager<T> {
   private setInStorage(key: string, item: CacheItem<T>): void {
     try {
       if (typeof window === 'undefined') return
-      localStorage.setItem(`${this.config.storageKey}:${key}`, JSON.stringify(item))
+      safeSet(`${this.config.storageKey}:${key}`, item)
     } catch (error) {
       console.warn(`Failed to write to storage for key ${key}:`, error)
       // Continue without localStorage caching
@@ -260,17 +260,9 @@ export class CacheManager<T> {
         const keys = Object.keys(localStorage)
         keys.forEach(storageKey => {
           if (storageKey.startsWith(`${this.config.storageKey}:`)) {
-            const stored = localStorage.getItem(storageKey)
-            if (stored) {
-              try {
-                const parsed = JSON.parse(stored) as CacheItem<T>
-                if (now >= parsed.staleExpires) {
-                  localStorage.removeItem(storageKey)
-                }
-              } catch (error) {
-                // Remove invalid cache entries
-                localStorage.removeItem(storageKey)
-              }
+            const parsed = safeGet<CacheItem<T>>(storageKey)
+            if (!parsed || now >= parsed.staleExpires) {
+              localStorage.removeItem(storageKey)
             }
           }
         })
