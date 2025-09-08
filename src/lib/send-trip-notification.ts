@@ -1,13 +1,14 @@
 import { Resend } from 'resend'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
+import { sendGuestInvitationEmail } from '@/lib/email'
 import readline from 'readline'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 interface Params {
-  type: 'create' | 'cancel' | 'invited'
+  type: 'created' | 'cancelled' | 'invited'
   tripId: string
-  email?: string
+  inviteEmail?: string
 }
 
 function formatDate(date: string | null): string {
@@ -28,7 +29,7 @@ async function promptForCancellation(): Promise<boolean> {
   })
 }
 
-export async function sendTripNotification({ type, tripId, email }: Params) {
+export async function sendTripNotification({ type, tripId, inviteEmail }: Params) {
   const supabase = createSupabaseServiceClient()
   const { data: trip, error } = await supabase
     .from('trips')
@@ -45,13 +46,16 @@ export async function sendTripNotification({ type, tripId, email }: Params) {
     return { success: false }
   }
 
-  if (type === 'invited' && email) {
+  if (type === 'invited' && inviteEmail) {
     try {
-      await resend.emails.send({
-        from: 'Wolthers Travel Platform <noreply@trips.wolthers.com>',
-        to: [email],
-        subject: `Driver Invitation: ${trip.name}`,
-        html: `<p>You have been invited to drive for <strong>${trip.name}</strong> scheduled for ${formatDate(trip.start_date)} - ${formatDate(trip.end_date)}.</p>`
+      await sendGuestInvitationEmail({
+        to: inviteEmail,
+        tripTitle: trip.name,
+        tripStartDate: trip.start_date,
+        tripEndDate: trip.end_date,
+        invitedBy: 'Wolthers Travel',
+        tripId: trip.id,
+        variant: 'driver'
       })
       return { success: true }
     } catch (err) {
@@ -69,7 +73,7 @@ export async function sendTripNotification({ type, tripId, email }: Params) {
     return { success: false }
   }
 
-  if (type === 'cancel') {
+  if (type === 'cancelled') {
     const confirmed = await promptForCancellation()
     if (!confirmed) {
       console.log('Cancellation notification not sent')
@@ -77,11 +81,11 @@ export async function sendTripNotification({ type, tripId, email }: Params) {
     }
   }
 
-  const subject = type === 'create'
+  const subject = type === 'created'
     ? `New Trip Created: ${trip.name}`
     : `Trip Cancelled: ${trip.name}`
 
-  const html = type === 'create'
+  const html = type === 'created'
     ? `<p>A new trip has been created.</p><p><strong>${trip.name}</strong></p><p>${formatDate(trip.start_date)} - ${formatDate(trip.end_date)}</p>`
     : `<p>The trip <strong>${trip.name}</strong> scheduled for ${formatDate(trip.start_date)} - ${formatDate(trip.end_date)} has been cancelled.</p>`
 
