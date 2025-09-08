@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -162,6 +163,13 @@ export async function DELETE(request: NextRequest) {
 
     console.log('Deleting draft ID:', draftId)
 
+    // Parse mutation id from body if provided
+    let clientMutationId: string | undefined
+    try {
+      const body = await request.json()
+      clientMutationId = body?.clientMutationId
+    } catch {}
+
     // Authentication logic - support both header and cookie auth
     let user: any = null
     const authHeader = request.headers.get('authorization')
@@ -227,6 +235,20 @@ export async function DELETE(request: NextRequest) {
     console.log('User authenticated:', user.email)
 
     const supabase = createSupabaseServiceClient()
+
+    if (clientMutationId) {
+      const { error: mutationError } = await supabase
+        .from('mutations')
+        .insert({ id: clientMutationId, user_id: user.id, operation: 'delete_draft' })
+        .select('id')
+        .single()
+      if (mutationError) {
+        if (mutationError.code === '23505') {
+          return NextResponse.json({ success: true })
+        }
+        console.error('Delete draft mutation log failed:', mutationError)
+      }
+    }
 
     // Try to find the draft in trip_drafts table first
     let draft: any = null
@@ -311,6 +333,8 @@ export async function DELETE(request: NextRequest) {
       }
       
       console.log('Successfully deleted from trip_drafts')
+      revalidateTag('trips')
+      revalidateTag(`trips:user:${user.id}`)
       
       // Also delete the associated trip if it exists
       if (draft.trip_id) {
@@ -343,6 +367,8 @@ export async function DELETE(request: NextRequest) {
       }
       
       console.log('Successfully deleted from trips table')
+      revalidateTag('trips')
+      revalidateTag(`trips:user:${user.id}`)
     }
 
     return NextResponse.json({

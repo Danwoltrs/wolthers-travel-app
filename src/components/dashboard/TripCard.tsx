@@ -132,9 +132,12 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         const draftId = (trip as any).draftId
         console.log('Deleting draft with ID:', draftId)
         
+        const mutationId = crypto.randomUUID()
         response = await fetch(`/api/trips/drafts/${draftId}`, {
           method: 'DELETE',
-          credentials: 'include'
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientMutationId: mutationId })
         })
       } else {
         // Delete the actual trip

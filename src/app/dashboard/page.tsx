@@ -171,35 +171,14 @@ export default function Dashboard() {
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
-  // Filter for draft trips (planning status only - ignore is_draft flag for completed trips)
-  const planningDraftTrips = trips.filter(trip => {
-    return (trip as any).status === 'planning'
-  })
-  
-  // Combine ongoing, upcoming, draft trips from main query, and additional draft trips
-  // Ensure draft trips are always included in current trips
+  // Combine ongoing, upcoming trips and extra drafts
   const allCurrentTrips = [
-    ...ongoingTrips, 
+    ...ongoingTrips,
     ...upcomingTrips,
-    ...planningDraftTrips,
     ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
   ]
-  
-  // Remove duplicates by ID to prevent duplicate cards
-  const currentTrips = allCurrentTrips.filter((trip, index, array) => 
-    array.findIndex(t => t.id === trip.id) === index
-  )
-  
-  // Debug logging to help identify duplicate sources
-  if (allCurrentTrips.length !== currentTrips.length) {
-    console.log('🔍 Duplicate trips detected:')
-    console.log('Before deduplication:', allCurrentTrips.length, 'trips')
-    console.log('After deduplication:', currentTrips.length, 'trips')
-    console.log('ongoingTrips:', ongoingTrips.length)
-    console.log('upcomingTrips:', upcomingTrips.length) 
-    console.log('planningDraftTrips:', planningDraftTrips.length)
-    console.log('draftTripsAsTrips:', draftTripsAsTrips.length)
-  }
+
+  const currentTrips = Array.from(new Map(allCurrentTrips.map(t => [t.id, t])).values())
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
@@ -255,7 +234,8 @@ export default function Dashboard() {
     setShowTripCreationModal(false)
     setResumeData(null)
     await addTripOptimistically(trip)
-    await createTrip(trip.id, user?.id || '')
+    const mutationId = crypto.randomUUID()
+    await createTrip(trip.id, user?.id || '', mutationId)
     router.refresh()
   }
 
@@ -276,6 +256,13 @@ export default function Dashboard() {
     setShowPasswordPrompt(false)
     setShowUserPanel(true)
   }
+
+  // Ensure selected trip exists in refreshed list
+  React.useEffect(() => {
+    if (selectedTrip && !trips.some(t => t.id === selectedTrip.id)) {
+      setSelectedTrip(null)
+    }
+  }, [trips, selectedTrip])
 
   // Handle loading and error states within the main render to maintain hooks order
   if (loading) {

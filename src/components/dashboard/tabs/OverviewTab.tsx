@@ -105,7 +105,8 @@ export function OverviewTab({
     setIsDeleting(true)
     try {
       await removeTrip(trip.id)
-      await cancelTrip(trip.id, user?.id || '')
+      const mutationId = crypto.randomUUID()
+      await cancelTrip(trip.id, user?.id || '', mutationId)
       setShowDeleteConfirm(false)
       onClose?.()
       router.refresh()

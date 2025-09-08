@@ -76,9 +76,12 @@ export default function DraftTripsSection({ onContinueTrip }: DraftTripsSectionP
     try {
       console.log('Deleting draft with ID:', draftId)
       
+      const mutationId = crypto.randomUUID()
       const response = await fetch(`/api/trips/drafts/${draftId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientMutationId: mutationId })
       })
       
       console.log('Delete response status:', response.status)

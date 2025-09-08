@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
 
     // Use service client for database queries to bypass RLS
     const supabase = createServerSupabaseClient()
+    const includeDrafts = request.nextUrl.searchParams.get('includeDrafts') === '1'
+
     let tripsQuery = supabase
       .from('trips')
       .select(`
@@ -104,6 +106,10 @@ export async function GET(request: NextRequest) {
       `)
       .order('start_date', { ascending: false })
       .limit(20)
+
+    if (!includeDrafts) {
+      tripsQuery = tripsQuery.neq('status', 'planning')
+    }
 
     // Apply access control based on user permissions
     if (user.can_view_all_trips) {
@@ -185,11 +191,12 @@ export async function GET(request: NextRequest) {
       draftId: draftsMap[trip.id] || null,
       isDraft: trip.status === 'planning' && draftsMap[trip.id] != null
     })) || []
+    const uniqueTrips = Array.from(new Map(tripsWithDrafts.map(t => [t.id, t])).values())
 
-    console.log(`✅ API: Returning ${tripsWithDrafts.length} trips for user ${user.email}`)
+    console.log(`✅ API: Returning ${uniqueTrips.length} trips for user ${user.email}`)
 
     return NextResponse.json({
-      trips: tripsWithDrafts,
+      trips: uniqueTrips,
       user: {
         id: user.id,
         email: user.email,
