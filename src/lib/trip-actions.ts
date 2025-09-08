@@ -2,6 +2,7 @@
 
 import { revalidateTag } from 'next/cache'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
+import { sendTripNotification } from '@/lib/send-trip-notification'
 
 // Finalize or create a trip and revalidate caches
 export async function createTrip(tripId: string, userId: string) {
@@ -20,6 +21,7 @@ export async function createTrip(tripId: string, userId: string) {
 
   revalidateTag('trips')
   revalidateTag(`trips:user:${userId}`)
+  await sendTripNotification({ type: 'create', tripId })
   return data
 }
 
@@ -37,5 +39,6 @@ export async function cancelTrip(tripId: string, userId: string) {
 
   revalidateTag('trips')
   revalidateTag(`trips:user:${userId}`)
+  await sendTripNotification({ type: 'cancel', tripId })
   return { success: true }
 }
