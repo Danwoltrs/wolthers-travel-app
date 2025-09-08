@@ -5,8 +5,9 @@ import readline from 'readline'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 interface Params {
-  type: 'create' | 'cancel'
+  type: 'create' | 'cancel' | 'invited'
   tripId: string
+  email?: string
 }
 
 function formatDate(date: string | null): string {
@@ -27,7 +28,7 @@ async function promptForCancellation(): Promise<boolean> {
   })
 }
 
-export async function sendTripNotification({ type, tripId }: Params) {
+export async function sendTripNotification({ type, tripId, email }: Params) {
   const supabase = createSupabaseServiceClient()
   const { data: trip, error } = await supabase
     .from('trips')
@@ -42,6 +43,21 @@ export async function sendTripNotification({ type, tripId }: Params) {
   if (error || !trip) {
     console.error('Failed to load trip for notifications', error)
     return { success: false }
+  }
+
+  if (type === 'invited' && email) {
+    try {
+      await resend.emails.send({
+        from: 'Wolthers Travel Platform <noreply@trips.wolthers.com>',
+        to: [email],
+        subject: `Driver Invitation: ${trip.name}`,
+        html: `<p>You have been invited to drive for <strong>${trip.name}</strong> scheduled for ${formatDate(trip.start_date)} - ${formatDate(trip.end_date)}.</p>`
+      })
+      return { success: true }
+    } catch (err) {
+      console.error('Error sending invitation', err)
+      return { success: false }
+    }
   }
 
   const emails = (trip.trip_participants || [])
