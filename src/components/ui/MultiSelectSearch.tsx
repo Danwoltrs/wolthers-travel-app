@@ -19,6 +19,8 @@ interface MultiSelectSearchProps {
   className?: string
   disabled?: boolean
   maxDisplayItems?: number
+  allowCustomInput?: boolean
+  onCreateOption?: (input: string) => void | Promise<void>
 }
 
 export default function MultiSelectSearch({
@@ -30,7 +32,9 @@ export default function MultiSelectSearch({
   emptyMessage = "No options found",
   className,
   disabled = false,
-  maxDisplayItems = 5
+  maxDisplayItems = 5,
+  allowCustomInput = false,
+  onCreateOption
 }: MultiSelectSearchProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -169,9 +173,25 @@ export default function MultiSelectSearch({
           {/* Options List */}
           <div className="max-h-[400px] overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                {emptyMessage}
-              </div>
+              allowCustomInput && searchTerm ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (onCreateOption) {
+                      await onCreateOption(searchTerm)
+                    }
+                    setSearchTerm('')
+                    setIsOpen(false)
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-sm text-blue-600 dark:text-blue-400"
+                >
+                  Add "{searchTerm}"
+                </button>
+              ) : (
+                <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                  {emptyMessage}
+                </div>
+              )
             ) : (
               filteredOptions.map(option => {
                 const isSelected = value.includes(option.id)

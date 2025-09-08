@@ -32,6 +32,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   const [participantsWithDates, setParticipantsWithDates] = useState<ParticipantWithDates[]>([])
   const [showDateRanges, setShowDateRanges] = useState(false)
   const [showDriverSettings, setShowDriverSettings] = useState(false)
+  const [staffOptionsState, setStaffOptionsState] = useState<MultiSelectOption[]>([])
 
   // Early return with fallback if there's an issue
   if (typeof window === 'undefined') {
@@ -44,12 +45,29 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
     )
   }
 
-  // Convert Supabase staff data to MultiSelectOption format with safety checks
-  const staffOptions: MultiSelectOption[] = (staff || []).map(member => ({
-    id: member.id,
-    label: member.full_name || member.email || 'Unknown',
-    sublabel: member.email || ''
-  }))
+  // Build staff options from API data and any already selected staff
+  useEffect(() => {
+    const apiOptions: MultiSelectOption[] = (staff || []).map(member => ({
+      id: member.id,
+      label: member.full_name || member.email || 'Unknown',
+      sublabel: member.email || ''
+    }))
+
+    // Include invited staff already in form data
+    const existingOptions: MultiSelectOption[] = (formData.wolthersStaff || []).map(s => ({
+      id: s.id,
+      label: s.fullName || s.email || 'Unknown',
+      sublabel: s.email || ''
+    }))
+
+    const merged = [...apiOptions]
+    existingOptions.forEach(opt => {
+      if (!merged.some(o => o.id === opt.id)) {
+        merged.push(opt)
+      }
+    })
+    setStaffOptionsState(merged)
+  }, [staff, formData.wolthersStaff])
 
   // Check availability when dates or staff change
   useEffect(() => {
@@ -85,24 +103,82 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
   // Handle team assignment changes with error handling
   const handleTeamChange = (selectedIds: string[]) => {
     try {
-      const selectedStaff = (staff || []).filter(member => selectedIds.includes(member.id))
-      
-      // Convert to User format for form data
-      const formattedStaff: User[] = selectedStaff.map(member => ({
-        id: member.id,
-        email: member.email || '',
-        fullName: member.full_name || member.email || 'Unknown',
-        role: UserRole.WOLTHERS_STAFF,
-        permissions: {},
-        isActive: true,
-        createdAt: new Date()
-      }))
-
-      updateFormData({
-        wolthersStaff: formattedStaff
+      const staffMap = new Map<string, User>()
+      ;(staff || []).forEach(member => {
+        staffMap.set(member.id, {
+          id: member.id,
+          email: member.email || '',
+          fullName: member.full_name || member.email || 'Unknown',
+          role: UserRole.WOLTHERS_STAFF,
+          permissions: {},
+          isActive: true,
+          createdAt: new Date()
+        })
       })
+      ;(formData.wolthersStaff || []).forEach(existing => {
+        staffMap.set(existing.id, existing)
+      })
+
+      const selectedStaff: User[] = selectedIds
+        .map(id => staffMap.get(id))
+        .filter((u): u is User => !!u)
+
+      updateFormData({ wolthersStaff: selectedStaff })
     } catch (error) {
       console.error('Error updating team assignment:', error)
+    }
+  }
+
+  const handleInviteStaff = async (email: string) => {
+    const trimmed = email.trim()
+    if (!trimmed) return
+    const tempId = `temp-${Date.now()}`
+    const tempUser: User = {
+      id: tempId,
+      email: trimmed,
+      fullName: trimmed,
+      role: UserRole.WOLTHERS_STAFF,
+      permissions: {},
+      isActive: true,
+      createdAt: new Date()
+    }
+
+    // Optimistic UI update
+    setStaffOptionsState(prev => [...prev, { id: tempId, label: trimmed, sublabel: trimmed }])
+    updateFormData({ wolthersStaff: [...(formData.wolthersStaff || []), tempUser] })
+
+    try {
+      const tripId = (formData as any).tripId
+      if (!tripId) return
+      const res = await fetch(`/api/trips/${tripId}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed })
+      })
+      if (!res.ok) throw new Error('Failed to invite staff')
+      const data = await res.json()
+      const realId = data.user.id
+      const realName = data.user.full_name || data.user.email
+
+      setStaffOptionsState(prev =>
+        prev.map(opt => (opt.id === tempId ? { id: realId, label: realName, sublabel: data.user.email } : opt))
+      )
+      updateFormData({
+        wolthersStaff: (formData.wolthersStaff || []).map(u =>
+          u.id === tempId
+            ? {
+                ...u,
+                id: realId,
+                fullName: realName,
+                email: data.user.email
+              }
+            : u
+        )
+      })
+    } catch (err) {
+      console.error('Failed to invite staff:', err)
+      setStaffOptionsState(prev => prev.filter(opt => opt.id !== tempId))
+      updateFormData({ wolthersStaff: (formData.wolthersStaff || []).filter(u => u.id !== tempId) })
     }
   }
 
@@ -239,7 +315,7 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             Select all Wolthers staff members who will be part of this trip.
           </p>
           <MultiSelectSearch
-            options={staffOptions}
+            options={staffOptionsState}
             value={selectedStaffIds}
             onChange={handleTeamChange}
             placeholder="Select team members..."
@@ -247,6 +323,8 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
             emptyMessage="No staff members found"
             className="w-full"
             maxDisplayItems={10}
+            allowCustomInput
+            onCreateOption={handleInviteStaff}
           />
           {(formData.wolthersStaff || []).length > 0 && (
             <>
