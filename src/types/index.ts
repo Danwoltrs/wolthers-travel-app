@@ -161,6 +161,8 @@ export interface Trip {
   parentTripId?: string
   /** Date when trip was branched from parent */
   branchDate?: Date
+  /** Mapping of company IDs to branch IDs */
+  trip_branches?: Record<string, string>
   /** Additional metadata */
   metadata: Record<string, any>
   /** Public access code for guest access */
@@ -244,6 +246,10 @@ export interface Activity {
   confirmationStatus: string
   /** Additional notes */
   notes?: string
+  /** Companies allowed to view this activity */
+  visibleToCompanies?: string[]
+  /** Branch identifier for split itineraries */
+  branchId?: string
   /** External event source information */
   externalSource?: {
     name: string

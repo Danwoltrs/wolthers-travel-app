@@ -54,6 +54,8 @@ export interface Activity {
   company_id?: string
   company_name?: string
   is_parallel_allowed?: boolean
+  branch_id?: string
+  visibleToCompanies?: string[]
   // Participant information (populated from join)
   participants?: ActivityParticipant[]
   created_at?: string
@@ -76,6 +78,8 @@ export interface ActivityFormData {
   currency?: 'BRL' | 'USD' | 'EUR' | 'GBP' | 'DKK'
   is_confirmed?: boolean
   notes?: string
+  branch_id?: string
+  visibleToCompanies?: string[]
 }
 
 export interface ActivityStats {

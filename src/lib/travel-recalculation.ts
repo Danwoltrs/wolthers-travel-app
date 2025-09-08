@@ -5,7 +5,8 @@
  * via drag-and-drop, ensuring optimal scheduling and route planning.
  */
 
-import { calculateTravelTime, isSantosArea, isVarginhaArea } from '@/lib/brazilian-locations'
+import { isSantosArea, isVarginhaArea } from '@/lib/brazilian-locations'
+import { getDriveDuration } from '@/lib/distance-matrix'
 
 export interface Activity {
   id: string
@@ -120,12 +121,12 @@ function createTravelActivity(
 /**
  * Recalculate travel times after an activity is moved
  */
-export function recalculateTravelTimes(
+export async function recalculateTravelTimes(
   activities: Activity[],
   movedActivityId: string,
   newDate: string,
   newStartTime: string
-): TravelTimeUpdate[] {
+): Promise<TravelTimeUpdate[]> {
   const updates: TravelTimeUpdate[] = []
   
   // Find the moved activity
@@ -184,8 +185,9 @@ export function recalculateTravelTimes(
     const currentCity = extractCityFromActivity(currentActivity)
     const nextCity = extractCityFromActivity(nextActivity)
     
-    // Calculate travel time
-    const travelHours = calculateTravelTime(currentCity, nextCity)
+    // Calculate travel time using Google Distance Matrix API
+    const { duration } = await getDriveDuration(currentCity, nextCity)
+    const travelHours = duration / 3600
     
     // Only create travel activity if there's actual travel time (> 10 minutes)
     if (travelHours > 0.15) {
@@ -206,7 +208,7 @@ export function recalculateTravelTimes(
       })
     }
   }
-  
+
   return updates
 }
 
