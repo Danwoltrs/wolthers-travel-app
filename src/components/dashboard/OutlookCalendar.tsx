@@ -932,8 +932,8 @@ export function OutlookCalendar({
       // Recalculate travel times for both affected dates
       console.log('📋 [Travel Recalc] Recalculating travel times after activity swap...')
       const allActivities = Object.values(activitiesByDate).flat()
-      const updates1 = recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
-      const updates2 = recalculateTravelTimes(allActivities, targetSlotActivity.id, item.originalDate, item.originalTime)
+      const updates1 = await recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
+      const updates2 = await recalculateTravelTimes(allActivities, targetSlotActivity.id, item.originalDate, item.originalTime)
       
       // Apply travel time updates
       await Promise.all([...updates1, ...updates2].map(async (update) => {
@@ -956,7 +956,7 @@ export function OutlookCalendar({
       // Recalculate travel times for the target date
       console.log('📋 [Travel Recalc] Recalculating travel times after activity move...')
       const allActivities = Object.values(activitiesByDate).flat()
-      const updates = recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
+      const updates = await recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
       
       // Apply travel time updates
       await Promise.all(updates.map(async (update) => {
