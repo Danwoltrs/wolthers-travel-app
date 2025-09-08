@@ -6,6 +6,8 @@ import { createSyncManager, getSyncManager, type SyncManager, type SyncEvent } f
 import { adaptiveCacheConfig, getCacheSystemConfig } from '@/lib/cache/config'
 import { performanceOptimizer, measurePerformance } from '@/lib/cache/performance'
 import type { TripCard } from '@/types'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase-client'
 
 // Get environment-appropriate configuration
 const systemConfig = getCacheSystemConfig()
@@ -112,6 +114,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
   })
 
   const syncManagerRef = useRef<SyncManager | null>(null)
+  const { user } = useAuth()
+  const userId = user?.id || 'anonymous'
 
   /**
    * Fetch trips from API with authentication
@@ -137,7 +141,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
     const response = await fetch('/api/trips', {
       method: 'GET',
       credentials: 'include',
-      headers
+      headers,
+      next: { tags: ['trips', `trips:user:${userId}`] }
     })
 
     if (!response.ok) {
@@ -586,6 +591,27 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
     })
 
     return unsubscribe
+  }, [refreshTrips])
+
+  // Supabase realtime subscription for trip inserts and cancellations
+  useEffect(() => {
+    const channel = supabase
+      .channel('trips-dashboard')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, () => {
+        refreshTrips({ force: true })
+      })
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'trips', filter: 'status=eq.cancelled' },
+        () => {
+          refreshTrips({ force: true })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [refreshTrips])
 
   // Periodic sync stats update

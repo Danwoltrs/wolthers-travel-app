@@ -13,10 +13,13 @@ import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { createTrip } from '@/lib/trip-actions'
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
     const { user } = useAuth() // Get user data for permission checks
+    const router = useRouter()
     const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [showTripCreationModal, setShowTripCreationModal] = useState(false)
@@ -24,7 +27,7 @@ export default function Dashboard() {
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-    const { trips, loading, error, isOffline, refreshSilently, refetch } = useSmartTrips()
+    const { trips, loading, error, isOffline, refreshSilently, refetch, addTripOptimistically } = useSmartTrips()
 
     // Check if user can create trips (Wolthers staff or external company admins)
     // Must be called before any conditional returns to maintain hook order
@@ -98,7 +101,8 @@ export default function Dashboard() {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        credentials: 'include' // Include cookies for authentication
+        credentials: 'include', // Include cookies for authentication
+        next: { tags: ['trips', `trips:user:${user?.id}`] }
       })
 
       if (response.ok) {
@@ -248,59 +252,11 @@ export default function Dashboard() {
   }, [handleCreateTrip])
 
   const handleTripCreated = async (trip: any) => {
-    console.log('🎉 [Dashboard] Trip created callback triggered with data:', trip)
-    
-    // Close the modal first
     setShowTripCreationModal(false)
     setResumeData(null)
-    console.log('✅ [Dashboard] Modal closed and resume data cleared')
-    
-    // Try multiple approaches to refresh the trip list
-    try {
-      // First try silent refresh (less disruptive)
-      console.log('🔄 [Dashboard] Attempting silent refresh...')
-      await refreshSilently()
-      console.log('✅ [Dashboard] Silent refresh successful')
-      
-      // Give the cache a moment to update and check if trip appears
-      setTimeout(async () => {
-        console.log('⏰ [Dashboard] Checking trip list after 500ms delay...')
-        console.log('📋 [Dashboard] Current trips count:', trips.length)
-        console.log('🔍 [Dashboard] Looking for trip with ID:', trip.id)
-        console.log('🔍 [Dashboard] Looking for trip with access code:', trip.accessCode)
-        
-        const foundById = trips.find(t => t.id === trip.id)
-        const foundByCode = trips.find(t => (t as any).accessCode === trip.accessCode)
-        
-        console.log('🔍 [Dashboard] Found by ID:', !!foundById)
-        console.log('🔍 [Dashboard] Found by access code:', !!foundByCode)
-        
-        if (!foundById && !foundByCode) {
-          console.warn('⚠️ [Dashboard] Trip not found in list after silent refresh, trip may not have been finalized properly')
-          console.log('📊 [Dashboard] All trip IDs in current list:', trips.map(t => t.id))
-          console.log('📊 [Dashboard] All access codes in current list:', trips.map(t => (t as any).accessCode))
-        } else {
-          console.log('✅ [Dashboard] Trip found in list - finalization successful!')
-        }
-      }, 500)
-    } catch (silentError) {
-      console.warn('❌ [Dashboard] Silent refresh failed, trying force refresh:', silentError)
-      
-      try {
-        // If silent refresh fails, try force refresh
-        console.log('🔄 [Dashboard] Attempting force refresh...')
-        await refetch()
-        console.log('✅ [Dashboard] Force refresh successful')
-      } catch (forceError) {
-        console.error('💥 [Dashboard] All refresh attempts failed:', forceError)
-        
-        // Only use hard refresh as last resort after a delay
-        console.log('🔄 [Dashboard] Falling back to hard refresh in 2 seconds...')
-        setTimeout(() => {
-          window.location.reload()
-        }, 2000)
-      }
-    }
+    await addTripOptimistically(trip)
+    await createTrip(trip.id, user?.id || '')
+    router.refresh()
   }
 
   const closeModal = () => {
