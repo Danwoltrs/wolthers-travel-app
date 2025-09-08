@@ -8,6 +8,7 @@
 
 import { QueuedOperation, QueueStats, OperationType, ResourceType } from './QueueManager'
 import { getPerformanceMonitor } from '@/lib/performance/PerformanceMonitor'
+import { safeGet, safeSet } from '@/lib/storage/safeStorage'
 
 interface OptimizedQueueConfig {
   storageKey: string
@@ -443,10 +444,9 @@ export class OptimizedQueueManager {
   private async loadQueueMetadata(): Promise<void> {
     try {
       const metadataKey = `${this.config.storageKey}_metadata`
-      const stored = localStorage.getItem(metadataKey)
-      
-      if (stored) {
-        const metadata = JSON.parse(stored)
+      const metadata = safeGet<any>(metadataKey)
+
+      if (metadata) {
         this.stats.totalOperations = metadata.totalOperations || 0
         this.chunkIndex = new Map(metadata.chunkIndex || [])
       }
@@ -463,8 +463,8 @@ export class OptimizedQueueManager {
         chunkIndex: Array.from(this.chunkIndex.entries()),
         timestamp: Date.now()
       }
-      
-      localStorage.setItem(metadataKey, JSON.stringify(metadata))
+
+      safeSet(metadataKey, metadata)
     } catch (error) {
       console.warn('OptimizedQueueManager: Failed to save metadata:', error)
     }

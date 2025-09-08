@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
+import { safeGet, safeSet } from '@/lib/storage/safeStorage'
 
 // Client-side Supabase client with offline capabilities
 let supabaseClient: SupabaseClient<Database> | null = null
@@ -152,7 +153,7 @@ export function cacheTrips(trips: any[]) {
       timestamp: Date.now(),
       ttl: 24 * 60 * 60 * 1000, // 24 hours
     }
-    localStorage.setItem('trip_cache', JSON.stringify(cacheData))
+    safeSet('trip_cache', cacheData)
   } catch (error) {
     console.warn('Failed to cache trips:', error)
   }
@@ -160,14 +161,12 @@ export function cacheTrips(trips: any[]) {
 
 export function getCachedTrips(): any[] | null {
   if (typeof window === 'undefined') return null
-  
+
   try {
-    const cached = localStorage.getItem('trip_cache')
-    if (!cached) return null
-    
-    const cacheData = JSON.parse(cached)
+    const cacheData = safeGet<any>('trip_cache')
+    if (!cacheData) return null
     const isExpired = Date.now() - cacheData.timestamp > cacheData.ttl
-    
+
     if (isExpired) {
       localStorage.removeItem('trip_cache')
       return null
@@ -189,7 +188,7 @@ export function cacheUserProfile(profile: any) {
       timestamp: Date.now(),
       ttl: 60 * 60 * 1000, // 1 hour
     }
-    localStorage.setItem('user_profile_cache', JSON.stringify(cacheData))
+    safeSet('user_profile_cache', cacheData)
   } catch (error) {
     console.warn('Failed to cache user profile:', error)
   }
@@ -197,12 +196,10 @@ export function cacheUserProfile(profile: any) {
 
 export function getCachedUserProfile(): any | null {
   if (typeof window === 'undefined') return null
-  
+
   try {
-    const cached = localStorage.getItem('user_profile_cache')
-    if (!cached) return null
-    
-    const cacheData = JSON.parse(cached)
+    const cacheData = safeGet<any>('user_profile_cache')
+    if (!cacheData) return null
     const isExpired = Date.now() - cacheData.timestamp > cacheData.ttl
     
     if (isExpired) {
