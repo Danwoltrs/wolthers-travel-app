@@ -24,7 +24,13 @@ export default function Dashboard() {
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-    const { trips, loading, error, isOffline, refreshSilently, refetch } = useSmartTrips()
+    const { trips, loading, error, isOffline, refreshSilently, refetch, addTripOptimistically, deleteTripOptimistically } = useSmartTrips()
+
+    // All useCallback hooks must be defined early and unconditionally
+    const handleCreateTrip = React.useCallback(() => {
+      setResumeData(null) // Clear any resume data
+      setShowTripCreationModal(true)
+    }, [])
 
     // Check if user can create trips (Wolthers staff or external company admins)
     // Must be called before any conditional returns to maintain hook order
@@ -88,6 +94,15 @@ export default function Dashboard() {
       return () => clearTimeout(timer)
     }
   }, [user, isAuthenticated])
+
+  // Open trip creation modal when triggered from Header
+  React.useEffect(() => {
+    const handleOpenTripCreation = () => {
+      handleCreateTrip()
+    }
+    window.addEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+    return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+  }, [handleCreateTrip])
 
   const loadDraftTrips = async () => {
     try {
@@ -228,24 +243,11 @@ export default function Dashboard() {
   }
 
 
-  const handleCreateTrip = React.useCallback(() => {
-    setResumeData(null) // Clear any resume data
-    setShowTripCreationModal(true)
-  }, [])
 
   const handleContinueTrip = (draftData: any) => {
     setResumeData(draftData)
     setShowTripCreationModal(true)
   }
-
-  // Open trip creation modal when triggered from Header
-  React.useEffect(() => {
-    const handleOpenTripCreation = () => {
-      handleCreateTrip()
-    }
-    window.addEventListener('openTripCreation', handleOpenTripCreation as EventListener)
-    return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
-  }, [handleCreateTrip])
 
   const handleTripCreated = async (trip: any) => {
     console.log('🎉 [Dashboard] Trip created callback triggered with data:', trip)
@@ -255,46 +257,72 @@ export default function Dashboard() {
     setResumeData(null)
     console.log('✅ [Dashboard] Modal closed and resume data cleared')
     
-    // Try multiple approaches to refresh the trip list
+    // Convert trip data to proper TripCard format for cache
+    const tripCard: TripCardType = {
+      id: trip.id,
+      title: trip.title || 'New Trip',
+      subject: trip.subject || trip.description || '',
+      client: [], // Will be populated from trip data
+      guests: [],
+      wolthersStaff: trip.participants || [],
+      vehicles: [],
+      drivers: [],
+      startDate: trip.startDate || new Date(),
+      endDate: trip.endDate || new Date(),
+      duration: trip.endDate && trip.startDate 
+        ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
+        : 1,
+      status: 'confirmed' as any, // Finalized trips are confirmed
+      tripType: trip.tripType || 'convention',
+      accessCode: trip.accessCode,
+      isDraft: false,
+      createdAt: trip.createdAt || new Date(),
+      updatedAt: new Date(),
+      // Additional TripCard properties if needed
+      progress: 100, // Finalized trips are 100% complete
+      daysRemaining: trip.startDate 
+        ? Math.ceil((new Date(trip.startDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+    }
+
     try {
-      // First try silent refresh (less disruptive)
-      console.log('🔄 [Dashboard] Attempting silent refresh...')
-      await refreshSilently()
-      console.log('✅ [Dashboard] Silent refresh successful')
+      console.log('🚀 [Dashboard] Using optimistic update to add trip to cache')
+      console.log('📦 [Dashboard] Trip card data:', tripCard)
       
-      // Give the cache a moment to update and check if trip appears
-      setTimeout(async () => {
-        console.log('⏰ [Dashboard] Checking trip list after 500ms delay...')
-        console.log('📋 [Dashboard] Current trips count:', trips.length)
-        console.log('🔍 [Dashboard] Looking for trip with ID:', trip.id)
-        console.log('🔍 [Dashboard] Looking for trip with access code:', trip.accessCode)
+      // Use optimistic update to immediately add the trip to the cache
+      // This provides instant UI feedback without waiting for network requests
+      if (addTripOptimistically) {
+        await addTripOptimistically(tripCard)
+        console.log('✅ [Dashboard] Trip added optimistically to cache')
         
-        const foundById = trips.find(t => t.id === trip.id)
-        const foundByCode = trips.find(t => (t as any).accessCode === trip.accessCode)
-        
-        console.log('🔍 [Dashboard] Found by ID:', !!foundById)
-        console.log('🔍 [Dashboard] Found by access code:', !!foundByCode)
-        
-        if (!foundById && !foundByCode) {
-          console.warn('⚠️ [Dashboard] Trip not found in list after silent refresh, trip may not have been finalized properly')
-          console.log('📊 [Dashboard] All trip IDs in current list:', trips.map(t => t.id))
-          console.log('📊 [Dashboard] All access codes in current list:', trips.map(t => (t as any).accessCode))
-        } else {
-          console.log('✅ [Dashboard] Trip found in list - finalization successful!')
-        }
-      }, 500)
-    } catch (silentError) {
-      console.warn('❌ [Dashboard] Silent refresh failed, trying force refresh:', silentError)
+        // Also refresh silently in the background to ensure data consistency
+        setTimeout(async () => {
+          try {
+            console.log('🔄 [Dashboard] Background refresh to ensure consistency...')
+            await refreshSilently()
+            console.log('✅ [Dashboard] Background refresh successful')
+          } catch (backgroundError) {
+            console.warn('⚠️ [Dashboard] Background refresh failed, but optimistic update succeeded:', backgroundError)
+          }
+        }, 1000)
+      } else {
+        // Fallback to traditional refresh if optimistic updates unavailable
+        console.warn('⚠️ [Dashboard] Optimistic updates not available, falling back to refresh')
+        await refreshSilently()
+      }
       
+    } catch (error) {
+      console.error('❌ [Dashboard] Trip creation handling failed:', error)
+      
+      // Fallback to force refresh if everything else fails
       try {
-        // If silent refresh fails, try force refresh
-        console.log('🔄 [Dashboard] Attempting force refresh...')
+        console.log('🔄 [Dashboard] Falling back to force refresh...')
         await refetch()
         console.log('✅ [Dashboard] Force refresh successful')
       } catch (forceError) {
         console.error('💥 [Dashboard] All refresh attempts failed:', forceError)
         
-        // Only use hard refresh as last resort after a delay
+        // Only use hard refresh as absolute last resort
         console.log('🔄 [Dashboard] Falling back to hard refresh in 2 seconds...')
         setTimeout(() => {
           window.location.reload()

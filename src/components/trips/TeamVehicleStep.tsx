@@ -226,18 +226,9 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-      {/* Left Column - Team Assignment */}
+      {/* Left Column - Staff & Driver Selection */}
       <div className="h-full">
-        <div className="flex items-center mb-4">
-          <Users className="w-5 h-5 text-gray-400 mr-2" />
-          <h3 className="text-md font-medium text-gray-900 dark:text-white">
-            Team Assignment
-          </h3>
-        </div>
         <div className="space-y-3">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Select all Wolthers staff members who will be part of this trip.
-          </p>
           <MultiSelectSearch
             options={staffOptions}
             value={selectedStaffIds}
@@ -540,14 +531,14 @@ export default function TeamVehicleStep({ formData, updateFormData }: TeamVehicl
         </div>
       </div>
 
-      {/* Right Column - Driver Assignment & Vehicles */}
+      {/* Right Column - Vehicle Fleet & Transportation */}
       <div className="space-y-6">
         {/* Vehicle Allocation */}
         <div>
           <div className="flex items-center mb-4">
             <Car className="w-5 h-5 text-gray-400 mr-2" />
             <h3 className="text-md font-medium text-gray-900 dark:text-white">
-              Transportation & Vehicle Allocation
+              Vehicle Fleet & Transportation
             </h3>
           </div>
           
