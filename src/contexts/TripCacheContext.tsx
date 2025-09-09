@@ -264,7 +264,11 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
   const refreshTrips = useCallback(async (options: { force?: boolean } = {}) => {
     const measureDashboardLoad = measurePerformance('dashboard_load', async () => {
       try {
-        setState(prev => ({ ...prev, loading: true, error: null }))
+        setState(prev => ({
+          ...prev,
+          loading: options.force || prev.trips.length === 0,
+          error: null
+        }))
         
         // Start cache hit/miss measurement
         performanceOptimizer.startMeasurement('cache_lookup')

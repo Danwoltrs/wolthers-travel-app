@@ -13,13 +13,11 @@ import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
 import { createTrip } from '@/lib/trip-actions'
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
     const { user } = useAuth() // Get user data for permission checks
-    const router = useRouter()
     const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [showTripCreationModal, setShowTripCreationModal] = useState(false)
@@ -236,7 +234,7 @@ export default function Dashboard() {
     await addTripOptimistically(trip)
     const mutationId = crypto.randomUUID()
     await createTrip(trip.id, user?.id || '', mutationId)
-    router.refresh()
+    await refreshSilently()
   }
 
   const closeModal = () => {

@@ -11,10 +11,8 @@ import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripActions } from '@/hooks/useSmartTrips'
-import { cancelTrip } from '@/lib/trip-actions'
 
 interface OverviewTabProps {
   trip: TripCard
@@ -65,7 +63,6 @@ export function OverviewTab({
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const router = useRouter()
   const { user } = useAuth()
   const { removeTrip } = useTripActions()
 
@@ -105,11 +102,8 @@ export function OverviewTab({
     setIsDeleting(true)
     try {
       await removeTrip(trip.id)
-      const mutationId = crypto.randomUUID()
-      await cancelTrip(trip.id, user?.id || '', mutationId)
       setShowDeleteConfirm(false)
       onClose?.()
-      router.refresh()
     } catch (error) {
       console.error('Delete trip error:', error)
     } finally {
