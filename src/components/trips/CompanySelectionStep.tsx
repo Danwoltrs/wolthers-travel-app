@@ -3,6 +3,7 @@ import { MapPin, Building2, Users, Search, Plus, X, UserPlus, Edit } from 'lucid
 import type { TripFormData } from './TripCreationModal'
 import type { Company } from '@/types'
 import { detectLocationFromAddress, getRegionByCity } from '@/lib/brazilian-locations'
+import HostSelectionModal from './HostSelectionModal'
 
 interface CompanySelectionStepProps {
   formData: TripFormData
@@ -29,15 +30,8 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRegion, setSelectedRegion] = useState<string>('all')
   const [hostCompanies, setHostCompanies] = useState<HostCompany[]>([])
-  const [showRepresentativesModal, setShowRepresentativesModal] = useState(false)
-  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
-  const [editingRepresentativeIndex, setEditingRepresentativeIndex] = useState<number | null>(null)
-  const [representativeForm, setRepresentativeForm] = useState({
-    name: '',
-    role: '',
-    email: '',
-    phone: ''
-  })
+  const [showHostModal, setShowHostModal] = useState(false)
+  const [selectedCompanyForHost, setSelectedCompanyForHost] = useState<Company | null>(null)
 
   // Get buyer companies from formData
   const buyerCompanies = formData.companies || []
@@ -178,8 +172,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     return aName.localeCompare(bName)
   })
 
-  const addHostCompany = (company: Company) => {
+  const openHostModal = (company: Company) => {
     if (hostCompanies.some(hc => hc.id === company.id)) return
+    
+    setSelectedCompanyForHost(company)
+    setShowHostModal(true)
+  }
+
+  const handleSelectHost = (companyId: string, selectedContacts: any[]) => {
+    const company = selectedCompanyForHost
+    if (!company) return
 
     const newHostCompany: HostCompany = {
       ...company,
@@ -187,7 +189,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       estimatedVisitDuration: 4, // Default 4 hours
       preferredVisitTime: 'morning',
       notes: '',
-      representatives: [] // Initialize empty representatives
+      representatives: selectedContacts // Use selected contacts from modal
     }
 
     const updatedHostCompanies = [...hostCompanies, newHostCompany]
@@ -199,6 +201,10 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       representatives: hc.representatives || []
     }))
     updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+    
+    // Reset modal state
+    setSelectedCompanyForHost(null)
+    setShowHostModal(false)
   }
 
   const removeHostCompany = (companyId: string) => {
@@ -223,101 +229,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
   }
 
-  // Representative management functions
-  const openRepresentativesModal = (companyId: string, representativeIndex?: number) => {
-    setEditingCompanyId(companyId)
-    setEditingRepresentativeIndex(representativeIndex ?? null)
-    
-    // If editing existing representative, populate form with existing data
-    if (representativeIndex !== undefined) {
-      const company = hostCompanies.find(hc => hc.id === companyId)
-      const representative = company?.representatives?.[representativeIndex]
-      
-      if (representative) {
-        setRepresentativeForm({
-          name: representative.name || '',
-          role: representative.role || '',
-          email: representative.email || '',
-          phone: representative.phone || ''
-        })
-      }
-    } else {
-      // Reset form for new representative
-      setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-    }
-    
-    setShowRepresentativesModal(true)
-  }
-
-  const validateRepresentativeForm = () => {
-    const errors = []
-    
-    if (!representativeForm.name.trim()) {
-      errors.push('Name is required')
-    }
-    
-    if (representativeForm.email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(representativeForm.email.trim())) {
-        errors.push('Invalid email format')
-      }
-    }
-    
-    if (representativeForm.phone.trim()) {
-      const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/
-      if (!phoneRegex.test(representativeForm.phone.trim())) {
-        errors.push('Invalid phone format (minimum 10 digits)')
-      }
-    }
-    
-    return errors
-  }
-
-  const saveRepresentative = () => {
-    if (!editingCompanyId || !representativeForm.name.trim()) return
-    
-    // Validate form
-    const validationErrors = validateRepresentativeForm()
-    if (validationErrors.length > 0) {
-      alert('Please fix the following errors:\n' + validationErrors.join('\n'))
-      return
-    }
-    
-    const company = hostCompanies.find(hc => hc.id === editingCompanyId)
-    if (!company) return
-    
-    const representativeData = {
-      name: representativeForm.name.trim(),
-      role: representativeForm.role.trim() || undefined,
-      email: representativeForm.email.trim() || undefined,
-      phone: representativeForm.phone.trim() || undefined
-    }
-    
-    let updatedRepresentatives = [...(company.representatives || [])]
-    
-    if (editingRepresentativeIndex !== null) {
-      // Update existing representative
-      updatedRepresentatives[editingRepresentativeIndex] = representativeData
-    } else {
-      // Add new representative
-      updatedRepresentatives.push(representativeData)
-    }
-    
-    updateHostCompany(editingCompanyId, { representatives: updatedRepresentatives })
-    
-    // Reset form and close modal
-    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-    setEditingRepresentativeIndex(null)
-    setShowRepresentativesModal(false)
-  }
-
-  const removeRepresentative = (companyId: string, repIndex: number) => {
-    const company = hostCompanies.find(hc => hc.id === companyId)
-    if (!company) return
-    
-    const updatedRepresentatives = (company.representatives || []).filter((_, index) => index !== repIndex)
-    updateHostCompany(companyId, { representatives: updatedRepresentatives })
-  }
 
   const toggleParticipantForHost = (hostId: string, buyerCompanyId: string) => {
     const host = hostCompanies.find(h => h.id === hostId)
@@ -476,7 +387,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <button
-                        onClick={() => addHostCompany(company)}
+                        onClick={() => openHostModal(company)}
                         className="inline-flex items-center px-3 py-1.5 border border-emerald-300 dark:border-emerald-600 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
                       >
                         <Plus className="w-3 h-3 mr-1" />
@@ -538,26 +449,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                   </button>
                 </div>
 
-                {/* Representatives Section */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h6 className="font-medium text-gray-900 dark:text-white flex items-center">
+                {/* Selected Representatives */}
+                {company.representatives && company.representatives.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h6 className="font-medium text-gray-900 dark:text-white flex items-center mb-3">
                       <Users className="w-4 h-4 mr-2" />
-                      Company Representatives
+                      Selected Representatives ({company.representatives.length})
                     </h6>
-                    <button
-                      onClick={() => openRepresentativesModal(company.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm flex items-center"
-                    >
-                      <UserPlus className="w-4 h-4 mr-1" />
-                      Add Representative
-                    </button>
-                  </div>
-
-                  {company.representatives && company.representatives.length > 0 ? (
                     <div className="grid gap-2">
-                      {company.representatives.map((rep, index) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                      {company.representatives.map((rep: any, index: number) => (
+                        <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                           <div className="flex-1">
                             <p className="font-medium text-gray-900 dark:text-white">{rep.name}</p>
                             {rep.role && (
@@ -568,135 +469,27 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                               {rep.phone && <span>📞 {rep.phone}</span>}
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => openRepresentativesModal(company.id, index)}
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded transition-colors"
-                              title="Edit representative"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => removeRepresentative(company.id, index)}
-                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1 rounded transition-colors"
-                              title="Remove representative"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="text-center py-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No representatives added yet</p>
-                      <p className="text-sm">Click "Add Representative" to add company contacts</p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Representatives Modal */}
-      {showRepresentativesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editingRepresentativeIndex !== null ? 'Edit Representative' : 'Add Representative'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowRepresentativesModal(false)
-                  setEditingRepresentativeIndex(null)
-                  setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  value={representativeForm.name}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="Representative name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Role/Position
-                </label>
-                <input
-                  type="text"
-                  value={representativeForm.role}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="e.g., Sales Manager, CEO"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={representativeForm.email}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="representative@company.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={representativeForm.phone}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="+55 (11) 99999-9999"
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowRepresentativesModal(false)
-                    setEditingRepresentativeIndex(null)
-                    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveRepresentative}
-                  disabled={!representativeForm.name.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg"
-                >
-                  {editingRepresentativeIndex !== null ? 'Save Changes' : 'Add Representative'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Host Selection Modal */}
+      <HostSelectionModal
+        isOpen={showHostModal}
+        onClose={() => {
+          setShowHostModal(false)
+          setSelectedCompanyForHost(null)
+        }}
+        company={selectedCompanyForHost || { id: '', name: '', city: '', state: '' }}
+        onSelectHost={handleSelectHost}
+      />
     </div>
   )
 }
