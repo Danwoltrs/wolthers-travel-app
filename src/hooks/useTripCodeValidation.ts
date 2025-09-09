@@ -15,7 +15,7 @@ export function useTripCodeValidation(
 ) {
   const [code, setCode] = useState(initialCode)
   const [validationResult, setValidationResult] = useState<TripCodeValidationResult>({
-    isValid: true,
+    isValid: !initialCode, // Only start as valid if no initial code, otherwise neutral
     message: '',
     isChecking: false
   })
@@ -54,8 +54,11 @@ export function useTripCodeValidation(
   // Debounced validation function
   const validateTripCode = useCallback(
     debounce(async (codeToValidate: string) => {
+      console.log('🔍 Validating trip code:', codeToValidate)
+      
       // Skip validation for empty strings
       if (!codeToValidate) {
+        console.log('🔍 Empty code, setting as valid')
         setValidationResult({
           isValid: true,
           message: '',
@@ -67,7 +70,11 @@ export function useTripCodeValidation(
       // Basic format check - allow flexible formats
       // Must be uppercase letters, numbers, underscores, and dashes only, 2-20 characters
       const tripCodeRegex = /^[A-Z0-9_-]{2,20}$/
+      
+      console.log('🔍 Testing regex for:', codeToValidate, 'Result:', tripCodeRegex.test(codeToValidate))
+      
       if (!tripCodeRegex.test(codeToValidate)) {
+        console.log('🔍 Regex test failed for:', codeToValidate)
         setValidationResult({
           isValid: false,
           message: 'Trip code must contain only uppercase letters, numbers, underscores, and dashes (2-20 characters).',
@@ -88,6 +95,8 @@ export function useTripCodeValidation(
         })
 
         const result = await response.json()
+        
+        console.log(`🔍 Validation result for "${codeToValidate}":`, result)
 
         setValidationResult({
           isValid: result.isValid,
@@ -109,6 +118,14 @@ export function useTripCodeValidation(
   // Track if the code has been manually edited by the user
   const [hasBeenManuallyEdited, setHasBeenManuallyEdited] = useState(false)
 
+  // Trigger validation immediately for initial code (run only once)
+  useEffect(() => {
+    if (initialCode && initialCode !== code) {
+      console.log('🔍 Initial code validation triggered for:', initialCode)
+      setCode(initialCode)
+    }
+  }, [initialCode]) // Only depend on initialCode
+
   // Automatically generate or validate the code when form data changes
   useEffect(() => {
     // For in_land trips, generate code as soon as title is available
@@ -120,16 +137,18 @@ export function useTripCodeValidation(
       if (!code || (initialCode === '' && code !== initialCode)) {
         const generatedCode = generateSmartTripCode(formData)
         if (generatedCode && generatedCode !== code) {
+          console.log('🎯 Auto-generating trip code:', generatedCode)
           setCode(generatedCode)
-          validateTripCode(generatedCode)
         }
-      } else if (code) {
-        validateTripCode(code)
       }
-    } else if (code) {
+    }
+    
+    // Always validate the current code if it exists, with consistent timing
+    if (code) {
+      console.log('🔍 Validating code:', code)
       validateTripCode(code)
     }
-  }, [code, formData?.title, formData?.startDate, formData?.companies, formData?.tripType, formData, validateTripCode, generateSmartTripCode, initialCode, hasBeenManuallyEdited])
+  }, [code, formData?.title, formData?.startDate, formData?.companies, formData?.tripType, validateTripCode, generateSmartTripCode, hasBeenManuallyEdited])
 
   // Handler to update trip code
   const handleCodeChange = useCallback((newCode: string) => {

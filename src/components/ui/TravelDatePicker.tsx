@@ -306,15 +306,15 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
       {isOpen && typeof window !== 'undefined' && createPortal(
         <div 
           data-calendar-dropdown
-          className="fixed z-[9999] w-80 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg shadow-2xl"
+          className="fixed z-[9999] w-full max-w-[330px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg shadow-2xl"
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
-            minWidth: `${Math.max(dropdownPosition.width, 320)}px`
+            minWidth: `${Math.min(dropdownPosition.width, 330)}px`
           }}
         >
           {/* Calendar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-[#2a2a2a]">
             <button
               type="button"
               onClick={() => navigateMonth('prev')}
@@ -322,9 +322,36 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
             >
               <ChevronDown className="w-4 h-4 rotate-90 text-gray-600 dark:text-gray-400" />
             </button>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {monthNames[currentMonth]} {currentYear}
-            </h3>
+            
+            {/* Month and Year Dropdowns */}
+            <div className="flex items-center space-x-1">
+              {/* Month Dropdown */}
+              <select
+                value={currentMonth}
+                onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
+                className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-transparent border-none outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 py-1 transition-colors"
+              >
+                {monthNames.map((month, index) => (
+                  <option key={month} value={index} className="bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
+                    {month}
+                  </option>
+                ))}
+              </select>
+              
+              {/* Year Dropdown */}
+              <select
+                value={currentYear}
+                onChange={(e) => setCurrentYear(parseInt(e.target.value))}
+                className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-transparent border-none outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 py-1 transition-colors"
+              >
+                {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i).map(year => (
+                  <option key={year} value={year} className="bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <button
               type="button"
               onClick={() => navigateMonth('next')}
@@ -335,23 +362,23 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
           </div>
 
           {/* Instructions */}
-          <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-[#2a2a2a]">
             {isSelectingStart ? 'Select start date' : 'Select end date'}
           </div>
 
           {/* Calendar Grid */}
-          <div className="p-4">
+          <div className="p-2">
             {/* Day Headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 mb-1">
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                <div key={day} className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center py-2">
+                <div key={day} className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center py-1 w-6">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Calendar Dates */}
-            <div className="grid grid-cols-7 gap-0 relative">
+            <div className="grid grid-cols-7">
               {calendarDates.map((date, index) => {
                 const isCurrentMonth = date.getMonth() === currentMonth
                 const isSelected = isDateSelected(date)
@@ -360,6 +387,7 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
                 const isToday = date.toDateString() === new Date().toDateString()
                 const isStart = isStartDate(date)
                 const isEnd = isEndDate(date)
+                const isMiddle = isInRange && !isStart && !isEnd
 
                 return (
                   <button
@@ -368,18 +396,18 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
                     onClick={() => !isDisabled && handleDateClick(date)}
                     disabled={isDisabled}
                     className={cn(
-                      'relative w-8 h-8 text-sm transition-all duration-150 m-0.5',
+                      'w-6 h-6 text-xs flex items-center justify-center transition-all duration-150',
                       'hover:bg-gray-100 dark:hover:bg-gray-800',
                       'disabled:cursor-not-allowed disabled:opacity-30',
                       !isCurrentMonth && 'text-gray-300 dark:text-gray-600',
                       isCurrentMonth && 'text-gray-700 dark:text-gray-300',
                       isToday && 'font-bold text-emerald-600 dark:text-emerald-400',
                       
-                      // Start and end dates - fully selected styling with rounded corners
-                      (isStart || isEnd) && 'bg-emerald-500 text-white hover:bg-emerald-600 relative z-10 rounded-full',
+                      // Simple middle dates - light green background
+                      isMiddle && 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/70',
                       
-                      // Dates in range - connected background without rounded corners  
-                      isInRange && !isStart && !isEnd && 'bg-emerald-300 dark:bg-emerald-900/70 text-emerald-900 dark:text-emerald-100 rounded-sm relative z-0 mx-0'
+                      // Start and end dates - dark green circles
+                      (isStart || isEnd) && 'bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-700 dark:hover:bg-emerald-400 rounded-full shadow-sm font-medium'
                     )}
                   >
                     {date.getDate()}
@@ -390,7 +418,7 @@ const TravelDatePicker = React.forwardRef<TravelDatePickerRef, TravelDatePickerP
           </div>
 
           {/* Quick Actions */}
-          <div className="flex justify-end space-x-2 p-4 border-t border-gray-200 dark:border-[#2a2a2a]">
+          <div className="flex justify-end space-x-2 px-3 py-2 border-t border-gray-200 dark:border-[#2a2a2a]">
             <button
               type="button"
               onClick={() => {

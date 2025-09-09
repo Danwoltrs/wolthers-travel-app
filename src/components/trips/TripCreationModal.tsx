@@ -16,7 +16,7 @@ const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
   loading: () => (
     <div className="space-y-8">
       <div className="flex items-center justify-center py-8">
-        <div className="text-gray-500 dark:text-gray-400">Loading team assignment...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading drivers & vehicles...</div>
       </div>
     </div>
   )
@@ -185,18 +185,18 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
       { id: 5, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
       { id: 6, name: 'Flights & Travel', description: 'Arrange international flights and travel' },
-      { id: 7, name: 'Team Assignment', description: 'Assign Wolthers staff and logistics' },
+      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else if (tripType === 'in_land') {
     return [
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
-      { id: 3, name: 'Team & Participants', description: 'Select Wolthers staff and buyer companies' },
+      { id: 3, name: 'Team & Participants', description: 'Select team members and companies' },
       { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
       { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 7, name: 'Team Assignment', description: 'Assign vehicles and drivers' },
+      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
@@ -373,6 +373,47 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [])
 
+  // Helper function to send trip invitation emails
+  const sendTripInvitationEmails = async (tripData: any) => {
+    if (!tripData.participants || tripData.participants.length === 0) {
+      console.log('📧 [TripCreation] No participants found, skipping email notifications')
+      return
+    }
+
+    const emailData = {
+      tripTitle: tripData.title || 'New Trip',
+      tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
+      tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
+      tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
+      createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+      participants: (tripData.participants || []).map((p: any) => ({
+        name: p.fullName || p.full_name || 'Team Member',
+        email: p.email,
+        role: p.role || 'Staff'
+      })),
+      companies: (tripData.companies || []).map((c: any) => ({
+        name: c.name,
+        representatives: [] // TODO: Add company representatives if needed
+      }))
+    }
+
+    const response = await fetch('/api/emails/trip-invitation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(emailData)
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to send invitation emails')
+    }
+
+    return await response.json()
+  }
+
   if (!isOpen) return null
 
   const steps = getStepsForTripType(formData.tripType)
@@ -444,6 +485,16 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
         onTripCreated?.(tripData)
         
+        // Send trip invitation emails to all participants
+        try {
+          console.log('📧 [TripCreation] Sending trip invitation emails...')
+          await sendTripInvitationEmails(tripData)
+          console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+        } catch (emailError) {
+          console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+          // Don't fail the entire process if email fails
+        }
+        
         // Clear temp ID after successful creation
         sessionStorage.removeItem('trip-creation-temp-id')
         console.log('🧹 [TripCreation] Cleared session storage temp ID')
@@ -460,6 +511,16 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         
         console.log('📤 [TripCreation] Calling onTripCreated for direct creation with:', newTrip)
         onTripCreated?.(newTrip)
+        
+        // Send trip invitation emails for direct creation
+        try {
+          console.log('📧 [TripCreation] Sending trip invitation emails for direct creation...')
+          await sendTripInvitationEmails(newTrip)
+          console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+        } catch (emailError) {
+          console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+          // Don't fail the entire process if email fails
+        }
       }
       
       console.log('🚪 [TripCreation] Closing modal...')
@@ -475,14 +536,19 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   }
 
   const handleClose = async () => {
+    console.log('🚪 [TripCreation] Closing modal - checking if data should be saved')
+    
     // Save progress before closing if we have meaningful data
     if (formData.tripType && (currentStep > 2 || (currentStep === 2 && (formData.title || formData.companies.length > 0)))) {
+      console.log('💾 [TripCreation] Saving progress before close')
       await saveProgress(formData, currentStep, false)
     }
     
     // Clear temp ID from session storage when modal is closed
     sessionStorage.removeItem('trip-creation-temp-id')
+    console.log('🧹 [TripCreation] Cleared session storage')
     
+    // Reset form state
     setFormData(initialFormData)
     setCurrentStep(1)
     setSaveStatus({
@@ -490,12 +556,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       lastSaved: null,
       error: null
     })
+    
+    console.log('🔄 [TripCreation] Form state reset, calling onClose')
     onClose()
     
-    // Hard refresh to show saved drafts immediately
-    if (formData.tripType && (currentStep > 2 || (formData.title || formData.companies.length > 0))) {
-      window.location.reload()
-    }
+    // No more hard refresh - let the dashboard handle cache updates properly
+    console.log('✅ [TripCreation] Modal closed cleanly without hard refresh')
   }
 
   const canProceed = () => {
@@ -521,7 +587,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Flights & Travel step - optional but allow proceeding
           return true
         case 7:
-          // Team Assignment step - require staff selection
+          // Drivers & Vehicles step - require staff selection
           return formData.wolthersStaff.length > 0
         case 8:
           return true

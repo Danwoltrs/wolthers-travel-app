@@ -33,13 +33,14 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     formData
   )
   
-  // Initialize the code from formData if not already set
+  // Sync the code with formData changes, but avoid overwriting valid user input
   React.useEffect(() => {
-    if (formData.accessCode && !code) {
-      console.log('🎯 Initializing access code:', formData.accessCode)
-      setCode(formData.accessCode.toUpperCase())
+    if (formData.accessCode && formData.accessCode !== code && !validationResult.isChecking) {
+      const upperCaseCode = formData.accessCode.toUpperCase()
+      console.log('🎯 Syncing access code from formData:', upperCaseCode)
+      setCode(upperCaseCode)
     }
-  }, [formData.accessCode, code, setCode])
+  }, [formData.accessCode, code, setCode, validationResult.isChecking])
 
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<string | undefined>()
@@ -142,16 +143,22 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
                   updateFormData({ accessCode: trimmed })
                 }}
                 maxLength={20}
-                pattern="[A-Z0-9_-]{2,20}"
                 style={{ paddingLeft: '36px' }}
                 className={`
-                  w-full pr-10 py-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] 
+                  w-full pr-10 py-2 rounded-lg border shadow-sm 
                   bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 
-                  placeholder-gray-500 dark:placeholder-gray-400 shadow-sm 
+                  placeholder-gray-500 dark:placeholder-gray-400
                   focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
                   hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 
                   font-mono text-sm
-                  ${validationResult.isValid ? 'border-gray-300 dark:border-[#2a2a2a]' : 'border-red-300 dark:border-red-700'}
+                  ${validationResult.isChecking 
+                    ? 'border-yellow-300 dark:border-yellow-700' 
+                    : validationResult.isValid && code 
+                      ? 'border-green-300 dark:border-green-700' 
+                      : !validationResult.isValid && code
+                        ? 'border-red-300 dark:border-red-700'
+                        : 'border-gray-300 dark:border-[#2a2a2a]'
+                  }
                 `}
                 placeholder="COFFEE_SP"
                 title="Trip Code: 2-20 characters, uppercase letters, numbers, underscores, and dashes only"

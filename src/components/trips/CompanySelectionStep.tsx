@@ -31,6 +31,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   const [hostCompanies, setHostCompanies] = useState<HostCompany[]>([])
   const [showRepresentativesModal, setShowRepresentativesModal] = useState(false)
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
+  const [editingRepresentativeIndex, setEditingRepresentativeIndex] = useState<number | null>(null)
   const [representativeForm, setRepresentativeForm] = useState({
     name: '',
     role: '',
@@ -223,30 +224,91 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   }
 
   // Representative management functions
-  const openRepresentativesModal = (companyId: string) => {
+  const openRepresentativesModal = (companyId: string, representativeIndex?: number) => {
     setEditingCompanyId(companyId)
+    setEditingRepresentativeIndex(representativeIndex ?? null)
+    
+    // If editing existing representative, populate form with existing data
+    if (representativeIndex !== undefined) {
+      const company = hostCompanies.find(hc => hc.id === companyId)
+      const representative = company?.representatives?.[representativeIndex]
+      
+      if (representative) {
+        setRepresentativeForm({
+          name: representative.name || '',
+          role: representative.role || '',
+          email: representative.email || '',
+          phone: representative.phone || ''
+        })
+      }
+    } else {
+      // Reset form for new representative
+      setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
+    }
+    
     setShowRepresentativesModal(true)
-    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
   }
 
-  const addRepresentative = () => {
+  const validateRepresentativeForm = () => {
+    const errors = []
+    
+    if (!representativeForm.name.trim()) {
+      errors.push('Name is required')
+    }
+    
+    if (representativeForm.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(representativeForm.email.trim())) {
+        errors.push('Invalid email format')
+      }
+    }
+    
+    if (representativeForm.phone.trim()) {
+      const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/
+      if (!phoneRegex.test(representativeForm.phone.trim())) {
+        errors.push('Invalid phone format (minimum 10 digits)')
+      }
+    }
+    
+    return errors
+  }
+
+  const saveRepresentative = () => {
     if (!editingCompanyId || !representativeForm.name.trim()) return
+    
+    // Validate form
+    const validationErrors = validateRepresentativeForm()
+    if (validationErrors.length > 0) {
+      alert('Please fix the following errors:\n' + validationErrors.join('\n'))
+      return
+    }
     
     const company = hostCompanies.find(hc => hc.id === editingCompanyId)
     if (!company) return
     
-    const newRepresentative = {
+    const representativeData = {
       name: representativeForm.name.trim(),
       role: representativeForm.role.trim() || undefined,
       email: representativeForm.email.trim() || undefined,
       phone: representativeForm.phone.trim() || undefined
     }
     
-    const updatedRepresentatives = [...(company.representatives || []), newRepresentative]
+    let updatedRepresentatives = [...(company.representatives || [])]
+    
+    if (editingRepresentativeIndex !== null) {
+      // Update existing representative
+      updatedRepresentatives[editingRepresentativeIndex] = representativeData
+    } else {
+      // Add new representative
+      updatedRepresentatives.push(representativeData)
+    }
+    
     updateHostCompany(editingCompanyId, { representatives: updatedRepresentatives })
     
-    // Reset form
+    // Reset form and close modal
     setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
+    setEditingRepresentativeIndex(null)
+    setShowRepresentativesModal(false)
   }
 
   const removeRepresentative = (companyId: string, repIndex: number) => {
@@ -496,7 +558,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     <div className="grid gap-2">
                       {company.representatives.map((rep, index) => (
                         <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                          <div>
+                          <div className="flex-1">
                             <p className="font-medium text-gray-900 dark:text-white">{rep.name}</p>
                             {rep.role && (
                               <p className="text-sm text-gray-600 dark:text-gray-400">{rep.role}</p>
@@ -506,12 +568,22 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                               {rep.phone && <span>📞 {rep.phone}</span>}
                             </div>
                           </div>
-                          <button
-                            onClick={() => removeRepresentative(company.id, index)}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => openRepresentativesModal(company.id, index)}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded transition-colors"
+                              title="Edit representative"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => removeRepresentative(company.id, index)}
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1 rounded transition-colors"
+                              title="Remove representative"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -535,10 +607,14 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
           <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Add Representative
+                {editingRepresentativeIndex !== null ? 'Edit Representative' : 'Add Representative'}
               </h3>
               <button
-                onClick={() => setShowRepresentativesModal(false)}
+                onClick={() => {
+                  setShowRepresentativesModal(false)
+                  setEditingRepresentativeIndex(null)
+                  setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
+                }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 <X className="w-5 h-5" />
@@ -600,17 +676,21 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
 
               <div className="flex space-x-3 pt-4">
                 <button
-                  onClick={() => setShowRepresentativesModal(false)}
+                  onClick={() => {
+                    setShowRepresentativesModal(false)
+                    setEditingRepresentativeIndex(null)
+                    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
+                  }}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={addRepresentative}
+                  onClick={saveRepresentative}
                   disabled={!representativeForm.name.trim()}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg"
                 >
-                  Add Representative
+                  {editingRepresentativeIndex !== null ? 'Save Changes' : 'Add Representative'}
                 </button>
               </div>
             </div>

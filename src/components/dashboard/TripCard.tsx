@@ -164,6 +164,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       await alert('Failed to delete. Please refresh the page.', 'Error', 'error')
     }
   }
+
   
   return (
     <div
@@ -484,8 +485,8 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               )}
             </div>
             
-            {/* Notes Count - Right */}
-            <div className="flex items-center">
+            {/* Actions - Right */}
+            <div className="flex items-center gap-2">
               <span className="text-xs text-pearl-500 dark:text-gray-500 hover:text-golden-600 dark:hover:text-[#0E3D2F] transition-colors">
                 {trip.notesCount && trip.notesCount > 0 
                   ? `${trip.notesCount} note${trip.notesCount > 1 ? 's' : ''}`
@@ -525,6 +526,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         variant="danger"
         icon={<Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />}
       />
+
     </div>
   )
 }

@@ -1043,13 +1043,13 @@ export function OutlookCalendar({
               minWidth: calendarDays.length > 7 ? `${120 + (calendarDays.length * 140) + 120}px` : 'fit-content'
             }}>
               {/* Day Headers - Enhanced for multi-day trips */}
-              <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
+              <div className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700" style={{ 
                 gridTemplateColumns: calendarDays.length > 7 
                   ? `minmax(120px, 120px) repeat(${calendarDays.length}, minmax(140px, 1fr)) minmax(120px, 120px)` 
                   : `minmax(80px, 120px) repeat(${calendarDays.length}, minmax(120px, 1fr)) minmax(80px, 120px)` 
               }}>
                 {/* Time column header */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
                   <button
                     onClick={() => onExtendTrip('before')}
                     className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -1063,7 +1063,7 @@ export function OutlookCalendar({
                 {calendarDays.map((day, index) => (
                   <div
                     key={day.dateString}
-                    className={`p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center ${
+                    className={`p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center ${
                       calendarDays.length > 7 ? 'min-w-[140px]' : ''
                     }`}
                   >
@@ -1125,7 +1125,7 @@ export function OutlookCalendar({
                 ))}
 
                 {/* Add day after button */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
                   <button
                     onClick={() => onExtendTrip('after')}
                     className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -1141,7 +1141,7 @@ export function OutlookCalendar({
                 {TIME_SLOTS.map((timeSlot) => (
                   <div
                     key={timeSlot.time}
-                    className="grid border-b border-gray-200 dark:border-gray-700"
+                    className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700"
                     style={{ 
                       gridTemplateColumns: calendarDays.length > 7 
                         ? `minmax(120px, 120px) repeat(${calendarDays.length}, minmax(140px, 1fr)) minmax(120px, 120px)` 
@@ -1149,7 +1149,7 @@ export function OutlookCalendar({
                     }}
                   >
                     {/* Time label */}
-                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
                       <div className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         {timeSlot.display}
                       </div>
@@ -1159,7 +1159,6 @@ export function OutlookCalendar({
                     {calendarDays.map((day) => (
                       <div
                         key={`${day.dateString}-${timeSlot.time}`}
-                        className="border-r border-gray-200 dark:border-gray-700"
                       >
                         <TimeSlotComponent
                           timeSlot={timeSlot}
@@ -1175,7 +1174,7 @@ export function OutlookCalendar({
                     ))}
 
                     {/* Empty cell for add day after column */}
-                    <div className="border-r border-gray-200 dark:border-gray-700" />
+                    <div />
                   </div>
                 ))}
               </div>

@@ -330,9 +330,48 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
             
             // Create travel activity for any travel time > 0.1 hours (6 minutes)
             if (travelTimeHours > 0.1) {
-              const travelStartTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`
-              const travelEndTimeMinutes = currentTime + travelMinutes
-              const travelEndTime = `${Math.floor(travelEndTimeMinutes / 60).toString().padStart(2, '0')}:${(travelEndTimeMinutes % 60).toString().padStart(2, '0')}`
+              // Store original time to check if we rescheduled
+              const originalCurrentTime = currentTime
+              
+              // Check if drive would start after 8 PM (20:00 = 1200 minutes)
+              let actualTravelStartTime = currentTime
+              let travelDate = currentDate.toISOString().split('T')[0]
+              
+              if (currentTime >= 1200) { // 20:00 or later
+                console.log(`🌙 [AI Itinerary] Drive would start at ${Math.floor(currentTime / 60)}:${String(currentTime % 60).padStart(2, '0')} (after 8 PM)`)
+                console.log(`🌅 [AI Itinerary] Rescheduling drive to 8:00 AM next day`)
+                
+                // Schedule for 8:00 AM the next day instead
+                const nextDay = new Date(currentDate)
+                nextDay.setDate(nextDay.getDate() + 1)
+                travelDate = nextDay.toISOString().split('T')[0]
+                actualTravelStartTime = 480 // 8:00 AM in minutes (8 * 60)
+                
+                // Update currentDate and currentTime for next activities
+                currentDate = nextDay
+                currentTime = 480 // Start of new day at 8:00 AM
+              }
+              
+              const travelStartTime = `${Math.floor(actualTravelStartTime / 60).toString().padStart(2, '0')}:${(actualTravelStartTime % 60).toString().padStart(2, '0')}`
+              const travelEndTimeMinutes = actualTravelStartTime + travelMinutes
+              
+              // Ensure travel end time doesn't exceed 24:00 (1440 minutes)
+              let finalTravelEndTime = travelEndTimeMinutes
+              let finalTravelDate = travelDate
+              
+              if (travelEndTimeMinutes >= 1440) {
+                // Travel extends to next day
+                console.log(`⏰ [AI Itinerary] Travel extends past midnight, adjusting dates`)
+                finalTravelEndTime = travelEndTimeMinutes % 1440
+                const travelEndDay = new Date(travelDate)
+                travelEndDay.setDate(travelEndDay.getDate() + 1)
+                finalTravelDate = travelEndDay.toISOString().split('T')[0]
+                
+                // Note: This creates a multi-day travel activity that spans dates
+                console.log(`📅 [AI Itinerary] Multi-day travel: ${travelDate} ${travelStartTime} → ${finalTravelDate} ${Math.floor(finalTravelEndTime / 60).toString().padStart(2, '0')}:${(finalTravelEndTime % 60).toString().padStart(2, '0')}`)
+              }
+              
+              const travelEndTime = `${Math.floor(finalTravelEndTime / 60).toString().padStart(2, '0')}:${(finalTravelEndTime % 60).toString().padStart(2, '0')}`
               
               // Enhanced travel descriptions with duration included in title
               const strategy = getStartingPointStrategy(formData.startingPoint || 'santos')
@@ -353,19 +392,21 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
               const travelActivity: ActivityFormData = {
                 title: travelTitle,
                 description: travelDescription,
-                activity_date: currentDate.toISOString().split('T')[0],
+                activity_date: travelDate, // Use calculated travel date (may be next day for overnight drives)
                 start_time: travelStartTime,
                 end_time: travelEndTime,
                 location: `${previousCity} → ${currentCity}`,
                 type: 'travel',
-                notes: `🚗 Travel time: ${roundedHours} hours (${travelMethod})\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing\n⏱️ Duration: ${travelMinutes} minutes`,
+                notes: `🚗 Travel time: ${roundedHours} hours (${travelMethod})\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing\n⏱️ Duration: ${travelMinutes} minutes${originalCurrentTime >= 1200 ? '\n🌅 Rescheduled to next day (no overnight driving)' : ''}`,
                 is_confirmed: false
               }
               
               generatedActivities.push(travelActivity)
               console.log(`🚗 [AI Itinerary] ✅ Created travel activity: ${previousCity} → ${currentCity} (${roundedHours}h via ${travelMethod})`)
               
-              currentTime = travelEndTimeMinutes
+              // Update current time to the end of travel
+              // Use finalTravelEndTime to handle multi-day travel properly
+              currentTime = finalTravelEndTime
             } else {
               // Very short travel - just add buffer time
               currentTime += 30 // 30 minutes buffer for very short trips

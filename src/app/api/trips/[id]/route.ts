@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 import { verifySessionToken, extractBearerToken } from '@/lib/jwt-utils'
+import { sendTripCancellationEmails, TripCancellationEmailData } from '@/lib/resend'
 
 export async function GET(
   request: NextRequest,
@@ -331,6 +332,280 @@ export async function GET(
     console.error('❌ API: Trip details error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: tripId } = await params
+    console.log('🗑️ [TripDelete] Starting trip deletion process for:', tripId)
+
+    // Parse request body to check if email notifications should be sent
+    let shouldSendEmails = false
+    let cancellationReason = ''
+    
+    try {
+      const body = await request.json()
+      shouldSendEmails = body.sendNotifications || false
+      cancellationReason = body.reason || ''
+      console.log('📧 [TripDelete] Email notifications requested:', shouldSendEmails)
+      if (cancellationReason) {
+        console.log('📝 [TripDelete] Cancellation reason:', cancellationReason)
+      }
+    } catch (parseError) {
+      // Body parsing failed, proceed without email notifications
+      console.log('📧 [TripDelete] No request body or invalid JSON, proceeding without email notifications')
+    }
+
+    let user: any = null
+    
+    // Try JWT token authentication first (Microsoft OAuth and Email/Password)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = extractBearerToken(authHeader)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      // Try custom JWT token first
+      const decoded = verifySessionToken(token)
+      if (decoded) {
+        // Get user from database with service role (bypasses RLS)
+        const supabase = createServerSupabaseClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+
+        if (!userError && userData) {
+          user = userData
+          console.log('🔑 [TripDelete] JWT Auth: Successfully authenticated user:', user.email)
+        }
+      } else {
+        // If JWT verification fails, try Supabase session token
+        console.log('🔑 [TripDelete] JWT verification failed, trying Supabase session...')
+        try {
+          const supabase = createServerSupabaseClient()
+          const { data: { user: supabaseUser }, error: sessionError } = await supabase.auth.getUser(token)
+          
+          if (!sessionError && supabaseUser) {
+            // Get full user profile from database
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+              console.log('🔑 [TripDelete] Supabase Auth: Successfully authenticated user:', user.email)
+            }
+          }
+        } catch (supabaseError) {
+          console.log('🔑 [TripDelete] Supabase authentication also failed:', supabaseError)
+        }
+      }
+    }
+    
+    // If both methods failed, return unauthorized
+    if (!user) {
+      console.error('❌ [TripDelete] Authentication failed - no valid user found')
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    console.log('👤 [TripDelete] User authenticated, proceeding with deletion')
+
+    // Use service client for database queries to bypass RLS
+    const supabase = createServerSupabaseClient()
+    
+    // Get the trip to validate user permissions
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select(`
+        id, 
+        creator_id, 
+        access_code, 
+        status, 
+        title,
+        trip_access_permissions (user_id, permission_type, expires_at)
+      `)
+      .eq('id', tripId)
+      .single()
+
+    if (tripError || !trip) {
+      console.error('❌ [TripDelete] Trip not found:', tripError)
+      return NextResponse.json(
+        { error: 'Trip not found' },
+        { status: 404 }
+      )
+    }
+
+    console.log('📋 [TripDelete] Found trip:', { 
+      id: trip.id, 
+      title: trip.title, 
+      status: trip.status, 
+      creator_id: trip.creator_id 
+    })
+
+    // Check permissions - user must be creator or have admin permissions
+    const hasPermission = 
+      trip.creator_id === user.id ||
+      user.is_global_admin ||
+      (user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0') || // Wolthers staff
+      trip.trip_access_permissions?.some((perm: any) => 
+        perm.user_id === user.id && 
+        perm.permission_type === 'admin' &&
+        (!perm.expires_at || new Date(perm.expires_at) > new Date())
+      )
+
+    if (!hasPermission) {
+      console.error('❌ [TripDelete] User lacks permission to delete trip')
+      return NextResponse.json(
+        { error: 'Insufficient permissions to delete this trip' },
+        { status: 403 }
+      )
+    }
+
+    console.log('✅ [TripDelete] Permission check passed')
+
+    // Set trip status to 'cancelled' instead of hard delete to preserve data integrity
+    // This allows for potential recovery and maintains audit trails
+    const { data: cancelledTrip, error: updateError } = await supabase
+      .from('trips')
+      .update({ 
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', tripId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('❌ [TripDelete] Failed to cancel trip:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to cancel trip: ' + updateError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ [TripDelete] Trip status updated to cancelled:', cancelledTrip.status)
+
+    // Send email notifications if requested
+    if (shouldSendEmails) {
+      try {
+        console.log('📧 [TripDelete] Gathering stakeholders for email notifications...')
+        
+        // Get trip participants (Wolthers staff and company representatives)
+        const { data: participantsData, error: participantsError } = await supabase
+          .from('trip_participants')
+          .select(`
+            user_id,
+            company_id,
+            role,
+            users!trip_participants_user_id_fkey (id, full_name, email),
+            companies (id, name, fantasy_name)
+          `)
+          .eq('trip_id', tripId)
+
+        if (participantsError) {
+          console.error('⚠️ [TripDelete] Failed to get participants for email:', participantsError)
+        }
+
+        // Collect stakeholders for email notifications
+        const stakeholders: Array<{ name: string; email: string; role?: string }> = []
+
+        if (participantsData) {
+          for (const participant of participantsData) {
+            if (participant.users && participant.users.email) {
+              stakeholders.push({
+                name: participant.users.full_name || participant.users.email,
+                email: participant.users.email,
+                role: participant.role || (participant.companies ? 'Company Representative' : 'Team Member')
+              })
+            }
+          }
+        }
+
+        // Add the user who cancelled the trip if not already in the list
+        const cancellerInList = stakeholders.some(s => s.email === user.email)
+        if (!cancellerInList && user.email) {
+          stakeholders.push({
+            name: user.full_name || user.email,
+            email: user.email,
+            role: 'Trip Manager'
+          })
+        }
+
+        if (stakeholders.length > 0) {
+          const emailData: TripCancellationEmailData = {
+            tripTitle: cancelledTrip.title,
+            tripAccessCode: cancelledTrip.access_code,
+            tripStartDate: cancelledTrip.start_date,
+            tripEndDate: cancelledTrip.end_date,
+            cancelledBy: user.full_name || user.email,
+            cancellationReason: cancellationReason || undefined,
+            stakeholders
+          }
+
+          console.log(`📧 [TripDelete] Sending cancellation emails to ${stakeholders.length} stakeholders`)
+          
+          const emailResult = await sendTripCancellationEmails(emailData)
+          
+          if (emailResult.success) {
+            console.log('✅ [TripDelete] All cancellation emails sent successfully')
+          } else {
+            console.warn(`⚠️ [TripDelete] Some emails failed to send:`, emailResult.errors)
+          }
+        } else {
+          console.log('📧 [TripDelete] No stakeholders found to notify')
+        }
+      } catch (emailError) {
+        console.error('❌ [TripDelete] Email notification failed:', emailError)
+        // Don't fail the entire deletion for email errors
+      }
+    }
+
+    // Optionally, perform any additional cancellation tasks here:
+    // - Cancel associated bookings
+    // - Update dependent records
+    
+    console.log('🎉 [TripDelete] Trip cancellation completed successfully')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Trip cancelled successfully',
+      trip: {
+        id: cancelledTrip.id,
+        access_code: cancelledTrip.access_code,
+        status: cancelledTrip.status,
+        title: cancelledTrip.title,
+        cancelled_at: cancelledTrip.cancelled_at,
+        cancelled_by: cancelledTrip.cancelled_by
+      }
+    })
+
+  } catch (error) {
+    console.error('💥 [TripDelete] Unexpected error during deletion:', error)
+    return NextResponse.json(
+      { 
+        error: 'Internal server error during trip deletion',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

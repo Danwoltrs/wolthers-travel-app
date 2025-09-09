@@ -110,11 +110,60 @@ export const geocodeLocation = async (address: string, retryCount = 0): Promise<
   })
 }
 
-// Calculate travel distance and time between locations
+// Calculate travel distance and time between locations using cached API
 export const calculateTravelTime = async (origin: Location, destination: Location): Promise<TravelInfo | null> => {
+  try {
+    // First try using our cached Distance Matrix API
+    const originString = origin.address || `${origin.lat},${origin.lng}`
+    const destinationString = destination.address || `${destination.lat},${destination.lng}`
+    
+    console.log(`🗺️ [Maps Utils] Calculating travel time: ${originString} → ${destinationString}`)
+    
+    const response = await fetch('/api/google-maps/distance-matrix', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        origins: [originString],
+        destinations: [destinationString],
+        mode: 'driving',
+        units: 'metric'
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Distance Matrix API failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    if (data.status === 'OK' && data.rows?.[0]?.elements?.[0]?.status === 'OK') {
+      const element = data.rows[0].elements[0]
+      const cacheHeader = response.headers.get('X-Cache')
+      console.log(`✅ [Maps Utils] Travel time calculated ${cacheHeader === 'HIT' ? '(cached)' : '(fresh)'}: ${element.duration.text}`)
+      
+      return {
+        distance: element.distance,
+        duration: element.duration,
+        origin,
+        destination
+      }
+    } else {
+      console.warn(`Distance Matrix API returned error: ${data.status}`)
+      return fallbackToClientSideAPI(origin, destination)
+    }
+  } catch (error) {
+    console.warn('Cached Distance Matrix API failed, falling back to client-side:', error)
+    return fallbackToClientSideAPI(origin, destination)
+  }
+}
+
+// Fallback to client-side Google Maps API if server-side fails
+const fallbackToClientSideAPI = async (origin: Location, destination: Location): Promise<TravelInfo | null> => {
   return new Promise((resolve) => {
     if (!window.google || !window.google.maps) {
-      console.warn('Google Maps API not available for distance calculation')
+      console.warn('Google Maps client API not available for distance calculation')
       resolve(null)
       return
     }
@@ -131,6 +180,7 @@ export const calculateTravelTime = async (origin: Location, destination: Locatio
     }, (response: any, status: string) => {
       if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
         const element = response.rows[0].elements[0]
+        console.log('✅ [Maps Utils] Fallback calculation successful:', element.duration.text)
         resolve({
           distance: element.distance,
           duration: element.duration,
@@ -138,7 +188,7 @@ export const calculateTravelTime = async (origin: Location, destination: Locatio
           destination
         })
       } else {
-        console.warn(`Distance calculation failed: ${status}`)
+        console.warn(`Fallback distance calculation failed: ${status}`)
         resolve(null)
       }
     })

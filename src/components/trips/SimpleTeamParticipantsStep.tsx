@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Building2, Plus, X } from 'lucide-react'
+import { Users, Building2, Plus, X, UserPlus } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Company } from '@/types'
+import UserCreationModal from './UserCreationModal'
 
 interface SimpleTeamParticipantsStepProps {
   formData: TripFormData
@@ -14,6 +15,7 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
   const [buyerCompanies, setBuyerCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showUserModal, setShowUserModal] = useState(false)
 
   // Load real data from APIs
   useEffect(() => {
@@ -143,6 +145,50 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
     })
   }
 
+  const handleUserCreated = async (newUser: User) => {
+    // Add the new user to the local staff list
+    setWolthersStaff(prev => [...prev, newUser])
+    // Automatically select the new user as a participant
+    const currentParticipants = formData.participants || []
+    updateFormData({
+      participants: [...currentParticipants, newUser]
+    })
+    setShowUserModal(false)
+
+    // Send welcome/invitation email to the new staff member
+    try {
+      const response = await fetch('/api/emails/staff-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: newUser.email,
+          inviterName: 'Daniel Wolthers', // TODO: Get from current user context
+          inviterEmail: 'daniel@wolthers.com', // TODO: Get from current user context
+          newStaffName: newUser.fullName || newUser.full_name || 'New Team Member',
+          role: newUser.role || 'Staff Member',
+          tripTitle: formData.title || undefined,
+          whatsApp: undefined // TODO: Add WhatsApp field to user creation if needed
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log(`✅ Welcome email sent to ${newUser.email}`)
+        // TODO: Show success notification to user
+      } else {
+        console.error(`❌ Failed to send welcome email:`, result.error)
+        // TODO: Show error notification to user
+      }
+    } catch (error) {
+      console.error('Error sending welcome email:', error)
+      // TODO: Show error notification to user
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -151,20 +197,29 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           Team & Participants
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Select Wolthers staff and add buyer companies who will be traveling with you.
+          Select team members and buyer companies for this trip.
         </p>
       </div>
 
       {/* Wolthers Staff Selection */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-300 dark:border-[#2a2a2a] p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
-            Wolthers Team
-          </h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            ({(formData.participants || []).length} selected)
-          </span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
+              Wolthers Team
+            </h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              ({(formData.participants || []).length} selected)
+            </span>
+          </div>
+          <button
+            onClick={() => setShowUserModal(true)}
+            className="flex items-center space-x-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Add New Staff</span>
+          </button>
         </div>
 
         {isLoading && (
@@ -368,6 +423,17 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           </div>
         </div>
       )}
+      
+      {/* User Creation Modal */}
+      <UserCreationModal
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        onUserCreated={handleUserCreated}
+        preSelectedCompanyId="840783f4-866d-4bdb-9b5d-5d0facf62db0" // Wolthers & Associates company ID
+        availableCompanies={[]}
+        defaultRole="staff"
+        title="Add New Wolthers Staff Member"
+      />
     </div>
   )
 }
