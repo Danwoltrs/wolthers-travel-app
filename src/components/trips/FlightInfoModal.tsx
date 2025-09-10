@@ -339,7 +339,7 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
 
                 <div>
                   <label htmlFor="arrivalTime" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Arrival Time (24h) *
+                    Arrival Time (24-hour format: HH:MM) *
                   </label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -353,7 +353,13 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
                       step="300"
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       pattern="[0-9]{2}:[0-9]{2}"
-                      placeholder="HH:MM"
+                      placeholder="HH:MM (24-hour format)"
+                      data-format="24"
+                      lang="en-GB"
+                      style={{ 
+                        colorScheme: 'light dark',
+                        WebkitAppearance: 'textfield'
+                      }}
                     />
                   </div>
                 </div>
