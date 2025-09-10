@@ -312,7 +312,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             Available Host Companies ({filteredCompanies.length})
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-            Select companies that will host your travel group. You can configure visit details in the calendar step.
+            Click on company names to add them as hosts for your travel group. You can configure visit details in the calendar step.
           </p>
         </div>
         
@@ -340,9 +340,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Region
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Action
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-[#1a1a1a] divide-y divide-gray-200 dark:divide-[#2a2a2a]">
@@ -354,9 +351,17 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     }`}
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-emerald-300">
-                        {company.fantasy_name || company.name}
-                      </div>
+                      <button
+                        onClick={() => openHostModal(company)}
+                        className="text-left group hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md px-2 py-1 transition-colors"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="text-sm font-medium text-gray-900 dark:text-emerald-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
+                            {company.fantasy_name || company.name}
+                          </div>
+                          <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </button>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
@@ -384,15 +389,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                       <div className="text-sm text-gray-900 dark:text-gray-300">
                         {extractCoffeeRegion(company as any)}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <button
-                        onClick={() => openHostModal(company)}
-                        className="inline-flex items-center px-3 py-1.5 border border-emerald-300 dark:border-emerald-600 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Select
-                      </button>
                     </td>
                   </tr>
                 ))}
