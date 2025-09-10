@@ -698,35 +698,138 @@ export async function POST(request: NextRequest) {
           console.log('✅ Meetings created successfully')
         }
 
-        // Save generated activities if they exist (from AI itinerary generation)
-        if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
-          console.log('📅 Creating generated activities:', stepData.generatedActivities.length)
+        // Create activities from flight info and host companies if available
+        const activities = []
+        const tripStartDate = new Date(tripData.start_date || new Date())
+        
+        // 1. Create flight arrival activity if GRU airport pickup is selected
+        if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+          const flight = stepData.flightInfo
+          const arrivalDate = new Date(flight.arrivalDate)
           
-          const activityInserts = stepData.generatedActivities.map((activity: any) => ({
+          activities.push({
             trip_id: finalTripId,
-            title: activity.title,
-            description: activity.description || '',
-            activity_date: activity.activity_date,
-            start_time: activity.start_time,
-            end_time: activity.end_time,
-            location: activity.location || '',
-            activity_type: activity.type || 'meeting',
-            priority: activity.priority || 'medium',
-            notes: activity.notes || '',
-            visibility_level: activity.visibility_level || 'all',
-            is_confirmed: activity.is_confirmed || false,
+            title: `Flight Arrival - ${flight.airline} ${flight.flightNumber}`,
+            description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'}`,
+            activity_date: arrivalDate.toISOString().split('T')[0],
+            start_time: flight.arrivalTime,
+            end_time: addMinutesToTime(flight.arrivalTime, 30), // 30 min pickup window
+            location: 'GRU Airport - São Paulo',
+            activity_type: 'travel',
+            priority: 'high',
+            notes: flight.notes || '',
+            visibility_level: 'all',
+            is_confirmed: false,
             created_at: now,
             updated_at: now
-          }))
+          })
 
+          // 2. Create drive to destination activity (separate from arrival)
+          if (stepData.destinationAddress) {
+            const driveStartTime = addMinutesToTime(flight.arrivalTime, 45) // 45 min after arrival
+            const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
+            
+            activities.push({
+              trip_id: finalTripId,
+              title: `Drive to ${destinationType}`,
+              description: `Transport from GRU Airport to ${stepData.destinationAddress}`,
+              activity_date: arrivalDate.toISOString().split('T')[0],
+              start_time: driveStartTime,
+              end_time: addMinutesToTime(driveStartTime, 90), // Estimated 1.5 hours drive time
+              location: stepData.destinationAddress,
+              activity_type: 'travel',
+              priority: 'medium',
+              notes: `Destination: ${stepData.destinationAddress}`,
+              visibility_level: 'all',
+              is_confirmed: false,
+              created_at: now,
+              updated_at: now
+            })
+          }
+        }
+
+        // 3. Create host company meeting activities (start from next day after arrival)
+        if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+          const meetingStartDate = new Date(tripStartDate)
+          
+          // If we have GRU pickup, start meetings the day after arrival
+          if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+            const arrivalDate = new Date(stepData.flightInfo.arrivalDate)
+            meetingStartDate.setTime(arrivalDate.getTime() + 24 * 60 * 60 * 1000) // Next day
+          }
+
+          let currentMeetingDate = new Date(meetingStartDate)
+          let currentTime = '09:00' // Start meetings at 9 AM
+          
+          stepData.companies.forEach((company: any, index: number) => {
+            // Schedule max 2-3 companies per day
+            if (index > 0 && index % 2 === 0) {
+              // Move to next day after every 2 companies
+              currentMeetingDate.setTime(currentMeetingDate.getTime() + 24 * 60 * 60 * 1000)
+              currentTime = '09:00' // Reset to 9 AM for new day
+            }
+            
+            activities.push({
+              trip_id: finalTripId,
+              title: `Meeting with ${company.name}`,
+              description: `Business meeting at ${company.name}${company.city ? ` - ${company.city}` : ''}`,
+              activity_date: currentMeetingDate.toISOString().split('T')[0],
+              start_time: currentTime,
+              end_time: addMinutesToTime(currentTime, 120), // 2 hour meeting
+              location: company.address || `${company.city || ''}, ${company.state || 'Brazil'}`,
+              activity_type: 'meeting',
+              priority: 'high',
+              notes: `Host company visit`,
+              visibility_level: 'all',
+              is_confirmed: false,
+              created_at: now,
+              updated_at: now
+            })
+            
+            // Add travel time between companies on same day
+            if ((index + 1) % 2 === 1 && index < stepData.companies.length - 1) {
+              // If not the last company of the day, add travel time
+              currentTime = addMinutesToTime(currentTime, 150) // 2.5 hours (meeting + travel)
+            }
+          })
+        }
+
+        // 4. Save generated activities if they exist (from AI itinerary generation)
+        if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
+          console.log('📅 Adding AI-generated activities:', stepData.generatedActivities.length)
+          
+          stepData.generatedActivities.forEach((activity: any) => {
+            activities.push({
+              trip_id: finalTripId,
+              title: activity.title,
+              description: activity.description || '',
+              activity_date: activity.activity_date,
+              start_time: activity.start_time,
+              end_time: activity.end_time,
+              location: activity.location || '',
+              activity_type: activity.type || 'meeting',
+              priority: activity.priority || 'medium',
+              notes: activity.notes || '',
+              visibility_level: activity.visibility_level || 'all',
+              is_confirmed: activity.is_confirmed || false,
+              created_at: now,
+              updated_at: now
+            })
+          })
+        }
+
+        // Insert all activities
+        if (activities.length > 0) {
+          console.log('📅 Creating calendar activities:', activities.length)
+          
           const { error: activitiesError } = await supabase
             .from('activities')
-            .insert(activityInserts)
+            .insert(activities)
 
           if (activitiesError) {
-            console.error('⚠️ Failed to create generated activities:', activitiesError)
+            console.error('⚠️ Failed to create calendar activities:', activitiesError)
           } else {
-            console.log('✅ Generated activities created successfully')
+            console.log('✅ Calendar activities created successfully')
           }
         }
       }
@@ -1061,38 +1164,143 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       }
     }
 
-    // Re-insert generated activities (from AI itinerary generation)
-    if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
-      console.log('📅 Updating generated activities:', stepData.generatedActivities.length)
+    // Update activities with proper scheduling logic
+    console.log('📅 Updating calendar activities...')
+    
+    // Clear existing activities first
+    await supabase.from('activities').delete().eq('trip_id', tripId)
+    
+    // Recreate activities using the same logic as new trip creation
+    const activities = []
+    const tripData = extractTripData(stepData, 0)
+    const tripStartDate = new Date(tripData.start_date || new Date())
+    
+    // 1. Create flight arrival activity if GRU airport pickup is selected
+    if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+      const flight = stepData.flightInfo
+      const arrivalDate = new Date(flight.arrivalDate)
       
-      // Clear existing activities first
-      await supabase.from('activities').delete().eq('trip_id', tripId)
-      
-      const activityInserts = stepData.generatedActivities.map((activity: any) => ({
+      activities.push({
         trip_id: tripId,
-        title: activity.title,
-        description: activity.description || '',
-        activity_date: activity.activity_date,
-        start_time: activity.start_time,
-        end_time: activity.end_time,
-        location: activity.location || '',
-        activity_type: activity.type || 'meeting',
-        priority: activity.priority || 'medium',
-        notes: activity.notes || '',
-        visibility_level: activity.visibility_level || 'all',
-        is_confirmed: activity.is_confirmed || false,
+        title: `Flight Arrival - ${flight.airline} ${flight.flightNumber}`,
+        description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'}`,
+        activity_date: arrivalDate.toISOString().split('T')[0],
+        start_time: flight.arrivalTime,
+        end_time: addMinutesToTime(flight.arrivalTime, 30), // 30 min pickup window
+        location: 'GRU Airport - São Paulo',
+        activity_type: 'travel',
+        priority: 'high',
+        notes: flight.notes || '',
+        visibility_level: 'all',
+        is_confirmed: false,
         created_at: now,
         updated_at: now
-      }))
+      })
 
+      // 2. Create drive to destination activity (separate from arrival)
+      if (stepData.destinationAddress) {
+        const driveStartTime = addMinutesToTime(flight.arrivalTime, 45) // 45 min after arrival
+        const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
+        
+        activities.push({
+          trip_id: tripId,
+          title: `Drive to ${destinationType}`,
+          description: `Transport from GRU Airport to ${stepData.destinationAddress}`,
+          activity_date: arrivalDate.toISOString().split('T')[0],
+          start_time: driveStartTime,
+          end_time: addMinutesToTime(driveStartTime, 90), // Estimated 1.5 hours drive time
+          location: stepData.destinationAddress,
+          activity_type: 'travel',
+          priority: 'medium',
+          notes: `Destination: ${stepData.destinationAddress}`,
+          visibility_level: 'all',
+          is_confirmed: false,
+          created_at: now,
+          updated_at: now
+        })
+      }
+    }
+
+    // 3. Create host company meeting activities (start from next day after arrival)
+    if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+      const meetingStartDate = new Date(tripStartDate)
+      
+      // If we have GRU pickup, start meetings the day after arrival
+      if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+        const arrivalDate = new Date(stepData.flightInfo.arrivalDate)
+        meetingStartDate.setTime(arrivalDate.getTime() + 24 * 60 * 60 * 1000) // Next day
+      }
+
+      let currentMeetingDate = new Date(meetingStartDate)
+      let currentTime = '09:00' // Start meetings at 9 AM
+      
+      stepData.companies.forEach((company: any, index: number) => {
+        // Schedule max 2 companies per day
+        if (index > 0 && index % 2 === 0) {
+          // Move to next day after every 2 companies
+          currentMeetingDate.setTime(currentMeetingDate.getTime() + 24 * 60 * 60 * 1000)
+          currentTime = '09:00' // Reset to 9 AM for new day
+        }
+        
+        activities.push({
+          trip_id: tripId,
+          title: `Meeting with ${company.name}`,
+          description: `Business meeting at ${company.name}${company.city ? ` - ${company.city}` : ''}`,
+          activity_date: currentMeetingDate.toISOString().split('T')[0],
+          start_time: currentTime,
+          end_time: addMinutesToTime(currentTime, 120), // 2 hour meeting
+          location: company.address || `${company.city || ''}, ${company.state || 'Brazil'}`,
+          activity_type: 'meeting',
+          priority: 'high',
+          notes: `Host company visit`,
+          visibility_level: 'all',
+          is_confirmed: false,
+          created_at: now,
+          updated_at: now
+        })
+        
+        // Add travel time between companies on same day
+        if ((index + 1) % 2 === 1 && index < stepData.companies.length - 1) {
+          // If not the last company of the day, add travel time
+          currentTime = addMinutesToTime(currentTime, 150) // 2.5 hours (meeting + travel)
+        }
+      })
+    }
+
+    // 4. Re-insert generated activities (from AI itinerary generation)
+    if (stepData.generatedActivities && Array.isArray(stepData.generatedActivities) && stepData.generatedActivities.length > 0) {
+      console.log('📅 Adding AI-generated activities:', stepData.generatedActivities.length)
+      
+      stepData.generatedActivities.forEach((activity: any) => {
+        activities.push({
+          trip_id: tripId,
+          title: activity.title,
+          description: activity.description || '',
+          activity_date: activity.activity_date,
+          start_time: activity.start_time,
+          end_time: activity.end_time,
+          location: activity.location || '',
+          activity_type: activity.type || 'meeting',
+          priority: activity.priority || 'medium',
+          notes: activity.notes || '',
+          visibility_level: activity.visibility_level || 'all',
+          is_confirmed: activity.is_confirmed || false,
+          created_at: now,
+          updated_at: now
+        })
+      })
+    }
+
+    // Insert all activities
+    if (activities.length > 0) {
       const { error: activitiesError } = await supabase
         .from('activities')
-        .insert(activityInserts)
+        .insert(activities)
 
       if (activitiesError) {
-        console.error('⚠️ Failed to update generated activities:', activitiesError)
+        console.error('⚠️ Failed to update calendar activities:', activitiesError)
       } else {
-        console.log('✅ Generated activities updated successfully')
+        console.log('✅ Calendar activities updated successfully')
       }
     }
 
@@ -1112,6 +1320,15 @@ function hash(str: string): number {
     hash = hash & hash // Convert to 32bit integer
   }
   return hash
+}
+
+// Helper function to add minutes to a time string (HH:MM format)
+function addMinutesToTime(timeStr: string, minutes: number): string {
+  const [hours, mins] = timeStr.split(':').map(Number)
+  const totalMinutes = hours * 60 + mins + minutes
+  const newHours = Math.floor(totalMinutes / 60) % 24
+  const newMins = totalMinutes % 60
+  return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`
 }
 
 // NOTE: Trip drafts are now handled using trips table with status='planning'

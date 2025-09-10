@@ -78,7 +78,7 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
   const [selectedDestinationType, setSelectedDestinationType] = useState<'hotel' | 'office' | null>(null)
   const [destinationAddress, setDestinationAddress] = useState('')
 
-  // Update arrival date when trip start date changes
+  // Update arrival date when trip start date changes and passenger name when guests change
   useEffect(() => {
     if (tripStartDate && isOpen) {
       setFlightInfo(prev => ({
@@ -87,6 +87,16 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
       }))
     }
   }, [tripStartDate, isOpen])
+
+  // Update passenger name when selected guests change
+  useEffect(() => {
+    if (selectedGuests.length > 0 && isOpen) {
+      setFlightInfo(prev => ({
+        ...prev,
+        passengerName: selectedGuests[0].name
+      }))
+    }
+  }, [selectedGuests, isOpen])
 
   if (!isOpen) return null
 

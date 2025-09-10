@@ -42,6 +42,15 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
     }
   }, [formData.companies, formData.startDate, formData.endDate])
 
+  // Debug effect to track buyerCompanies state changes
+  useEffect(() => {
+    console.log('🔄 buyerCompanies state updated:', buyerCompanies.map(bc => ({
+      name: bc.name,
+      participantCount: bc.participants?.length || 0,
+      participants: bc.participants?.map(p => p.full_name || p.email)
+    })))
+  }, [buyerCompanies])
+
   const handleWolthersStaffSelection = (selectedStaff: User[]) => {
     updateFormData({ participants: selectedStaff })
   }
@@ -73,9 +82,16 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
   }
 
   const updateBuyerCompany = (companyId: string, updates: Partial<BuyerCompany>) => {
-    const updatedBuyerCompanies = buyerCompanies.map(bc => 
-      bc.id === companyId ? { ...bc, ...updates } : bc
-    )
+    console.log('🔧 updateBuyerCompany called with:', { companyId, updates })
+    const updatedBuyerCompanies = buyerCompanies.map(bc => {
+      if (bc.id === companyId) {
+        const updatedCompany = { ...bc, ...updates }
+        console.log('🔧 Updating company:', bc.name, 'from participants:', bc.participants?.length || 0, 'to:', updates.participants?.length || 0)
+        return updatedCompany
+      }
+      return bc
+    })
+    console.log('🔧 Setting new buyerCompanies state')
     setBuyerCompanies(updatedBuyerCompanies)
   }
 
@@ -85,6 +101,9 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
   }
 
   const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    console.log('🎯 handleSelectGuests called with:', { companyId, selectedGuests })
+    console.log('🎯 Current buyerCompanies IDs:', buyerCompanies.map(bc => ({ id: bc.id, name: bc.name })))
+    
     // Convert guests to User format for consistency
     const guests: User[] = selectedGuests.map(guest => ({
       id: guest.id || `guest_${Date.now()}_${Math.random()}`,
@@ -98,8 +117,19 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       updated_at: new Date().toISOString()
     }))
 
-    // Update the buyer company with selected participants
-    updateBuyerCompany(companyId, { participants: guests })
+    console.log('🎯 Converted guests:', guests)
+
+    // Find and update the buyer company with selected participants
+    // Try both exact ID match and name match as fallback
+    const targetCompany = buyerCompanies.find(bc => bc.id === companyId) || 
+                          buyerCompanies.find(bc => bc.name === selectedCompanyForGuests?.name)
+    
+    if (targetCompany) {
+      console.log('🎯 Found target company:', targetCompany.name, 'updating with guests:', guests)
+      updateBuyerCompany(targetCompany.id, { participants: guests })
+    } else {
+      console.error('🚨 Could not find company to update:', companyId)
+    }
     
     // Reset modal state
     setSelectedCompanyForGuests(null)
@@ -355,7 +385,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
 
       {/* Summary */}
       {(formData.participants?.length || 0) > 0 || buyerCompanies.length > 0 && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-4">
+        <div key={`summary-${buyerCompanies.map(bc => `${bc.id}-${bc.participants?.length || 0}`).join('-')}`} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-4">
           <h4 className="font-medium text-emerald-900 dark:text-emerald-300 mb-2">Trip Participants Summary</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -376,9 +406,39 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
               </span>
               {buyerCompanies.length > 0 && (
                 <ul className="mt-1 text-emerald-600 dark:text-emerald-400">
-                  {buyerCompanies.map(bc => (
-                    <li key={bc.id}>• {bc.name} {bc.isPartial ? '(partial)' : '(full trip)'}</li>
-                  ))}
+                  {buyerCompanies.map(bc => {
+                    // Get participants directly from buyerCompany state (this should have Randy)
+                    const participants = bc.participants || []
+                    
+                    // Debug logging for this specific render
+                    if (bc.name === 'Blaser Trading A/G') {
+                      console.log('🎯 RENDER DEBUG - Blaser Trading A/G:', {
+                        participants: participants,
+                        participantsLength: participants.length,
+                        firstParticipant: participants[0],
+                        participantNames: participants.map(p => p.full_name || p.email || 'Unknown')
+                      })
+                    }
+                    
+                    return (
+                      <li key={bc.id}>
+                        • {bc.name} {bc.isPartial ? '(partial)' : '(full trip)'}
+                        {participants && participants.length > 0 ? (
+                          <span className="ml-2 text-emerald-500 dark:text-emerald-300">
+                            - {participants.map(p => {
+                              const name = p?.full_name || p?.email || 'Unknown'
+                              console.log('🎯 Rendering participant:', name, 'from object:', p)
+                              return name
+                            }).join(', ')}
+                          </span>
+                        ) : (
+                          <span className="ml-2 text-red-400 text-xs">
+                            (Debug: {participants ? `${participants.length} participants` : 'participants is null'})
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

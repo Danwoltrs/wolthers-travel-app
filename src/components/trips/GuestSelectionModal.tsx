@@ -227,17 +227,29 @@ export default function GuestSelectionModal({
   }
 
   const toggleGuestSelection = (item: Contact | CompanyUser) => {
+    console.log('🔄 toggleGuestSelection called for:', getItemName(item))
     setSelectedGuests(prev => {
       const isSelected = prev.some(c => getItemId(c) === getItemId(item))
+      console.log('🔄 isSelected:', isSelected, 'current selected count:', prev.length)
       if (isSelected) {
-        return prev.filter(c => getItemId(c) !== getItemId(item))
+        const newSelection = prev.filter(c => getItemId(c) !== getItemId(item))
+        console.log('🔄 removing guest, new count:', newSelection.length)
+        return newSelection
       } else {
-        return [...prev, item]
+        const newSelection = [...prev, item]
+        console.log('🔄 adding guest, new count:', newSelection.length, 'guest:', getItemName(item))
+        return newSelection
       }
     })
   }
 
   const handleSelectGuests = () => {
+    console.log('🎯 GuestSelectionModal handleSelectGuests called with:', {
+      companyId: company.id,
+      companyName: company.name,
+      selectedGuests: selectedGuests,
+      selectedGuestsCount: selectedGuests.length
+    })
     onSelectGuests(company.id, selectedGuests)
     onClose()
   }
