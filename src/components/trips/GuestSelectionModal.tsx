@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Users, Plus, Edit, Trash2, Phone, Mail, User } from 'lucide-react'
+import { X, Users, Plus, Edit, Trash2, User } from 'lucide-react'
 
 interface Contact {
   id?: string
@@ -18,7 +18,7 @@ interface CompanyUser {
   user_type?: string
 }
 
-interface HostSelectionModalProps {
+interface GuestSelectionModalProps {
   isOpen: boolean
   onClose: () => void
   company: {
@@ -28,20 +28,20 @@ interface HostSelectionModalProps {
     city?: string
     state?: string
   }
-  onSelectHost: (companyId: string, selectedContacts: (Contact | CompanyUser)[]) => void
+  onSelectGuests: (companyId: string, selectedGuests: (Contact | CompanyUser)[]) => void
   existingContacts?: Contact[]
 }
 
-export default function HostSelectionModal({ 
+export default function GuestSelectionModal({ 
   isOpen, 
   onClose, 
   company, 
-  onSelectHost,
+  onSelectGuests,
   existingContacts = []
-}: HostSelectionModalProps) {
+}: GuestSelectionModalProps) {
   const [contacts, setContacts] = useState<Contact[]>(existingContacts)
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([])
-  const [selectedContacts, setSelectedContacts] = useState<(Contact | CompanyUser)[]>([])
+  const [selectedGuests, setSelectedGuests] = useState<(Contact | CompanyUser)[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingContactId, setEditingContactId] = useState<string | null>(null)
   const [contactForm, setContactForm] = useState<Contact>({
@@ -56,8 +56,8 @@ export default function HostSelectionModal({
   useEffect(() => {
     if (isOpen && company.id) {
       loadCompanyData()
-      // Reset selected contacts for each company to avoid cross-company selection
-      setSelectedContacts([])
+      // Reset selected guests for each company to avoid cross-company selection
+      setSelectedGuests([])
     }
   }, [isOpen, company.id])
 
@@ -189,7 +189,7 @@ export default function HostSelectionModal({
 
       if (response.ok) {
         setContacts(prev => prev.filter(c => c.id !== contactId))
-        setSelectedContacts(prev => prev.filter(c => c.id !== contactId))
+        setSelectedGuests(prev => prev.filter(c => getItemId(c) !== contactId))
       } else {
         alert('Failed to delete contact')
       }
@@ -226,8 +226,8 @@ export default function HostSelectionModal({
     return item.role
   }
 
-  const toggleContactSelection = (item: Contact | CompanyUser) => {
-    setSelectedContacts(prev => {
+  const toggleGuestSelection = (item: Contact | CompanyUser) => {
+    setSelectedGuests(prev => {
       const isSelected = prev.some(c => getItemId(c) === getItemId(item))
       if (isSelected) {
         return prev.filter(c => getItemId(c) !== getItemId(item))
@@ -237,13 +237,13 @@ export default function HostSelectionModal({
     })
   }
 
-  const handleSelectHost = () => {
-    onSelectHost(company.id, selectedContacts)
+  const handleSelectGuests = () => {
+    onSelectGuests(company.id, selectedGuests)
     onClose()
   }
 
   const handleAddLater = () => {
-    onSelectHost(company.id, []) // Add company with no contacts selected
+    onSelectGuests(company.id, []) // Add company with no guests selected
     onClose()
   }
 
@@ -256,7 +256,7 @@ export default function HostSelectionModal({
         <div className="bg-golden-400 dark:bg-[#09261d] p-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white dark:text-golden-400">
-              Select Host Representatives
+              Select Guest Participants
             </h3>
             <p className="text-white/70 dark:text-golden-400/70 text-sm">
               {company.fantasy_name || company.name}
@@ -275,7 +275,7 @@ export default function HostSelectionModal({
           <div className="flex-1 overflow-y-auto p-4">
             {loading && (
               <div className="text-center py-4">
-                <div className="text-gray-500 dark:text-gray-400">Loading representatives...</div>
+                <div className="text-gray-500 dark:text-gray-400">Loading participants...</div>
               </div>
             )}
 
@@ -285,9 +285,9 @@ export default function HostSelectionModal({
                 {companyUsers.length === 0 && contacts.length === 0 && (
                   <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded mb-4">
                     <Users className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">No representatives found</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">No participants found</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
-                      This company has no existing users or contacts. You can add contacts manually or use "Add Later" to configure representatives later.
+                      This company has no existing users or contacts. You can add contacts manually or use "Add Later" to configure participants later.
                     </p>
                   </div>
                 )}
@@ -313,20 +313,20 @@ export default function HostSelectionModal({
                         </thead>
                         <tbody>
                           {companyUsers.map((user) => {
-                            const isSelected = selectedContacts.some(c => getItemId(c) === user.id)
+                            const isSelected = selectedGuests.some(c => getItemId(c) === user.id)
                             return (
                               <tr 
                                 key={user.id}
                                 className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors ${
                                   isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''
                                 }`}
-                                onClick={() => toggleContactSelection(user)}
+                                onClick={() => toggleGuestSelection(user)}
                               >
                                 <td className="py-1 px-1">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
-                                    onChange={() => toggleContactSelection(user)}
+                                    onChange={() => toggleGuestSelection(user)}
                                     className="text-emerald-600 rounded focus:ring-emerald-500 w-3 h-3"
                                   />
                                 </td>
@@ -375,7 +375,7 @@ export default function HostSelectionModal({
                       <User className="w-4 h-4 mx-auto mb-1 text-gray-400" />
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">No contacts yet</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Click "Add" to register representatives
+                        Click "Add" to register participants
                       </p>
                     </div>
                   ) : (
@@ -391,20 +391,20 @@ export default function HostSelectionModal({
                         </thead>
                         <tbody>
                           {contacts.map((contact) => {
-                            const isSelected = selectedContacts.some(c => getItemId(c) === getItemId(contact))
+                            const isSelected = selectedGuests.some(c => getItemId(c) === getItemId(contact))
                             return (
                               <tr 
                                 key={contact.id}
                                 className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors ${
                                   isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''
                                 }`}
-                                onClick={() => toggleContactSelection(contact)}
+                                onClick={() => toggleGuestSelection(contact)}
                               >
                                 <td className="py-1 px-1">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
-                                    onChange={() => toggleContactSelection(contact)}
+                                    onChange={() => toggleGuestSelection(contact)}
                                     className="text-emerald-600 rounded focus:ring-emerald-500 w-3 h-3"
                                   />
                                 </td>
@@ -456,16 +456,16 @@ export default function HostSelectionModal({
                   )}
                 </div>
 
-                {/* Selected Representatives Summary */}
-                {selectedContacts.length > 0 && (
+                {/* Selected Guests Summary */}
+                {selectedGuests.length > 0 && (
                   <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded p-2 mb-2">
                     <h5 className="font-medium text-emerald-900 dark:text-emerald-300 text-xs mb-1">
-                      Selected ({selectedContacts.length})
+                      Selected ({selectedGuests.length})
                     </h5>
                     <div className="text-xs text-emerald-700 dark:text-emerald-400">
-                      {selectedContacts.map((item, index) => (
+                      {selectedGuests.map((item, index) => (
                         <span key={getItemId(item)} className="inline-block mr-2">
-                          {getItemName(item)}{index < selectedContacts.length - 1 ? ',' : ''}
+                          {getItemName(item)}{index < selectedGuests.length - 1 ? ',' : ''}
                         </span>
                       ))}
                     </div>
@@ -491,11 +491,11 @@ export default function HostSelectionModal({
                 Add Later
               </button>
               <button
-                onClick={handleSelectHost}
-                disabled={selectedContacts.length === 0}
+                onClick={handleSelectGuests}
+                disabled={selectedGuests.length === 0}
                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded text-sm transition-colors"
               >
-                Select Host ({selectedContacts.length})
+                Select Guests ({selectedGuests.length})
               </button>
             </div>
           </div>

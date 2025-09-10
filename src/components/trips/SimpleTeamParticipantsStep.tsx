@@ -3,6 +3,7 @@ import { Users, Building2, Plus, X, UserPlus } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Company } from '@/types'
 import UserCreationModal from './UserCreationModal'
+import GuestSelectionModal from './GuestSelectionModal'
 
 interface SimpleTeamParticipantsStepProps {
   formData: TripFormData
@@ -16,6 +17,8 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [selectedCompanyForGuests, setSelectedCompanyForGuests] = useState<Company | null>(null)
 
   // Load real data from APIs
   useEffect(() => {
@@ -189,6 +192,43 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
     }
   }
 
+  const openGuestModal = (company: Company) => {
+    setSelectedCompanyForGuests(company)
+    setShowGuestModal(true)
+  }
+
+  const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    // Convert guests to User format for consistency
+    const guests: User[] = selectedGuests.map(guest => ({
+      id: guest.id || `guest_${Date.now()}_${Math.random()}`,
+      email: guest.email || '',
+      full_name: 'full_name' in guest ? guest.full_name : guest.name,
+      phone: guest.phone || undefined,
+      role: guest.role || undefined,
+      company_id: companyId,
+      user_type: 'full_name' in guest ? 'user' : 'contact',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }))
+
+    // Find the company and update its participants
+    const updatedCompanies = (formData.companies || []).map(company => {
+      if (company.id === companyId) {
+        return {
+          ...company,
+          participants: guests // Store guests as participants
+        }
+      }
+      return company
+    })
+
+    updateFormData({ companies: updatedCompanies })
+    
+    // Reset modal state
+    setSelectedCompanyForGuests(null)
+    setShowGuestModal(false)
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -298,19 +338,23 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {buyerCompanies.map((company) => {
                 const isSelected = (formData.companies || []).some(c => c.id === company.id)
+                const selectedCompany = (formData.companies || []).find(c => c.id === company.id)
+                const guestCount = (selectedCompany as any)?.participants?.length || 0
                 
                 return (
                   <div
                     key={company.id}
-                    onClick={() => toggleBuyerCompany(company)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    className={`p-3 rounded-lg border-2 transition-all ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                         : 'border-gray-200 dark:border-[#2a2a2a] hover:border-emerald-300 dark:hover:border-emerald-700'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div 
+                        onClick={() => toggleBuyerCompany(company)}
+                        className="flex-1 cursor-pointer"
+                      >
                         <h5 className="font-medium text-gray-900 dark:text-gray-100">
                           {company.name}
                         </h5>
@@ -326,6 +370,24 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
                         </div>
                       )}
                     </div>
+                    
+                    {isSelected && (
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {guestCount} guest{guestCount !== 1 ? 's' : ''} selected
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openGuestModal(company)
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded border border-emerald-300 dark:border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-white dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          {guestCount > 0 ? 'Manage' : 'Add'} Guests
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -433,6 +495,17 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
         availableCompanies={[]}
         defaultRole="staff"
         title="Add New Wolthers Staff Member"
+      />
+
+      {/* Guest Selection Modal */}
+      <GuestSelectionModal
+        isOpen={showGuestModal}
+        onClose={() => {
+          setShowGuestModal(false)
+          setSelectedCompanyForGuests(null)
+        }}
+        company={selectedCompanyForGuests || { id: '', name: '', city: '', state: '' }}
+        onSelectGuests={handleSelectGuests}
       />
     </div>
   )

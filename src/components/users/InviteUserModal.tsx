@@ -234,13 +234,37 @@ export default function InviteUserModal({ currentUser, permissions, onClose, onI
                     onChange={(e) => setFormData({ ...formData, user_type: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
                   >
-                    <option value="guest">Guest - View only access</option>
-                    <option value="client">Client - Standard user</option>
-                    <option value="driver">Driver - Fleet access</option>
-                    {permissions.canAssignRoles && (
+                    {/* Roles for Wolthers & Associates staff members */}
+                    {formData.company_id === null && permissions.canAssignRoles && (
                       <>
-                        <option value="admin">Company Admin - Manage company users</option>
-                        <option value="wolthers_staff">Wolthers Staff - Full access</option>
+                        <option value="wolthers_staff">Staff - General team member</option>
+                        <option value="wolthers_finance">Finance - Financial management</option>
+                        <option value="car_manager">Car Manager - Fleet management</option>
+                        <option value="admin">Company Admin - User management</option>
+                      </>
+                    )}
+                    
+                    {/* Roles for external users */}
+                    {formData.company_id !== null && (
+                      <>
+                        <option value="guest">Guest - View only access</option>
+                        <option value="client">Client - Standard user</option>
+                        <option value="driver">Driver - Fleet access</option>
+                        <option value="visitor">Visitor - Limited access</option>
+                        <option value="visitor_admin">Visitor Admin - Manage visitors</option>
+                        <option value="host">Host - Trip host</option>
+                      </>
+                    )}
+                    
+                    {/* Default fallback for external users if company_id is not set */}
+                    {formData.company_id === '' && (
+                      <>
+                        <option value="guest">Guest - View only access</option>
+                        <option value="client">Client - Standard user</option>
+                        <option value="driver">Driver - Fleet access</option>
+                        <option value="visitor">Visitor - Limited access</option>
+                        <option value="visitor_admin">Visitor Admin - Manage visitors</option>
+                        <option value="host">Host - Trip host</option>
                       </>
                     )}
                   </select>

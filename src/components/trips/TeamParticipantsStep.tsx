@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Building2, Calendar, MapPin, Plus, X } from 'lucide-react'
+import { Users, Building2, Calendar, MapPin, Plus, X, UserPlus } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Company } from '@/types'
 import { useWolthersStaff } from '@/hooks/useWolthersStaff'
 import MultiSelectSearch from '@/components/ui/MultiSelectSearch'
+import GuestSelectionModal from './GuestSelectionModal'
 
 interface TeamParticipantsStepProps {
   formData: TripFormData
@@ -23,6 +24,8 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
   const [buyerCompanies, setBuyerCompanies] = useState<BuyerCompany[]>([])
   const [showAddBuyerForm, setShowAddBuyerForm] = useState(false)
   const [newBuyerSearch, setNewBuyerSearch] = useState('')
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [selectedCompanyForGuests, setSelectedCompanyForGuests] = useState<Company | null>(null)
 
   // Initialize buyer companies from existing formData
   useEffect(() => {
@@ -74,6 +77,33 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       bc.id === companyId ? { ...bc, ...updates } : bc
     )
     setBuyerCompanies(updatedBuyerCompanies)
+  }
+
+  const openGuestModal = (company: Company) => {
+    setSelectedCompanyForGuests(company)
+    setShowGuestModal(true)
+  }
+
+  const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    // Convert guests to User format for consistency
+    const guests: User[] = selectedGuests.map(guest => ({
+      id: guest.id || `guest_${Date.now()}_${Math.random()}`,
+      email: guest.email || '',
+      full_name: 'full_name' in guest ? guest.full_name : guest.name,
+      phone: guest.phone || undefined,
+      role: guest.role || undefined,
+      company_id: companyId,
+      user_type: 'full_name' in guest ? 'user' : 'contact',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }))
+
+    // Update the buyer company with selected participants
+    updateBuyerCompany(companyId, { participants: guests })
+    
+    // Reset modal state
+    setSelectedCompanyForGuests(null)
+    setShowGuestModal(false)
   }
 
   return (
@@ -213,7 +243,7 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Participation Dates */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -284,6 +314,31 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
                     ))}
                   </select>
                 </div>
+
+                {/* Guest Participants */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Guest Participants ({buyerCompany.participants?.length || 0})
+                  </label>
+                  <button
+                    onClick={() => openGuestModal(buyerCompany)}
+                    className="w-full inline-flex items-center justify-center px-3 py-2 border border-emerald-300 dark:border-emerald-600 text-sm font-medium rounded-lg text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {buyerCompany.participants?.length ? 'Manage Guests' : 'Select Guests'}
+                  </button>
+                  
+                  {buyerCompany.participants && buyerCompany.participants.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                      {buyerCompany.participants.map((participant, index) => (
+                        <div key={participant.id} className="flex items-center space-x-1">
+                          <span>•</span>
+                          <span>{participant.full_name || participant.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -330,6 +385,17 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
           </div>
         </div>
       )}
+
+      {/* Guest Selection Modal */}
+      <GuestSelectionModal
+        isOpen={showGuestModal}
+        onClose={() => {
+          setShowGuestModal(false)
+          setSelectedCompanyForGuests(null)
+        }}
+        company={selectedCompanyForGuests || { id: '', name: '', city: '', state: '' }}
+        onSelectGuests={handleSelectGuests}
+      />
     </div>
   )
 }

@@ -411,9 +411,21 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                 <h4 className="font-medium text-emerald-900 dark:text-emerald-300 mb-1">
                   {hostCompanies.length} Host {hostCompanies.length === 1 ? 'Company' : 'Companies'} Selected
                 </h4>
-                <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                  {hostCompanies.map(hc => hc.fantasy_name || hc.name).join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {hostCompanies.map(hc => (
+                    <div key={hc.id} className="inline-flex items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-lg px-2 py-1">
+                      <span className="text-sm text-emerald-700 dark:text-emerald-400">
+                        {hc.fantasy_name || hc.name}
+                      </span>
+                      <button
+                        onClick={() => removeHostCompany(hc.id)}
+                        className="ml-2 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -427,55 +439,27 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             </div>
           </div>
 
-          {/* Detailed Company Cards with Representatives */}
-          <div className="grid gap-4">
-            {hostCompanies.map(company => (
-              <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h5 className="font-semibold text-gray-900 dark:text-white mb-1">
-                      {company.fantasy_name || company.name}
-                    </h5>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <MapPin className="w-4 h-4 inline mr-1" />
-                      {(company as any).city}, {(company as any).state}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => removeHostCompany(company.id)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+        </div>
+      )}
 
-                {/* Selected Representatives */}
-                {company.representatives && company.representatives.length > 0 && (
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <h6 className="font-medium text-gray-900 dark:text-white flex items-center mb-3">
-                      <Users className="w-4 h-4 mr-2" />
-                      Selected Representatives ({company.representatives.length})
-                    </h6>
-                    <div className="grid gap-2">
-                      {company.representatives.map((rep: any, index: number) => (
-                        <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900 dark:text-white">{rep.name}</p>
-                            {rep.role && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{rep.role}</p>
-                            )}
-                            <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {rep.email && <span>📧 {rep.email}</span>}
-                              {rep.phone && <span>📞 {rep.phone}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* Skip Host Selection Section */}
+      {hostCompanies.length === 0 && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-white mb-1">
+                Host Selection Optional
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                You can select host companies now or add them later after creating your trip.
+              </p>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
+              <p>💡 <strong>Tip:</strong> Adding hosts now allows you to plan visits during the calendar step. You can always add or remove hosts from your trip dashboard.</p>
+            </div>
           </div>
         </div>
       )}

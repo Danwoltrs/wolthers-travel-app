@@ -26,6 +26,7 @@ import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'
 import StartingPointSelectionStep from './StartingPointSelectionStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
+import PersonalMessageModal from './PersonalMessageModal'
 import type { 
   Company, 
   User, 
@@ -113,6 +114,9 @@ export interface TripFormData {
   
   // Step 4: Starting Point Selection
   startingPoint?: string // Starting location for the trip
+  flightInfo?: any // Flight information for GRU airport pickup
+  nextDestination?: 'hotel' | 'office' // Destination after airport pickup
+  destinationAddress?: string // Address for hotel/office destination after pickup
   
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
@@ -225,6 +229,14 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
     return true
   })
+  
+  // Personal message modal state
+  const [showPersonalMessageModal, setShowPersonalMessageModal] = useState(false)
+  const [currentHost, setCurrentHost] = useState<{name: string, email: string, companyName: string} | null>(null)
+  const [hostQueue, setHostQueue] = useState<Array<{name: string, email: string, companyName: string}>>([])
+  const [hostMessages, setHostMessages] = useState<Record<string, string>>({})
+  const [sendingEmails, setSendingEmails] = useState(false)
+  
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
   const { alert } = useDialogs()
@@ -373,45 +385,177 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [])
 
-  // Helper function to send trip invitation emails
+  // Helper function to process host messages queue
+  const processHostQueue = () => {
+    if (hostQueue.length > 0) {
+      const nextHost = hostQueue[0]
+      setCurrentHost(nextHost)
+      setShowPersonalMessageModal(true)
+    } else {
+      // All hosts processed, send emails with messages
+      sendEmailsWithMessages()
+    }
+  }
+
+  // Handle personal message modal submission
+  const handlePersonalMessage = (message: string) => {
+    if (currentHost) {
+      // Store the message for this host
+      setHostMessages(prev => ({
+        ...prev,
+        [`${currentHost.email}`]: message
+      }))
+      
+      // Remove current host from queue
+      setHostQueue(prev => prev.slice(1))
+      setCurrentHost(null)
+      setShowPersonalMessageModal(false)
+      
+      // Process next host or send emails
+      setTimeout(processHostQueue, 100)
+    }
+  }
+
+  // Send emails with collected personal messages
+  const sendEmailsWithMessages = async () => {
+    setSendingEmails(true)
+    console.log('📧 [TripCreation] Sending emails with personal messages...')
+    
+    try {
+      // Now send emails with collected messages
+      await sendTripInvitationEmails(formData)
+      console.log('✅ [TripCreation] All emails sent successfully with personal messages')
+    } catch (emailError) {
+      console.error('❌ [TripCreation] Failed to send emails with messages:', emailError)
+    }
+    
+    setSendingEmails(false)
+    setHostMessages({})
+    
+    // Close the modal after all emails are sent
+    console.log('🚪 [TripCreation] Closing modal after email sending...')
+    handleClose()
+  }
+
+  // Helper function to send trip invitation emails and host invitations
   const sendTripInvitationEmails = async (tripData: any) => {
-    if (!tripData.participants || tripData.participants.length === 0) {
-      console.log('📧 [TripCreation] No participants found, skipping email notifications')
+    const promises = []
+    
+    // Send Wolthers staff invitations
+    if (tripData.participants && tripData.participants.length > 0) {
+      console.log('📧 [TripCreation] Sending Wolthers staff invitations...')
+      
+      const emailData = {
+        tripTitle: tripData.title || 'New Trip',
+        tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
+        tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
+        tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
+        createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+        participants: (tripData.participants || []).map((p: any) => ({
+          name: p.fullName || p.full_name || 'Team Member',
+          email: p.email,
+          role: p.role || 'Staff'
+        })),
+        companies: (tripData.companies || []).map((c: any) => ({
+          name: c.name,
+          representatives: []
+        }))
+      }
+
+      const staffPromise = fetch('/api/emails/trip-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(emailData)
+      })
+      promises.push(staffPromise)
+    }
+
+    // Send host invitations for external companies
+    if (tripData.companies && tripData.companies.length > 0) {
+      console.log('📧 [TripCreation] Preparing host invitations...')
+      
+      // Collect all hosts from selected companies with contacts
+      const hosts = []
+      for (const company of tripData.companies) {
+        if (company.selectedContacts && company.selectedContacts.length > 0) {
+          for (const contact of company.selectedContacts) {
+            hosts.push({
+              name: contact.name,
+              email: contact.email,
+              companyName: company.fantasyName || company.name,
+              whatsApp: contact.phone
+            })
+          }
+        }
+      }
+
+      if (hosts.length > 0) {
+        console.log(`📧 [TripCreation] Sending host invitations to ${hosts.length} hosts...`)
+        
+        const hostEmailData = {
+          hosts: hosts.map(host => {
+            // Get the buyer company names from the trip data
+            const buyerCompanies = (tripData.companies || [])
+              .filter(c => c.selectedContacts && c.selectedContacts.length > 0)
+              .map(c => c.fantasyName || c.name)
+            
+            return {
+              ...host,
+              personalMessage: hostMessages[host.email] || '',
+              visitingCompanyName: buyerCompanies.join(', ') || 'Our Team', // The buyer companies visiting
+              visitDate: tripData.startDate ? new Date(tripData.startDate).toLocaleDateString() : '',
+              visitTime: 'Morning (9:00 AM - 12:00 PM)' // Default visit time, can be customized later
+            }
+          }),
+          tripTitle: tripData.title || 'New Trip',
+          tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
+          tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
+          tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
+          inviterName: 'Daniel Wolthers', // TODO: Get from current user context
+          inviterEmail: 'daniel@wolthers.com', // TODO: Get from current user context
+          wolthersTeam: (tripData.participants || []).map((p: any) => ({
+            name: p.fullName || p.full_name || 'Team Member',
+            role: p.role || 'Staff'
+          }))
+        }
+
+        const hostPromise = fetch('/api/emails/host-invitation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(hostEmailData)
+        })
+        promises.push(hostPromise)
+      } else {
+        console.log('📧 [TripCreation] No host contacts selected, skipping host invitations')
+      }
+    }
+
+    if (promises.length === 0) {
+      console.log('📧 [TripCreation] No participants or hosts found, skipping all email notifications')
       return
     }
 
-    const emailData = {
-      tripTitle: tripData.title || 'New Trip',
-      tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
-      tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
-      tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
-      createdBy: 'Daniel Wolthers', // TODO: Get from current user context
-      participants: (tripData.participants || []).map((p: any) => ({
-        name: p.fullName || p.full_name || 'Team Member',
-        email: p.email,
-        role: p.role || 'Staff'
-      })),
-      companies: (tripData.companies || []).map((c: any) => ({
-        name: c.name,
-        representatives: [] // TODO: Add company representatives if needed
-      }))
-    }
-
-    const response = await fetch('/api/emails/trip-invitation', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(emailData)
+    // Execute all email sending in parallel
+    const results = await Promise.allSettled(promises)
+    
+    // Check results and log any errors
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`❌ [TripCreation] Email batch ${index + 1} failed:`, result.reason)
+      } else if (!result.value.ok) {
+        console.error(`❌ [TripCreation] Email batch ${index + 1} returned error status:`, result.value.status)
+      } else {
+        console.log(`✅ [TripCreation] Email batch ${index + 1} sent successfully`)
+      }
     })
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to send invitation emails')
+    // If any critical errors occurred, log but don't fail the trip creation
+    const failedCount = results.filter(r => r.status === 'rejected').length
+    if (failedCount > 0) {
+      console.warn(`⚠️ [TripCreation] ${failedCount}/${results.length} email batches failed, but trip was created successfully`)
     }
-
-    return await response.json()
   }
 
   if (!isOpen) return null
@@ -485,14 +629,38 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
         onTripCreated?.(tripData)
         
-        // Send trip invitation emails to all participants
-        try {
-          console.log('📧 [TripCreation] Sending trip invitation emails...')
-          await sendTripInvitationEmails(tripData)
-          console.log('✅ [TripCreation] Trip invitation emails sent successfully')
-        } catch (emailError) {
-          console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
-          // Don't fail the entire process if email fails
+        // Check if we have hosts and start personal message flow
+        const hosts = []
+        if (tripData.companies && tripData.companies.length > 0) {
+          for (const company of tripData.companies) {
+            if (company.selectedContacts && company.selectedContacts.length > 0) {
+              for (const contact of company.selectedContacts) {
+                hosts.push({
+                  name: contact.name,
+                  email: contact.email,
+                  companyName: company.fantasyName || company.name
+                })
+              }
+            }
+          }
+        }
+
+        if (hosts.length > 0) {
+          console.log(`📧 [TripCreation] Found ${hosts.length} hosts, starting personal message flow...`)
+          setHostQueue(hosts)
+          setIsSubmitting(false) // Allow modal interaction
+          processHostQueue() // Start the personal message flow
+          return // Don't close modal yet
+        } else {
+          // No hosts, send emails directly
+          try {
+            console.log('📧 [TripCreation] No hosts found, sending staff emails directly...')
+            await sendTripInvitationEmails(tripData)
+            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+          } catch (emailError) {
+            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+            // Don't fail the entire process if email fails
+          }
         }
         
         // Clear temp ID after successful creation
@@ -512,14 +680,38 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         console.log('📤 [TripCreation] Calling onTripCreated for direct creation with:', newTrip)
         onTripCreated?.(newTrip)
         
-        // Send trip invitation emails for direct creation
-        try {
-          console.log('📧 [TripCreation] Sending trip invitation emails for direct creation...')
-          await sendTripInvitationEmails(newTrip)
-          console.log('✅ [TripCreation] Trip invitation emails sent successfully')
-        } catch (emailError) {
-          console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
-          // Don't fail the entire process if email fails
+        // Check if we have hosts and start personal message flow for direct creation
+        const hosts = []
+        if (newTrip.companies && newTrip.companies.length > 0) {
+          for (const company of newTrip.companies) {
+            if (company.selectedContacts && company.selectedContacts.length > 0) {
+              for (const contact of company.selectedContacts) {
+                hosts.push({
+                  name: contact.name,
+                  email: contact.email,
+                  companyName: company.fantasyName || company.name
+                })
+              }
+            }
+          }
+        }
+
+        if (hosts.length > 0) {
+          console.log(`📧 [TripCreation] Found ${hosts.length} hosts for direct creation, starting personal message flow...`)
+          setHostQueue(hosts)
+          setIsSubmitting(false) // Allow modal interaction
+          processHostQueue() // Start the personal message flow
+          return // Don't close modal yet
+        } else {
+          // No hosts, send emails directly
+          try {
+            console.log('📧 [TripCreation] No hosts found, sending staff emails directly for direct creation...')
+            await sendTripInvitationEmails(newTrip)
+            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+          } catch (emailError) {
+            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+            // Don't fail the entire process if email fails
+          }
         }
       }
       
@@ -936,6 +1128,25 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </div>
         </div>
       </div>
+      
+      {/* Personal Message Modal */}
+      {showPersonalMessageModal && currentHost && (
+        <PersonalMessageModal
+          isOpen={showPersonalMessageModal}
+          onClose={() => {
+            // Cancel the entire personal message flow
+            setShowPersonalMessageModal(false)
+            setCurrentHost(null)
+            setHostQueue([])
+            setHostMessages({})
+            handleClose() // Close the main modal
+          }}
+          onSend={handlePersonalMessage}
+          hostName={currentHost.name}
+          companyName={currentHost.companyName}
+          isLoading={sendingEmails}
+        />
+      )}
     </div>
   )
 }

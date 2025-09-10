@@ -53,6 +53,29 @@ export interface StaffInvitationEmailData {
   whatsApp?: string
 }
 
+export interface HostInvitationEmailData {
+  hostName: string
+  hostEmail: string
+  companyName: string
+  tripTitle: string
+  tripAccessCode: string
+  tripStartDate: string
+  tripEndDate: string
+  inviterName: string
+  inviterEmail: string
+  wolthersTeam: Array<{
+    name: string
+    role?: string
+  }>
+  confirmationUrl: string
+  platformLoginUrl: string
+  whatsApp?: string
+  personalMessage?: string
+  visitingCompanyName?: string
+  visitDate?: string
+  visitTime?: string
+}
+
 /**
  * Generate trip cancellation email template
  */
@@ -413,6 +436,365 @@ Wolthers & Associates
 }
 
 /**
+ * Generate host invitation email template with platform features and visit confirmation
+ */
+export function createHostInvitationTemplate(data: HostInvitationEmailData): EmailTemplate {
+  const { 
+    hostName, 
+    companyName, 
+    tripTitle, 
+    tripAccessCode, 
+    tripStartDate, 
+    tripEndDate, 
+    inviterName, 
+    inviterEmail,
+    wolthersTeam,
+    confirmationUrl,
+    platformLoginUrl,
+    whatsApp,
+    personalMessage,
+    visitingCompanyName,
+    visitDate,
+    visitTime
+  } = data
+
+  const subject = `Visit Confirmation Required - ${visitingCompanyName || 'Wolthers & Associates'} ${visitDate ? `on ${visitDate}` : ''}`
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Host Platform Invitation & Visit Confirmation</title>
+        <style>
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 650px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f9f9f9; 
+          }
+          .container { 
+            background: white; 
+            padding: 0; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+            overflow: hidden;
+          }
+          .header { 
+            background: linear-gradient(135deg, #2D5347, #1a4c42); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+          }
+          .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+          }
+          .content {
+            padding: 30px;
+          }
+          .welcome-section {
+            background: linear-gradient(135deg, #FEF3C7, #F3E8A6);
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2D5347;
+          }
+          .visit-confirmation {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 25px 0;
+            text-align: center;
+          }
+          .confirmation-buttons {
+            margin: 20px 0;
+          }
+          .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 0 10px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+          }
+          .btn-accept {
+            background: #10b981;
+            color: white;
+          }
+          .btn-accept:hover {
+            background: #059669;
+          }
+          .btn-decline {
+            background: #ef4444;
+            color: white;
+          }
+          .btn-decline:hover {
+            background: #dc2626;
+          }
+          .platform-features {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+          }
+          .feature-list {
+            list-style: none;
+            padding: 0;
+          }
+          .feature-list li {
+            padding: 8px 0;
+            position: relative;
+            padding-left: 25px;
+          }
+          .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #10b981;
+            font-weight: bold;
+          }
+          .trip-details {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+          }
+          .team-list {
+            background: #f0f9ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+          }
+          .platform-access {
+            background: #2D5347;
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 25px 0;
+            text-align: center;
+          }
+          .btn-platform {
+            background: #FEF3C7;
+            color: #2D5347;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 15px;
+          }
+          .btn-platform:hover {
+            background: #F3E8A6;
+          }
+          .footer { 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+            margin-top: 30px; 
+            padding: 25px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0; 
+          }
+          .urgent-note {
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🌟 Welcome to Wolthers Travel Platform</h1>
+            <p>Your invitation to join our exclusive host network</p>
+          </div>
+          
+          <div class="content">
+            <p>Dear ${hostName},</p>
+
+            <div class="welcome-section">
+              <h3>🎉 Platform Invitation</h3>
+              <p>We're excited to invite you and <strong>${companyName}</strong> to join the <strong>Wolthers Travel Platform</strong> as our valued host partner!</p>
+            </div>
+
+            ${personalMessage ? `
+            <div class="welcome-section">
+              <h3>💬 Personal Message</h3>
+              <p><em>"${personalMessage}"</em></p>
+              <p style="text-align: right; margin-top: 15px; font-size: 14px; color: #666;">— ${inviterName}</p>
+            </div>
+            ` : ''}
+
+            <div class="urgent-note">
+              <h3>⏰ URGENT: Visit Confirmation Required</h3>
+              <p><strong>Please confirm your availability for our upcoming visit</strong></p>
+            </div>
+            
+            <div class="trip-details">
+              <h3>📅 Visit Details</h3>
+              <p><strong>Company Visiting:</strong> ${visitingCompanyName || 'Wolthers & Associates'}</p>
+              ${visitDate ? `<p><strong>Visit Date:</strong> ${visitDate}</p>` : ''}
+              ${visitTime ? `<p><strong>Visit Time:</strong> ${visitTime}</p>` : ''}
+              <p><strong>Organized by:</strong> ${inviterName} (${inviterEmail})</p>
+            </div>
+
+            ${wolthersTeam.length > 0 ? `
+            <div class="team-list">
+              <h4>👥 Wolthers Team Members Visiting:</h4>
+              <ul>
+                ${wolthersTeam.map(member => `<li>${member.name}${member.role ? ` - ${member.role}` : ''}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
+
+            <div class="visit-confirmation">
+              <h3>🤝 Can you host our visit?</h3>
+              <p>Please confirm your availability for the dates above.</p>
+              <div class="confirmation-buttons">
+                <a href="${confirmationUrl}&response=accept" class="btn btn-accept">
+                  ✅ YES, We can host
+                </a>
+                <a href="${confirmationUrl}&response=decline" class="btn btn-decline">
+                  ❌ Sorry, not available
+                </a>
+              </div>
+              <p><small>Click one of the buttons above to confirm your availability</small></p>
+            </div>
+
+            <div class="platform-features">
+              <h3>🚀 Your Wolthers Travel Platform Benefits</h3>
+              <p>As a host on our platform, you'll have access to:</p>
+              <ul class="feature-list">
+                <li><strong>Client Visit Management</strong> - Track all past and future guests</li>
+                <li><strong>Meeting Presentations</strong> - Upload PowerPoint presentations for meetings</li>
+                <li><strong>Visit Dashboard</strong> - Comprehensive overview of all interactions</li>
+                <li><strong>Guest Information</strong> - Detailed profiles of visiting clients</li>
+                <li><strong>Visit Confirmations</strong> - Easily accept or decline visit requests</li>
+                <li><strong>Communication Tools</strong> - Direct messaging with Wolthers team</li>
+                <li><strong>Historical Records</strong> - Access to complete visit history</li>
+                <li><strong>Analytics</strong> - Insights on your partnership performance</li>
+              </ul>
+            </div>
+
+            <div class="platform-access">
+              <h3>🔐 Access Your Dashboard</h3>
+              <p>Once you confirm this visit, you'll receive login credentials to access your personalized host dashboard.</p>
+              <a href="${platformLoginUrl}" class="btn-platform">
+                🌐 Access Wolthers Travel Platform
+              </a>
+              <p><small>Login details will be sent after visit confirmation</small></p>
+            </div>
+
+            <div class="welcome-section">
+              <h3>📋 Next Steps</h3>
+              <ol>
+                <li><strong>Confirm Visit</strong> - Click YES or NO above for the ${new Date(tripStartDate).toLocaleDateString()} visit</li>
+                <li><strong>Receive Login</strong> - Get your platform credentials via email</li>
+                <li><strong>Set Up Profile</strong> - Complete your company profile on the platform</li>
+                <li><strong>Prepare Materials</strong> - Upload presentations and meeting materials</li>
+                <li><strong>Welcome Guests</strong> - Host the Wolthers team during their visit</li>
+              </ol>
+            </div>
+
+            <p>We're looking forward to building a long-term partnership with ${companyName} and providing you with the tools to manage our visits effectively.</p>
+
+            ${whatsApp ? `<p><strong>WhatsApp Contact:</strong> ${whatsApp}</p>` : ''}
+          </div>
+          
+          <div class="footer">
+            <p><strong>Best regards,</strong><br/>
+            <strong>${inviterName}</strong><br/>
+            Wolthers & Associates Travel Team</p>
+            <p style="font-size: 12px; color: #999; margin-top: 20px;">
+              This email contains an invitation to join the Wolthers Travel Platform and requires visit confirmation.<br/>
+              For questions, contact ${inviterEmail}
+            </p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+WELCOME TO WOLTHERS TRAVEL PLATFORM + VISIT CONFIRMATION REQUIRED
+
+Dear ${hostName},
+
+PLATFORM INVITATION
+We're excited to invite you and ${companyName} to join the Wolthers Travel Platform as our valued host partner!
+
+URGENT: VISIT CONFIRMATION REQUIRED
+Please confirm your availability for our upcoming visit.
+
+VISIT DETAILS
+Trip: ${tripTitle}
+Reference: ${tripAccessCode}
+Visit Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}
+Organized by: ${inviterName} (${inviterEmail})
+
+${wolthersTeam.length > 0 ? `
+WOLTHERS TEAM MEMBERS VISITING:
+${wolthersTeam.map(member => `- ${member.name}${member.role ? ` - ${member.role}` : ''}`).join('\n')}
+` : ''}
+
+CAN YOU HOST OUR VISIT?
+Please confirm your availability by visiting:
+ACCEPT: ${confirmationUrl}&response=accept
+DECLINE: ${confirmationUrl}&response=decline
+
+PLATFORM BENEFITS:
+- Client Visit Management - Track all past and future guests
+- Meeting Presentations - Upload PowerPoint presentations
+- Visit Dashboard - Comprehensive overview of interactions
+- Guest Information - Detailed visitor profiles
+- Visit Confirmations - Easy accept/decline system
+- Communication Tools - Direct messaging with Wolthers team
+- Historical Records - Complete visit history
+- Analytics - Partnership performance insights
+
+ACCESS YOUR DASHBOARD:
+${platformLoginUrl}
+(Login credentials sent after visit confirmation)
+
+NEXT STEPS:
+1. Confirm Visit - Click accept or decline link above
+2. Receive Login - Get platform credentials via email
+3. Set Up Profile - Complete your company profile
+4. Prepare Materials - Upload presentations and materials
+5. Welcome Guests - Host the Wolthers team
+
+We look forward to building a long-term partnership with ${companyName}.
+
+${whatsApp ? `WhatsApp Contact: ${whatsApp}` : ''}
+
+Best regards,
+${inviterName}
+Wolthers & Associates Travel Team
+
+For questions, contact ${inviterEmail}
+  `
+
+  return { subject, html, text }
+}
+
+/**
  * Send trip cancellation emails to all stakeholders
  */
 export async function sendTripCancellationEmails(data: TripCancellationEmailData): Promise<{ success: boolean; errors: string[] }> {
@@ -533,6 +915,71 @@ export async function sendStaffInvitationEmail(email: string, data: StaffInvitat
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     }
+  }
+}
+
+/**
+ * Send host invitation email with platform access and visit confirmation
+ */
+export async function sendHostInvitationEmail(email: string, data: HostInvitationEmailData): Promise<{ success: boolean; error?: string }> {
+  const template = createHostInvitationTemplate(data)
+
+  try {
+    console.log(`📧 [Resend] Sending host invitation to ${email} for ${data.companyName}`)
+
+    const result = await resend.emails.send({
+      from: 'Wolthers Travel <travel@wolthers.com>',
+      to: [email],
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      // Add reply-to for better engagement
+      reply_to: data.inviterEmail
+    })
+
+    if (result.error) {
+      console.error(`❌ [Resend] Failed to send host invitation to ${email}:`, result.error)
+      return {
+        success: false,
+        error: result.error.message
+      }
+    } else {
+      console.log(`✅ [Resend] Sent host invitation to ${data.hostName} at ${data.companyName} (${email})`)
+      return { success: true }
+    }
+  } catch (error) {
+    console.error(`❌ [Resend] Exception sending host invitation to ${email}:`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Send host invitations to multiple hosts for a trip
+ */
+export async function sendHostInvitationEmails(hosts: Array<{ email: string; data: HostInvitationEmailData }>): Promise<{ success: boolean; errors: string[] }> {
+  const errors: string[] = []
+  let successCount = 0
+
+  console.log(`📧 [Resend] Sending host invitations to ${hosts.length} hosts`)
+
+  for (const host of hosts) {
+    const result = await sendHostInvitationEmail(host.email, host.data)
+    
+    if (result.success) {
+      successCount++
+    } else {
+      errors.push(`${host.data.hostName} (${host.email}): ${result.error}`)
+    }
+  }
+
+  console.log(`📧 [Resend] Host invitation summary: ${successCount}/${hosts.length} sent successfully`)
+
+  return {
+    success: errors.length === 0,
+    errors
   }
 }
 

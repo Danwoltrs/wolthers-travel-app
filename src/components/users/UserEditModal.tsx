@@ -224,11 +224,27 @@ export default function UserEditModal({ user, permissions, onClose, onSave }: Us
                       onChange={(e) => setFormData({ ...formData, user_type: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white focus:ring-emerald-500 focus:border-emerald-500"
                     >
-                      <option value="guest">Guest</option>
-                      <option value="client">Client</option>
-                      <option value="driver">Driver</option>
-                      <option value="admin">Company Administrator</option>
-                      <option value="wolthers_staff">Wolthers Staff</option>
+                      {/* Roles for Wolthers & Associates staff members (company_id is Wolthers ID) */}
+                      {user.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0' && (
+                        <>
+                          <option value="wolthers_staff">Staff - General team member</option>
+                          <option value="wolthers_finance">Finance - Financial management</option>
+                          <option value="car_manager">Car Manager - Fleet management</option>
+                          <option value="admin">Company Admin - User management</option>
+                        </>
+                      )}
+                      
+                      {/* Roles for external users */}
+                      {user.company_id !== '840783f4-866d-4bdb-9b5d-5d0facf62db0' && (
+                        <>
+                          <option value="guest">Guest - View only access</option>
+                          <option value="client">Client - Standard user</option>
+                          <option value="driver">Driver - Fleet access</option>
+                          <option value="visitor">Visitor - Limited access</option>
+                          <option value="visitor_admin">Visitor Admin - Manage visitors</option>
+                          <option value="host">Host - Trip host</option>
+                        </>
+                      )}
                     </select>
                   </div>
 

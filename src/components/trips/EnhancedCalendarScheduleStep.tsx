@@ -281,6 +281,79 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       let currentTime = 9 * 60 // 9:00 AM in minutes
       let dayIndex = 0
 
+      // Insert GRU Airport pickup activity if flight info exists
+      console.log('🔍 [Debug] Checking GRU conditions:', {
+        hasFlightInfo: !!formData.flightInfo,
+        startingPoint: formData.startingPoint,
+        flightInfo: formData.flightInfo
+      })
+      
+      if (formData.flightInfo && formData.startingPoint === 'gru_airport') {
+        console.log('✈️ [AI Itinerary] Adding GRU Airport pickup activity')
+        
+        const arrivalTime = formData.flightInfo.arrivalTime
+        const [arrivalHour, arrivalMinute] = arrivalTime.split(':').map(Number)
+        const arrivalInMinutes = arrivalHour * 60 + arrivalMinute
+        
+        // Schedule pickup 30 minutes after arrival
+        const pickupTime = arrivalInMinutes + 30
+        const pickupHour = Math.floor(pickupTime / 60)
+        const pickupMinute = pickupTime % 60
+        const pickupTimeStr = `${pickupHour.toString().padStart(2, '0')}:${pickupMinute.toString().padStart(2, '0')}`
+        
+        // Determine drive duration based on destination
+        const driveDuration = formData.nextDestination === 'hotel' ? 60 : 90 // 1h to hotel, 1.5h to office
+        const driveEndTime = pickupTime + driveDuration
+        const driveEndHour = Math.floor(driveEndTime / 60)
+        const driveEndMinute = driveEndTime % 60
+        const driveEndTimeStr = `${driveEndHour.toString().padStart(2, '0')}:${driveEndMinute.toString().padStart(2, '0')}`
+        
+        const destinationType = formData.nextDestination === 'hotel' ? 'Hotel Check-in' : 'Business Location'
+        const destinationAddress = formData.destinationAddress || (formData.nextDestination === 'hotel' ? 'Hotel' : 'Office')
+        
+        const pickupActivity: ActivityFormData = {
+          title: `GRU Airport Pickup - ${formData.flightInfo.passengerName}`,
+          description: `Airport pickup and drive to ${destinationType}`,
+          activity_date: formData.flightInfo.arrivalDate,
+          start_time: pickupTimeStr,
+          end_time: driveEndTimeStr,
+          location: 'Guarulhos International Airport (GRU)',
+          type: 'transport',
+          notes: `✈️ Flight: ${formData.flightInfo.airline} ${formData.flightInfo.flightNumber}${formData.flightInfo.terminal ? ` (${formData.flightInfo.terminal})` : ''}\n🛬 Arrival: ${arrivalTime}\n🚗 Pickup: ${pickupTimeStr} (30 min buffer)\n📍 Destination: ${destinationAddress}\n⏱️ Drive time: ${driveDuration/60}h${formData.flightInfo.notes ? '\n📝 ' + formData.flightInfo.notes : ''}`,
+          is_confirmed: false
+        }
+        
+        generatedActivities.push(pickupActivity)
+        
+        // Create separate drive activity to destination
+        const driveActivity: ActivityFormData = {
+          title: `Drive to ${destinationType.replace(' Check-in', '')}`,
+          description: `Drive from GRU Airport to ${destinationType}`,
+          activity_date: formData.flightInfo.arrivalDate,
+          start_time: pickupTimeStr,
+          end_time: driveEndTimeStr,
+          location: destinationAddress,
+          type: 'transport',
+          notes: `🚗 Drive from GRU Airport\n📍 Destination: ${destinationAddress}\n⏱️ Estimated drive time: ${driveDuration/60}h`,
+          is_confirmed: false
+        }
+        
+        generatedActivities.push(driveActivity)
+        
+        // Update current time and date for subsequent activities
+        // If pickup extends past business day, start business meetings next day
+        if (driveEndTime > 18 * 60) { // After 6 PM
+          dayIndex = 1
+          currentDate = new Date(formData.startDate!)
+          currentDate.setDate(currentDate.getDate() + 1)
+          currentTime = 9 * 60 // Start business meetings at 9 AM next day
+        } else {
+          currentTime = driveEndTime + 60 // Add 1h buffer after airport transfer
+        }
+        
+        console.log(`✈️ [AI Itinerary] Created GRU pickup: ${pickupTimeStr}-${driveEndTimeStr} to ${destinationType}`)
+      }
+
       for (let i = 0; i < optimizedLocations.length; i++) {
         const location = optimizedLocations[i]
         const company = location.company
