@@ -82,16 +82,33 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
   }
 
   const updateBuyerCompany = (companyId: string, updates: Partial<BuyerCompany>) => {
-    console.log('🔧 updateBuyerCompany called with:', { companyId, updates })
+    console.log('🔧 updateBuyerCompany called with:', { 
+      companyId, 
+      updatesKeys: Object.keys(updates),
+      participantsCount: updates.participants?.length || 0
+    })
+    
+    let companyFound = false
     const updatedBuyerCompanies = buyerCompanies.map(bc => {
       if (bc.id === companyId) {
+        companyFound = true
         const updatedCompany = { ...bc, ...updates }
-        console.log('🔧 Updating company:', bc.name, 'from participants:', bc.participants?.length || 0, 'to:', updates.participants?.length || 0)
+        console.log('🔧 Updating company:', bc.name)
+        console.log('🔧 Before - participants:', bc.participants?.length || 0)
+        console.log('🔧 After - participants:', updatedCompany.participants?.length || 0)
+        console.log('🔧 Participant names:', updatedCompany.participants?.map(p => p.full_name || p.email))
         return updatedCompany
       }
       return bc
     })
-    console.log('🔧 Setting new buyerCompanies state')
+    
+    if (!companyFound) {
+      console.error('🔧 ❌ Company not found for update:', companyId)
+      console.error('🔧 Available company IDs:', buyerCompanies.map(bc => bc.id))
+      return
+    }
+    
+    console.log('🔧 ✅ Setting new buyerCompanies state with', updatedBuyerCompanies.length, 'companies')
     setBuyerCompanies(updatedBuyerCompanies)
   }
 
@@ -101,8 +118,10 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
   }
 
   const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    console.log('🎯🎯🎯 TEAMPARTICIPANTS handleSelectGuests CALLED!', { companyId, selectedGuests })
     console.log('🎯 handleSelectGuests called with:', { companyId, selectedGuests })
     console.log('🎯 Current buyerCompanies IDs:', buyerCompanies.map(bc => ({ id: bc.id, name: bc.name })))
+    console.log('🎯 selectedCompanyForGuests:', selectedCompanyForGuests)
     
     // Convert guests to User format for consistency
     const guests: User[] = selectedGuests.map(guest => ({
@@ -117,18 +136,28 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       updated_at: new Date().toISOString()
     }))
 
-    console.log('🎯 Converted guests:', guests)
+    console.log('🎯 Converted guests:', guests.map(g => ({ name: g.full_name, email: g.email, id: g.id })))
 
     // Find and update the buyer company with selected participants
-    // Try both exact ID match and name match as fallback
-    const targetCompany = buyerCompanies.find(bc => bc.id === companyId) || 
-                          buyerCompanies.find(bc => bc.name === selectedCompanyForGuests?.name)
+    // Try exact ID match first
+    let targetCompany = buyerCompanies.find(bc => bc.id === companyId)
+    console.log('🎯 ID match result:', targetCompany ? `Found ${targetCompany.name}` : 'No match')
+    
+    // If no ID match, try name match as fallback
+    if (!targetCompany && selectedCompanyForGuests) {
+      targetCompany = buyerCompanies.find(bc => bc.name === selectedCompanyForGuests.name)
+      console.log('🎯 Name match result:', targetCompany ? `Found ${targetCompany.name}` : 'No match')
+    }
     
     if (targetCompany) {
-      console.log('🎯 Found target company:', targetCompany.name, 'updating with guests:', guests)
+      console.log('🎯 Found target company:', targetCompany.name, 'ID:', targetCompany.id)
+      console.log('🎯 Current participants count:', targetCompany.participants?.length || 0)
+      console.log('🎯 New participants count:', guests.length)
       updateBuyerCompany(targetCompany.id, { participants: guests })
     } else {
-      console.error('🚨 Could not find company to update:', companyId)
+      console.error('🚨 Could not find company to update. CompanyId:', companyId)
+      console.error('🚨 Available companies:', buyerCompanies.map(bc => ({ id: bc.id, name: bc.name })))
+      console.error('🚨 selectedCompanyForGuests:', selectedCompanyForGuests)
     }
     
     // Reset modal state

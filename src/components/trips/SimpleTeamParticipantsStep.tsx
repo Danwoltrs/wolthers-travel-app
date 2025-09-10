@@ -198,6 +198,8 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
   }
 
   const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    console.log('🎯🎯🎯 SIMPLE TEAMPARTICIPANTS handleSelectGuests CALLED!', { companyId, selectedGuests })
+    
     // Convert guests to User format for consistency
     const guests: User[] = selectedGuests.map(guest => ({
       id: guest.id || `guest_${Date.now()}_${Math.random()}`,
@@ -211,16 +213,26 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
       updated_at: new Date().toISOString()
     }))
 
+    console.log('🎯 Converted guests:', guests.map(g => ({ name: g.full_name, email: g.email })))
+
     // Find the company and update its participants
     const updatedCompanies = (formData.companies || []).map(company => {
       if (company.id === companyId) {
-        return {
+        const updatedCompany = {
           ...company,
           participants: guests // Store guests as participants
         }
+        console.log('🎯 Updated company:', company.name, 'with participants:', guests.length)
+        return updatedCompany
       }
       return company
     })
+
+    console.log('🎯 Final companies with participants:', updatedCompanies.map(c => ({ 
+      name: c.name, 
+      participantCount: (c as any).participants?.length || 0,
+      participantNames: (c as any).participants?.map((p: any) => p.full_name || p.email) || []
+    })))
 
     updateFormData({ companies: updatedCompanies })
     
@@ -476,9 +488,21 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
               </span>
               {(formData.companies || []).length > 0 && (
                 <ul className="mt-1 text-emerald-600 dark:text-emerald-400">
-                  {(formData.companies || []).map(c => (
-                    <li key={c.id}>• {c.name}</li>
-                  ))}
+                  {(formData.companies || []).map(c => {
+                    const participants = (c as any).participants || []
+                    const participantNames = participants.map((p: any) => p.full_name || p.email || 'Unknown').join(', ')
+                    
+                    return (
+                      <li key={c.id}>
+                        • {c.name}
+                        {participants.length > 0 && (
+                          <span className="ml-2 text-emerald-500 dark:text-emerald-300">
+                            - {participantNames}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>
