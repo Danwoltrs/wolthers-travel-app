@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle, Navigation } from 'lucide-react'
+import { Calendar, Clock, MapPin, Wand2, Loader2, Plus, AlertCircle, Navigation, X } from 'lucide-react'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
 import { useActivityManager, type Activity, type ActivityFormData } from '@/hooks/useActivityManager'
 import type { TripCard } from '@/types'
@@ -285,10 +285,13 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       console.log('🔍 [Debug] Checking GRU conditions:', {
         hasFlightInfo: !!formData.flightInfo,
         startingPoint: formData.startingPoint,
+        startingPointType: typeof formData.startingPoint,
+        exactMatch: formData.startingPoint === 'gru_airport',
         flightInfo: formData.flightInfo
       })
       
-      if (formData.flightInfo && formData.startingPoint === 'gru_airport') {
+      // Enhanced condition matching progressive-save API logic
+      if (formData.startingPoint === 'gru_airport' && formData.flightInfo) {
         console.log('✈️ [AI Itinerary] Adding GRU Airport pickup activity')
         
         const arrivalTime = formData.flightInfo.arrivalTime
@@ -341,15 +344,12 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         generatedActivities.push(driveActivity)
         
         // Update current time and date for subsequent activities
-        // If pickup extends past business day, start business meetings next day
-        if (driveEndTime > 18 * 60) { // After 6 PM
-          dayIndex = 1
-          currentDate = new Date(formData.startDate!)
-          currentDate.setDate(currentDate.getDate() + 1)
-          currentTime = 9 * 60 // Start business meetings at 9 AM next day
-        } else {
-          currentTime = driveEndTime + 60 // Add 1h buffer after airport transfer
-        }
+        // Always schedule business meetings the next day after GRU arrival (matching progressive-save API)
+        console.log('📅 [AI Itinerary] GRU arrival detected, scheduling meetings for next day')
+        dayIndex = 1
+        currentDate = new Date(formData.startDate!)
+        currentDate.setDate(currentDate.getDate() + 1)
+        currentTime = 9 * 60 // Start business meetings at 9 AM next day
         
         console.log(`✈️ [AI Itinerary] Created GRU pickup: ${pickupTimeStr}-${driveEndTimeStr} to ${destinationType}`)
       }

@@ -173,6 +173,7 @@ export default function LoginPage() {
   const [showOTPLogin, setShowOTPLogin] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [showUserPanel, setShowUserPanel] = useState(false);
+  const [passwordAttempted, setPasswordAttempted] = useState(false);
 
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -386,12 +387,14 @@ export default function LoginPage() {
 
     setIsLoading(true);
     setPasswordError(null);
+    setPasswordAttempted(true);
 
     try {
       const { error } = await signInWithEmail(email, password);
 
       if (error) {
         setPasswordError(error.message || "Invalid email or password");
+        setPasswordAttempted(true); // Show progressive options after failed attempt
       } else {
         // Save user credentials if "Remember me" is checked
         if (rememberMe) {
@@ -402,6 +405,7 @@ export default function LoginPage() {
     } catch (error) {
       console.error("Login error:", error);
       setPasswordError("Login failed. Please try again.");
+      setPasswordAttempted(true); // Show progressive options after error
     } finally {
       setIsLoading(false);
     }
@@ -771,43 +775,6 @@ export default function LoginPage() {
           Sign in with Microsoft
         </button>
 
-        {/* OTP Login Button */}
-        <button
-          onClick={() => setShowOTPLogin(true)}
-          disabled={isLoading}
-          className={cn(
-            "w-full mb-4 py-3 px-4 rounded-lg font-medium transition-all duration-200",
-            "bg-emerald-600 dark:bg-emerald-700 hover:bg-emerald-700 dark:hover:bg-emerald-600",
-            "text-white",
-            "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            "transform hover:scale-[1.02] active:scale-[0.98]",
-            "shadow-md hover:shadow-lg",
-            "flex items-center justify-center",
-          )}
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            />
-          </svg>
-          Sign in with email code
-        </button>
-
-        {/* Forgot Password Link */}
-        <div className="text-center">
-          <button className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors duration-200 font-medium">
-            Forgot your password?
-          </button>
-        </div>
 
         {/* Development Login Toggle - Only in dev mode */}
         {process.env.NODE_ENV === "development" && (
@@ -982,13 +949,32 @@ export default function LoginPage() {
         </button>
 
         {/* Forgot Password Link - Show when password is wrong */}
-        {passwordError && (
-          <div className="text-center">
+        {passwordError && passwordAttempted && (
+          <div className="text-center space-y-3">
             <button
               onClick={handleForgotPassword}
-              className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200 font-medium"
+              className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200 font-medium block w-full"
             >
               Forgot your password? Reset with OTP →
+            </button>
+            
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-pearl-200 dark:border-emerald-800/40" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white dark:bg-[#0E3D2F] px-2 text-pearl-500 dark:text-pearl-400">
+                  or
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowOTPLogin(true)}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 font-medium block w-full"
+            >
+              Sign in with email code instead
             </button>
           </div>
         )}

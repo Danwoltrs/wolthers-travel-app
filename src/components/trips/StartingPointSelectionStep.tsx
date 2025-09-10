@@ -329,19 +329,44 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
         selectedGuests={(() => {
           // Extract selected guests from buyer companies
           const guests: Array<{name: string, email: string, companyName: string}> = []
+          console.log('🔍 [FlightModal] Extracting guests from formData:', {
+            companies: formData.companies,
+            hasCompanies: !!formData.companies,
+            companiesCount: formData.companies?.length || 0
+          })
+          
           if (formData.companies) {
-            formData.companies.forEach(company => {
-              if (company.selectedContacts) {
-                company.selectedContacts.forEach(contact => {
-                  guests.push({
-                    name: contact.name,
-                    email: contact.email,
-                    companyName: company.fantasyName || company.name
+            formData.companies.forEach((company, index) => {
+              console.log(`🔍 [FlightModal] Company ${index}:`, {
+                name: company.name,
+                fantasyName: company.fantasyName,
+                hasParticipants: !!company.participants,
+                participantsCount: company.participants?.length || 0,
+                participants: company.participants
+              })
+              
+              if (company.participants) {
+                company.participants.forEach((participant, index) => {
+                  console.log(`🔍 [FlightModal] Participant ${index}:`, {
+                    participant,
+                    hasName: !!participant.name,
+                    hasEmail: !!participant.email,
+                    participantKeys: Object.keys(participant),
+                    fullStructure: JSON.stringify(participant)
                   })
+                  if (participant.name && participant.email) {
+                    guests.push({
+                      name: participant.name,
+                      email: participant.email,
+                      companyName: company.fantasyName || company.name
+                    })
+                  }
                 })
               }
             })
           }
+          
+          console.log('🔍 [FlightModal] Final guests array:', guests)
           return guests
         })()}
         tripStartDate={formData.startDate}

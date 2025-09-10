@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Calendar, Clock, MessageCircle, Send, ArrowLeft, CheckCircle } from 'lucide-react'
 
-export default function HostDeclinePage() {
+function HostDeclineContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -293,5 +293,17 @@ export default function HostDeclinePage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function HostDeclinePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
+        <div className="animate-pulse bg-white rounded-2xl shadow-xl p-8 w-96 h-64"></div>
+      </div>
+    }>
+      <HostDeclineContent />
+    </Suspense>
   )
 }

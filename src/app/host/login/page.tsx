@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Mail, Lock, LogIn, ArrowRight, Shield, Users, Calendar, Upload } from 'lucide-react'
 
-export default function HostLoginPage() {
+function HostLoginContent() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -167,5 +167,17 @@ export default function HostLoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function HostLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
+        <div className="animate-pulse bg-white rounded-2xl shadow-xl p-8 w-96 h-96"></div>
+      </div>
+    }>
+      <HostLoginContent />
+    </Suspense>
   )
 }

@@ -195,42 +195,51 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
               {/* Passenger Information */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  {selectedGuests.length > 0 ? `Passenger${selectedGuests.length > 1 ? 's' : ''} *` : 'Passenger Name *'}
+                  Guest Name *
                 </label>
                 
                 {selectedGuests.length > 0 ? (
-                  /* Show selected guests from buyer company */
-                  <div className="space-y-2">
-                    {selectedGuests.map((guest, index) => (
-                      <div 
-                        key={guest.email} 
-                        className={`p-3 border rounded-lg ${
-                          index === 0 ? 'border-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-600' : 'border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#2a2a2a]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                  /* Dropdown with guests + manual input option */
+                  <div className="space-y-3">
+                    <select
+                      value={flightInfo.passengerName}
+                      onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="">Select guest or type custom name below</option>
+                      {selectedGuests.map((guest) => (
+                        <option key={guest.email} value={guest.name}>
+                          {guest.name}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {/* Manual input field that works alongside dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="passengerName"
+                        value={flightInfo.passengerName}
+                        onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
+                        placeholder="Or type guest name"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                    
+                    {selectedGuests.length > 0 && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <p className="text-xs text-blue-700 dark:text-blue-400">
+                          💡 Select from the dropdown above or type a custom name. Available guests from {selectedGuests[0].companyName}:
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {selectedGuests.map((guest) => (
+                            <span key={guest.email} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300">
                               {guest.name}
-                            </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {guest.companyName} • {guest.email}
-                            </div>
-                          </div>
-                          {index === 0 && (
-                            <div className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">
-                              PRIMARY
-                            </div>
-                          )}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {selectedGuests.length === 1 
-                        ? 'Flight information will be set for this passenger'
-                        : `Flight information will be set for ${selectedGuests[0].name} (primary passenger)`
-                      }
-                    </p>
+                    )}
                   </div>
                 ) : (
                   /* Show input field when no guests selected */
@@ -239,7 +248,7 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
                     id="passengerName"
                     value={flightInfo.passengerName}
                     onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
-                    placeholder="Enter passenger name as it appears on ticket"
+                    placeholder="Enter guest name"
                     className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 )}
@@ -339,27 +348,43 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
 
                 <div>
                   <label htmlFor="arrivalTime" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Arrival Time (24-hour format: HH:MM) *
+                    Arrival Time *
                   </label>
                   <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <Clock className="w-5 h-5 text-gray-400" />
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <Clock className="w-4 h-4 text-gray-400" />
                     </div>
                     <input
-                      type="time"
+                      type="text"
                       id="arrivalTime"
                       value={flightInfo.arrivalTime}
-                      onChange={(e) => updateFlightInfo({ arrivalTime: e.target.value })}
-                      step="300"
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      pattern="[0-9]{2}:[0-9]{2}"
-                      placeholder="HH:MM (24-hour format)"
-                      data-format="24"
-                      lang="en-GB"
-                      style={{ 
-                        colorScheme: 'light dark',
-                        WebkitAppearance: 'textfield'
+                      onChange={(e) => {
+                        const value = e.target.value
+                        // Allow only digits and colon, format as HH:MM
+                        const formatted = value
+                          .replace(/[^\d:]/g, '')
+                          .replace(/^(\d{2})(\d)/, '$1:$2')
+                          .substring(0, 5)
+                        updateFlightInfo({ arrivalTime: formatted })
                       }}
+                      onBlur={(e) => {
+                        const value = e.target.value
+                        // Validate and format on blur
+                        const match = value.match(/^(\d{1,2}):?(\d{0,2})$/)
+                        if (match) {
+                          const hours = parseInt(match[1], 10)
+                          const minutes = match[2] ? parseInt(match[2], 10) : 0
+                          if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+                            const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+                            updateFlightInfo({ arrivalTime: formatted })
+                          }
+                        }
+                      }}
+                      style={{ paddingLeft: '32px' }}
+                      className="w-full pr-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                      placeholder="HH:MM (24-hour format)"
+                      maxLength={5}
                     />
                   </div>
                 </div>
