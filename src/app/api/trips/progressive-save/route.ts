@@ -702,50 +702,31 @@ export async function POST(request: NextRequest) {
         const activities = []
         const tripStartDate = new Date(tripData.start_date || new Date())
         
-        // 1. Create flight arrival activity if GRU airport pickup is selected
+        // 1. Create combined airport pickup and drive activity if GRU airport pickup is selected
         if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
           const flight = stepData.flightInfo
           const arrivalDate = new Date(flight.arrivalDate)
+          const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
+          
+          // Calculate total duration: 30min pickup + ~2 hours drive (117min from Google Maps API) = 147min total
+          const totalDurationMinutes = 147
           
           activities.push({
             trip_id: finalTripId,
-            title: `Flight Arrival - ${flight.airline} ${flight.flightNumber}`,
-            description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'}`,
+            title: `Airport Pickup & Drive to ${destinationType}`,
+            description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'} and drive to ${stepData.destinationAddress || 'destination'}`,
             activity_date: arrivalDate.toISOString().split('T')[0],
             start_time: flight.arrivalTime,
-            end_time: addMinutesToTime(flight.arrivalTime, 30), // 30 min pickup window
-            location: 'GRU Airport - São Paulo',
+            end_time: addMinutesToTime(flight.arrivalTime, totalDurationMinutes),
+            location: stepData.destinationAddress || 'Destination TBD',
             activity_type: 'travel',
             priority: 'high',
-            notes: flight.notes || '',
+            notes: `Combined pickup and drive activity. Flight: ${flight.airline} ${flight.flightNumber}. Destination: ${stepData.destinationAddress || 'TBD'}`,
             visibility_level: 'all',
             is_confirmed: false,
             created_at: now,
             updated_at: now
           })
-
-          // 2. Create drive to destination activity (separate from arrival)
-          if (stepData.destinationAddress) {
-            const driveStartTime = addMinutesToTime(flight.arrivalTime, 45) // 45 min after arrival
-            const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
-            
-            activities.push({
-              trip_id: finalTripId,
-              title: `Drive to ${destinationType}`,
-              description: `Transport from GRU Airport to ${stepData.destinationAddress}`,
-              activity_date: arrivalDate.toISOString().split('T')[0],
-              start_time: driveStartTime,
-              end_time: addMinutesToTime(driveStartTime, 90), // Estimated 1.5 hours drive time
-              location: stepData.destinationAddress,
-              activity_type: 'travel',
-              priority: 'medium',
-              notes: `Destination: ${stepData.destinationAddress}`,
-              visibility_level: 'all',
-              is_confirmed: false,
-              created_at: now,
-              updated_at: now
-            })
-          }
         }
 
         // 3. Create host company meeting activities (start from next day after arrival)
@@ -1175,50 +1156,31 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     const tripData = extractTripData(stepData, 0)
     const tripStartDate = new Date(tripData.start_date || new Date())
     
-    // 1. Create flight arrival activity if GRU airport pickup is selected
+    // 1. Create combined airport pickup and drive activity if GRU airport pickup is selected
     if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
       const flight = stepData.flightInfo
       const arrivalDate = new Date(flight.arrivalDate)
+      const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
+      
+      // Calculate total duration: 30min pickup + ~2 hours drive (117min from Google Maps API) = 147min total
+      const totalDurationMinutes = 147
       
       activities.push({
         trip_id: tripId,
-        title: `Flight Arrival - ${flight.airline} ${flight.flightNumber}`,
-        description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'}`,
+        title: `Airport Pickup & Drive to ${destinationType}`,
+        description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'} and drive to ${stepData.destinationAddress || 'destination'}`,
         activity_date: arrivalDate.toISOString().split('T')[0],
         start_time: flight.arrivalTime,
-        end_time: addMinutesToTime(flight.arrivalTime, 30), // 30 min pickup window
-        location: 'GRU Airport - São Paulo',
+        end_time: addMinutesToTime(flight.arrivalTime, totalDurationMinutes),
+        location: stepData.destinationAddress || 'Destination TBD',
         activity_type: 'travel',
         priority: 'high',
-        notes: flight.notes || '',
+        notes: `Combined pickup and drive activity. Flight: ${flight.airline} ${flight.flightNumber}. Destination: ${stepData.destinationAddress || 'TBD'}`,
         visibility_level: 'all',
         is_confirmed: false,
         created_at: now,
         updated_at: now
       })
-
-      // 2. Create drive to destination activity (separate from arrival)
-      if (stepData.destinationAddress) {
-        const driveStartTime = addMinutesToTime(flight.arrivalTime, 45) // 45 min after arrival
-        const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
-        
-        activities.push({
-          trip_id: tripId,
-          title: `Drive to ${destinationType}`,
-          description: `Transport from GRU Airport to ${stepData.destinationAddress}`,
-          activity_date: arrivalDate.toISOString().split('T')[0],
-          start_time: driveStartTime,
-          end_time: addMinutesToTime(driveStartTime, 90), // Estimated 1.5 hours drive time
-          location: stepData.destinationAddress,
-          activity_type: 'travel',
-          priority: 'medium',
-          notes: `Destination: ${stepData.destinationAddress}`,
-          visibility_level: 'all',
-          is_confirmed: false,
-          created_at: now,
-          updated_at: now
-        })
-      }
     }
 
     // 3. Create host company meeting activities (start from next day after arrival)
