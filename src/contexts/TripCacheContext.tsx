@@ -143,7 +143,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
     }
     
     console.log('TripCache: Fetching trips from API...')
-    const response = await fetch('/api/trips', {
+    const response = await fetch('/api/trips?includeDrafts=1', {
       method: 'GET',
       credentials: 'include',
       headers,

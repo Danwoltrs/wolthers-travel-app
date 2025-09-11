@@ -40,16 +40,16 @@ const startingPointOptions: StartingPointOption[] = [
     color: 'bg-purple-500'
   },
   {
-    id: 'sao_paulo',
-    name: 'São Paulo',
-    description: 'Metropolitan hub with easy access to multiple regions',
-    icon: <Car className="w-6 h-6" />,
-    color: 'bg-orange-500'
+    id: 'other_location',
+    name: 'Other Location',
+    description: 'Specify any custom starting location in Brazil',
+    icon: <MapPin className="w-6 h-6" />,
+    color: 'bg-gray-500'
   },
   {
     id: 'gru_airport',
     name: 'GRU Airport Pickup',
-    description: 'Pick up from GRU airport, then drive to Santos, São Paulo, or Interior',
+    description: 'Pick up from GRU airport, then drive to Santos or Interior regions',
     icon: <Plane className="w-6 h-6" />,
     color: 'bg-indigo-500'
   },
@@ -82,7 +82,7 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
   const [pickupGroups, setPickupGroups] = useState<any[]>([])
 
   const handleStartingPointSelect = (pointId: string) => {
-    if (pointId === 'other') {
+    if (pointId === 'other' || pointId === 'other_location') {
       setShowCustomInput(true)
       setSelectedStartingPoint('other')
       updateFormData({ startingPoint: customLocation || 'other' })
@@ -234,44 +234,6 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
           </button>
         ))}
 
-        {/* Other/Custom Option */}
-        <button
-          type="button"
-          onClick={() => handleStartingPointSelect('other')}
-          className={`
-            relative p-6 rounded-xl border-2 transition-all duration-200 text-left
-            hover:border-emerald-300 dark:hover:border-emerald-600
-            hover:bg-emerald-50 dark:hover:bg-emerald-900/20
-            ${selectedStartingPoint === 'other' || showCustomInput
-              ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30'
-              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a]'
-            }
-          `}
-        >
-          {/* Selection indicator */}
-          {(selectedStartingPoint === 'other' || showCustomInput) && (
-            <div className="absolute top-4 right-4 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-              <MapPin className="w-3 h-3 text-white" />
-            </div>
-          )}
-
-          <div className="flex items-start space-x-4">
-            {/* Icon */}
-            <div className="bg-gray-500 p-3 rounded-lg text-white flex-shrink-0">
-              <MapPin className="w-6 h-6" />
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-emerald-300 mb-1">
-                Other Location
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Specify a custom starting point for your trip
-              </p>
-            </div>
-          </div>
-        </button>
       </div>
 
       {/* Custom Location Input */}

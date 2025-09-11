@@ -10,8 +10,8 @@ import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
 import dynamic from 'next/dynamic'
 
-// Dynamically import TeamVehicleStep to prevent SSR issues
-const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
+// Dynamically import Enhanced Driver & Vehicle Step to prevent SSR issues
+const EnhancedDriverVehicleStep = dynamic(() => import('./EnhancedDriverVehicleStep'), {
   ssr: false,
   loading: () => (
     <div className="space-y-8">
@@ -198,10 +198,10 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
       { id: 3, name: 'Team & Participants', description: 'Select team members and companies' },
-      { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
-      { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
-      { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
+      { id: 4, name: 'Drivers & Vehicles', description: 'Assign staff as drivers and fleet vehicles' },
+      { id: 5, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
+      { id: 6, name: 'Starting Point', description: 'Choose where the trip begins' },
+      { id: 7, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
@@ -798,15 +798,18 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Team & Participants: require Wolthers staff
           return formData.participants && formData.participants.length > 0
         case 4:
+          // Drivers & Vehicles: require staff selection
+          return formData.wolthersStaff && formData.wolthersStaff.length > 0
+        case 5:
           // Host/Visits Selector: allow proceeding (host companies optional)
           return true
-        case 5:
+        case 6:
           // Starting Point Selection: require starting point selection
           return formData.startingPoint && formData.startingPoint.trim() !== ''
-        case 6:
+        case 7:
           // Calendar Schedule: allow proceeding (activities can be added later)
           return true
-        case 7:
+        case 8:
           return true
         default:
           return false
@@ -969,7 +972,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'convention' && currentStep === 7 && (
-            <TeamVehicleStep
+            <EnhancedDriverVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
@@ -995,28 +998,28 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 4 && (
-            <CompanySelectionStep
+            <EnhancedDriverVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 5 && (
-            <StartingPointSelectionStep
+            <CompanySelectionStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 6 && (
-            <EnhancedCalendarScheduleStep
+            <StartingPointSelectionStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 7 && (
-            <TeamVehicleStep
+            <EnhancedCalendarScheduleStep
               formData={formData}
               updateFormData={updateFormData}
             />

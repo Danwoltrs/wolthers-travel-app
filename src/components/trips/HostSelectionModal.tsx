@@ -251,7 +251,7 @@ export default function HostSelectionModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl w-full max-w-md max-h-[60vh] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] p-4 flex items-center justify-between">
           <div>
@@ -271,8 +271,8 @@ export default function HostSelectionModal({
         </div>
 
         {/* Content */}
-        <div className="flex flex-col h-[calc(60vh-80px)]">
-          <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex flex-col">
+          <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             {loading && (
               <div className="text-center py-4">
                 <div className="text-gray-500 dark:text-gray-400">Loading representatives...</div>
