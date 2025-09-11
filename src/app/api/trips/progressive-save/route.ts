@@ -828,11 +828,13 @@ export async function POST(request: NextRequest) {
               start_time: activity.start_time,
               end_time: activity.end_time,
               location: activity.location || '',
-              activity_type: activity.type || 'meeting',
+              type: activity.type || 'meeting', // Use 'type' not 'activity_type'
               priority: activity.priority || 'medium',
               notes: activity.notes || '',
               visibility_level: activity.visibility_level || 'all',
               is_confirmed: activity.is_confirmed || false,
+              company_id: activity.company_id || null,
+              company_name: activity.company_name || null,
               created_at: now,
               updated_at: now
             })
@@ -1289,11 +1291,13 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
           start_time: activity.start_time,
           end_time: activity.end_time,
           location: activity.location || '',
-          activity_type: activity.type || 'meeting',
+          type: activity.type || 'meeting', // Use 'type' not 'activity_type'
           priority: activity.priority || 'medium',
           notes: activity.notes || '',
           visibility_level: activity.visibility_level || 'all',
           is_confirmed: activity.is_confirmed || false,
+          company_id: activity.company_id || null,
+          company_name: activity.company_name || null,
           created_at: now,
           updated_at: now
         })

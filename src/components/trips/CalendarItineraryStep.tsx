@@ -88,8 +88,16 @@ export default function CalendarItineraryStep({ formData, updateFormData }: Cale
         const result = await response.json()
         console.log('Generated AI itinerary:', result)
         
-        // The AI API should create activities directly in the database
-        // Force refresh to load the new activities
+        // If activities were generated for a temp trip, store them in form data for progressive save
+        if (result.generatedActivities && Array.isArray(result.generatedActivities)) {
+          console.log('Storing generated activities in form data:', result.generatedActivities.length)
+          updateFormData({ 
+            generatedActivities: result.generatedActivities,
+            aiItineraryGenerated: true 
+          })
+        }
+        
+        // Force refresh to load any real activities (for real trips) or trigger UI update
         await forceRefreshActivities()
       } else {
         console.error('Failed to generate AI itinerary:', response.status)

@@ -176,14 +176,14 @@ function optimizeCompanyOrder(companies: ItineraryInput['companies'], transitTim
   return optimizedOrder
 }
 
-// Create activities in database
+// Create activities in database (only for real trips, not temporary ones)
 async function createActivitiesFromItinerary(
   tripId: string, 
   processedItinerary: ProcessedDay[], 
   companies: ItineraryInput['companies'],
   transitTimes: Map<string, Map<string, { duration: number; distance: number }>>
-): Promise<void> {
-  if (!tripId) return
+): Promise<any[]> {
+  if (!tripId) return []
 
   const activities = []
   
@@ -204,19 +204,23 @@ async function createActivitiesFromItinerary(
         activity_date: day.date,
         start_time: activity.time,
         end_time: addMinutesToTime(activity.time, activity.duration || 60),
-        activity_type: activity.type,
+        type: activity.type,
         location: activity.location || '',
         company_id: matchingCompany?.id || null,
         company_name: matchingCompany?.name || activity.company || null,
+        is_confirmed: false,
+        priority: 'medium',
+        visibility_level: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
     }
   }
 
-  if (activities.length > 0) {
+  // Only save to database for real trips (not temporary ones)
+  if (activities.length > 0 && !tripId.startsWith('temp-trip-')) {
     const { error } = await supabase
-      .from('trip_activities')
+      .from('activities')
       .insert(activities)
 
     if (error) {
@@ -225,6 +229,9 @@ async function createActivitiesFromItinerary(
       console.log(`✅ Created ${activities.length} activities in database`)
     }
   }
+
+  // Always return the activities array for both temp and real trips
+  return activities
 }
 
 // Helper function to add minutes to a time string
@@ -428,9 +435,9 @@ Only return the JSON response, no other text.`
 
     // Step 3: Create activities in database if tripId is provided
     if (input.tripId && result.processedItinerary) {
-      console.log('💾 Creating activities in database for tripId:', input.tripId)
+      console.log('💾 Creating activities for tripId:', input.tripId)
       try {
-        await createActivitiesFromItinerary(
+        const createdActivities = await createActivitiesFromItinerary(
           input.tripId,
           result.processedItinerary,
           optimizedCompanies,
@@ -438,10 +445,16 @@ Only return the JSON response, no other text.`
         )
         
         // Add database creation success to result
-        result.databaseCreated = true
+        result.databaseCreated = !input.tripId.startsWith('temp-trip-')
         result.activitiesCount = result.processedItinerary.reduce((sum: number, day: any) => sum + day.activities.length, 0)
+        
+        // For temporary trips, return activities so they can be used by progressive save
+        if (input.tripId.startsWith('temp-trip-')) {
+          result.generatedActivities = createdActivities
+          console.log(`💾 Generated ${createdActivities.length} activities for temporary trip (not saved to DB)`)
+        }
       } catch (dbError) {
-        console.error('Failed to create activities in database:', dbError)
+        console.error('Failed to create activities:', dbError)
         result.databaseCreated = false
         result.databaseError = dbError instanceof Error ? dbError.message : 'Unknown database error'
       }

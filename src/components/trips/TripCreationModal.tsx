@@ -112,6 +112,7 @@ export interface TripFormData {
   itineraryDays: ItineraryDay[]
   activities?: Activity[] // Calendar activities with travel time
   generatedActivities?: Activity[] // AI-generated activities for temp trips
+  aiItineraryGenerated?: boolean // Flag to track if AI has generated activities
   
   // Legacy fields for compatibility
   wolthersStaff: User[]
