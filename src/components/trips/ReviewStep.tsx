@@ -1,6 +1,6 @@
 import React from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Users, Car, Building, DollarSign, MapPin } from 'lucide-react'
+import { Calendar, Users, Car, Building, DollarSign, MapPin, User } from 'lucide-react'
 import { formatDateRange } from '@/lib/utils'
 
 interface ReviewStepProps {

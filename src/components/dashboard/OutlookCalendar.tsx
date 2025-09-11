@@ -59,13 +59,32 @@ interface CalendarDay {
 
 const ITEM_TYPE = 'ACTIVITY'
 
-// Generate hourly time slots from 4 AM to 10 PM for UI display
-const TIME_SLOTS: TimeSlot[] = Array.from({ length: 19 }, (_, index) => {
-  const hour = 4 + index
-  const time = `${hour.toString().padStart(2, '0')}:00`
-  const display = `${hour.toString().padStart(2, '0')}:00`
-  return { hour, time, display }
-})
+// Generate dynamic time slots based on activities - show early hours only when needed
+function generateTimeSlots(activities: Activity[]): TimeSlot[] {
+  // Default time range: 6 AM to 10 PM
+  let startHour = 6
+  let endHour = 22
+  
+  // Check if any activities start before 6 AM or after 10 PM
+  activities.forEach(activity => {
+    const activityHour = parseInt(activity.start_time.split(':')[0], 10)
+    if (activityHour < startHour) {
+      startHour = Math.max(4, activityHour) // Don't go earlier than 4 AM
+    }
+    if (activityHour > endHour) {
+      endHour = Math.min(23, activityHour) // Don't go later than 11 PM
+    }
+  })
+  
+  const slots = []
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const time = `${hour.toString().padStart(2, '0')}:00`
+    const display = `${hour.toString().padStart(2, '0')}:00`
+    slots.push({ hour, time, display })
+  }
+  
+  return slots
+}
 
 
 const ActivityCard = memo(function ActivityCard({ 
@@ -693,39 +712,38 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
 function getCalendarDimensions(dayCount: number) {
   // Get available browser width, fallback for SSR
   const browserWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
-  const availableWidth = Math.max(800, browserWidth * 0.85) // Use 85% of browser width, minimum 800px
+  const availableWidth = Math.max(800, browserWidth - 40) // Use full width minus padding
   
   let dayWidth, sideColumns
   
-  // Calculate optimal day width based on available space
-  const reservedSpace = 300 // Space for side columns and gaps
-  const optimalDayWidth = Math.floor((availableWidth - reservedSpace) / dayCount)
-  
+  // Calculate minimum widths based on trip duration - focus on usability
   if (dayCount <= 3) {
-    dayWidth = Math.max(160, optimalDayWidth)  // Wide columns for short trips (1-3 days)
-    sideColumns = 140 // Wide side columns
+    dayWidth = 160  // Minimum width for readability
+    sideColumns = 140 
   } else if (dayCount <= 7) {
-    dayWidth = Math.max(140, Math.min(200, optimalDayWidth))  // Standard width for weekly trips (4-7 days)
+    dayWidth = 140  
     sideColumns = 120
   } else if (dayCount <= 14) {
-    dayWidth = Math.max(120, Math.min(160, optimalDayWidth))  // Compact for bi-weekly trips (8-14 days)
+    dayWidth = 120  
     sideColumns = 100
   } else if (dayCount <= 21) {
-    dayWidth = Math.max(100, Math.min(140, optimalDayWidth))  // Narrow for 3-week trips (15-21 days)
+    dayWidth = 100  
     sideColumns = 80
   } else if (dayCount <= 30) {
-    dayWidth = Math.max(90, Math.min(120, optimalDayWidth))   // Very compact for month trips (22-30 days)
+    dayWidth = 90   
     sideColumns = 70
   } else {
-    // For very long trips, use minimum width but ensure horizontal scroll is available
-    dayWidth = Math.max(80, optimalDayWidth)   // Ultra compact for extended trips (30+ days)
+    dayWidth = 80   
     sideColumns = 60
   }
   
-  const totalWidth = sideColumns + (dayCount * dayWidth) + sideColumns
-  const gridTemplate = `minmax(${sideColumns}px, ${sideColumns}px) repeat(${dayCount}, minmax(${dayWidth}px, 1fr)) minmax(${sideColumns}px, ${sideColumns}px)`
+  const totalMinWidth = sideColumns + (dayCount * dayWidth) + sideColumns
   
-  return { dayWidth, sideColumns, totalWidth, gridTemplate }
+  // For the grid template, use 1fr for all day columns to distribute available space evenly
+  // This ensures border-to-border layout with flexible columns
+  const gridTemplate = `${sideColumns}px repeat(${dayCount}, 1fr) ${sideColumns}px`
+  
+  return { dayWidth, sideColumns, totalWidth: totalMinWidth, gridTemplate }
 }
 
 export function OutlookCalendar({ 
@@ -767,6 +785,12 @@ export function OutlookCalendar({
   const calendarDimensions = useMemo(() => 
     getCalendarDimensions(calendarDays.length), 
     [calendarDays.length]
+  )
+
+  // Generate dynamic time slots based on actual activities
+  const timeSlots = useMemo(() => 
+    generateTimeSlots(activities), 
+    [activities]
   )
 
   const activitiesByDate = getActivitiesByDate()
@@ -1082,14 +1106,13 @@ export function OutlookCalendar({
           </div>
         </div>
 
-        {/* Calendar Grid - Enhanced Dynamic Width Based on Trip Duration and Browser Width */}
+        {/* Calendar Grid - Full-width border-to-border layout with flexible columns */}
         <div className="overflow-x-auto overflow-y-visible">
           <div className="w-full">
             <div 
-              className="w-full min-w-fit" 
+              className="w-full" 
               style={{
-                minWidth: `${calendarDimensions.totalWidth}px`,
-                width: calendarDays.length > 14 ? 'max-content' : '100%'
+                minWidth: `${calendarDimensions.totalWidth}px`
               }}
             >
               {/* Day Headers - Dynamic Responsive Layout Based on Trip Duration */}
@@ -1225,7 +1248,7 @@ export function OutlookCalendar({
 
               {/* Time Slots Grid with dynamic responsive layout */}
               <div className={refreshing ? 'opacity-50 pointer-events-none' : ''}>
-                {TIME_SLOTS.map((timeSlot) => (
+                {timeSlots.map((timeSlot) => (
                   <div
                     key={timeSlot.time}
                     className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700"

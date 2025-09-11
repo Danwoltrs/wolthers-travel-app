@@ -488,17 +488,102 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
         updated_at: now
       }))
 
-      const { error: staffError } = await supabase
+      const { data: insertedStaff, error: staffError } = await supabase
         .from('trip_participants')
         .upsert(staffInserts, { 
           onConflict: 'trip_id,user_id',
           ignoreDuplicates: false
         })
+        .select(`
+          users!inner(id, full_name, email),
+          role
+        `)
 
       if (staffError) {
         console.error('⚠️ Failed to migrate Wolthers staff:', staffError)
       } else {
         console.log('✅ Wolthers staff migrated successfully')
+        
+        // Send staff assignment notifications (immediate, not queued)
+        try {
+          const { TripNotificationService } = await import('@/lib/trip-notification-service')
+          
+          if (insertedStaff && insertedStaff.length > 0) {
+            // Get trip data for notifications
+            const { data: tripForNotification } = await supabase
+              .from('trips')
+              .select(`
+                id,
+                title,
+                access_code,
+                start_date,
+                end_date,
+                created_by,
+                step_data
+              `)
+              .eq('id', tripId)
+              .single()
+
+            if (tripForNotification) {
+              const stepDataForNotification = tripForNotification.step_data as any
+              
+              // Send notification to each staff member
+              for (const staff of insertedStaff) {
+                if (staff.users && staff.users.email) {
+                  const clientInfo = stepDataForNotification?.flightInfo ? {
+                    name: stepDataForNotification.flightInfo.passengerName,
+                    company: stepDataForNotification.companies?.[0]?.name || 'Guest Company'
+                  } : { name: 'Guest', company: 'Unknown' }
+
+                  const staffNotificationData = {
+                    tripId: tripForNotification.id,
+                    tripTitle: tripForNotification.title,
+                    tripCode: tripForNotification.access_code,
+                    startDate: tripForNotification.start_date,
+                    endDate: tripForNotification.end_date,
+                    staffMember: {
+                      email: staff.users.email,
+                      name: staff.users.full_name,
+                      role: staff.role === 'wolthers_staff' ? 'Wolthers Staff' : staff.role
+                    },
+                    tripLeader: tripForNotification.created_by || 'Wolthers Team',
+                    client: clientInfo,
+                    responsibilities: [
+                      'Coordinate with local suppliers and partners',
+                      'Assist with logistics and transportation',
+                      'Provide local expertise and support',
+                      'Handle emergency contacts if needed'
+                    ],
+                    keyContacts: [
+                      {
+                        name: tripForNotification.created_by || 'Trip Leader',
+                        phone: '+55-XX-XXXXX',
+                        role: 'Trip Leader'
+                      }
+                    ],
+                    urgentActions: [
+                      'Review trip itinerary and requirements',
+                      'Confirm local arrangements and bookings',
+                      'Update emergency contact information',
+                      'Prepare necessary documentation'
+                    ],
+                    assignedBy: tripForNotification.created_by || 'Wolthers Team'
+                  }
+
+                  const emailResult = await TripNotificationService.sendStaffAssignmentNotification(staffNotificationData)
+                  
+                  if (emailResult.success) {
+                    console.log(`✅ Staff assignment email sent to ${staff.users.email}`)
+                  } else {
+                    console.warn(`⚠️ Failed to send staff assignment email to ${staff.users.email}:`, emailResult.error)
+                  }
+                }
+              }
+            }
+          }
+        } catch (notificationError) {
+          console.warn('⚠️ Failed to send staff assignment notifications:', notificationError)
+        }
       }
     }
 
@@ -539,6 +624,27 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
     // After successful migration, we could optionally clear the step_data
     // to reduce storage size, but keeping it for now for safety
     console.log('✅ Extended trip data finalized successfully')
+    
+    // Send trip creation email notifications to all participants
+    try {
+      console.log('📧 Sending trip creation email notifications...')
+      const { TripNotificationService } = await import('@/lib/trip-notification-service')
+      
+      const tripData = await TripNotificationService.fetchTripDataForNotification(tripId)
+      if (tripData && tripData.participants.length > 0) {
+        const emailResult = await TripNotificationService.sendTripCreationNotification(tripData)
+        if (emailResult.success) {
+          console.log('✅ Trip creation emails sent successfully:', emailResult.messageId)
+        } else {
+          console.warn('⚠️ Failed to send trip creation emails:', emailResult.error)
+        }
+      } else {
+        console.log('📧 No participants with valid emails found, skipping email notifications')
+      }
+    } catch (emailError) {
+      console.error('⚠️ Error sending trip creation emails:', emailError)
+      // Don't fail the finalization process if emails fail
+    }
     
   } catch (error) {
     console.error('⚠️ Failed to finalize extended trip data:', error)

@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Build enhanced company text with location and transit info
     const companiesText = optimizedCompanies.map((company, index) => {
-      let companyText = `${index + 1}. ${company.name}`
+      let companyText = `${index + 1}. **MUST VISIT**: ${company.name}`
       
       if (company.fantasyName && company.fantasyName !== company.name) {
         companyText += ` (${company.fantasyName})`
@@ -324,14 +324,17 @@ ${input.rawItinerary}` : 'No specific itinerary provided - please suggest a prof
 
 ${input.preferences?.additionalNotes ? `Additional Notes: ${input.preferences.additionalNotes}` : ''}
 
+IMPORTANT: You MUST include ALL companies listed above in the itinerary. Do not omit any company visits.
+
 Please process this information and provide an optimized daily itinerary with the following improvements:
 
-1. **Time Formatting**: Convert all times to consistent 24-hour format (e.g., "14:00")
-2. **Travel Time Integration**: ${transitTimes.size > 0 ? 'Use the REAL travel times shown above to schedule travel blocks between companies' : 'Estimate reasonable travel times between locations'}
-3. **Grammar & Punctuation**: Correct any grammar, spelling, or punctuation errors
-4. **Activity Sequencing**: ${input.preferences?.optimizeRoute ? 'The companies are already in optimized order - maintain this sequence' : 'Optimize the order of activities for travel efficiency'}
-5. **Professional Formatting**: Ensure all entries are professional and clear
-6. **Travel Activities**: Include specific "travel" type activities between company visits with accurate durations
+1. **Complete Company Coverage**: Create activities for EVERY company listed above - no exceptions
+2. **Time Formatting**: Convert all times to consistent 24-hour format (e.g., "14:00")
+3. **Travel Time Integration**: ${transitTimes.size > 0 ? 'Use the REAL travel times shown above to schedule travel blocks between companies' : 'Estimate reasonable travel times between locations'}
+4. **Grammar & Punctuation**: Correct any grammar, spelling, or punctuation errors
+5. **Activity Sequencing**: ${input.preferences?.optimizeRoute ? 'The companies are already in optimized order - maintain this sequence' : 'Optimize the order of activities for travel efficiency'}
+6. **Professional Formatting**: Ensure all entries are professional and clear
+7. **Travel Activities**: Include specific "travel" type activities between company visits with accurate durations
 
 For each activity, determine the appropriate type:
 - "meeting": Formal business meetings or discussions

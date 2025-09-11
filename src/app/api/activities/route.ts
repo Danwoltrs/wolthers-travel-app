@@ -194,6 +194,36 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Queue notification for new activity (batched for end of day)
+    try {
+      // First get trip code for the notification
+      const { data: trip } = await supabase
+        .from('trips')
+        .select('access_code, status')
+        .eq('id', activity.trip_id)
+        .single()
+
+      // Only send notifications for finalized trips (not drafts/planning)
+      if (trip && trip.status !== 'planning') {
+        const { default: NotificationQueue } = await import('@/lib/notification-queue')
+        await NotificationQueue.queueTripAdjustmentNotification({
+          trip_id: activity.trip_id,
+          trip_code: trip.access_code,
+          notification_type: 'activity_added',
+          change_details: {
+            activity_title: activity.title,
+            activity_date: activity.activity_date,
+            activity_time: activity.start_time,
+            description: activity.description || `New ${activity.activity_type} activity added to your itinerary`
+          },
+          changed_by: user.full_name || user.email || 'Wolthers Team'
+        })
+        console.log('📧 Activity creation notification queued for end-of-day send')
+      }
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to queue activity creation notification:', notificationError)
+    }
+
     return NextResponse.json(activity)
   } catch (error) {
     console.error('API Error:', error)
@@ -266,6 +296,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Activity ID is required' }, { status: 400 })
     }
 
+    // Get the original activity for change comparison
+    const { data: originalActivity } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('id', activityId)
+      .single()
+
     // Update the activity
     const updateData = {
       ...updates,
@@ -285,6 +322,59 @@ export async function PUT(request: NextRequest) {
         error: 'Failed to update activity', 
         details: updateError.message 
       }, { status: 500 })
+    }
+
+    // Queue notification for activity update (batched for end of day)
+    try {
+      // Get trip code for the notification
+      const { data: trip } = await supabase
+        .from('trips')
+        .select('access_code, status')
+        .eq('id', activity.trip_id)
+        .single()
+
+      // Only send notifications for finalized trips and if there are meaningful changes
+      if (trip && trip.status !== 'planning' && originalActivity) {
+        // Detect what changed
+        let changeDescription = 'Activity details updated'
+        let oldValue = ''
+        let newValue = ''
+
+        if (originalActivity.title !== activity.title) {
+          changeDescription = 'Activity title changed'
+          oldValue = originalActivity.title
+          newValue = activity.title
+        } else if (originalActivity.start_time !== activity.start_time) {
+          changeDescription = 'Activity time changed'
+          oldValue = originalActivity.start_time
+          newValue = activity.start_time
+        } else if (originalActivity.activity_date !== activity.activity_date) {
+          changeDescription = 'Activity date changed'
+          oldValue = new Date(originalActivity.activity_date).toLocaleDateString()
+          newValue = new Date(activity.activity_date).toLocaleDateString()
+        } else if (originalActivity.description !== activity.description) {
+          changeDescription = 'Activity description updated'
+        }
+
+        const { default: NotificationQueue } = await import('@/lib/notification-queue')
+        await NotificationQueue.queueTripAdjustmentNotification({
+          trip_id: activity.trip_id,
+          trip_code: trip.access_code,
+          notification_type: 'activity_updated',
+          change_details: {
+            activity_title: activity.title,
+            activity_date: activity.activity_date,
+            activity_time: activity.start_time,
+            description: changeDescription,
+            old_value: oldValue,
+            new_value: newValue
+          },
+          changed_by: user.full_name || user.email || 'Wolthers Team'
+        })
+        console.log('📧 Activity update notification queued for end-of-day send')
+      }
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to queue activity update notification:', notificationError)
     }
 
     return NextResponse.json(activity)
@@ -371,6 +461,13 @@ export async function DELETE(request: NextRequest) {
 
     console.log('🗑️ [API] Attempting to delete activity:', activityId)
 
+    // Get activity details before deletion for notification
+    const { data: activityToDelete } = await supabase
+      .from('activities')
+      .select('*, trips!inner(access_code, status)')
+      .eq('id', activityId)
+      .single()
+
     // Delete the activity
     const { error: deleteError } = await supabase
       .from('activities')
@@ -383,6 +480,29 @@ export async function DELETE(request: NextRequest) {
         error: 'Failed to delete activity', 
         details: deleteError.message 
       }, { status: 500 })
+    }
+
+    // Queue notification for activity deletion (batched for end of day)
+    try {
+      // Only send notifications for finalized trips (not drafts/planning)
+      if (activityToDelete && activityToDelete.trips.status !== 'planning') {
+        const { default: NotificationQueue } = await import('@/lib/notification-queue')
+        await NotificationQueue.queueTripAdjustmentNotification({
+          trip_id: activityToDelete.trip_id,
+          trip_code: activityToDelete.trips.access_code,
+          notification_type: 'activity_removed',
+          change_details: {
+            activity_title: activityToDelete.title,
+            activity_date: activityToDelete.activity_date,
+            activity_time: activityToDelete.start_time,
+            description: `${activityToDelete.title} has been removed from your itinerary`
+          },
+          changed_by: user.full_name || user.email || 'Wolthers Team'
+        })
+        console.log('📧 Activity deletion notification queued for end-of-day send')
+      }
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to queue activity deletion notification:', notificationError)
     }
 
     console.log('🗑️ [API] Delete successful for activity:', activityId)
