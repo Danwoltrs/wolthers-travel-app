@@ -518,19 +518,31 @@ export default function LoginPage() {
       console.log("=== MAIN PAGE SEND OTP ===");
       console.log("Sending to:", email);
 
-      const { error } = await resetPassword(email);
+      // Use custom forgot-password API instead of Supabase resetPassword
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          email: email.toLowerCase(),
+          template: 'minimal'
+        }),
+      });
 
-      if (error) {
-        setError(
-          error.message || "Failed to send reset email. Please try again.",
-        );
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.error || "Failed to send reset code. Please try again.");
       } else {
         setOtpSent(true);
         setError(null);
+        console.log("✅ Custom OTP sent successfully");
       }
     } catch (err) {
       console.error("Send OTP error:", err);
-      setError("Failed to send reset email. Please try again.");
+      setError("Failed to send reset code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -550,15 +562,29 @@ export default function LoginPage() {
       console.log("Email:", email);
       console.log("OTP:", otp);
 
-      const { error } = await verifyOtp(email, otp, "recovery");
+      // Use custom forgot-password API's PUT method for verification
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          email: email.toLowerCase(),
+          otp: otp
+        }),
+      });
 
-      if (error) {
-        setError(error.message || "Invalid OTP code. Please try again.");
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.error || "Invalid OTP code. Please try again.");
       } else {
         setError(null);
         setShowPasswordReset(true);
         setOtpSent(false);
         setOtp("");
+        console.log("✅ Custom OTP verified successfully");
       }
     } catch (err) {
       console.error("Verify OTP error:", err);
