@@ -196,11 +196,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     setHostCompanies(updatedHostCompanies)
     
     // Update formData with representatives included
-    const companiesWithReps = updatedHostCompanies.map(hc => ({
-      ...hc,
-      representatives: hc.representatives || []
-    }))
-    updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+    updateFormData({ hostCompanies: updatedHostCompanies })
     
     // Reset modal state
     setSelectedCompanyForHost(null)
@@ -210,11 +206,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   const removeHostCompany = (companyId: string) => {
     const updatedHostCompanies = hostCompanies.filter(hc => hc.id !== companyId)
     setHostCompanies(updatedHostCompanies)
-    const companiesWithReps = updatedHostCompanies.map(hc => ({
-      ...hc,
-      representatives: hc.representatives || []
-    }))
-    updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+    updateFormData({ hostCompanies: updatedHostCompanies })
   }
 
   const updateHostCompany = (companyId: string, updates: Partial<HostCompany>) => {
@@ -222,11 +214,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       hc.id === companyId ? { ...hc, ...updates } : hc
     )
     setHostCompanies(updatedHostCompanies)
-    const companiesWithReps = updatedHostCompanies.map(hc => ({
-      ...hc,
-      representatives: hc.representatives || []
-    }))
-    updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+    updateFormData({ hostCompanies: updatedHostCompanies })
   }
 
 

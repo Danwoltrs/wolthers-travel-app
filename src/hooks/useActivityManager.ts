@@ -88,6 +88,9 @@ export interface ActivityStats {
   visits: number
   confirmed: number
   days: number
+  totalDriveDistance: string
+  totalDriveTime: string
+  driveActivities: number
 }
 
 export function useActivityManager(tripId: string) {
@@ -637,12 +640,83 @@ export function useActivityManager(tripId: string) {
       return isVisit
     })
     
+    // Calculate drive distance and time from travel activities
+    const driveActivities = activities.filter(a => {
+      const title = (a.title || '').toLowerCase()
+      const type = a.type || ''
+      
+      // Travel activities or activities with drive-related keywords
+      const driveKeywords = ['drive', 'driving', 'car', 'taxi', 'uber', 'transfer']
+      const isDriveActivity = type === 'travel' || driveKeywords.some(keyword => title.includes(keyword))
+      
+      // Exclude flights from drive calculations
+      const flightKeywords = ['flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 'airport']
+      const isFlightActivity = flightKeywords.some(keyword => title.includes(keyword))
+      
+      return isDriveActivity && !isFlightActivity
+    })
+    
+    // Calculate total drive distance and time
+    let totalDistanceValue = 0
+    let totalTimeMinutes = 0
+    let hasValidDistances = false
+    
+    driveActivities.forEach(activity => {
+      // Extract distance from activity properties
+      if (activity.notes) {
+        // Look for distance patterns in notes like "120 km" or "75 miles"
+        const distanceMatch = activity.notes.match(/(\d+(?:\.\d+)?)\s*(km|kilometers|miles|mi)/i)
+        if (distanceMatch) {
+          const value = parseFloat(distanceMatch[1])
+          const unit = distanceMatch[2].toLowerCase()
+          
+          // Convert to km if needed
+          const kmValue = unit.startsWith('mi') ? value * 1.60934 : value
+          totalDistanceValue += kmValue
+          hasValidDistances = true
+        }
+      }
+      
+      // Extract time duration from start_time and end_time
+      if (activity.start_time && activity.end_time) {
+        const startHour = parseInt(activity.start_time.split(':')[0])
+        const startMin = parseInt(activity.start_time.split(':')[1] || '0')
+        const endHour = parseInt(activity.end_time.split(':')[0])
+        const endMin = parseInt(activity.end_time.split(':')[1] || '0')
+        
+        const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
+        if (durationMinutes > 0) {
+          totalTimeMinutes += durationMinutes
+        }
+      }
+    })
+    
+    // Format distance display
+    const formatDistance = (km: number): string => {
+      if (km === 0 || !hasValidDistances) return '0 km'
+      return `${Math.round(km)} km`
+    }
+    
+    // Format time display
+    const formatTime = (minutes: number): string => {
+      if (minutes === 0) return '0h'
+      const hours = Math.floor(minutes / 60)
+      const remainingMinutes = minutes % 60
+      
+      if (hours === 0) return `${remainingMinutes}m`
+      if (remainingMinutes === 0) return `${hours}h`
+      return `${hours}h ${remainingMinutes}m`
+    }
+    
     const stats = {
       totalActivities: activities.length,
       meetings: meetingActivities.length,
       visits: visitActivities.length,
       confirmed: activities.filter(a => a.is_confirmed).length,
-      days: new Set(activities.map(a => a.activity_date)).size
+      days: new Set(activities.map(a => a.activity_date)).size,
+      totalDriveDistance: formatDistance(totalDistanceValue),
+      totalDriveTime: formatTime(totalTimeMinutes),
+      driveActivities: driveActivities.length
     }
     
     return stats

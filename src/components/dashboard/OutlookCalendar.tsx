@@ -579,9 +579,13 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
     }
   }
 
-  // Filter activities for this time slot hour and date
+  // **SIMPLIFIED** Filter activities for this time slot hour and date
   const slotActivities = activities.filter(activity => {
-    if (!activity.start_time) return false
+    // Early return for activities without start_time
+    if (!activity.start_time) {
+      console.log('⚠️ [OutlookCalendar] Activity missing start_time:', { id: activity.id, title: activity.title })
+      return false
+    }
     
     // Debug optimistic activities
     if (activity.id.startsWith('temp-')) {
@@ -594,91 +598,41 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
       })
     }
     
-    // Check if this is a multi-day activity
+    // **SIMPLIFIED TIME PARSING** - Only handle HH:MM format
+    const activityHour = parseActivityHour(activity.start_time)
+    if (activityHour === null) {
+      console.warn('❌ [OutlookCalendar] Could not parse start_time:', activity.start_time, 'for activity:', activity.title)
+      return false
+    }
+    
+    // **SIMPLIFIED DATE MATCHING** - Check date first
     const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
-    const currentDisplayDate = date.dateString
-    const isStartDay = currentDisplayDate === activity.activity_date
-    const isEndDay = currentDisplayDate === (activity.end_date || activity.activity_date)
-    const isContinuationDay = isMultiDay && !isStartDay && !isEndDay
-    
-    // Debug logging for activity filtering - handle various time formats
-    let activityHour: number
-    try {
-      // Handle different time formats: "18:00", "6:00 PM", etc.
-      if (activity.start_time.includes(':')) {
-        activityHour = parseInt(activity.start_time.split(':')[0])
-      } else {
-        activityHour = parseInt(activity.start_time)
-      }
-      
-      // Handle 12-hour format if PM/AM present
-      if (activity.start_time.toLowerCase().includes('pm') && activityHour !== 12) {
-        activityHour += 12
-      } else if (activity.start_time.toLowerCase().includes('am') && activityHour === 12) {
-        activityHour = 0
-      }
-    } catch (e) {
-      console.warn('Could not parse activity start_time:', activity.start_time)
-      activityHour = 0
+    if (!isActivityOnDate(activity, date.dateString)) {
+      return false
     }
     
-    const matches = isMultiDay ? 
-      (isStartDay && activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22) ||
-      ((isEndDay || isContinuationDay) && timeSlot.hour === 6)
-      :
-      (activityHour === timeSlot.hour && activityHour >= 6 && activityHour < 22)
+    // **SIMPLIFIED HOUR MATCHING** - Check if activity should show in this time slot
+    const shouldShow = shouldActivityShowInSlot(activity, activityHour, timeSlot.hour, date.dateString)
     
-    // For multi-day activities, check if current date is within the activity's date range
-    if (isMultiDay) {
-      const activityStartDate = new Date(activity.activity_date + 'T00:00:00')
-      const activityEndDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
-      const currentDate = new Date(currentDisplayDate + 'T00:00:00')
-      
-      // Check if current date is within the activity's date range
-      if (currentDate < activityStartDate || currentDate > activityEndDate) {
-        return false
-      }
-    } else {
-      // For single-day activities, must match exactly
-      if (activity.activity_date !== currentDisplayDate) {
-        return false
-      }
-    }
-    
-    // Enhanced debug logging for activities that don't match
-    if ((activity.title.toLowerCase().includes('test') || activity.title.toLowerCase().includes('flight'))) {
-      console.log(`🔍 [OutlookCalendar] Activity ${matches ? 'MATCHES' : 'NOT matching'} filter:`, {
-        title: activity.title,
+    // Enhanced debug logging for key activities
+    if (activity.title.toLowerCase().includes('pickup') || 
+        activity.title.toLowerCase().includes('flight') ||
+        activity.title.toLowerCase().includes('test') ||
+        activity.title.toLowerCase().includes('drive') ||
+        activity.title.toLowerCase().includes('bourbon')) {
+      console.log(`🔍 [OutlookCalendar] Activity "${activity.title}" ${shouldShow ? '✅ WILL SHOW' : '❌ HIDDEN'} in slot ${timeSlot.hour}:00 on ${date.dateString}:`, {
+        activityId: activity.id,
         activityDate: activity.activity_date,
         endDate: activity.end_date,
-        currentDisplayDate,
         startTime: activity.start_time,
-        endTime: activity.end_time,
-        activityHour,
+        parsedHour: activityHour,
         timeSlotHour: timeSlot.hour,
         isMultiDay,
-        isStartDay,
-        isEndDay,
-        isContinuationDay,
-        dateMatches: activity.activity_date === currentDisplayDate,
-        hourMatches: activityHour === timeSlot.hour,
-        inRange: activityHour >= 6 && activityHour < 22,
-        matches,
-        filterResult: matches
+        shouldShow
       })
     }
     
-    // Quick debug: Show what the filtering logic returns
-    if (activity.title.toLowerCase().includes('test') && currentDisplayDate.includes('2025-10-02')) {
-      console.log('🔍 [OutlookCalendar] Test activity final filter result:', {
-        title: activity.title,
-        matches,
-        willBeIncluded: matches
-      })
-    }
-    
-    // Return the matches result - don't duplicate the logic
-    return matches
+    return shouldShow
   })
 
   const handleSlotClick = () => {
@@ -804,6 +758,53 @@ export function OutlookCalendar({
   )
 
   const activitiesByDate = getActivitiesByDate()
+
+  // **DEBUG SUMMARY**: Log activities overview to help troubleshoot calendar display
+  React.useEffect(() => {
+    if (activities.length > 0) {
+      const activitiesWithTime = activities.filter(a => a.start_time)
+      const activitiesWithoutTime = activities.filter(a => !a.start_time)
+      
+      console.log('📊 [OutlookCalendar] Activities Debug Summary:', {
+        totalActivities: activities.length,
+        activitiesWithTime: activitiesWithTime.length,
+        activitiesWithoutTime: activitiesWithoutTime.length,
+        activitiesByDate: Object.keys(activitiesByDate).reduce((acc, date) => {
+          acc[date] = activitiesByDate[date].length
+          return acc
+        }, {} as Record<string, number>),
+        sampleActivitiesWithTime: activitiesWithTime.slice(0, 3).map(a => ({
+          id: a.id,
+          title: a.title,
+          date: a.activity_date,
+          startTime: a.start_time,
+          hour: parseActivityHour(a.start_time || '')
+        })),
+        activitiesWithoutTimeIds: activitiesWithoutTime.map(a => ({ id: a.id, title: a.title }))
+      })
+      
+      // Check for specific test activities mentioned in the request
+      const testActivities = activities.filter(a => 
+        a.title?.toLowerCase().includes('randy') || 
+        a.title?.toLowerCase().includes('gru') ||
+        a.title?.toLowerCase().includes('santos') ||
+        a.title?.toLowerCase().includes('bourbon') ||
+        a.title?.toLowerCase().includes('poços')
+      )
+      
+      if (testActivities.length > 0) {
+        console.log('🎯 [OutlookCalendar] Found test activities:', testActivities.map(a => ({
+          id: a.id,
+          title: a.title,
+          date: a.activity_date,
+          startTime: a.start_time,
+          endTime: a.end_time,
+          parsedHour: parseActivityHour(a.start_time || ''),
+          isOnCorrectDate: isActivityOnDate(a, a.activity_date)
+        })))
+      }
+    }
+  }, [activities, activitiesByDate])
 
   // Handle day removal - moved after calendarDays definition
   const handleRemoveDay = useCallback(async () => {
@@ -1252,6 +1253,79 @@ export function OutlookCalendar({
       </div>
     </OptimizedDndProvider>
   )
+}
+
+// **SIMPLIFIED UTILITY FUNCTIONS** for reliable activity filtering
+function parseActivityHour(timeString: string): number | null {
+  if (!timeString || typeof timeString !== 'string') return null
+  
+  try {
+    // Handle standard HH:MM format (most common)
+    if (timeString.includes(':')) {
+      const hourStr = timeString.split(':')[0].trim()
+      const hour = parseInt(hourStr, 10)
+      return isNaN(hour) ? null : hour
+    }
+    
+    // Handle plain number format
+    const hour = parseInt(timeString.trim(), 10)
+    return isNaN(hour) ? null : hour
+  } catch (e) {
+    console.error('Error parsing time string:', timeString, e)
+    return null
+  }
+}
+
+function isActivityOnDate(activity: Activity, targetDate: string): boolean {
+  const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
+  
+  if (!isMultiDay) {
+    // Single-day activity: exact date match
+    return activity.activity_date === targetDate
+  }
+  
+  // Multi-day activity: check if target date is within range
+  const startDate = new Date(activity.activity_date + 'T00:00:00')
+  const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+  const currentDate = new Date(targetDate + 'T00:00:00')
+  
+  return currentDate >= startDate && currentDate <= endDate
+}
+
+function shouldActivityShowInSlot(
+  activity: Activity, 
+  activityHour: number, 
+  slotHour: number, 
+  displayDate: string
+): boolean {
+  // Only show activities within calendar display range (6 AM - 10 PM)
+  if (activityHour < 6 || activityHour >= 22) {
+    return false
+  }
+  
+  const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
+  
+  if (!isMultiDay) {
+    // Single-day activity: show in the exact hour slot
+    return activityHour === slotHour
+  }
+  
+  // Multi-day activity logic
+  const isStartDay = displayDate === activity.activity_date
+  const isEndDay = displayDate === (activity.end_date || activity.activity_date)
+  
+  if (isStartDay) {
+    // First day: show only in the activity's start hour
+    return activityHour === slotHour
+  }
+  
+  if (isEndDay) {
+    // Last day: show in first visible slot (6 AM)
+    return slotHour === 6
+  }
+  
+  // Continuation day: show in first visible slot (6 AM)
+  return slotHour === 6
 }
 
 // Utility functions

@@ -55,45 +55,63 @@ export async function POST(request: NextRequest) {
 
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params}`
 
-    // Make request to Google Maps API
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      console.error('Google Maps API request failed:', response.status, response.statusText)
-      return NextResponse.json(
-        { error: 'Failed to fetch distance matrix data' },
-        { status: response.status }
-      )
-    }
-
-    const data = await response.json()
-
-    // Check for API errors in the response
-    if (data.status !== 'OK') {
-      console.error('Google Maps API error:', data.status, data.error_message)
-      return NextResponse.json(
-        { error: `Google Maps API error: ${data.status}` },
-        { status: 400 }
-      )
-    }
-
-    // Cache the result before returning
-    console.log('💾 [DistanceMatrix] Caching result for future requests')
-    distanceCache.set(cacheRequest, data)
-
-    // Return the distance matrix data
-    return NextResponse.json(data, { 
-      status: 200,
-      headers: {
-        'X-Cache': 'MISS',
-        'X-Cache-Source': 'google-maps-api'
+    // Make request to Google Maps API with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        console.error('Google Maps API request failed:', response.status, response.statusText)
+        return NextResponse.json(
+          { error: 'Failed to fetch distance matrix data' },
+          { status: response.status }
+        )
       }
-    })
+
+      const data = await response.json()
+
+      // Check for API errors in the response
+      if (data.status !== 'OK') {
+        console.error('Google Maps API error:', data.status, data.error_message)
+        return NextResponse.json(
+          { error: `Google Maps API error: ${data.status}` },
+          { status: 400 }
+        )
+      }
+
+      // Cache the result before returning
+      console.log('💾 [DistanceMatrix] Caching result for future requests')
+      distanceCache.set(cacheRequest, data)
+
+      // Return the distance matrix data
+      return NextResponse.json(data, { 
+        status: 200,
+        headers: {
+          'X-Cache': 'MISS',
+          'X-Cache-Source': 'google-maps-api'
+        }
+      })
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        console.error('Google Maps API request timed out after 10 seconds')
+        return NextResponse.json(
+          { error: 'Google Maps API request timed out' },
+          { status: 408 }
+        )
+      }
+      throw error
+    }
 
   } catch (error) {
     console.error('Distance matrix API error:', error)

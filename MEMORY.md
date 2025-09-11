@@ -2,6 +2,83 @@
 
 ---
 
+# Trip Creation Module - Guest Prefilling Fix - September 11, 2025
+
+## Issue Resolved ✅
+**Problem**: Randy from Blaser Trading was not appearing pre-filled in the GRU Airport Pickup flight modal, and excessive console logs were showing host companies that shouldn't appear for airport pickup.
+
+## Root Cause
+The `CompanySelectionStep.tsx` was incorrectly overwriting the buyer companies array (`formData.companies`) with host companies, causing:
+1. Loss of guest data (Randy from Blaser Trading)  
+2. Flight modal processing wrong companies (hosts instead of buyers)
+3. Excessive console logs from processing irrelevant companies
+
+## Key Fix Applied
+**File**: `/src/components/trips/CompanySelectionStep.tsx`
+
+**Before** (lines 203, 217, 229):
+```javascript
+updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+```
+
+**After**:
+```javascript  
+updateFormData({ hostCompanies: updatedHostCompanies })
+```
+
+**Removed** unnecessary `companiesWithReps` computation that was overwriting buyer companies.
+
+## Data Flow Now Working Correctly
+
+### 1. Trip Creation Flow
+- **Step 3 (SimpleTeamParticipantsStep)**: User selects "Blaser Trading" as buyer company → stored in `formData.companies`
+- **Step 3**: User selects "Randy" as participant → stored as `participant` in Blaser Trading company object
+- **Step 5 (CompanySelectionStep)**: Host companies stored separately in `formData.hostCompanies` (no longer overwrites buyers)
+- **Step 6 (StartingPointSelectionStep)**: Flight modal processes only `formData.companies` (buyer companies)
+
+### 2. Guest Extraction Logic Fixed
+**File**: `/src/components/trips/StartingPointSelectionStep.tsx`
+
+- Only processes buyer companies from `formData.companies` 
+- Excludes Wolthers companies and host companies
+- Extracts guests from `company.participants` (where they're actually stored)
+- Reduced console logs for better performance
+
+### 3. Enhanced Flight Modal Display  
+**File**: `/src/components/trips/FlightInfoModal.tsx`
+
+Added "Driver Sign Information" section showing:
+- Clear guest names and company names
+- Proper formatting for driver airport pickup signs
+- Enhanced flight summary with company information
+
+## Expected Behavior ✅
+When user:
+1. Selects "Blaser Trading" + "Randy" as guest
+2. Navigates to Starting Point → GRU Airport Pickup
+
+**Result**: Randy appears pre-filled in passenger field with driver sign information clearly displayed.
+
+## Console Log Output (Cleaned Up)
+```
+🎯 [FlightModal] Processing buyer companies for flight pickup: { buyerCompaniesCount: 1, buyerCompanyNames: ['Blaser Trading'] }
+✈️ [FlightModal] Processing Blaser Trading with 1 participants  
+✅ [FlightModal] Added guest: Randy from Blaser Trading
+🎯 [FlightModal] Final guest list for airport pickup: ['Randy (Blaser Trading)']
+```
+
+## Data Structure Integrity
+- **Buyer Companies**: `formData.companies` - companies traveling WITH you (contain participants/guests)
+- **Host Companies**: `formData.hostCompanies` - companies you're VISITING (stored separately)  
+- **Participants**: Stored as `company.participants` array with `name`/`full_name` and `email` properties
+
+## Performance Improvement
+- Eliminated excessive console logging of irrelevant host companies
+- Cleaner data separation between buyers and hosts
+- More efficient guest extraction logic
+
+---
+
 # Current Session - January 13, 2025 (Guest Pickup Coordination System)
 
 ## 🎯 Enhanced Guest Pickup Coordination System - Complete ✅

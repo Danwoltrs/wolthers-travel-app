@@ -300,6 +300,34 @@ export default function FlightInfoModal({
                         </div>
                       </div>
                     )}
+                    
+                    {/* Driver Sign Information - Show all guests clearly */}
+                    {selectedGuests.length > 0 && (
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-emerald-900 dark:text-emerald-300 mb-2 flex items-center">
+                          <User className="w-4 h-4 mr-2" />
+                          Driver Sign Information
+                        </h4>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-3">
+                          For the driver to prepare the pickup sign at the airport:
+                        </p>
+                        <div className="space-y-2">
+                          {selectedGuests.map((guest, index) => (
+                            <div key={guest.email} className="bg-white dark:bg-emerald-800/20 rounded-md p-2 text-sm">
+                              <div className="font-medium text-emerald-900 dark:text-emerald-200">
+                                {guest.name}
+                              </div>
+                              <div className="text-emerald-700 dark:text-emerald-400 text-xs">
+                                {guest.companyName}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-2 italic">
+                          💡 Driver can use these names for the airport pickup sign
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* Show input field when no guests selected */
@@ -485,9 +513,21 @@ export default function FlightInfoModal({
                   <h3 className="text-lg font-medium text-indigo-900 dark:text-indigo-300 mb-2">Flight Summary</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-indigo-700 dark:text-indigo-400">Passenger:</span>
+                      <span className="text-indigo-700 dark:text-indigo-400">Passenger{selectedGuests.length > 1 ? 's' : ''}:</span>
                       <span className="font-medium text-indigo-900 dark:text-indigo-300">{flightInfo.passengerName}</span>
                     </div>
+                    {selectedGuests.length > 0 && (
+                      <div className="flex items-start justify-between">
+                        <span className="text-indigo-700 dark:text-indigo-400">Compan{selectedGuests.length > 1 ? 'ies' : 'y'}:</span>
+                        <div className="text-right">
+                          {[...new Set(selectedGuests.map(g => g.companyName))].map((companyName, index) => (
+                            <div key={index} className="font-medium text-indigo-900 dark:text-indigo-300">
+                              {companyName}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-indigo-700 dark:text-indigo-400">Flight:</span>
                       <span className="font-medium text-indigo-900 dark:text-indigo-300">{flightInfo.airline} {flightInfo.flightNumber}</span>

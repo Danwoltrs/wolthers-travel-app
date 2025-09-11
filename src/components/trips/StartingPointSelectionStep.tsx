@@ -134,9 +134,11 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
 
   // Check if multi-company pickup is needed based on selected companies
   const hasMultipleCompaniesWithGuests = () => {
-    const companiesWithGuests = (formData.companies || []).filter(company => 
-      (company as any).selectedContacts && (company as any).selectedContacts.length > 0
-    )
+    const companiesWithGuests = (formData.companies || []).filter(company => {
+      const companyWithParticipants = company as any
+      const participants = companyWithParticipants.participants || companyWithParticipants.selectedContacts || []
+      return participants.length > 0
+    })
     return companiesWithGuests.length > 1
   }
 
@@ -145,12 +147,14 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
     if (!formData.companies) return []
     
     return formData.companies.flatMap(company => {
-      const companyWithContacts = company as any
-      return companyWithContacts.selectedContacts?.map((contact: any) => ({
-        name: contact.name,
-        email: contact.email,
-        companyName: company.name
-      })) || []
+      const companyWithParticipants = company as any
+      // Handle both participants and selectedContacts for backward compatibility
+      const participants = companyWithParticipants.participants || companyWithParticipants.selectedContacts || []
+      return participants.map((participant: any) => ({
+        name: participant.name || participant.full_name,
+        email: participant.email,
+        companyName: companyWithParticipants.fantasyName || companyWithParticipants.fantasy_name || company.name
+      }))
     })
   }
 
@@ -371,46 +375,42 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
         onClose={() => setShowFlightModal(false)}
         onSubmit={handleFlightInfoSubmit}
         selectedGuests={(() => {
-          // Extract selected guests from buyer companies
+          // Extract selected guests from BUYER companies only (exclude hosts and Wolthers staff)
           const guests: Array<{name: string, email: string, companyName: string}> = []
-          console.log('🔍 [FlightModal] Extracting guests from formData:', {
-            companies: formData.companies,
-            hasCompanies: !!formData.companies,
-            companiesCount: formData.companies?.length || 0
+          
+          // Only process buyer companies (formData.companies), not host companies
+          const buyerCompanies = formData.companies || []
+          
+          console.log('🎯 [FlightModal] Processing buyer companies for flight pickup:', {
+            buyerCompaniesCount: buyerCompanies.length,
+            buyerCompanyNames: buyerCompanies.map(c => c.name)
           })
           
-          if (formData.companies) {
-            formData.companies.forEach((company, index) => {
-              console.log(`🔍 [FlightModal] Company ${index}:`, {
-                name: company.name,
-                fantasyName: company.fantasyName,
-                hasParticipants: !!company.participants,
-                participantsCount: company.participants?.length || 0,
-                participants: company.participants
-              })
+          buyerCompanies.forEach((company) => {
+            // Skip Wolthers companies
+            const isWolthersCompany = company.name?.toLowerCase().includes('wolthers') || 
+                                     ((company as any).fantasyName || (company as any).fantasy_name)?.toLowerCase().includes('wolthers')
+            
+            if (!isWolthersCompany && (company as any).participants) {
+              console.log(`✈️ [FlightModal] Processing ${company.name} with ${(company as any).participants.length} participants`)
               
-              if (company.participants) {
-                company.participants.forEach((participant, index) => {
-                  console.log(`🔍 [FlightModal] Participant ${index}:`, {
-                    participant,
-                    hasName: !!participant.name,
-                    hasEmail: !!participant.email,
-                    participantKeys: Object.keys(participant),
-                    fullStructure: JSON.stringify(participant)
+              ;(company as any).participants.forEach((participant: any) => {
+                const participantName = participant.name || participant.full_name
+                const participantEmail = participant.email
+                
+                if (participantName && participantEmail) {
+                  guests.push({
+                    name: participantName,
+                    email: participantEmail,
+                    companyName: (company as any).fantasyName || (company as any).fantasy_name || company.name
                   })
-                  if (participant.name && participant.email) {
-                    guests.push({
-                      name: participant.name,
-                      email: participant.email,
-                      companyName: company.fantasyName || company.name
-                    })
-                  }
-                })
-              }
-            })
-          }
+                  console.log(`✅ [FlightModal] Added guest: ${participantName} from ${company.name}`)
+                }
+              })
+            }
+          })
           
-          console.log('🔍 [FlightModal] Final guests array:', guests)
+          console.log('🎯 [FlightModal] Final guest list for airport pickup:', guests.map(g => `${g.name} (${g.companyName})`))
           return guests
         })()}
         tripStartDate={formData.startDate}

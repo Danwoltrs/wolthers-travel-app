@@ -65,6 +65,83 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   const error = mockTrip.id.startsWith('temp-trip-') ? null : activityManager.error
   const refreshing = mockTrip.id.startsWith('temp-trip-') ? isGeneratingAI : activityManager.refreshing
   
+  // Create a custom stats function for temp activities or use the manager's stats
+  const getActivityStats = () => {
+    if (mockTrip.id.startsWith('temp-trip-')) {
+      // For temp trips, calculate stats from tempActivities
+      const meetingActivities = tempActivities.filter(a => {
+        const title = (a.title || '').toLowerCase()
+        const description = (a.description || '').toLowerCase()
+        
+        // Exclude flights, travel, accommodation from meetings
+        const travelKeywords = [
+          'flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 
+          'departure', 'arrival', 'takeoff', 'landing', 'airport',
+          'drive', 'driving', 'car', 'taxi', 'uber', 'transfer',
+          'check-in', 'check-out', 'hotel', 'accommodation', 'lodging'
+        ]
+        
+        const isTravelActivity = travelKeywords.some(keyword => 
+          title.includes(keyword) || description.includes(keyword)
+        )
+        
+        if (isTravelActivity) return false
+        
+        // Only count meetings and meals as meetings
+        return a.type === 'meeting' || a.type === 'meal'
+      })
+      
+      // Calculate drive distance from travel activities
+      const driveActivities = tempActivities.filter(a => {
+        const title = (a.title || '').toLowerCase()
+        const type = a.type || ''
+        
+        const driveKeywords = ['drive', 'driving', 'car', 'taxi', 'uber', 'transfer']
+        const isDriveActivity = type === 'travel' || driveKeywords.some(keyword => title.includes(keyword))
+        
+        const flightKeywords = ['flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 'airport']
+        const isFlightActivity = flightKeywords.some(keyword => title.includes(keyword))
+        
+        return isDriveActivity && !isFlightActivity
+      })
+      
+      // Simple drive distance calculation for temp activities
+      let totalDistanceValue = 0
+      let hasValidDistances = false
+      
+      driveActivities.forEach(activity => {
+        if (activity.notes) {
+          const distanceMatch = activity.notes.match(/(\d+(?:\.\d+)?)\s*(km|kilometers|miles|mi)/i)
+          if (distanceMatch) {
+            const value = parseFloat(distanceMatch[1])
+            const unit = distanceMatch[2].toLowerCase()
+            const kmValue = unit.startsWith('mi') ? value * 1.60934 : value
+            totalDistanceValue += kmValue
+            hasValidDistances = true
+          }
+        }
+      })
+      
+      const formatDistance = (km: number): string => {
+        if (km === 0 || !hasValidDistances) return '0 km'
+        return `${Math.round(km)} km`
+      }
+      
+      return {
+        totalActivities: tempActivities.length,
+        meetings: meetingActivities.length,
+        visits: 0, // Not calculated for temp trips
+        confirmed: tempActivities.filter(a => a.is_confirmed).length,
+        days: new Set(tempActivities.map(a => a.activity_date)).size,
+        totalDriveDistance: formatDistance(totalDistanceValue),
+        totalDriveTime: '0h', // Not calculated for temp trips
+        driveActivities: driveActivities.length
+      }
+    } else {
+      return activityManager.getActivityStats()
+    }
+  }
+  
   // Debug logging for temp activities
   console.log('🔍 [Calendar Debug] Activity states:', {
     tripId: mockTrip.id,
@@ -813,8 +890,12 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Itinerary Statistics</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
-            <span className="text-blue-700 dark:text-blue-300 font-medium">Activities:</span>
-            <span className="ml-2 text-blue-600 dark:text-blue-400">{activities.length}</span>
+            <span className="text-blue-700 dark:text-blue-300 font-medium">Meetings:</span>
+            <span className="ml-2 text-blue-600 dark:text-blue-400">{getActivityStats().meetings}</span>
+          </div>
+          <div>
+            <span className="text-blue-700 dark:text-blue-300 font-medium">Drive Distance:</span>
+            <span className="ml-2 text-blue-600 dark:text-blue-400">{getActivityStats().totalDriveDistance}</span>
           </div>
           <div>
             <span className="text-blue-700 dark:text-blue-300 font-medium">Companies:</span>

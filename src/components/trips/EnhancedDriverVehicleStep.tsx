@@ -145,16 +145,17 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
   }
 
   const handleVehicleAssignment = (vehicleId: string, driverId: string) => {
-    setVehicleAssignments(prev => ({ ...prev, [vehicleId]: driverId }))
+    const newAssignments = { ...vehicleAssignments, [vehicleId]: driverId }
+    setVehicleAssignments(newAssignments)
     // Update form data with vehicle assignments
     updateFormData({
-      vehicleAssignments: { ...vehicleAssignments, [vehicleId]: driverId }
+      vehicleAssignments: newAssignments
     })
   }
 
   const getDriverName = (driverId: string) => {
     const staff = participatingStaff.find(s => s.id === driverId)
-    if (staff) return staff.fullName || staff.email
+    if (staff) return staff.fullName || (staff as any).full_name || staff.email || 'Unknown Staff'
     
     const external = externalDrivers.find(d => d.id === driverId)
     if (external) return external.full_name
@@ -165,7 +166,7 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
   const getAllDrivers = () => {
     const staffDrivers = participatingStaff
       .filter(staff => (staff as any).isDriver)
-      .map(staff => ({ id: staff.id, name: staff.fullName || staff.email, type: 'staff' }))
+      .map(staff => ({ id: staff.id, name: staff.fullName || (staff as any).full_name || staff.email || 'Unknown Staff', type: 'staff' }))
     
     const externalDriversList = externalDrivers.map(driver => ({ 
       id: driver.id!, 
@@ -196,13 +197,6 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-emerald-300 mb-2">
-          Drivers & Vehicles
-        </h2>
-      </div>
-
       {/* Smart Summary */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
         <div className="flex items-center space-x-3">
@@ -268,7 +262,7 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
                           </div>
                           <div>
                             <p className="font-medium text-gray-900 dark:text-white">
-                              {staff.fullName || staff.email}
+                              {staff.fullName || (staff as any).full_name || staff.email || 'Unknown Staff'}
                             </p>
                             {(staff as any).isDriver && (
                               <p className="text-xs text-green-600 dark:text-green-400">
@@ -351,16 +345,50 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
                 <Car className="w-5 h-5 mr-2" />
                 Available Vehicles
               </h3>
-              <button
-                onClick={() => setShowAddVehicleModal(true)}
-                className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Vehicle</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    // Handle rental selection - just mark it as selected
+                    updateFormData({ useRental: true })
+                  }}
+                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Use Rental</span>
+                </button>
+                <button
+                  onClick={() => setShowAddVehicleModal(true)}
+                  className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Vehicle</span>
+                </button>
+              </div>
             </div>
 
-            {availableVehicles.length === 0 ? (
+            {(formData as any).useRental && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-100 dark:bg-blue-800/30 p-2 rounded-lg">
+                    <Car className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-blue-900 dark:text-blue-300">Rental Vehicle Selected</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                      Vehicle will be arranged through rental service
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateFormData({ useRental: false })}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {availableVehicles.length === 0 && !(formData as any).useRental ? (
               <div className="text-center py-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <Car className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No vehicles available</p>

@@ -415,7 +415,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  window.location.href = `/trips/continue/${trip.accessCode}`
+                  if (onClick) {
+                    onClick(trip)
+                  }
                 }}
                 className={cn(
                   'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',

@@ -19,6 +19,7 @@ import type {
   DropTarget
 } from '@/types/enhanced-modal'
 import type { Trip } from '@/types'
+import type { ActivityStats } from '@/hooks/useActivityManager'
 
 interface CalendarViewProps {
   trip: Trip
@@ -30,6 +31,7 @@ interface CalendarViewProps {
   onActivityAdd: (dayId: string, timeSlot: string) => void
   onDateExtend: (direction: 'before' | 'after', days: number) => void
   onSettingsChange: (settings: Partial<CalendarViewSettings>) => void
+  getActivityStats?: () => ActivityStats
 }
 
 export function CalendarView({
@@ -41,7 +43,8 @@ export function CalendarView({
   onActivityDelete,
   onActivityAdd,
   onDateExtend,
-  onSettingsChange
+  onSettingsChange,
+  getActivityStats
 }: CalendarViewProps) {
   const [dragState, setDragState] = useState<DragDropState>({
     draggedActivity: null,
@@ -151,7 +154,16 @@ export function CalendarView({
           trip={trip}
           calendarSettings={calendarSettings}
           onSettingsChange={onSettingsChange}
-          totalActivities={itineraryDays.reduce((sum, day) => sum + day.activities.length, 0)}
+          activityStats={getActivityStats ? getActivityStats() : {
+            totalActivities: itineraryDays.reduce((sum, day) => sum + day.activities.length, 0),
+            meetings: 0,
+            visits: 0,
+            confirmed: 0,
+            days: itineraryDays.length,
+            totalDriveDistance: '0 km',
+            totalDriveTime: '0h',
+            driveActivities: 0
+          }}
           totalDays={itineraryDays.length}
         />
 

@@ -42,6 +42,7 @@ export default function CalendarItineraryStep({ formData, updateFormData }: Cale
     updateActivity,
     updateActivityDebounced,
     getActivitiesByDate,
+    getActivityStats,
     createActivity,
     deleteActivity,
     forceRefreshActivities
@@ -238,8 +239,12 @@ export default function CalendarItineraryStep({ formData, updateFormData }: Cale
           {/* Status Information */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
             <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">{activities.length}</div>
-              <div className="text-sm text-gray-600">Activities</div>
+              <div className="text-2xl font-bold text-emerald-600">{getActivityStats().meetings}</div>
+              <div className="text-sm text-gray-600">Meetings</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-orange-600">{getActivityStats().totalDriveDistance}</div>
+              <div className="text-sm text-gray-600">Drive Distance</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">

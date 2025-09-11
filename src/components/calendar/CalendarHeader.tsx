@@ -19,12 +19,13 @@ import {
 } from 'lucide-react'
 import type { CalendarViewSettings } from '@/types/enhanced-modal'
 import type { Trip } from '@/types'
+import type { ActivityStats } from '@/hooks/useActivityManager'
 
 interface CalendarHeaderProps {
   trip: Trip
   calendarSettings: CalendarViewSettings
   onSettingsChange: (settings: Partial<CalendarViewSettings>) => void
-  totalActivities: number
+  activityStats: ActivityStats
   totalDays: number
 }
 
@@ -32,7 +33,7 @@ export function CalendarHeader({
   trip,
   calendarSettings,
   onSettingsChange,
-  totalActivities,
+  activityStats,
   totalDays
 }: CalendarHeaderProps) {
   const [showSettings, setShowSettings] = useState(false)
@@ -60,7 +61,9 @@ export function CalendarHeader({
             <div className="flex items-center space-x-4 text-xs text-golden-400/70">
               <span>{totalDays} days</span>
               <span>•</span>
-              <span>{totalActivities} activities</span>
+              <span>{activityStats.meetings} meetings</span>
+              <span>•</span>
+              <span>{activityStats.totalDriveDistance} drive</span>
               <span>•</span>
               <span>
                 {new Date(trip.startDate).toLocaleDateString('en-US', { 
