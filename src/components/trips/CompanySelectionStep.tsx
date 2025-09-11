@@ -3,6 +3,7 @@ import { MapPin, Building2, Users, Search, Plus, X, UserPlus, Edit } from 'lucid
 import type { TripFormData } from './TripCreationModal'
 import type { Company } from '@/types'
 import { detectLocationFromAddress, getRegionByCity } from '@/lib/brazilian-locations'
+import HostSelectionModal from './HostSelectionModal'
 
 interface CompanySelectionStepProps {
   formData: TripFormData
@@ -29,14 +30,8 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRegion, setSelectedRegion] = useState<string>('all')
   const [hostCompanies, setHostCompanies] = useState<HostCompany[]>([])
-  const [showRepresentativesModal, setShowRepresentativesModal] = useState(false)
-  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
-  const [representativeForm, setRepresentativeForm] = useState({
-    name: '',
-    role: '',
-    email: '',
-    phone: ''
-  })
+  const [showHostModal, setShowHostModal] = useState(false)
+  const [selectedCompanyForHost, setSelectedCompanyForHost] = useState<Company | null>(null)
 
   // Get buyer companies from formData
   const buyerCompanies = formData.companies || []
@@ -177,8 +172,16 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     return aName.localeCompare(bName)
   })
 
-  const addHostCompany = (company: Company) => {
+  const openHostModal = (company: Company) => {
     if (hostCompanies.some(hc => hc.id === company.id)) return
+    
+    setSelectedCompanyForHost(company)
+    setShowHostModal(true)
+  }
+
+  const handleSelectHost = (companyId: string, selectedContacts: any[]) => {
+    const company = selectedCompanyForHost
+    if (!company) return
 
     const newHostCompany: HostCompany = {
       ...company,
@@ -186,7 +189,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       estimatedVisitDuration: 4, // Default 4 hours
       preferredVisitTime: 'morning',
       notes: '',
-      representatives: [] // Initialize empty representatives
+      representatives: selectedContacts // Use selected contacts from modal
     }
 
     const updatedHostCompanies = [...hostCompanies, newHostCompany]
@@ -198,6 +201,10 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
       representatives: hc.representatives || []
     }))
     updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
+    
+    // Reset modal state
+    setSelectedCompanyForHost(null)
+    setShowHostModal(false)
   }
 
   const removeHostCompany = (companyId: string) => {
@@ -222,40 +229,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
     updateFormData({ hostCompanies: updatedHostCompanies, companies: companiesWithReps })
   }
 
-  // Representative management functions
-  const openRepresentativesModal = (companyId: string) => {
-    setEditingCompanyId(companyId)
-    setShowRepresentativesModal(true)
-    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-  }
-
-  const addRepresentative = () => {
-    if (!editingCompanyId || !representativeForm.name.trim()) return
-    
-    const company = hostCompanies.find(hc => hc.id === editingCompanyId)
-    if (!company) return
-    
-    const newRepresentative = {
-      name: representativeForm.name.trim(),
-      role: representativeForm.role.trim() || undefined,
-      email: representativeForm.email.trim() || undefined,
-      phone: representativeForm.phone.trim() || undefined
-    }
-    
-    const updatedRepresentatives = [...(company.representatives || []), newRepresentative]
-    updateHostCompany(editingCompanyId, { representatives: updatedRepresentatives })
-    
-    // Reset form
-    setRepresentativeForm({ name: '', role: '', email: '', phone: '' })
-  }
-
-  const removeRepresentative = (companyId: string, repIndex: number) => {
-    const company = hostCompanies.find(hc => hc.id === companyId)
-    if (!company) return
-    
-    const updatedRepresentatives = (company.representatives || []).filter((_, index) => index !== repIndex)
-    updateHostCompany(companyId, { representatives: updatedRepresentatives })
-  }
 
   const toggleParticipantForHost = (hostId: string, buyerCompanyId: string) => {
     const host = hostCompanies.find(h => h.id === hostId)
@@ -339,7 +312,7 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             Available Host Companies ({filteredCompanies.length})
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-            Select companies that will host your travel group. You can configure visit details in the calendar step.
+            Click on company names to add them as hosts for your travel group. You can configure visit details in the calendar step.
           </p>
         </div>
         
@@ -367,9 +340,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Region
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Action
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-[#1a1a1a] divide-y divide-gray-200 dark:divide-[#2a2a2a]">
@@ -381,9 +351,17 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                     }`}
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-emerald-300">
-                        {company.fantasy_name || company.name}
-                      </div>
+                      <button
+                        onClick={() => openHostModal(company)}
+                        className="text-left group hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md px-2 py-1 transition-colors"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="text-sm font-medium text-gray-900 dark:text-emerald-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
+                            {company.fantasy_name || company.name}
+                          </div>
+                          <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </button>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-300">
@@ -412,15 +390,6 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                         {extractCoffeeRegion(company as any)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <button
-                        onClick={() => addHostCompany(company)}
-                        className="inline-flex items-center px-3 py-1.5 border border-emerald-300 dark:border-emerald-600 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Select
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -438,9 +407,21 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
                 <h4 className="font-medium text-emerald-900 dark:text-emerald-300 mb-1">
                   {hostCompanies.length} Host {hostCompanies.length === 1 ? 'Company' : 'Companies'} Selected
                 </h4>
-                <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                  {hostCompanies.map(hc => hc.fantasy_name || hc.name).join(', ')}
-                </p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {hostCompanies.map(hc => (
+                    <div key={hc.id} className="inline-flex items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-lg px-2 py-1">
+                      <span className="text-sm text-emerald-700 dark:text-emerald-400">
+                        {hc.fantasy_name || hc.name}
+                      </span>
+                      <button
+                        onClick={() => removeHostCompany(hc.id)}
+                        className="ml-2 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -454,169 +435,41 @@ export default function CompanySelectionStep({ formData, updateFormData }: Compa
             </div>
           </div>
 
-          {/* Detailed Company Cards with Representatives */}
-          <div className="grid gap-4">
-            {hostCompanies.map(company => (
-              <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h5 className="font-semibold text-gray-900 dark:text-white mb-1">
-                      {company.fantasy_name || company.name}
-                    </h5>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <MapPin className="w-4 h-4 inline mr-1" />
-                      {(company as any).city}, {(company as any).state}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => removeHostCompany(company.id)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Representatives Section */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h6 className="font-medium text-gray-900 dark:text-white flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      Company Representatives
-                    </h6>
-                    <button
-                      onClick={() => openRepresentativesModal(company.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm flex items-center"
-                    >
-                      <UserPlus className="w-4 h-4 mr-1" />
-                      Add Representative
-                    </button>
-                  </div>
-
-                  {company.representatives && company.representatives.length > 0 ? (
-                    <div className="grid gap-2">
-                      {company.representatives.map((rep, index) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{rep.name}</p>
-                            {rep.role && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{rep.role}</p>
-                            )}
-                            <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {rep.email && <span>📧 {rep.email}</span>}
-                              {rep.phone && <span>📞 {rep.phone}</span>}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => removeRepresentative(company.id, index)}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No representatives added yet</p>
-                      <p className="text-sm">Click "Add Representative" to add company contacts</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
-      {/* Representatives Modal */}
-      {showRepresentativesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Add Representative
+      {/* Skip Host Selection Section */}
+      {hostCompanies.length === 0 && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-white mb-1">
+                Host Selection Optional
               </h3>
-              <button
-                onClick={() => setShowRepresentativesModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                You can select host companies now or add them later after creating your trip.
+              </p>
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  value={representativeForm.name}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="Representative name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Role/Position
-                </label>
-                <input
-                  type="text"
-                  value={representativeForm.role}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="e.g., Sales Manager, CEO"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={representativeForm.email}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="representative@company.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={representativeForm.phone}
-                  onChange={(e) => setRepresentativeForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="+55 (11) 99999-9999"
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  onClick={() => setShowRepresentativesModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addRepresentative}
-                  disabled={!representativeForm.name.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg"
-                >
-                  Add Representative
-                </button>
-              </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
+              <p>💡 <strong>Tip:</strong> Adding hosts now allows you to plan visits during the calendar step. You can always add or remove hosts from your trip dashboard.</p>
             </div>
           </div>
         </div>
       )}
+
+      {/* Host Selection Modal */}
+      <HostSelectionModal
+        isOpen={showHostModal}
+        onClose={() => {
+          setShowHostModal(false)
+          setSelectedCompanyForHost(null)
+        }}
+        company={selectedCompanyForHost || { id: '', name: '', city: '', state: '' }}
+        onSelectHost={handleSelectHost}
+      />
     </div>
   )
 }

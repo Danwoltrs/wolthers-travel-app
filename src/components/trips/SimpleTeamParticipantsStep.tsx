@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Building2, Plus, X } from 'lucide-react'
+import { Users, Building2, Plus, X, UserPlus } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import type { User, Company } from '@/types'
+import UserCreationModal from './UserCreationModal'
+import GuestSelectionModal from './GuestSelectionModal'
 
 interface SimpleTeamParticipantsStepProps {
   formData: TripFormData
@@ -14,6 +16,9 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
   const [buyerCompanies, setBuyerCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [selectedCompanyForGuests, setSelectedCompanyForGuests] = useState<Company | null>(null)
 
   // Load real data from APIs
   useEffect(() => {
@@ -143,6 +148,99 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
     })
   }
 
+  const handleUserCreated = async (newUser: User) => {
+    // Add the new user to the local staff list
+    setWolthersStaff(prev => [...prev, newUser])
+    // Automatically select the new user as a participant
+    const currentParticipants = formData.participants || []
+    updateFormData({
+      participants: [...currentParticipants, newUser]
+    })
+    setShowUserModal(false)
+
+    // Send welcome/invitation email to the new staff member
+    try {
+      const response = await fetch('/api/emails/staff-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: newUser.email,
+          inviterName: 'Daniel Wolthers', // TODO: Get from current user context
+          inviterEmail: 'daniel@wolthers.com', // TODO: Get from current user context
+          newStaffName: newUser.fullName || newUser.full_name || 'New Team Member',
+          role: newUser.role || 'Staff Member',
+          tripTitle: formData.title || undefined,
+          whatsApp: undefined // TODO: Add WhatsApp field to user creation if needed
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log(`✅ Welcome email sent to ${newUser.email}`)
+        // TODO: Show success notification to user
+      } else {
+        console.error(`❌ Failed to send welcome email:`, result.error)
+        // TODO: Show error notification to user
+      }
+    } catch (error) {
+      console.error('Error sending welcome email:', error)
+      // TODO: Show error notification to user
+    }
+  }
+
+  const openGuestModal = (company: Company) => {
+    setSelectedCompanyForGuests(company)
+    setShowGuestModal(true)
+  }
+
+  const handleSelectGuests = (companyId: string, selectedGuests: any[]) => {
+    console.log('🎯🎯🎯 SIMPLE TEAMPARTICIPANTS handleSelectGuests CALLED!', { companyId, selectedGuests })
+    
+    // Convert guests to User format for consistency
+    const guests: User[] = selectedGuests.map(guest => ({
+      id: guest.id || `guest_${Date.now()}_${Math.random()}`,
+      email: guest.email || '',
+      full_name: 'full_name' in guest ? guest.full_name : guest.name,
+      phone: guest.phone || undefined,
+      role: guest.role || undefined,
+      company_id: companyId,
+      user_type: 'full_name' in guest ? 'user' : 'contact',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }))
+
+    console.log('🎯 Converted guests:', guests.map(g => ({ name: g.full_name, email: g.email })))
+
+    // Find the company and update its participants
+    const updatedCompanies = (formData.companies || []).map(company => {
+      if (company.id === companyId) {
+        const updatedCompany = {
+          ...company,
+          participants: guests // Store guests as participants
+        }
+        console.log('🎯 Updated company:', company.name, 'with participants:', guests.length)
+        return updatedCompany
+      }
+      return company
+    })
+
+    console.log('🎯 Final companies with participants:', updatedCompanies.map(c => ({ 
+      name: c.name, 
+      participantCount: (c as any).participants?.length || 0,
+      participantNames: (c as any).participants?.map((p: any) => p.full_name || p.email) || []
+    })))
+
+    updateFormData({ companies: updatedCompanies })
+    
+    // Reset modal state
+    setSelectedCompanyForGuests(null)
+    setShowGuestModal(false)
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -151,20 +249,29 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
           Team & Participants
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Select Wolthers staff and add buyer companies who will be traveling with you.
+          Select team members and buyer companies for this trip.
         </p>
       </div>
 
       {/* Wolthers Staff Selection */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-300 dark:border-[#2a2a2a] p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
-            Wolthers Team
-          </h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            ({(formData.participants || []).length} selected)
-          </span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-emerald-300">
+              Wolthers Team
+            </h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              ({(formData.participants || []).length} selected)
+            </span>
+          </div>
+          <button
+            onClick={() => setShowUserModal(true)}
+            className="flex items-center space-x-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Add New Staff</span>
+          </button>
         </div>
 
         {isLoading && (
@@ -243,19 +350,23 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {buyerCompanies.map((company) => {
                 const isSelected = (formData.companies || []).some(c => c.id === company.id)
+                const selectedCompany = (formData.companies || []).find(c => c.id === company.id)
+                const guestCount = (selectedCompany as any)?.participants?.length || 0
                 
                 return (
                   <div
                     key={company.id}
-                    onClick={() => toggleBuyerCompany(company)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    className={`p-3 rounded-lg border-2 transition-all ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                         : 'border-gray-200 dark:border-[#2a2a2a] hover:border-emerald-300 dark:hover:border-emerald-700'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div 
+                        onClick={() => toggleBuyerCompany(company)}
+                        className="flex-1 cursor-pointer"
+                      >
                         <h5 className="font-medium text-gray-900 dark:text-gray-100">
                           {company.name}
                         </h5>
@@ -271,6 +382,24 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
                         </div>
                       )}
                     </div>
+                    
+                    {isSelected && (
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {guestCount} guest{guestCount !== 1 ? 's' : ''} selected
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openGuestModal(company)
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium rounded border border-emerald-300 dark:border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-white dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          {guestCount > 0 ? 'Manage' : 'Add'} Guests
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -359,15 +488,49 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
               </span>
               {(formData.companies || []).length > 0 && (
                 <ul className="mt-1 text-emerald-600 dark:text-emerald-400">
-                  {(formData.companies || []).map(c => (
-                    <li key={c.id}>• {c.name}</li>
-                  ))}
+                  {(formData.companies || []).map(c => {
+                    const participants = (c as any).participants || []
+                    const participantNames = participants.map((p: any) => p.full_name || p.email || 'Unknown').join(', ')
+                    
+                    return (
+                      <li key={c.id}>
+                        • {c.name}
+                        {participants.length > 0 && (
+                          <span className="ml-2 text-emerald-500 dark:text-emerald-300">
+                            - {participantNames}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>
           </div>
         </div>
       )}
+      
+      {/* User Creation Modal */}
+      <UserCreationModal
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        onUserCreated={handleUserCreated}
+        preSelectedCompanyId="840783f4-866d-4bdb-9b5d-5d0facf62db0" // Wolthers & Associates company ID
+        availableCompanies={[]}
+        defaultRole="staff"
+        title="Add New Wolthers Staff Member"
+      />
+
+      {/* Guest Selection Modal */}
+      <GuestSelectionModal
+        isOpen={showGuestModal}
+        onClose={() => {
+          setShowGuestModal(false)
+          setSelectedCompanyForGuests(null)
+        }}
+        company={selectedCompanyForGuests || { id: '', name: '', city: '', state: '' }}
+        onSelectGuests={handleSelectGuests}
+      />
     </div>
   )
 }

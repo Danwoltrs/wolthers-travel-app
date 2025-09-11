@@ -13,13 +13,10 @@ import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { createTrip } from '@/lib/trip-actions'
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
     const { user } = useAuth() // Get user data for permission checks
-    const router = useRouter()
     const [selectedTrip, setSelectedTrip] = useState<TripCardType | null>(null)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [showTripCreationModal, setShowTripCreationModal] = useState(false)
@@ -27,7 +24,13 @@ export default function Dashboard() {
   const [draftTrips, setDraftTrips] = useState<any[]>([])
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
-    const { trips, loading, error, isOffline, refreshSilently, refetch, addTripOptimistically } = useSmartTrips()
+    const { trips, loading, error, isOffline, refreshSilently, refetch, addTripOptimistically, deleteTripOptimistically } = useSmartTrips()
+
+    // All useCallback hooks must be defined early and unconditionally
+    const handleCreateTrip = React.useCallback(() => {
+      setResumeData(null) // Clear any resume data
+      setShowTripCreationModal(true)
+    }, [])
 
     // Check if user can create trips (Wolthers staff or external company admins)
     // Must be called before any conditional returns to maintain hook order
@@ -92,6 +95,15 @@ export default function Dashboard() {
     }
   }, [user, isAuthenticated])
 
+  // Open trip creation modal when triggered from Header
+  React.useEffect(() => {
+    const handleOpenTripCreation = () => {
+      handleCreateTrip()
+    }
+    window.addEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+    return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
+  }, [handleCreateTrip])
+
   const loadDraftTrips = async () => {
     try {
       const token = localStorage.getItem('auth-token') || sessionStorage.getItem('supabase-token')
@@ -101,8 +113,7 @@ export default function Dashboard() {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        credentials: 'include', // Include cookies for authentication
-        next: { tags: ['trips', `trips:user:${user?.id}`] }
+        credentials: 'include' // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -171,14 +182,35 @@ export default function Dashboard() {
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
-  // Combine ongoing, upcoming trips and extra drafts
+  // Filter for draft trips (planning status only - ignore is_draft flag for completed trips)
+  const planningDraftTrips = trips.filter(trip => {
+    return (trip as any).status === 'planning'
+  })
+  
+  // Combine ongoing, upcoming, draft trips from main query, and additional draft trips
+  // Ensure draft trips are always included in current trips
   const allCurrentTrips = [
-    ...ongoingTrips,
+    ...ongoingTrips, 
     ...upcomingTrips,
+    ...planningDraftTrips,
     ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
   ]
-
-  const currentTrips = Array.from(new Map(allCurrentTrips.map(t => [t.id, t])).values())
+  
+  // Remove duplicates by ID to prevent duplicate cards
+  const currentTrips = allCurrentTrips.filter((trip, index, array) => 
+    array.findIndex(t => t.id === trip.id) === index
+  )
+  
+  // Debug logging to help identify duplicate sources
+  if (allCurrentTrips.length !== currentTrips.length) {
+    console.log('🔍 Duplicate trips detected:')
+    console.log('Before deduplication:', allCurrentTrips.length, 'trips')
+    console.log('After deduplication:', currentTrips.length, 'trips')
+    console.log('ongoingTrips:', ongoingTrips.length)
+    console.log('upcomingTrips:', upcomingTrips.length) 
+    console.log('planningDraftTrips:', planningDraftTrips.length)
+    console.log('draftTripsAsTrips:', draftTripsAsTrips.length)
+  }
   
   const pastTrips = trips.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
@@ -211,32 +243,92 @@ export default function Dashboard() {
   }
 
 
-  const handleCreateTrip = React.useCallback(() => {
-    setResumeData(null) // Clear any resume data
-    setShowTripCreationModal(true)
-  }, [])
 
   const handleContinueTrip = (draftData: any) => {
     setResumeData(draftData)
     setShowTripCreationModal(true)
   }
 
-  // Open trip creation modal when triggered from Header
-  React.useEffect(() => {
-    const handleOpenTripCreation = () => {
-      handleCreateTrip()
-    }
-    window.addEventListener('openTripCreation', handleOpenTripCreation as EventListener)
-    return () => window.removeEventListener('openTripCreation', handleOpenTripCreation as EventListener)
-  }, [handleCreateTrip])
-
   const handleTripCreated = async (trip: any) => {
+    console.log('🎉 [Dashboard] Trip created callback triggered with data:', trip)
+    
+    // Close the modal first
     setShowTripCreationModal(false)
     setResumeData(null)
-    await addTripOptimistically(trip)
-    const mutationId = crypto.randomUUID()
-    await createTrip(trip.id, user?.id || '', mutationId)
-    router.refresh()
+    console.log('✅ [Dashboard] Modal closed and resume data cleared')
+    
+    // Convert trip data to proper TripCard format for cache
+    const tripCard: TripCardType = {
+      id: trip.id,
+      title: trip.title || 'New Trip',
+      subject: trip.subject || trip.description || '',
+      client: [], // Will be populated from trip data
+      guests: [],
+      wolthersStaff: trip.participants || [],
+      vehicles: [],
+      drivers: [],
+      startDate: trip.startDate || new Date(),
+      endDate: trip.endDate || new Date(),
+      duration: trip.endDate && trip.startDate 
+        ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
+        : 1,
+      status: 'confirmed' as any, // Finalized trips are confirmed
+      tripType: trip.tripType || 'convention',
+      accessCode: trip.accessCode,
+      isDraft: false,
+      createdAt: trip.createdAt || new Date(),
+      updatedAt: new Date(),
+      // Additional TripCard properties if needed
+      progress: 100, // Finalized trips are 100% complete
+      daysRemaining: trip.startDate 
+        ? Math.ceil((new Date(trip.startDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+    }
+
+    try {
+      console.log('🚀 [Dashboard] Using optimistic update to add trip to cache')
+      console.log('📦 [Dashboard] Trip card data:', tripCard)
+      
+      // Use optimistic update to immediately add the trip to the cache
+      // This provides instant UI feedback without waiting for network requests
+      if (addTripOptimistically) {
+        await addTripOptimistically(tripCard)
+        console.log('✅ [Dashboard] Trip added optimistically to cache')
+        
+        // Also refresh silently in the background to ensure data consistency
+        setTimeout(async () => {
+          try {
+            console.log('🔄 [Dashboard] Background refresh to ensure consistency...')
+            await refreshSilently()
+            console.log('✅ [Dashboard] Background refresh successful')
+          } catch (backgroundError) {
+            console.warn('⚠️ [Dashboard] Background refresh failed, but optimistic update succeeded:', backgroundError)
+          }
+        }, 1000)
+      } else {
+        // Fallback to traditional refresh if optimistic updates unavailable
+        console.warn('⚠️ [Dashboard] Optimistic updates not available, falling back to refresh')
+        await refreshSilently()
+      }
+      
+    } catch (error) {
+      console.error('❌ [Dashboard] Trip creation handling failed:', error)
+      
+      // Fallback to force refresh if everything else fails
+      try {
+        console.log('🔄 [Dashboard] Falling back to force refresh...')
+        await refetch()
+        console.log('✅ [Dashboard] Force refresh successful')
+      } catch (forceError) {
+        console.error('💥 [Dashboard] All refresh attempts failed:', forceError)
+        
+        // Only use hard refresh as absolute last resort
+        console.log('🔄 [Dashboard] Falling back to hard refresh in 2 seconds...')
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    }
   }
 
   const closeModal = () => {
@@ -256,13 +348,6 @@ export default function Dashboard() {
     setShowPasswordPrompt(false)
     setShowUserPanel(true)
   }
-
-  // Ensure selected trip exists in refreshed list
-  React.useEffect(() => {
-    if (selectedTrip && !trips.some(t => t.id === selectedTrip.id)) {
-      setSelectedTrip(null)
-    }
-  }, [trips, selectedTrip])
 
   // Handle loading and error states within the main render to maintain hooks order
   if (loading) {

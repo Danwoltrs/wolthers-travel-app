@@ -10,13 +10,13 @@ import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
 import dynamic from 'next/dynamic'
 
-// Dynamically import DriverVehicleStep to prevent SSR issues
-const DriverVehicleStep = dynamic(() => import('./DriverVehicleStep'), {
+// Dynamically import TeamVehicleStep to prevent SSR issues
+const TeamVehicleStep = dynamic(() => import('./TeamVehicleStep'), {
   ssr: false,
   loading: () => (
     <div className="space-y-8">
       <div className="flex items-center justify-center py-8">
-        <div className="text-gray-500 dark:text-gray-400">Loading driver & vehicle...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading drivers & vehicles...</div>
       </div>
     </div>
   )
@@ -26,6 +26,7 @@ import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'
 import StartingPointSelectionStep from './StartingPointSelectionStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
+import PersonalMessageModal from './PersonalMessageModal'
 import type { 
   Company, 
   User, 
@@ -113,6 +114,9 @@ export interface TripFormData {
   
   // Step 4: Starting Point Selection
   startingPoint?: string // Starting location for the trip
+  flightInfo?: any // Flight information for GRU airport pickup
+  nextDestination?: 'hotel' | 'office' // Destination after airport pickup
+  destinationAddress?: string // Address for hotel/office destination after pickup
   
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
@@ -122,15 +126,6 @@ export interface TripFormData {
   // Legacy fields for compatibility
   wolthersStaff: User[]
   vehicles: Vehicle[]
-  drivers: User[]
-
-  // Basic vehicle selection
-  selectedVehicleId?: string
-  rentalVehicle?: {
-    provider: string
-    pickup: string
-    dropoff: string
-  } | null
   
   // Vehicle allocation data
   vehicleAssignments?: any[]  // Vehicle assignment data from vehicle allocation system
@@ -178,9 +173,6 @@ const initialFormData: TripFormData = {
   itineraryDays: [],
   wolthersStaff: [],
   vehicles: [],
-  drivers: [],
-  selectedVehicleId: undefined,
-  rentalVehicle: null,
   vehicleAssignments: [],
   meetings: [],
   hotels: [],
@@ -197,18 +189,18 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
       { id: 5, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
       { id: 6, name: 'Flights & Travel', description: 'Arrange international flights and travel' },
-      { id: 7, name: 'Drivers & Vehicle', description: 'Assign driver and vehicle' },
+      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else if (tripType === 'in_land') {
     return [
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Basic Information', description: 'Trip details and dates' },
-      { id: 3, name: 'Team & Participants', description: 'Select Wolthers staff and buyer companies' },
+      { id: 3, name: 'Team & Participants', description: 'Select team members and companies' },
       { id: 4, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 5, name: 'Starting Point', description: 'Choose where the trip begins' },
       { id: 6, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 7, name: 'Drivers & Vehicle', description: 'Assign driver and vehicle' },
+      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
@@ -237,6 +229,14 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
     return true
   })
+  
+  // Personal message modal state
+  const [showPersonalMessageModal, setShowPersonalMessageModal] = useState(false)
+  const [currentHost, setCurrentHost] = useState<{name: string, email: string, companyName: string} | null>(null)
+  const [hostQueue, setHostQueue] = useState<Array<{name: string, email: string, companyName: string}>>([])
+  const [hostMessages, setHostMessages] = useState<Record<string, string>>({})
+  const [sendingEmails, setSendingEmails] = useState(false)
+  
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
   const { alert } = useDialogs()
@@ -385,6 +385,179 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [])
 
+  // Helper function to process host messages queue
+  const processHostQueue = () => {
+    if (hostQueue.length > 0) {
+      const nextHost = hostQueue[0]
+      setCurrentHost(nextHost)
+      setShowPersonalMessageModal(true)
+    } else {
+      // All hosts processed, send emails with messages
+      sendEmailsWithMessages()
+    }
+  }
+
+  // Handle personal message modal submission
+  const handlePersonalMessage = (message: string) => {
+    if (currentHost) {
+      // Store the message for this host
+      setHostMessages(prev => ({
+        ...prev,
+        [`${currentHost.email}`]: message
+      }))
+      
+      // Remove current host from queue
+      setHostQueue(prev => prev.slice(1))
+      setCurrentHost(null)
+      setShowPersonalMessageModal(false)
+      
+      // Process next host or send emails
+      setTimeout(processHostQueue, 100)
+    }
+  }
+
+  // Send emails with collected personal messages
+  const sendEmailsWithMessages = async () => {
+    setSendingEmails(true)
+    console.log('📧 [TripCreation] Sending emails with personal messages...')
+    
+    try {
+      // Now send emails with collected messages
+      await sendTripInvitationEmails(formData)
+      console.log('✅ [TripCreation] All emails sent successfully with personal messages')
+    } catch (emailError) {
+      console.error('❌ [TripCreation] Failed to send emails with messages:', emailError)
+    }
+    
+    setSendingEmails(false)
+    setHostMessages({})
+    
+    // Close the modal after all emails are sent
+    console.log('🚪 [TripCreation] Closing modal after email sending...')
+    handleClose()
+  }
+
+  // Helper function to send trip invitation emails and host invitations
+  const sendTripInvitationEmails = async (tripData: any) => {
+    const promises = []
+    
+    // Send Wolthers staff invitations
+    if (tripData.participants && tripData.participants.length > 0) {
+      console.log('📧 [TripCreation] Sending Wolthers staff invitations...')
+      
+      const emailData = {
+        tripTitle: tripData.title || 'New Trip',
+        tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
+        tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
+        tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
+        createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+        participants: (tripData.participants || []).map((p: any) => ({
+          name: p.fullName || p.full_name || 'Team Member',
+          email: p.email,
+          role: p.role || 'Staff'
+        })),
+        companies: (tripData.companies || []).map((c: any) => ({
+          name: c.name,
+          representatives: []
+        }))
+      }
+
+      const staffPromise = fetch('/api/emails/trip-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(emailData)
+      })
+      promises.push(staffPromise)
+    }
+
+    // Send host invitations for external companies
+    if (tripData.companies && tripData.companies.length > 0) {
+      console.log('📧 [TripCreation] Preparing host invitations...')
+      
+      // Collect all hosts from selected companies with contacts
+      const hosts = []
+      for (const company of tripData.companies) {
+        if (company.selectedContacts && company.selectedContacts.length > 0) {
+          for (const contact of company.selectedContacts) {
+            hosts.push({
+              name: contact.name,
+              email: contact.email,
+              companyName: company.fantasyName || company.name,
+              whatsApp: contact.phone
+            })
+          }
+        }
+      }
+
+      if (hosts.length > 0) {
+        console.log(`📧 [TripCreation] Sending host invitations to ${hosts.length} hosts...`)
+        
+        const hostEmailData = {
+          hosts: hosts.map(host => {
+            // Get the buyer company names from the trip data
+            const buyerCompanies = (tripData.companies || [])
+              .filter(c => c.selectedContacts && c.selectedContacts.length > 0)
+              .map(c => c.fantasyName || c.name)
+            
+            return {
+              ...host,
+              personalMessage: hostMessages[host.email] || '',
+              visitingCompanyName: buyerCompanies.join(', ') || 'Our Team', // The buyer companies visiting
+              visitDate: tripData.startDate ? new Date(tripData.startDate).toLocaleDateString() : '',
+              visitTime: 'Morning (9:00 AM - 12:00 PM)' // Default visit time, can be customized later
+            }
+          }),
+          tripTitle: tripData.title || 'New Trip',
+          tripAccessCode: tripData.accessCode || saveStatus.accessCode || formData.accessCode,
+          tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
+          tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
+          inviterName: 'Daniel Wolthers', // TODO: Get from current user context
+          inviterEmail: 'daniel@wolthers.com', // TODO: Get from current user context
+          wolthersTeam: (tripData.participants || []).map((p: any) => ({
+            name: p.fullName || p.full_name || 'Team Member',
+            role: p.role || 'Staff'
+          }))
+        }
+
+        const hostPromise = fetch('/api/emails/host-invitation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(hostEmailData)
+        })
+        promises.push(hostPromise)
+      } else {
+        console.log('📧 [TripCreation] No host contacts selected, skipping host invitations')
+      }
+    }
+
+    if (promises.length === 0) {
+      console.log('📧 [TripCreation] No participants or hosts found, skipping all email notifications')
+      return
+    }
+
+    // Execute all email sending in parallel
+    const results = await Promise.allSettled(promises)
+    
+    // Check results and log any errors
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`❌ [TripCreation] Email batch ${index + 1} failed:`, result.reason)
+      } else if (!result.value.ok) {
+        console.error(`❌ [TripCreation] Email batch ${index + 1} returned error status:`, result.value.status)
+      } else {
+        console.log(`✅ [TripCreation] Email batch ${index + 1} sent successfully`)
+      }
+    })
+
+    // If any critical errors occurred, log but don't fail the trip creation
+    const failedCount = results.filter(r => r.status === 'rejected').length
+    if (failedCount > 0) {
+      console.warn(`⚠️ [TripCreation] ${failedCount}/${results.length} email batches failed, but trip was created successfully`)
+    }
+  }
+
   if (!isOpen) return null
 
   const steps = getStepsForTripType(formData.tripType)
@@ -456,6 +629,40 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
         onTripCreated?.(tripData)
         
+        // Check if we have hosts and start personal message flow
+        const hosts = []
+        if (tripData.companies && tripData.companies.length > 0) {
+          for (const company of tripData.companies) {
+            if (company.selectedContacts && company.selectedContacts.length > 0) {
+              for (const contact of company.selectedContacts) {
+                hosts.push({
+                  name: contact.name,
+                  email: contact.email,
+                  companyName: company.fantasyName || company.name
+                })
+              }
+            }
+          }
+        }
+
+        if (hosts.length > 0) {
+          console.log(`📧 [TripCreation] Found ${hosts.length} hosts, starting personal message flow...`)
+          setHostQueue(hosts)
+          setIsSubmitting(false) // Allow modal interaction
+          processHostQueue() // Start the personal message flow
+          return // Don't close modal yet
+        } else {
+          // No hosts, send emails directly
+          try {
+            console.log('📧 [TripCreation] No hosts found, sending staff emails directly...')
+            await sendTripInvitationEmails(tripData)
+            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+          } catch (emailError) {
+            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+            // Don't fail the entire process if email fails
+          }
+        }
+        
         // Clear temp ID after successful creation
         sessionStorage.removeItem('trip-creation-temp-id')
         console.log('🧹 [TripCreation] Cleared session storage temp ID')
@@ -472,6 +679,40 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         
         console.log('📤 [TripCreation] Calling onTripCreated for direct creation with:', newTrip)
         onTripCreated?.(newTrip)
+        
+        // Check if we have hosts and start personal message flow for direct creation
+        const hosts = []
+        if (newTrip.companies && newTrip.companies.length > 0) {
+          for (const company of newTrip.companies) {
+            if (company.selectedContacts && company.selectedContacts.length > 0) {
+              for (const contact of company.selectedContacts) {
+                hosts.push({
+                  name: contact.name,
+                  email: contact.email,
+                  companyName: company.fantasyName || company.name
+                })
+              }
+            }
+          }
+        }
+
+        if (hosts.length > 0) {
+          console.log(`📧 [TripCreation] Found ${hosts.length} hosts for direct creation, starting personal message flow...`)
+          setHostQueue(hosts)
+          setIsSubmitting(false) // Allow modal interaction
+          processHostQueue() // Start the personal message flow
+          return // Don't close modal yet
+        } else {
+          // No hosts, send emails directly
+          try {
+            console.log('📧 [TripCreation] No hosts found, sending staff emails directly for direct creation...')
+            await sendTripInvitationEmails(newTrip)
+            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
+          } catch (emailError) {
+            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
+            // Don't fail the entire process if email fails
+          }
+        }
       }
       
       console.log('🚪 [TripCreation] Closing modal...')
@@ -487,14 +728,19 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   }
 
   const handleClose = async () => {
+    console.log('🚪 [TripCreation] Closing modal - checking if data should be saved')
+    
     // Save progress before closing if we have meaningful data
     if (formData.tripType && (currentStep > 2 || (currentStep === 2 && (formData.title || formData.companies.length > 0)))) {
+      console.log('💾 [TripCreation] Saving progress before close')
       await saveProgress(formData, currentStep, false)
     }
     
     // Clear temp ID from session storage when modal is closed
     sessionStorage.removeItem('trip-creation-temp-id')
+    console.log('🧹 [TripCreation] Cleared session storage')
     
+    // Reset form state
     setFormData(initialFormData)
     setCurrentStep(1)
     setSaveStatus({
@@ -502,12 +748,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       lastSaved: null,
       error: null
     })
+    
+    console.log('🔄 [TripCreation] Form state reset, calling onClose')
     onClose()
     
-    // Hard refresh to show saved drafts immediately
-    if (formData.tripType && (currentStep > 2 || (formData.title || formData.companies.length > 0))) {
-      window.location.reload()
-    }
+    // No more hard refresh - let the dashboard handle cache updates properly
+    console.log('✅ [TripCreation] Modal closed cleanly without hard refresh')
   }
 
   const canProceed = () => {
@@ -533,9 +779,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Flights & Travel step - optional but allow proceeding
           return true
         case 7:
-          // Drivers & Vehicle step - require driver and vehicle/rental
-          return formData.drivers.length > 0 &&
-            (!!formData.selectedVehicleId || !!formData.rentalVehicle)
+          // Drivers & Vehicles step - require staff selection
+          return formData.wolthersStaff.length > 0
         case 8:
           return true
         default:
@@ -561,8 +806,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Calendar Schedule: allow proceeding (activities can be added later)
           return true
         case 7:
-          return formData.drivers.length > 0 &&
-            (!!formData.selectedVehicleId || !!formData.rentalVehicle)
+          return true
         default:
           return false
       }
@@ -573,7 +817,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white dark:bg-[#0f1419] rounded-none md:rounded-2xl shadow-2xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[95vh] flex flex-col">
+      <div className="bg-white dark:bg-[#0f1419] rounded-none md:rounded-2xl shadow-2xl border-0 md:border border-pearl-200 dark:border-[#2a2a2a] w-full h-full md:h-auto md:max-w-7xl md:max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-pearl-200 dark:border-[#2a2a2a] flex-shrink-0 rounded-t-none md:rounded-t-2xl" style={{ backgroundColor: '#FBBF23' }}>
           <div className="flex items-center space-x-3">
@@ -724,7 +968,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'convention' && currentStep === 7 && (
-            <DriverVehicleStep
+            <TeamVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
@@ -771,7 +1015,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 7 && (
-            <DriverVehicleStep
+            <TeamVehicleStep
               formData={formData}
               updateFormData={updateFormData}
             />
@@ -884,6 +1128,25 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </div>
         </div>
       </div>
+      
+      {/* Personal Message Modal */}
+      {showPersonalMessageModal && currentHost && (
+        <PersonalMessageModal
+          isOpen={showPersonalMessageModal}
+          onClose={() => {
+            // Cancel the entire personal message flow
+            setShowPersonalMessageModal(false)
+            setCurrentHost(null)
+            setHostQueue([])
+            setHostMessages({})
+            handleClose() // Close the main modal
+          }}
+          onSend={handlePersonalMessage}
+          hostName={currentHost.name}
+          companyName={currentHost.companyName}
+          isLoading={sendingEmails}
+        />
+      )}
     </div>
   )
 }

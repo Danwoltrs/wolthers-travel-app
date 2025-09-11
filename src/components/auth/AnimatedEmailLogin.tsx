@@ -7,15 +7,17 @@ import { cn } from '@/lib/utils'
 
 interface AnimatedEmailLoginProps {
   onSubmit?: (email: string, password: string) => Promise<void>
+  onPasswordError?: () => void
   className?: string
 }
 
-export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginProps) {
+export function AnimatedEmailLogin({ onSubmit, onPasswordError, className }: AnimatedEmailLoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isFlipped, setIsFlipped] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [passwordAttempted, setPasswordAttempted] = useState(false)
   
   const passwordRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -48,8 +50,12 @@ export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginPr
     if (!emailRegex.test(email) || !password.trim() || isLoading) return
 
     setIsLoading(true)
+    setPasswordAttempted(true)
     try {
       await onSubmit?.(email, password)
+    } catch (error) {
+      // If login fails, trigger the password error callback
+      onPasswordError?.()
     } finally {
       setIsLoading(false)
     }
@@ -64,6 +70,7 @@ export function AnimatedEmailLogin({ onSubmit, className }: AnimatedEmailLoginPr
   const handlePasswordKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && emailRegex.test(email) && password.trim() && !isLoading) {
       e.preventDefault()
+      setPasswordAttempted(true)
       const formEvent = {
         preventDefault: () => {},
       } as React.FormEvent

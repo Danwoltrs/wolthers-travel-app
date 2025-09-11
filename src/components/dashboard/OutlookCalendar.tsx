@@ -735,6 +735,33 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   )
 })
 
+// Helper function to calculate dynamic column widths based on trip duration
+function getCalendarDimensions(dayCount: number) {
+  let dayWidth, sideColumns
+  
+  if (dayCount <= 3) {
+    dayWidth = 160  // Wide columns for short trips (1-3 days)
+    sideColumns = 140 // Wide side columns
+  } else if (dayCount <= 7) {
+    dayWidth = 140  // Standard width for weekly trips (4-7 days)
+    sideColumns = 120
+  } else if (dayCount <= 14) {
+    dayWidth = 120  // Compact for bi-weekly trips (8-14 days)
+    sideColumns = 100
+  } else if (dayCount <= 21) {
+    dayWidth = 100  // Narrow for 3-week trips (15-21 days)
+    sideColumns = 80
+  } else {
+    dayWidth = 90   // Very compact for month+ trips (22+ days)
+    sideColumns = 70
+  }
+  
+  const totalWidth = sideColumns + (dayCount * dayWidth) + sideColumns
+  const gridTemplate = `minmax(${sideColumns}px, ${sideColumns}px) repeat(${dayCount}, minmax(${dayWidth}px, 1fr)) minmax(${sideColumns}px, ${sideColumns}px)`
+  
+  return { dayWidth, sideColumns, totalWidth, gridTemplate }
+}
+
 export function OutlookCalendar({ 
   trip,
   activities,
@@ -769,6 +796,12 @@ export function OutlookCalendar({
       }
     })
   }, [trip.startDate, trip.endDate])
+
+  // Get dynamic calendar dimensions based on trip duration
+  const calendarDimensions = useMemo(() => 
+    getCalendarDimensions(calendarDays.length), 
+    [calendarDays.length]
+  )
 
   const activitiesByDate = getActivitiesByDate()
 
@@ -1036,20 +1069,18 @@ export function OutlookCalendar({
           </div>
         </div>
 
-        {/* Calendar Grid - Enhanced Width and Flexible Layout for Multi-Day Trips */}
+        {/* Calendar Grid - Enhanced Dynamic Width Based on Trip Duration */}
         <div className="overflow-x-auto">
           <div className="w-full">
-            <div className={`w-full ${calendarDays.length > 7 ? 'min-w-max' : 'min-w-fit'}`} style={{
-              minWidth: calendarDays.length > 7 ? `${120 + (calendarDays.length * 140) + 120}px` : 'fit-content'
+            <div className={`w-full ${calendarDays.length > 5 ? 'min-w-max' : 'min-w-fit'}`} style={{
+              minWidth: `${calendarDimensions.totalWidth}px`
             }}>
-              {/* Day Headers - Enhanced for multi-day trips */}
-              <div className="grid border-b border-gray-200 dark:border-gray-700" style={{ 
-                gridTemplateColumns: calendarDays.length > 7 
-                  ? `minmax(120px, 120px) repeat(${calendarDays.length}, minmax(140px, 1fr)) minmax(120px, 120px)` 
-                  : `minmax(80px, 120px) repeat(${calendarDays.length}, minmax(120px, 1fr)) minmax(80px, 120px)` 
+              {/* Day Headers - Dynamic Responsive Layout Based on Trip Duration */}
+              <div className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700" style={{ 
+                gridTemplateColumns: calendarDimensions.gridTemplate
               }}>
                 {/* Time column header */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
                   <button
                     onClick={() => onExtendTrip('before')}
                     className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -1059,12 +1090,16 @@ export function OutlookCalendar({
                   </button>
                 </div>
 
-                {/* Day columns with enhanced responsive layout */}
+                {/* Day columns with dynamic responsive layout */}
                 {calendarDays.map((day, index) => (
                   <div
                     key={day.dateString}
-                    className={`p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center ${
-                      calendarDays.length > 7 ? 'min-w-[140px]' : ''
+                    className={`bg-gray-50 dark:bg-[#2a2a2a] text-center ${
+                      // Dynamic padding based on trip length
+                      calendarDays.length <= 3 ? 'p-3 md:p-4' :
+                      calendarDays.length <= 7 ? 'p-2 md:p-3' :
+                      calendarDays.length <= 14 ? 'p-1 md:p-2' :
+                      'p-1'
                     }`}
                   >
                     {/* Day header with inline remove buttons - improved for multi-day */}
@@ -1074,7 +1109,13 @@ export function OutlookCalendar({
                         <button
                           onClick={() => handleRemoveFirstDay()}
                           disabled={!canRemoveFirstDay}
-                          className={`mr-1 w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                          className={`flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                            // Dynamic button sizes based on trip length
+                            calendarDays.length <= 3 ? 'mr-2 w-5 h-5 md:w-6 md:h-6' :
+                            calendarDays.length <= 7 ? 'mr-1 w-4 h-4 md:w-5 md:h-5' :
+                            calendarDays.length <= 14 ? 'mr-1 w-3 h-3 md:w-4 md:h-4' :
+                            'mr-0.5 w-3 h-3'
+                          } ${
                             canRemoveFirstDay
                               ? 'border-red-300 dark:border-red-600 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 text-red-500 dark:text-red-400 cursor-pointer'
                               : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
@@ -1084,21 +1125,39 @@ export function OutlookCalendar({
                           <Minus className="w-2 h-2 md:w-3 md:h-3" />
                         </button>
                       ) : (
-                        // Smaller spacer for multi-day layout
-                        <div className={`${calendarDays.length > 7 ? 'w-4 h-4 mr-1' : 'w-5 h-5 md:w-6 md:h-6 mr-2'} flex-shrink-0`} />
+                        // Dynamic spacer based on trip length
+                        <div className={`flex-shrink-0 ${
+                          calendarDays.length <= 3 ? 'w-5 h-5 md:w-6 md:h-6 mr-2' :
+                          calendarDays.length <= 7 ? 'w-4 h-4 md:w-5 md:h-5 mr-1' :
+                          calendarDays.length <= 14 ? 'w-3 h-3 md:w-4 md:h-4 mr-1' :
+                          'w-3 h-3 mr-0.5'
+                        }`} />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className={`font-medium text-gray-900 dark:text-gray-100 truncate ${
-                          calendarDays.length > 7 ? 'text-xs md:text-sm' : 'text-xs md:text-sm lg:text-base'
+                          // Dynamic text sizing based on trip length  
+                          calendarDays.length <= 3 ? 'text-sm md:text-base lg:text-lg' :
+                          calendarDays.length <= 7 ? 'text-xs md:text-sm lg:text-base' :
+                          calendarDays.length <= 14 ? 'text-xs md:text-sm' :
+                          'text-xs'
                         }`}>
-                          {calendarDays.length > 7 ? day.dayName.slice(0, 3) : day.dayName}
+                          {/* Dynamic day name length based on available space */}
+                          {calendarDays.length <= 7 ? day.dayName : 
+                           calendarDays.length <= 14 ? day.dayName.slice(0, 3) :
+                           day.dayName.slice(0, 2)}
                         </div>
                         <div className={`text-gray-500 dark:text-gray-400 truncate ${
-                          calendarDays.length > 7 ? 'text-xs' : 'text-xs md:text-sm'
+                          calendarDays.length <= 3 ? 'text-xs md:text-sm' :
+                          calendarDays.length <= 7 ? 'text-xs md:text-sm' :
+                          calendarDays.length <= 14 ? 'text-xs' :
+                          'text-xs hidden md:block'
                         }`}>
-                          {calendarDays.length > 7 
-                            ? `${day.monthName.slice(0, 3)} ${day.dayNumber}` 
-                            : `${day.monthName} ${day.dayNumber}`
+                          {/* Dynamic date format based on available space */}
+                          {calendarDays.length <= 7 
+                            ? `${day.monthName} ${day.dayNumber}`
+                            : calendarDays.length <= 14
+                            ? `${day.monthName.slice(0, 3)} ${day.dayNumber}`
+                            : `${day.dayNumber}`
                           }
                         </div>
                       </div>
@@ -1107,7 +1166,13 @@ export function OutlookCalendar({
                         <button
                           onClick={() => handleRemoveDay()}
                           disabled={!canRemoveLastDay}
-                          className={`ml-1 w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                          className={`flex items-center justify-center border rounded transition-colors flex-shrink-0 ${
+                            // Dynamic button sizes based on trip length (matching first day button)
+                            calendarDays.length <= 3 ? 'ml-2 w-5 h-5 md:w-6 md:h-6' :
+                            calendarDays.length <= 7 ? 'ml-1 w-4 h-4 md:w-5 md:h-5' :
+                            calendarDays.length <= 14 ? 'ml-1 w-3 h-3 md:w-4 md:h-4' :
+                            'ml-0.5 w-3 h-3'
+                          } ${
                             canRemoveLastDay
                               ? 'border-red-300 dark:border-red-600 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 text-red-500 dark:text-red-400 cursor-pointer'
                               : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
@@ -1117,15 +1182,20 @@ export function OutlookCalendar({
                           <Minus className="w-2 h-2 md:w-3 md:h-3" />
                         </button>
                       ) : (
-                        // Smaller spacer for multi-day layout
-                        <div className={`${calendarDays.length > 7 ? 'w-4 h-4 ml-1' : 'w-5 h-5 md:w-6 md:h-6 ml-2'} flex-shrink-0`} />
+                        // Dynamic spacer based on trip length (matching first day spacer)
+                        <div className={`flex-shrink-0 ${
+                          calendarDays.length <= 3 ? 'w-5 h-5 md:w-6 md:h-6 ml-2' :
+                          calendarDays.length <= 7 ? 'w-4 h-4 md:w-5 md:h-5 ml-1' :
+                          calendarDays.length <= 14 ? 'w-3 h-3 md:w-4 md:h-4 ml-1' :
+                          'w-3 h-3 ml-0.5'
+                        }`} />
                       )}
                     </div>
                   </div>
                 ))}
 
                 {/* Add day after button */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700">
+                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
                   <button
                     onClick={() => onExtendTrip('after')}
                     className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -1136,20 +1206,18 @@ export function OutlookCalendar({
                 </div>
               </div>
 
-              {/* Time Slots Grid with enhanced responsive layout */}
+              {/* Time Slots Grid with dynamic responsive layout */}
               <div className={refreshing ? 'opacity-50 pointer-events-none' : ''}>
                 {TIME_SLOTS.map((timeSlot) => (
                   <div
                     key={timeSlot.time}
-                    className="grid border-b border-gray-200 dark:border-gray-700"
+                    className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700"
                     style={{ 
-                      gridTemplateColumns: calendarDays.length > 7 
-                        ? `minmax(120px, 120px) repeat(${calendarDays.length}, minmax(140px, 1fr)) minmax(120px, 120px)` 
-                        : `minmax(80px, 120px) repeat(${calendarDays.length}, minmax(120px, 1fr)) minmax(80px, 120px)` 
+                      gridTemplateColumns: calendarDimensions.gridTemplate
                     }}
                   >
                     {/* Time label */}
-                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] border-r border-gray-200 dark:border-gray-700 text-center">
+                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
                       <div className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         {timeSlot.display}
                       </div>
@@ -1159,7 +1227,6 @@ export function OutlookCalendar({
                     {calendarDays.map((day) => (
                       <div
                         key={`${day.dateString}-${timeSlot.time}`}
-                        className="border-r border-gray-200 dark:border-gray-700"
                       >
                         <TimeSlotComponent
                           timeSlot={timeSlot}
@@ -1175,7 +1242,7 @@ export function OutlookCalendar({
                     ))}
 
                     {/* Empty cell for add day after column */}
-                    <div className="border-r border-gray-200 dark:border-gray-700" />
+                    <div />
                   </div>
                 ))}
               </div>

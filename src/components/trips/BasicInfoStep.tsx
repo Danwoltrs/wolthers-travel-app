@@ -5,6 +5,7 @@ import type { User } from '@/types'
 import UserCreationModal from './UserCreationModal'
 import { useTripCodeValidation } from '@/hooks/useTripCodeValidation'
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
+import TravelDatePicker, { TravelDatePickerRef } from '@/components/ui/TravelDatePicker'
 
 interface BasicInfoStepProps {
   formData: TripFormData
@@ -13,6 +14,7 @@ interface BasicInfoStepProps {
 
 
 export default function BasicInfoStep({ formData, updateFormData }: BasicInfoStepProps) {
+
   // Check if this is a predefined event (from convention selection)
   // Also check if accessCode was set from event selection to prevent overwrites
   const isPredefinedEvent = (
@@ -27,20 +29,22 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
     generateTripCode: generateCustomTripCode, 
     validationResult 
   } = useTripCodeValidation(
-    formData.accessCode || '', 
+    formData.accessCode ? formData.accessCode.toUpperCase() : '', 
     formData
   )
   
-  // Initialize the code from formData if not already set
+  // Sync the code with formData changes, but avoid overwriting valid user input
   React.useEffect(() => {
-    if (formData.accessCode && !code) {
-      console.log('🎯 Initializing access code:', formData.accessCode)
-      setCode(formData.accessCode)
+    if (formData.accessCode && formData.accessCode !== code && !validationResult.isChecking) {
+      const upperCaseCode = formData.accessCode.toUpperCase()
+      console.log('🎯 Syncing access code from formData:', upperCaseCode)
+      setCode(upperCaseCode)
     }
-  }, [formData.accessCode, code, setCode])
+  }, [formData.accessCode, code, setCode, validationResult.isChecking])
 
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<string | undefined>()
+  const datePickerRef = React.useRef<TravelDatePickerRef>(null)
 
 
   const handleUserCreated = (user: User) => {
@@ -61,14 +65,6 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
   }
 
 
-  const formatDateForInput = (date: Date | null): string => {
-    if (!date) return ''
-    const d = new Date(date)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
 
   return (
     <div className="space-y-6">
@@ -78,60 +74,117 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
         </h2>
       </div>
 
-      {/* Trip Title */}
-      <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
-          Trip Title *
-        </label>
-        <div className="flex items-center space-x-2">
-          <div className="flex-1">
-            <input
-              type="text"
-              id="title"
-              value={formData.title}
-              onChange={(e) => updateFormData({ title: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
-              placeholder={formData.title ? "" : "e.g., NCA Convention 2025"}
-            />
-          </div>
-          {(formData.startDate || formData.tripType === 'in_land') && (
-            <div className="flex items-center space-x-2 mt-1">
-              <div className="flex items-center">
-                <Hash className="w-4 h-4 text-gray-400 mr-1" />
-                <input
-                  type="text"
-                  id="accessCode"
-                  value={code}
-                  onChange={(e) => {
-                    const newCode = e.target.value.toUpperCase()
-                    setCode(newCode)
-                    updateFormData({ accessCode: newCode })
-                  }}
-                  readOnly={false}
-                  className={`
-                    w-40 px-2 py-1 text-sm font-mono border-none outline-none
-                    ${validationResult.isValid ? 'text-gray-800' : 'text-red-600'}
-                    placeholder-gray-400
-                  `}
-                  placeholder={code || (formData.startDate ? "Generating..." : "Enter trip code")}
-                  title="Editable Trip Code"
-                />
+      {/* Trip Title, Travel Dates, and Trip Code on same line */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Trip Title */}
+        <div className="md:col-span-2">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
+            Trip Title *
+          </label>
+          <input
+            type="text"
+            id="title"
+            value={formData.title}
+            onChange={(e) => updateFormData({ title: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && !e.shiftKey && formData.title.trim()) {
+                e.preventDefault()
+                datePickerRef.current?.openCalendar()
+              }
+            }}
+            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
+            placeholder="e.g., Coffee Farm Tour São Paulo"
+          />
+        </div>
+
+        {/* Travel Date Range */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-emerald-200 mb-2">
+            Travel Dates *
+          </label>
+          <TravelDatePicker
+            ref={datePickerRef}
+            startDate={formData.startDate}
+            endDate={formData.endDate}
+            onChange={(startDate, endDate) => {
+              updateFormData({ 
+                startDate: startDate, 
+                endDate: endDate 
+              })
+            }}
+            placeholder="Select your travel dates"
+            required={true}
+            autoFocus={false}
+          />
+        </div>
+
+        {/* Trip Code */}
+        {(formData.startDate || formData.tripType === 'in_land') && (
+          <div>
+            <label htmlFor="accessCode" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
+              Trip Code *
+            </label>
+            <div className="relative">
+              {/* Hash Icon */}
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <Hash className="w-4 h-4 text-gray-400" />
+              </div>
+              {/* Trip Code Input */}
+              <input
+                type="text"
+                id="accessCode"
+                value={code.toUpperCase()}
+                onChange={(e) => {
+                  // Enforce uppercase letters, numbers, underscores, and dashes only
+                  const sanitized = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '')
+                  // Limit to 20 characters
+                  const trimmed = sanitized.substring(0, 20)
+                  setCode(trimmed)
+                  updateFormData({ accessCode: trimmed })
+                }}
+                maxLength={20}
+                style={{ paddingLeft: '36px' }}
+                className={`
+                  w-full pr-10 py-2 rounded-lg border shadow-sm 
+                  bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 
+                  placeholder-gray-500 dark:placeholder-gray-400
+                  focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
+                  hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 
+                  font-mono text-sm
+                  ${validationResult.isChecking 
+                    ? 'border-yellow-300 dark:border-yellow-700' 
+                    : validationResult.isValid && code 
+                      ? 'border-green-300 dark:border-green-700' 
+                      : !validationResult.isValid && code
+                        ? 'border-red-300 dark:border-red-700'
+                        : 'border-gray-300 dark:border-[#2a2a2a]'
+                  }
+                `}
+                placeholder="COFFEE_SP"
+                title="Trip Code: 2-20 characters, uppercase letters, numbers, underscores, and dashes only"
+              />
+              {/* Validation Icon */}
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
                 {validationResult.isChecking ? (
-                  <RefreshCw className="w-4 h-4 animate-spin text-gray-400 ml-1" />
+                  <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
                 ) : validationResult.isValid ? (
-                  <CheckCircle className="w-4 h-4 text-green-500 ml-1" />
+                  <CheckCircle className="w-4 h-4 text-green-500" />
                 ) : (
-                  <AlertCircle className="w-4 h-4 text-red-500 ml-1" />
+                  <AlertCircle className="w-4 h-4 text-red-500" />
                 )}
               </div>
-              {!validationResult.isValid && validationResult.message && (
-                <div className="text-xs text-red-500 mt-1">
-                  {validationResult.message}
-                </div>
-              )}
             </div>
-          )}
-        </div>
+            {!validationResult.isValid && validationResult.message && (
+              <div className="text-xs text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                {validationResult.message}
+              </div>
+            )}
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              2-20 characters: uppercase letters, numbers, underscores, and dashes only
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Subject */}
@@ -162,51 +215,6 @@ export default function BasicInfoStep({ formData, updateFormData }: BasicInfoSte
           className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-gray-400 dark:hover:border-[#3a3a3a] transition-all duration-200 sm:text-sm px-3 py-2"
           placeholder={formData.description ? "" : "Detailed description of the trip"}
         />
-      </div>
-
-
-      {/* Date Range */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
-            Start Date *
-          </label>
-          <div className="mt-1 relative">
-            <input
-              type="date"
-              id="startDate"
-              value={formatDateForInput(formData.startDate)}
-              onChange={(e) => {
-                const inputDate = e.target.value.split('-');
-                const newDate = new Date(parseInt(inputDate[0]), parseInt(inputDate[1]) - 1, parseInt(inputDate[2]));
-                updateFormData({ startDate: newDate });
-              }}
-              className="block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm px-3 py-2"
-            />
-            <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-emerald-200">
-            End Date *
-          </label>
-          <div className="mt-1 relative">
-            <input
-              type="date"
-              id="endDate"
-              value={formatDateForInput(formData.endDate)}
-              onChange={(e) => {
-                const inputDate = e.target.value.split('-');
-                const newDate = new Date(parseInt(inputDate[0]), parseInt(inputDate[1]) - 1, parseInt(inputDate[2]));
-                updateFormData({ endDate: newDate });
-              }}
-              min={formatDateForInput(formData.startDate)}
-              className="block w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm px-3 py-2"
-            />
-            <Calendar className="absolute right-3 top-2.5 w-4 h-4 text-latte-400 pointer-events-none" />
-          </div>
-        </div>
       </div>
 
       {/* Estimated Budget - Commented out */}

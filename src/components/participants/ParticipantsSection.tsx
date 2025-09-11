@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react'
-import { Users, Building, UserPlus, RotateCcw, AlertCircle } from 'lucide-react'
+import { Users, Building, UserPlus, RotateCcw, AlertCircle, MapPin, X } from 'lucide-react'
 import { useParticipants, ParticipantRole } from '@/hooks/useParticipants'
 import { ParticipantsToolbar } from './ParticipantsToolbar'
 import { ParticipantRow } from './ParticipantRow'
@@ -25,12 +25,14 @@ interface ParticipantsSectionProps {
   }) => void
 }
 
-type TabType = 'staff' | 'company' | 'external'
+type TabType = 'staff' | 'company' | 'external' | 'hosts'
 
 export function ParticipantsSection({ tripId, tripDateRange, className = '', onParticipantStatsChange }: ParticipantsSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('staff')
   const [showGuestInvitationModal, setShowGuestInvitationModal] = useState(false)
   const [showCompanySelectionModal, setShowCompanySelectionModal] = useState(false)
+  const [showHostSelectionModal, setShowHostSelectionModal] = useState(false)
+  const [selectedHostCompany, setSelectedHostCompany] = useState<any>(null)
 
   const {
     filteredParticipants,
@@ -63,6 +65,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
         return companyReps
       case 'external':
         return externalGuests
+      case 'hosts':
+        return [] // TODO: Add hosts data hook
       default:
         return []
     }
@@ -124,6 +128,18 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
         icon: UserPlus,
         title: 'No external guests yet',
         description: 'Add outsider guests joining Wolthers trips'
+      }
+    },
+    { 
+      id: 'hosts' as TabType, 
+      label: 'Host Companies', 
+      count: 0, // TODO: Add host count when hook is ready
+      icon: MapPin,
+      color: 'amber',
+      emptyState: {
+        icon: MapPin,
+        title: 'No host companies selected',
+        description: 'Add host companies to organize visits and meetings'
       }
     }
   ]
@@ -197,6 +213,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
       setShowCompanySelectionModal(true)
     } else if (activeTab === 'external') {
       setShowGuestInvitationModal(true)
+    } else if (activeTab === 'hosts') {
+      setShowHostSelectionModal(true)
     }
   }
 
@@ -272,8 +290,8 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
           onBulkAction={() => {}}
           availabilityLoading={availabilityLoading}
           onRefreshAvailability={refreshAvailability}
-          currentRole={activeTab === 'staff' ? 'staff' : activeTab === 'company' ? 'company_rep' : 'external'}
-          showAddGuestButton={activeTab === 'company' || activeTab === 'external'}
+          currentRole={activeTab === 'staff' ? 'staff' : activeTab === 'company' ? 'company_rep' : activeTab === 'hosts' ? 'host' : 'external'}
+          showAddGuestButton={activeTab === 'company' || activeTab === 'external' || activeTab === 'hosts'}
           onAddGuest={handleAddGuestClick}
         />
 
@@ -336,6 +354,39 @@ export function ParticipantsSection({ tripId, tripDateRange, className = '', onP
         tripId={tripId}
         onInvitationSent={handleGuestInvitationSent}
       />
+      
+      {/* Host Selection Modal - for Host Companies */}
+      {showHostSelectionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add Host Companies</h3>
+              <button
+                onClick={() => setShowHostSelectionModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="text-center py-8">
+              <MapPin className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Host Selection Available
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Host companies can be added during trip creation or from the trip schedule tab.
+                This feature allows you to organize visits and meetings with your host partners.
+              </p>
+              <button
+                onClick={() => setShowHostSelectionModal(false)}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

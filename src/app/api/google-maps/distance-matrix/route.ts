@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import distanceCache, { type DistanceMatrixRequest } from '@/lib/distance-cache'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,27 @@ export async function POST(request: NextRequest) {
         { error: 'Origins and destinations are required' },
         { status: 400 }
       )
+    }
+
+    // Create cache request object
+    const cacheRequest: DistanceMatrixRequest = {
+      origins: Array.isArray(origins) ? origins : [origins],
+      destinations: Array.isArray(destinations) ? destinations : [destinations],
+      mode,
+      units
+    }
+
+    // Check cache first
+    const cachedResult = distanceCache.get(cacheRequest)
+    if (cachedResult) {
+      console.log('🎯 [DistanceMatrix] Serving from cache')
+      return NextResponse.json(cachedResult, { 
+        status: 200,
+        headers: {
+          'X-Cache': 'HIT',
+          'X-Cache-Source': 'distance-matrix-cache'
+        }
+      })
     }
 
     // Check if Google Maps API key is available
@@ -60,8 +82,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Cache the result before returning
+    console.log('💾 [DistanceMatrix] Caching result for future requests')
+    distanceCache.set(cacheRequest, data)
+
     // Return the distance matrix data
-    return NextResponse.json(data, { status: 200 })
+    return NextResponse.json(data, { 
+      status: 200,
+      headers: {
+        'X-Cache': 'MISS',
+        'X-Cache-Source': 'google-maps-api'
+      }
+    })
 
   } catch (error) {
     console.error('Distance matrix API error:', error)

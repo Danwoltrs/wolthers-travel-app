@@ -87,8 +87,8 @@ function generateTitleBasedCode(title: string, month: number, year: number): str
     mainWord = mainWord.charAt(0).toUpperCase() + mainWord.slice(1)
   }
   
-  // Format: MainWord-MonYY (e.g., "Douque-Sep25")
-  return `${mainWord}-${getMonthAbbreviation(month)}${formatYear(year)}`
+  // Format: MainWord-MonYY (e.g., "DOUQUE-SEP25") - ensure uppercase for validation
+  return `${mainWord.toUpperCase()}-${getMonthAbbreviation(month).toUpperCase()}${formatYear(year)}`
 }
 
 // Formats month abbreviation

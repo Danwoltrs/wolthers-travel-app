@@ -1,5 +1,138 @@
 # Development Session Memory - January 13, 2025
 
+---
+
+# Current Session - January 13, 2025 (Host/Guest Selection System)
+
+## 🎯 Host and Guest Selection System Implementation - Complete
+
+### **Problem Statement**
+Trip creation workflow needed comprehensive host and guest participant management:
+1. **Host Selection**: Select representatives from supplier/host companies with email invitations
+2. **Guest Selection**: Select participants from buyer companies for trip management
+3. **Cross-Company Selection Issues**: Previously selected people showing in other company modals
+4. **UI Consistency**: Need unified selection interface across host and guest workflows
+
+### **Solutions Implemented**
+
+#### **1. Enhanced Host Selection Modal with Supabase Integration** ✅
+- **File**: `src/components/trips/HostSelectionModal.tsx`
+- **Features**:
+  - Loads both company users (from Supabase) and manually-added contacts
+  - Multi-select with checkboxes for both data sources
+  - Add/edit/delete contacts functionality
+  - "Add Later" option for deferred configuration
+  - Helper functions to normalize Contact vs CompanyUser data types
+  - Cross-company selection isolation (no bleed-through between companies)
+
+#### **2. Complete Guest Selection System** ✅
+- **File**: `src/components/trips/GuestSelectionModal.tsx`
+- **Features**: 
+  - Identical functionality to HostSelectionModal but for buyer company participants
+  - Same Supabase integration and contact management
+  - Multi-select guest participants from company users and contacts
+  - Proper data normalization and storage as User objects
+
+#### **3. Host Selection Integration in Company Selection** ✅
+- **File**: `src/components/trips/CompanySelectionStep.tsx`
+- **Changes**:
+  - Removed verbose detailed company cards showing full representative info
+  - Simplified to clean summary: "X Host Company Selected" with removable tags
+  - Each company shows as `[Company Name] ✕` for easy individual removal
+  - Kept "Clear All" functionality
+  - Uses fantasy_name preference over company.name
+
+#### **4. Guest Selection Integration in Team & Participants** ✅
+- **File**: `src/components/trips/SimpleTeamParticipantsStep.tsx`
+- **Changes**:
+  - Enhanced buyer company cards with guest selection functionality
+  - Shows guest count: "0 guests selected" → "X guests selected"  
+  - Dynamic button: "Add Guests" → "Manage Guests" when guests exist
+  - Integrated GuestSelectionModal with proper state management
+  - Proper data flow: selected guests stored as `participants` on each company
+
+#### **5. Cross-Company Selection Isolation** ✅
+- **Files**: Both `HostSelectionModal.tsx` and `GuestSelectionModal.tsx`
+- **Fix**: Added `setSelectedContacts([])` / `setSelectedGuests([])` in useEffect
+- **Result**: Each company modal starts clean - no selections from other companies visible
+
+### **Technical Architecture**
+
+#### **Data Flow Pattern**:
+```typescript
+// Host Selection
+Company → HostSelectionModal → selectedContacts → handleSelectHost → updateFormData
+
+// Guest Selection  
+Company → GuestSelectionModal → selectedGuests → handleSelectGuests → updateFormData
+```
+
+#### **Data Normalization**:
+```typescript
+// Both contacts and users converted to consistent User format
+const guests: User[] = selectedGuests.map(guest => ({
+  id: guest.id || `guest_${Date.now()}_${Math.random()}`,
+  full_name: 'full_name' in guest ? guest.full_name : guest.name,
+  email: guest.email || '',
+  company_id: companyId,
+  user_type: 'full_name' in guest ? 'user' : 'contact'
+}))
+```
+
+#### **Key Helper Functions**:
+- `isCompanyUser()` - Type guard for Contact vs CompanyUser
+- `getItemId()`, `getItemName()`, `getItemEmail()` - Unified data access
+- `toggleContactSelection()` - Multi-select logic for mixed data types
+
+### **UI/UX Enhancements**
+
+#### **Host Selection Summary**:
+- **Before**: Detailed cards with addresses, contact info, representative lists
+- **After**: Clean tags: `[Veloso Green Coffee] ✕` with individual removal
+
+#### **Guest Selection Cards**:
+- **Before**: Simple company selection only
+- **After**: Enhanced cards with guest management section
+- **Layout**: Company info (top) + Guest section (bottom) when selected
+- **Guest Section**: "X guests selected" + "Add/Manage Guests" button
+
+### **API Integration Points**
+- **Company Users**: `/api/companies/[id]/users` - Fetches Supabase users
+- **Company Contacts**: `/api/companies/[id]/contacts` - Fetches manual contacts
+- **Parallel Loading**: Both APIs called simultaneously for performance
+
+### **Files Modified**
+```
+src/components/trips/HostSelectionModal.tsx          - Enhanced host selection
+src/components/trips/GuestSelectionModal.tsx        - New guest selection  
+src/components/trips/CompanySelectionStep.tsx       - Simplified host display
+src/components/trips/SimpleTeamParticipantsStep.tsx - Guest selection integration
+```
+
+### **Key User Workflows**
+
+#### **Host Selection Workflow**:
+1. Select company from available hosts → Company added to trip
+2. Click company summary tag → No detailed view (simplified)
+3. Host representatives selected during initial company selection
+4. Email invitations sent to selected hosts (existing functionality)
+
+#### **Guest Selection Workflow**:
+1. Select buyer company (Douqué, Blaser) → Company gets checkmark
+2. "Add Guests" button appears → Click to open GuestSelectionModal
+3. Select from company users + contacts → Multi-select with checkboxes
+4. "Select Guests (X)" → Modal closes, shows "X guests selected"
+5. "Manage Guests" → Re-open modal to modify selections
+
+### **Cross-Company Isolation**
+- **Problem**: Selecting Rick from Veloso, then opening COFCO showed Rick pre-selected
+- **Solution**: Modal useEffect resets selections when switching companies
+- **Result**: Each company modal is independent and clean
+
+---
+
+# Previous Session Memory - January 13, 2025
+
 ## Current Session Accomplishments ✅
 
 ### **🎯 Trip Creation Issues Resolution - Complete Overhaul**

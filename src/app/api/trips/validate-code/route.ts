@@ -5,12 +5,20 @@ export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json()
 
+    // Validate that code exists and is a string
+    if (!code || typeof code !== 'string') {
+      return NextResponse.json({ 
+        isValid: false, 
+        message: 'Trip code is required.' 
+      }, { status: 200 })
+    }
+
     // Validate code format first
     if (!isValidTripCodeFormat(code)) {
       return NextResponse.json({ 
         isValid: false, 
         message: 'Trip code must contain only uppercase letters, numbers, underscores, and dashes (2-20 characters).' 
-      }, { status: 400 })
+      }, { status: 200 }) // Return 200 for validation response, not 400
     }
 
     const supabase = createServerSupabaseClient()

@@ -144,13 +144,16 @@ export default function UserCreationModal({
                   Email Address *
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                  </div>
                   <input
                     type="email"
                     id="email"
                     value={formData.email}
                     onChange={(e) => updateFormData({ email: e.target.value })}
-                    className="block w-full pl-10 pr-3 py-2 rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    style={{ paddingLeft: '36px' }}
+                    className="block w-full pr-3 py-2 rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                     placeholder="joao.silva@company.com"
                     required
                   />
@@ -163,13 +166,16 @@ export default function UserCreationModal({
                   Phone Number
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                  </div>
                   <input
                     type="tel"
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => updateFormData({ phone: e.target.value })}
-                    className="block w-full pl-10 pr-3 py-2 rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    style={{ paddingLeft: '36px' }}
+                    className="block w-full pr-3 py-2 rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                     placeholder="+55 11 9999-9999"
                   />
                 </div>
@@ -208,11 +214,26 @@ export default function UserCreationModal({
                   onChange={(e) => updateFormData({ role: e.target.value as UserRole })}
                   className="block w-full rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2"
                 >
-                  <option value={UserRole.VISITOR}>Visitor</option>
-                  <option value={UserRole.VISITOR_ADMIN}>Visitor Admin</option>
-                  <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>
-                  <option value={UserRole.HOST}>Host</option>
-                  <option value={UserRole.GUEST}>Guest</option>
+                  {/* Roles for Wolthers & Associates staff members */}
+                  {formData.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0' && (
+                    <>
+                      <option value={UserRole.WOLTHERS_STAFF}>Staff - General team member</option>
+                      <option value={UserRole.WOLTHERS_FINANCE}>Finance - Financial management</option>
+                      <option value={UserRole.CAR_MANAGER}>Car Manager - Fleet management</option>
+                      <option value={UserRole.COMPANY_ADMIN}>Company Admin - User management</option>
+                    </>
+                  )}
+                  
+                  {/* Roles for external users */}
+                  {formData.companyId !== '840783f4-866d-4bdb-9b5d-5d0facf62db0' && (
+                    <>
+                      <option value={UserRole.VISITOR}>Visitor - Limited access</option>
+                      <option value={UserRole.VISITOR_ADMIN}>Visitor Admin - Manage visitors</option>
+                      <option value={UserRole.HOST}>Host - Trip host</option>
+                      <option value={UserRole.GUEST}>Guest - View only</option>
+                      <option value={UserRole.DRIVER}>Driver - Fleet access</option>
+                    </>
+                  )}
                 </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Role determines access permissions and trip visibility
