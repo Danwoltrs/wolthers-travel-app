@@ -243,16 +243,6 @@ export default function SimpleTeamParticipantsStep({ formData, updateFormData }:
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-emerald-300 mb-2">
-          Team & Participants
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Select team members and buyer companies for this trip.
-        </p>
-      </div>
-
       {/* Wolthers Staff Selection */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-300 dark:border-[#2a2a2a] p-6">
         <div className="flex items-center justify-between mb-4">

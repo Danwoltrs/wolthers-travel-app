@@ -807,7 +807,7 @@ export async function sendTripCancellationEmails(data: TripCancellationEmailData
   for (const stakeholder of data.stakeholders) {
     try {
       const result = await resend.emails.send({
-        from: 'Wolthers Travel <travel@wolthers.com>',
+        from: 'Wolthers Travel <trips@trips.wolthers.com>',
         to: [stakeholder.email],
         subject: template.subject,
         html: template.html,
@@ -854,7 +854,7 @@ export async function sendTripCreationEmails(data: TripCreationEmailData): Promi
   for (const recipient of recipients) {
     try {
       const result = await resend.emails.send({
-        from: 'Wolthers Travel <travel@wolthers.com>',
+        from: 'Wolthers Travel <trips@trips.wolthers.com>',
         to: [recipient.email],
         subject: template.subject,
         html: template.html,
@@ -892,7 +892,7 @@ export async function sendStaffInvitationEmail(email: string, data: StaffInvitat
     console.log(`📧 [Resend] Sending staff invitation to ${email}`)
 
     const result = await resend.emails.send({
-      from: 'Wolthers Travel <travel@wolthers.com>',
+      from: 'Wolthers Travel <trips@trips.wolthers.com>',
       to: [email],
       subject: template.subject,
       html: template.html,
@@ -928,7 +928,7 @@ export async function sendHostInvitationEmail(email: string, data: HostInvitatio
     console.log(`📧 [Resend] Sending host invitation to ${email} for ${data.companyName}`)
 
     const result = await resend.emails.send({
-      from: 'Wolthers Travel <travel@wolthers.com>',
+      from: 'Wolthers Travel <trips@trips.wolthers.com>',
       to: [email],
       subject: template.subject,
       html: template.html,

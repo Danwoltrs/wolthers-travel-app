@@ -40,7 +40,7 @@ export function ExpensesTab({
 }: ExpensesTabProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'expenses' | 'receipts' | 'reports'>('overview')
   const [showAddExpense, setShowAddExpense] = useState(false)
-  const [selectedCurrency, setSelectedCurrency] = useState('DKK')
+  const [selectedCurrency, setSelectedCurrency] = useState('BRL')
   const [dateFilter, setDateFilter] = useState('all')
 
   // Real expense data would come from API call to /api/trips/${trip.id}/expenses
@@ -91,7 +91,8 @@ export function ExpensesTab({
   }
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('da-DK', {
+    const locale = currency === 'BRL' ? 'pt-BR' : currency === 'USD' ? 'en-US' : 'en-EU'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency
     }).format(amount)
@@ -116,9 +117,9 @@ export function ExpensesTab({
             onChange={(e) => setSelectedCurrency(e.target.value)}
             className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
           >
-            <option value="DKK">DKK</option>
-            <option value="EUR">EUR</option>
+            <option value="BRL">BRL</option>
             <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
           </select>
           
           <button

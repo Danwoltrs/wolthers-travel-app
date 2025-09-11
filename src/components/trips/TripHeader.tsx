@@ -14,6 +14,15 @@ export default function TripHeader({ trip, tripData }: TripHeaderProps) {
   const [newAccessCode, setNewAccessCode] = useState(trip.accessCode || '')
   const [isUpdating, setIsUpdating] = useState(false)
   
+  // Debug logging to see what data we're receiving
+  console.log('TripHeader received tripData:', {
+    hasParticipants: !!tripData?.trip_participants,
+    participantCount: tripData?.trip_participants?.length || 0,
+    hasVehicles: !!tripData?.trip_vehicles,
+    vehicleCount: tripData?.trip_vehicles?.length || 0,
+    fullTripData: tripData
+  })
+  
   // Extract real data from tripData or fall back to trip data
   const participants = tripData?.trip_participants || []
   const vehicles = tripData?.trip_vehicles || []

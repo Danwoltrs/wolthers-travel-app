@@ -49,39 +49,106 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
           {/* Guest */}
           <div>
             <h3 className="font-medium text-gray-900 dark:text-white mb-2">Guest</h3>
-            {formData.flightInfo && formData.flightInfo.passengerName ? (
-              <div>
-                <p className="text-gray-700 dark:text-gray-300">{formData.flightInfo.passengerName}</p>
-                {formData.companies && formData.companies.length > 0 && (
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">
-                    {formData.companies[0].fantasyName || formData.companies[0].name}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 italic">No guest</p>
-            )}
+            {(() => {
+              // Get all guests from buyer companies
+              const allGuests: { name: string; company: string }[] = []
+              
+              if (formData.companies && formData.companies.length > 0) {
+                formData.companies.forEach(company => {
+                  const participants = (company as any).participants || []
+                  participants.forEach((participant: any) => {
+                    allGuests.push({
+                      name: participant.full_name || participant.name || 'Unnamed Guest',
+                      company: company.fantasyName || company.name
+                    })
+                  })
+                })
+              }
+              
+              // Also check flight info for additional passengers
+              if (formData.flightInfo && formData.flightInfo.passengerName) {
+                const companyName = formData.companies && formData.companies.length > 0 
+                  ? (formData.companies[0].fantasyName || formData.companies[0].name)
+                  : 'Unknown Company'
+                allGuests.push({
+                  name: formData.flightInfo.passengerName,
+                  company: companyName
+                })
+              }
+              
+              return allGuests.length > 0 ? (
+                <div className="space-y-1">
+                  {allGuests.map((guest, idx) => (
+                    <div key={idx}>
+                      <p className="text-gray-700 dark:text-gray-300">{guest.name}</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">{guest.company}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 italic">No guest</p>
+              )
+            })()}
           </div>
 
           {/* Vehicle & Driver */}
           <div>
             <h3 className="font-medium text-gray-900 dark:text-white mb-2">Vehicle & Driver</h3>
-            {(formData.vehicles || []).length > 0 ? (
-              <div className="space-y-1">
-                {(formData.vehicles || []).map(vehicle => (
-                  <div key={vehicle.id}>
-                    <p className="text-gray-700 dark:text-gray-300">
-                      {vehicle.make} {vehicle.model}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs">
-                      {vehicle.licensePlate}
-                    </p>
+            {(() => {
+              // Check vehicle assignments first
+              const assignments = formData.vehicleAssignments || []
+              
+              if (assignments.length > 0) {
+                return (
+                  <div className="space-y-2">
+                    {assignments.map((assignment: any, idx: number) => {
+                      const driver = assignment.driver
+                      const vehicle = assignment.vehicle
+                      
+                      return (
+                        <div key={idx}>
+                          {vehicle && (
+                            <p className="text-gray-700 dark:text-gray-300">
+                              {vehicle.make} {vehicle.model}
+                            </p>
+                          )}
+                          {driver && (
+                            <p className="text-gray-600 dark:text-gray-400 text-sm">
+                              Driver: {driver.fullName || driver.full_name || driver.name || 'Unnamed Driver'}
+                            </p>
+                          )}
+                          {vehicle && vehicle.licensePlate && (
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">
+                              {vehicle.licensePlate}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 italic">No vehicle selected</p>
-            )}
+                )
+              }
+              
+              // Fallback to legacy vehicles array
+              if ((formData.vehicles || []).length > 0) {
+                return (
+                  <div className="space-y-1">
+                    {(formData.vehicles || []).map(vehicle => (
+                      <div key={vehicle.id}>
+                        <p className="text-gray-700 dark:text-gray-300">
+                          {vehicle.make} {vehicle.model}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs">
+                          {vehicle.licensePlate}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+              
+              return <p className="text-gray-500 dark:text-gray-400 italic">No vehicle selected</p>
+            })()}
           </div>
         </div>
       </div>

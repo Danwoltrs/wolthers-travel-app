@@ -301,15 +301,19 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       {/* Zone 4: Guest Information - White Background */}
       <div className="bg-white dark:bg-[#1a1a1a] px-6 py-3 border-b border-pearl-100 dark:border-[#2a2a2a] h-24 flex flex-col justify-start">
         <div className="space-y-1">
-          {trip.guests && trip.guests.map((guestGroup, index) => {
-            const company = trip.client.find(c => c.id === guestGroup.companyId);
-            return (
-              <div key={guestGroup.companyId} className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">{company?.fantasyName || company?.name}:</span>{' '}
-                <span>{guestGroup.names.join(', ')}</span>
-              </div>
-            );
-          })}
+          {trip.guests && trip.guests.length > 0 ? (
+            trip.guests.map((guestGroup, index) => {
+              const company = trip.client?.find(c => c.id === guestGroup.companyId);
+              return (
+                <div key={guestGroup.companyId} className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">{company?.fantasyName || company?.name}:</span>{' '}
+                  <span>{guestGroup.names.join(', ')}</span>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-gray-400 italic">No guests assigned</div>
+          )}
         </div>
       </div>
 
@@ -322,76 +326,80 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
             <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Wolthers Team Attending</span>
           </div>
           <div className="flex flex-wrap gap-x-2 min-h-[2rem]">
-            {trip.wolthersStaff.slice(0, 3).map((staff, index) => (
-              <span key={staff.id} className="text-xs text-pearl-700 dark:text-gray-400">
-                {staff.fullName}
-                {index < Math.min(trip.wolthersStaff.length - 1, 2) && <span className="text-pearl-500 dark:text-gray-500">,</span>}
-              </span>
-            ))}
-            {trip.wolthersStaff.length > 3 && (
-              <span className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
-                +{trip.wolthersStaff.length - 3} more
-              </span>
+            {trip.wolthersStaff?.length > 0 ? (
+              <>
+                {trip.wolthersStaff.slice(0, 3).map((staff, index) => (
+                  <span key={staff.id} className="text-xs text-pearl-700 dark:text-gray-400">
+                    {staff.fullName}
+                    {index < Math.min(trip.wolthersStaff.length - 1, 2) && <span className="text-pearl-500 dark:text-gray-500">,</span>}
+                  </span>
+                ))}
+                {trip.wolthersStaff.length > 3 && (
+                  <span className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
+                    +{trip.wolthersStaff.length - 3} more
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-pearl-500 dark:text-gray-500 italic">No team members assigned</span>
             )}
           </div>
         </div>
         
-        {!isDraft && (
-          /* Fleet and Driver Section */
-          <div className="grid grid-cols-2 gap-4">
-            {/* Fleet Section */}
-            <div>
-              <div className="flex items-center mb-1">
-                <Car className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
-                <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Fleet</span>
-              </div>
-              <div className="space-y-1">
-                {trip.vehicles?.length > 0 ? (
-                  <>
-                    {trip.vehicles.slice(0, 3).map((vehicle) => (
-                      <div key={vehicle.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
-                        {vehicle.make} {vehicle.model}
-                      </div>
-                    ))}
-                    {trip.vehicles.length > 3 && (
-                      <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
-                        +{trip.vehicles.length - 3} more
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-xs text-pearl-500 dark:text-gray-500 italic">No vehicles assigned</div>
-                )}
-              </div>
+        {/* Fleet and Driver Section - Show for all trips */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Fleet Section */}
+          <div>
+            <div className="flex items-center mb-1">
+              <Car className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
+              <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Fleet</span>
             </div>
-            
-            {/* Driver Section */}
-            <div>
-              <div className="flex items-center mb-1">
-                <Users className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
-                <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Driver</span>
-              </div>
-              <div className="space-y-1">
-                {trip.drivers?.length > 0 ? (
-                  <>
-                    {trip.drivers.slice(0, 3).map((driver) => (
-                      <div key={driver.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
-                        {driver.fullName}
-                      </div>
-                    ))}
-                    {trip.drivers.length > 3 && (
-                      <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
-                        +{trip.drivers.length - 3} more
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-xs text-pearl-500 dark:text-gray-500 italic">No driver assigned</div>
-                )}
-              </div>
+            <div className="space-y-1">
+              {trip.vehicles?.length > 0 ? (
+                <>
+                  {trip.vehicles.slice(0, 3).map((vehicle) => (
+                    <div key={vehicle.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
+                      {vehicle.make} {vehicle.model}
+                    </div>
+                  ))}
+                  {trip.vehicles.length > 3 && (
+                    <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
+                      +{trip.vehicles.length - 3} more
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-pearl-500 dark:text-gray-500 italic">No vehicles assigned</div>
+              )}
             </div>
           </div>
-        )}
+          
+          {/* Driver Section */}
+          <div>
+            <div className="flex items-center mb-1">
+              <Users className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
+              <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Driver</span>
+            </div>
+            <div className="space-y-1">
+              {trip.drivers?.length > 0 ? (
+                <>
+                  {trip.drivers.slice(0, 3).map((driver) => (
+                    <div key={driver.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
+                      {driver.fullName}
+                    </div>
+                  ))}
+                  {trip.drivers.length > 3 && (
+                    <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
+                      +{trip.drivers.length - 3} more
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-pearl-500 dark:text-gray-500 italic">No driver assigned</div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Zone 6: Footer Actions */}
@@ -468,7 +476,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           <>
             {/* Key Visits Count - Left */}
             <span className="text-xs text-pearl-600 dark:text-gray-400">
-              {trip.visitCount || 0} visit{trip.visitCount !== 1 ? 's' : ''}
+              {trip.visitCount || 0} visit{(trip.visitCount || 0) !== 1 ? 's' : ''}
             </span>
             
             {/* Status Indicator - Center */}

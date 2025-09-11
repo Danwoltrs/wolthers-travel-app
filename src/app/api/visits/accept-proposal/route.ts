@@ -362,7 +362,7 @@ Wolthers & Associates Travel Team
 
   try {
     const result = await resend.emails.send({
-      from: 'Wolthers Travel <travel@wolthers.com>',
+      from: 'Wolthers Travel <trips@trips.wolthers.com>',
       to: [hostEmail],
       subject: subject,
       html: html,

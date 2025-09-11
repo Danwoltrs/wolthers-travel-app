@@ -486,6 +486,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Cache the user profile for offline access
       cacheUserProfile(data.user)
 
+      // Force redirect to dashboard after successful email/password login
+      // This ensures the user gets redirected even if the isAuthenticated state update is delayed
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          console.log('🔄 Email login successful, redirecting to dashboard...')
+          router.push('/dashboard')
+        }
+      }, 100) // Small delay to ensure state updates are processed
+
       return { error: null as any }
     } catch (error) {
       console.error('Email sign-in error:', error)
