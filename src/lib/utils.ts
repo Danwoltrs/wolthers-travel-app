@@ -48,6 +48,22 @@ export function formatDateRange(startDate: Date | string, endDate: Date | string
   return `${startDay} ${start.getDate()} ${start.toLocaleDateString('en-US', { month: 'short' })} - ${endDay} ${end.getDate()} ${end.toLocaleDateString('en-US', { month: 'short' })}`
 }
 
+export function formatDateForInput(date: Date | string | null | undefined): string {
+  if (!date) return ''
+  
+  const d = new Date(date)
+  
+  // Handle invalid dates
+  if (isNaN(d.getTime())) return ''
+  
+  // Convert to local date only (no time) to avoid timezone issues
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  
+  return `${year}-${month}-${day}`
+}
+
 export function calculateDuration(startDate: Date | string, endDate: Date | string): number {
   const start = new Date(startDate)
   const end = new Date(endDate)
