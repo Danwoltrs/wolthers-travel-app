@@ -100,9 +100,13 @@ export function useActivityManager(tripId: string) {
 
   // Load activities via API
   const loadActivities = useCallback(async () => {
-    if (!tripId) return
+    if (!tripId) {
+      console.log('🚫 [useActivityManager] No tripId provided, skipping load')
+      return
+    }
 
     try {
+      console.log('🔄 [useActivityManager] Starting activity load for trip:', tripId)
       setLoading(true)
       setError(null)
 
@@ -113,12 +117,13 @@ export function useActivityManager(tripId: string) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ [useActivityManager] API error:', errorData)
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
 
-      console.log('📋 Activities loaded via API:', {
+      console.log('📋 [useActivityManager] Activities loaded via API:', {
         tripId,
         count: data?.length || 0,
         activities: data?.map((a: any) => ({
@@ -168,29 +173,80 @@ export function useActivityManager(tripId: string) {
         console.warn('⚠️ [useActivityManager] Removed', (data?.length || 0) - uniqueActivities.length, 'duplicate activities')
       }
       
+      console.log('✅ [useActivityManager] Setting activities state:', {
+        count: uniqueActivities.length,
+        activities: uniqueActivities.map(a => ({
+          id: a.id,
+          title: a.title,
+          date: a.activity_date
+        }))
+      })
+      
       setActivities(uniqueActivities)
     } catch (err: any) {
-      console.error('Error in loadActivities:', err)
+      console.error('❌ [useActivityManager] Error in loadActivities:', err)
       setError(`Failed to load activities: ${err.message}`)
     } finally {
       setLoading(false)
     }
   }, [tripId])
 
-  // Create new activity with simple loading + refresh approach
+  // Create new activity with optimistic updates + refresh approach
   const createActivity = useCallback(async (activityData: ActivityFormData): Promise<Activity | null> => {
-    if (!tripId) return null
+    if (!tripId) {
+      console.warn('🚫 [CreateActivity] No tripId provided')
+      return null
+    }
 
     try {
       console.log('📝 [CreateActivity] Starting activity creation:', {
+        tripId,
         title: activityData.title,
         date: activityData.activity_date,
         time: activityData.start_time
       })
       
       setSaving(true)
-      setRefreshing(true) // Show loading state
+      setRefreshing(true)
       setError(null)
+
+      // Create optimistic activity for immediate UI feedback
+      const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const optimisticActivity: Activity = {
+        id: optimisticId,
+        trip_id: tripId,
+        title: activityData.title,
+        description: activityData.description,
+        activity_date: activityData.activity_date,
+        start_time: activityData.start_time,
+        end_time: activityData.end_time,
+        end_date: activityData.end_date,
+        type: activityData.type,
+        location: activityData.location,
+        host: activityData.host,
+        cost: activityData.cost,
+        currency: activityData.currency,
+        is_confirmed: activityData.is_confirmed,
+        notes: activityData.notes,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      // Add optimistic activity to state immediately
+      console.log('🔄 [CreateActivity] Adding optimistic activity to state')
+      setActivities(prev => {
+        // Check if activity already exists to prevent duplicates
+        const exists = prev.find(a => 
+          a.title === activityData.title && 
+          a.activity_date === activityData.activity_date && 
+          a.start_time === activityData.start_time
+        )
+        if (exists) {
+          console.log('⚠️ [CreateActivity] Similar activity exists, not adding optimistic update')
+          return prev
+        }
+        return [...prev, optimisticActivity]
+      })
 
       const newActivity = {
         ...activityData,
@@ -207,6 +263,10 @@ export function useActivityManager(tripId: string) {
       })
 
       if (!response.ok) {
+        // Remove optimistic activity on error
+        console.error('❌ [CreateActivity] API call failed, removing optimistic activity')
+        setActivities(prev => prev.filter(a => a.id !== optimisticId))
+        
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
@@ -214,11 +274,19 @@ export function useActivityManager(tripId: string) {
       const data = await response.json()
       console.log('✅ [CreateActivity] API call successful:', data.id)
 
-      // Force refresh activities to show the new activity
-      console.log('🔄 [CreateActivity] Refreshing activities to show new activity')
-      await loadActivities()
+      // Replace optimistic activity with real data
+      console.log('🔄 [CreateActivity] Replacing optimistic activity with real data')
+      setActivities(prev => prev.map(a => 
+        a.id === optimisticId ? data : a
+      ))
       
-      console.log('✅ [CreateActivity] Activity creation and refresh complete')
+      // Also refresh to ensure consistency
+      console.log('🔄 [CreateActivity] Force refreshing activities for consistency')
+      setTimeout(() => {
+        loadActivities()
+      }, 500) // Small delay to let optimistic update render first
+      
+      console.log('✅ [CreateActivity] Activity creation complete')
       return data
     } catch (err: any) {
       console.error('❌ [CreateActivity] Error:', err)
@@ -407,19 +475,19 @@ export function useActivityManager(tripId: string) {
     }, delay)
   }, [activities])
 
-  // Delete activity with simple loading + refresh approach
+  // Delete activity with optimistic updates + refresh approach
   const deleteActivity = useCallback(async (activityId: string): Promise<boolean> => {
     console.log('🗑️ [DeleteActivity] Starting activity deletion:', activityId)
     
     if (!activityId) {
-      console.warn('🗑️ [DeleteActivity] No activity ID provided')
+      console.warn('🚫 [DeleteActivity] No activity ID provided')
       return false
     }
 
-    // Find the activity for logging
+    // Find the activity for optimistic removal
     const activityToDelete = activities.find(a => a.id === activityId)
     if (!activityToDelete) {
-      console.warn('🗑️ [DeleteActivity] Activity not found in local state:', activityId)
+      console.warn('⚠️ [DeleteActivity] Activity not found in local state:', activityId)
       return false
     }
 
@@ -432,19 +500,30 @@ export function useActivityManager(tripId: string) {
 
     try {
       setSaving(true)
-      setRefreshing(true) // Show loading state
+      setRefreshing(true)
       setError(null)
 
-      console.log('🗑️ [DeleteActivity] Making DELETE API call')
+      // Optimistically remove activity from state
+      console.log('🔄 [DeleteActivity] Optimistically removing activity from state')
+      setActivities(prev => prev.filter(a => a.id !== activityId))
+
+      console.log('🌍 [DeleteActivity] Making DELETE API call')
       const response = await fetch(`/api/activities?id=${activityId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
 
-      console.log('🗑️ [DeleteActivity] API response status:', response.status)
+      console.log('📈 [DeleteActivity] API response status:', response.status)
 
       if (!response.ok) {
-        console.error('🗑️ [DeleteActivity] API call failed with status:', response.status)
+        // Restore activity on API failure
+        console.error('❌ [DeleteActivity] API call failed, restoring activity')
+        setActivities(prev => {
+          // Only restore if not already present
+          const exists = prev.find(a => a.id === activityId)
+          return exists ? prev : [...prev, activityToDelete]
+        })
+        
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
@@ -452,11 +531,13 @@ export function useActivityManager(tripId: string) {
       const responseData = await response.json()
       console.log('✅ [DeleteActivity] API call successful:', responseData)
       
-      // Force refresh activities to reflect the deletion
-      console.log('🔄 [DeleteActivity] Refreshing activities to reflect deletion')
-      await loadActivities()
+      // Verify deletion with a delayed refresh for consistency
+      console.log('🔄 [DeleteActivity] Scheduling verification refresh')
+      setTimeout(() => {
+        loadActivities()
+      }, 300) // Small delay to let optimistic update take effect
       
-      console.log('✅ [DeleteActivity] Activity deletion and refresh complete')
+      console.log('✅ [DeleteActivity] Activity deletion complete')
       return true
     } catch (err: any) {
       console.error('❌ [DeleteActivity] Error:', err)
@@ -651,21 +732,62 @@ export function useActivityManager(tripId: string) {
     }
   }, [tripId, loadActivities])
 
-  // **NEW**: Force refresh activities with UI state verification
+  // **NEW**: Force refresh activities with UI state verification and race condition prevention
   const forceRefreshActivities = useCallback(async () => {
     console.log('🔄 [ForceRefresh] Forcing activities refresh')
+    
+    // Prevent concurrent refreshes
+    if (refreshing) {
+      console.log('⚠️ [ForceRefresh] Already refreshing, skipping')
+      return
+    }
+    
     try {
       await loadActivities()
       
-      // Additional verification after refresh
+      // Additional verification after refresh with state consistency check
       setTimeout(() => {
-        console.log('🔍 [ForceRefresh] Post-refresh verification complete')
+        console.log('🔍 [ForceRefresh] Post-refresh state verification:', {
+          activitiesCount: activities.length,
+          loading,
+          error
+        })
+        
+        // Check for common state inconsistencies
+        if (loading && activities.length > 0) {
+          console.warn('⚠️ [ForceRefresh] State inconsistency detected: loading=true but activities exist')
+        }
+        
+        console.log('✅ [ForceRefresh] Post-refresh verification complete')
       }, 200)
     } catch (error) {
       console.error('❌ [ForceRefresh] Force refresh failed:', error)
       setError('Failed to refresh activities. Please try again.')
     }
-  }, [loadActivities])
+  }, [loadActivities, refreshing, activities.length, loading, error])
+
+  // **NEW**: State validation helper to catch race conditions
+  const validateState = useCallback(() => {
+    const issues = []
+    
+    if (loading && activities.length > 0 && !refreshing) {
+      issues.push('Loading state inconsistency: loading=true with existing activities')
+    }
+    
+    if (saving && !loading && !refreshing) {
+      issues.push('Saving without loading/refreshing state')
+    }
+    
+    if (error && (loading || refreshing)) {
+      issues.push('Error state with active loading/refreshing')
+    }
+    
+    if (issues.length > 0) {
+      console.warn('⚠️ [useActivityManager] State validation issues detected:', issues)
+    }
+    
+    return issues.length === 0
+  }, [loading, activities.length, refreshing, saving, error])
 
   return {
     activities,
@@ -680,6 +802,7 @@ export function useActivityManager(tripId: string) {
     getActivityStats,
     getActivitiesByDate,
     refreshActivities: loadActivities,
-    forceRefreshActivities // **NEW**: Exposed for emergency refresh
+    forceRefreshActivities, // **NEW**: Exposed for emergency refresh
+    validateState // **NEW**: State validation helper for debugging
   }
 }

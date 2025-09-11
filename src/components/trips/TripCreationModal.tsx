@@ -261,15 +261,24 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [resumeData?.tripId])
 
-  // Progressive save function
+  // Progressive save function with improved state management
   const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
-    if (!formData.tripType) return
+    if (!formData.tripType) {
+      console.log('⚠️ [TripCreation] No trip type set, skipping save')
+      return
+    }
     
-    // For auto-save (showNotification = false), don't show UI notifications
+    console.log('💾 [TripCreation] Starting progressive save:', {
+      step,
+      tripId: saveStatus.tripId,
+      hasActivities: stepData.activities?.length || 0,
+      showNotification
+    })
     
     // Don't save if data hasn't changed
     const currentDataString = JSON.stringify({ stepData, step })
     if (currentDataString === lastSaveDataRef.current && saveStatus.tripId) {
+      console.log('⏭️ [TripCreation] No changes detected, skipping save')
       return
     }
     
@@ -303,6 +312,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
       const result = await response.json()
       
+      console.log('✅ [TripCreation] Progressive save successful:', {
+        tripId: result.tripId,
+        accessCode: result.accessCode,
+        savedActivities: result.activities?.length || 0,
+        isNewTrip: !saveStatus.tripId
+      })
+      
       setSaveStatus(prev => ({
         ...prev,
         isSaving: false,
@@ -313,6 +329,15 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         error: null
       }))
       
+      // Update form data with any server-generated IDs for activities
+      if (result.activities && result.activities.length > 0) {
+        console.log('🔄 [TripCreation] Updating form data with server activity IDs')
+        setFormData(prev => ({
+          ...prev,
+          activities: result.activities
+        }))
+      }
+      
       lastSaveDataRef.current = currentDataString
       
       if (showNotification || (step === 3 && !saveStatus.tripId)) {
@@ -321,17 +346,22 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         
         // Show continuation URL for new trips
         if (step === 3 && result.continueUrl && !saveStatus.tripId) {
-          console.log('Trip saved! Continue later at:', result.continueUrl)
+          console.log('🔗 [TripCreation] Trip saved! Continue later at:', result.continueUrl)
         }
       }
       
     } catch (error) {
-      console.error('Save error:', error)
+      console.error('❌ [TripCreation] Progressive save error:', error)
       setSaveStatus(prev => ({
         ...prev,
         isSaving: false,
         error: error instanceof Error ? error.message : 'Failed to save progress'
       }))
+      
+      // Show error notification for user feedback
+      if (showNotification) {
+        console.error('🚨 [TripCreation] Save failed with notification requested')
+      }
     }
   }
 
@@ -780,8 +810,11 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Flights & Travel step - optional but allow proceeding
           return true
         case 7:
-          // Drivers & Vehicles step - require staff selection
-          return formData.wolthersStaff.length > 0
+          // Drivers & Vehicles step - require at least one driver and either assigned vehicle OR rental
+          const conventionHasDriver = formData.participants && formData.participants.some((p: any) => p.isDriver)
+          const conventionHasAssignedVehicle = formData.vehicleAssignments && Object.keys(formData.vehicleAssignments).length > 0
+          const conventionUseRental = (formData as any).useRental
+          return conventionHasDriver && (conventionHasAssignedVehicle || conventionUseRental)
         case 8:
           return true
         default:
@@ -798,8 +831,11 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Team & Participants: require Wolthers staff
           return formData.participants && formData.participants.length > 0
         case 4:
-          // Drivers & Vehicles: require staff selection
-          return formData.wolthersStaff && formData.wolthersStaff.length > 0
+          // Drivers & Vehicles: require at least one driver and either assigned vehicle OR rental
+          const hasDriver = formData.participants && formData.participants.some((p: any) => p.isDriver)
+          const hasAssignedVehicle = formData.vehicleAssignments && Object.keys(formData.vehicleAssignments).length > 0
+          const useRental = (formData as any).useRental
+          return hasDriver && (hasAssignedVehicle || useRental)
         case 5:
           // Host/Visits Selector: allow proceeding (host companies optional)
           return true

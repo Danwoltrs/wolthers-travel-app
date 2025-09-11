@@ -60,11 +60,31 @@ export function ScheduleTab({
     deleteActivity,
     getActivityStats,
     getActivitiesByDate,
-    forceRefreshActivities
+    forceRefreshActivities,
+    validateState
   } = useActivityManager(trip.id || '')
 
-  // Handle activity editing
+  // **NEW**: State validation effect to catch race conditions
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const isValid = validateState()
+      if (!isValid) {
+        console.warn('⚠️ [ScheduleTab] Activity state validation failed')
+      }
+    }
+  }, [activities, loading, error, saving, refreshing, validateState])
+
+  // Handle activity editing with improved state management
   const handleActivityEdit = useCallback((activity: Activity) => {
+    console.log('✏️ [ScheduleTab] Starting activity edit:', {
+      id: activity.id,
+      title: activity.title,
+      date: activity.activity_date
+    })
+    
+    // Clear any existing errors
+    setError(null)
+    
     setEditingActivity(activity)
     setFormData({
       title: activity.title || '',
@@ -82,12 +102,18 @@ export function ScheduleTab({
       notes: activity.notes || ''
     })
     setShowActivityEditor(true)
-  }, [])
-
-  // Handle new activity creation
-  const handleNewActivity = useCallback((timeSlot?: string, date?: string) => {
-    console.log('🆕 handleNewActivity called:', { timeSlot, date })
     
+    console.log('🎯 [ScheduleTab] Activity edit modal opened')
+  }, [setError])
+
+  // Handle new activity creation with improved state management
+  const handleNewActivity = useCallback((timeSlot?: string, date?: string) => {
+    console.log('🆕 [ScheduleTab] handleNewActivity called:', { timeSlot, date })
+    
+    // Clear any existing errors
+    setError(null)
+    
+    // Reset editing state
     setEditingActivity(null)
     setSelectedDate(date || '')
     
@@ -97,53 +123,76 @@ export function ScheduleTab({
       const [hours, minutes] = timeSlot.split(':').map(Number)
       const endHour = hours + 1
       endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+      console.log('⏰ [ScheduleTab] Calculated end time:', { timeSlot, endTime })
     }
     
+    // Determine activity date
     const activityDate = date || (trip.startDate instanceof Date ? trip.startDate.toISOString().split('T')[0] : new Date(trip.startDate).toISOString().split('T')[0])
     
-    const formData = {
+    const newFormData = {
       title: '',
       description: '',
       start_time: timeSlot || '',
       end_time: endTime,
       activity_date: activityDate,
       end_date: activityDate, // Default to same day, can be extended via UI
-      type: 'meeting',
+      type: 'meeting' as const,
       location: '',
       host: '',
       cost: 0,
-      currency: 'BRL',
+      currency: 'BRL' as const,
       is_confirmed: false,
       notes: ''
     }
     
-    console.log('📝 Setting form data:', formData)
-    setFormData(formData)
-    console.log('🔧 Opening activity editor modal')
+    console.log('📝 [ScheduleTab] Setting new activity form data:', newFormData)
+    setFormData(newFormData)
+    
+    console.log('🔧 [ScheduleTab] Opening activity editor modal')
     setShowActivityEditor(true)
-  }, [trip.startDate])
+  }, [trip.startDate, setError])
 
-  // Handle trip extension
+  // Handle trip extension with proper day management logic
   const handleExtendTrip = useCallback(async (direction: 'before' | 'after' | 'remove-after' | 'remove-before') => {
     try {
       console.log(`📅 [ScheduleTab] ${direction === 'remove-after' || direction === 'remove-before' ? 'Removing day from' : 'Extending'} trip ${direction}`)
+      console.log('📊 [ScheduleTab] Current trip dates:', {
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        direction
+      })
       
       // Show loading state
       setIsExtending(true)
 
-      // Determine API parameters based on direction
+      // Determine API parameters based on direction - FIXED LOGIC
       let apiDirection = direction
       let days = 1
       
       if (direction === 'remove-after') {
-        apiDirection = 'after'
-        days = -1 // Negative days for removal
+        apiDirection = 'after'  // Remove from end
+        days = -1 // Negative days for removal (CORRECT: - removes, + adds)
+        console.log('➖ [ScheduleTab] Removing 1 day from END of trip')
       } else if (direction === 'remove-before') {
-        apiDirection = 'before'
-        days = -1 // Negative days for removal
+        apiDirection = 'before' // Remove from start  
+        days = -1 // Negative days for removal (CORRECT: - removes, + adds)
+        console.log('➖ [ScheduleTab] Removing 1 day from START of trip')
+      } else if (direction === 'after') {
+        days = 1 // Add day to end
+        console.log('➕ [ScheduleTab] Adding 1 day to END of trip')
+      } else if (direction === 'before') {
+        days = 1 // Add day to start
+        console.log('➕ [ScheduleTab] Adding 1 day to START of trip')
       }
 
-      // Call the extend trip API
+      // Call the extend trip API with validated parameters
+      console.log('🌍 [ScheduleTab] Calling extend API with:', {
+        tripId: trip.id,
+        direction: apiDirection,
+        days,
+        operation: days > 0 ? 'ADD' : 'REMOVE'
+      })
+      
       const response = await fetch(`/api/trips/${trip.id}/extend`, {
         method: 'POST',
         headers: {
@@ -155,11 +204,17 @@ export function ScheduleTab({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ [ScheduleTab] Extend API failed:', errorData)
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log(`✅ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} successful:`, data)
+      console.log(`✅ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} successful:`, {
+        oldStartDate: trip.startDate,
+        oldEndDate: trip.endDate,
+        newStartDate: data.updatedTrip.start_date,
+        newEndDate: data.updatedTrip.end_date
+      })
 
       // Notify parent component to update trip data
       onUpdate('schedule', {
@@ -174,81 +229,183 @@ export function ScheduleTab({
       })
 
       // Force refresh activities to reflect new calendar structure
-      console.log(`🔄 [ScheduleTab] Refreshing calendar after trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'}`)
-      await forceRefreshActivities()
+      console.log(`🔄 [ScheduleTab] Refreshing activities after ${days > 0 ? 'extending' : 'removing'} trip ${apiDirection}`)
       
-      console.log(`✅ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} and calendar refresh complete`)
+      // Wait a moment for state to settle before refreshing
+      setTimeout(async () => {
+        await forceRefreshActivities()
+        console.log(`✅ [ScheduleTab] Activities refreshed after trip modification`)
+      }, 200)
+      
+      console.log(`✅ [ScheduleTab] Trip modification and state update complete`)
     } catch (error: any) {
-      console.error(`❌ [ScheduleTab] Trip ${direction === 'remove-after' || direction === 'remove-before' ? 'day removal' : 'extension'} failed:`, error)
-      // Note: Error handling will be managed by useActivityManager
+      console.error(`❌ [ScheduleTab] Trip ${days > 0 ? 'extension' : 'day removal'} failed:`, error)
+      // Show user-friendly error
+      setError(`Failed to ${days > 0 ? 'extend' : 'remove day from'} trip: ${error.message}`)
     } finally {
       setIsExtending(false)
     }
   }, [trip.id, onUpdate, forceRefreshActivities])
 
-  // Handle activity save with simple loading approach
+  // Handle activity save with improved state management
   const handleActivitySave = useCallback(async () => {
     try {
+      console.log('💾 [ScheduleTab] Starting activity save process')
+      
+      // Validate required fields
+      if (!formData.title.trim()) {
+        console.error('❌ [ScheduleTab] Title is required')
+        setError('Activity title is required')
+        return
+      }
+      
+      if (!formData.activity_date) {
+        console.error('❌ [ScheduleTab] Activity date is required')
+        setError('Activity date is required')
+        return
+      }
+      
       if (editingActivity) {
         // Update existing activity
-        console.log('💾 [ScheduleTab] Updating activity:', editingActivity.id, formData)
+        console.log('✏️ [ScheduleTab] Updating existing activity:', {
+          id: editingActivity.id,
+          title: formData.title,
+          date: formData.activity_date,
+          changes: Object.keys(formData).filter(key => 
+            formData[key as keyof typeof formData] !== editingActivity[key as keyof typeof editingActivity]
+          )
+        })
+        
         const result = await updateActivity(editingActivity.id, formData)
         if (result) {
           console.log('✅ [ScheduleTab] Activity update successful')
           setShowActivityEditor(false)
           setEditingActivity(null)
+          setError(null) // Clear any previous errors
+        } else {
+          console.error('❌ [ScheduleTab] Activity update returned null')
+          setError('Failed to update activity')
         }
       } else {
-        // Create new activity with loading + refresh
-        console.log('💾 [ScheduleTab] Creating new activity:', {
+        // Create new activity 
+        console.log('🆕 [ScheduleTab] Creating new activity:', {
           title: formData.title,
           date: formData.activity_date,
-          time: formData.start_time
+          time: formData.start_time,
+          type: formData.type
         })
+        
         const result = await createActivity(formData)
         if (result) {
           console.log('✅ [ScheduleTab] Activity creation successful, closing modal')
           setShowActivityEditor(false)
+          setError(null) // Clear any previous errors
+          
+          // Reset form for next use
+          setFormData({
+            title: '',
+            description: '',
+            start_time: '',
+            end_time: '',
+            activity_date: '',
+            end_date: '',
+            type: 'meeting',
+            location: '',
+            host: '',
+            cost: 0,
+            currency: 'BRL',
+            is_confirmed: false,
+            notes: ''
+          })
         } else {
-          console.error('❌ [ScheduleTab] Activity creation failed')
+          console.error('❌ [ScheduleTab] Activity creation returned null')
+          setError('Failed to create activity')
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [ScheduleTab] Activity save failed:', error)
+      setError(error.message || 'Failed to save activity')
     }
-  }, [editingActivity, formData, updateActivity, createActivity])
+  }, [editingActivity, formData, updateActivity, createActivity, setError])
 
-  // Handle activity delete with simple loading approach
+  // Handle activity delete with improved error handling
   const handleActivityDelete = useCallback(async () => {
-    if (editingActivity) {
-      try {
-        console.log('🗑️ [ScheduleTab] Starting delete for activity:', {
-          id: editingActivity.id,
-          title: editingActivity.title,
-          date: editingActivity.activity_date,
-          time: editingActivity.start_time
-        })
-        const success = await deleteActivity(editingActivity.id)
-        if (success) {
-          console.log('✅ [ScheduleTab] Activity deletion successful, closing editor')
-          setShowActivityEditor(false)
-          setEditingActivity(null)
-        } else {
-          console.error('❌ [ScheduleTab] Delete operation failed')
-        }
-      } catch (error) {
-        console.error('❌ [ScheduleTab] Activity deletion failed:', error)
-      }
-    } else {
-      console.warn('🗑️ [ScheduleTab] No editing activity found for deletion')
+    if (!editingActivity) {
+      console.warn('⚠️ [ScheduleTab] No editing activity found for deletion')
+      return
     }
-  }, [editingActivity, deleteActivity])
 
-  // Close activity editor
+    try {
+      console.log('🗑️ [ScheduleTab] Starting delete for activity:', {
+        id: editingActivity.id,
+        title: editingActivity.title,
+        date: editingActivity.activity_date,
+        time: editingActivity.start_time
+      })
+      
+      // Show confirmation if needed (optional - can add later)
+      // if (!window.confirm(`Delete activity "${editingActivity.title}"?`)) {
+      //   return
+      // }
+      
+      const success = await deleteActivity(editingActivity.id)
+      if (success) {
+        console.log('✅ [ScheduleTab] Activity deletion successful, closing editor')
+        setShowActivityEditor(false)
+        setEditingActivity(null)
+        setError(null) // Clear any previous errors
+        
+        // Reset form state
+        setFormData({
+          title: '',
+          description: '',
+          start_time: '',
+          end_time: '',
+          activity_date: '',
+          end_date: '',
+          type: 'meeting',
+          location: '',
+          host: '',
+          cost: 0,
+          currency: 'BRL',
+          is_confirmed: false,
+          notes: ''
+        })
+      } else {
+        console.error('❌ [ScheduleTab] Delete operation returned false')
+        setError('Failed to delete activity')
+      }
+    } catch (error: any) {
+      console.error('❌ [ScheduleTab] Activity deletion failed:', error)
+      setError(error.message || 'Failed to delete activity')
+    }
+  }, [editingActivity, deleteActivity, setError])
+
+  // Close activity editor with proper state cleanup
   const handleCloseEditor = useCallback(() => {
+    console.log('❌ [ScheduleTab] Closing activity editor')
+    
     setShowActivityEditor(false)
     setEditingActivity(null)
-  }, [])
+    setError(null) // Clear any errors
+    
+    // Reset form data to prevent stale data
+    setFormData({
+      title: '',
+      description: '',
+      start_time: '',
+      end_time: '',
+      activity_date: '',
+      end_date: '',
+      type: 'meeting',
+      location: '',
+      host: '',
+      cost: 0,
+      currency: 'BRL',
+      is_confirmed: false,
+      notes: ''
+    })
+  }, [setError])
 
 
   // Get activities grouped by date and statistics
