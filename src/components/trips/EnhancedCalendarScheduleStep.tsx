@@ -281,17 +281,95 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       let currentTime = 9 * 60 // 9:00 AM in minutes
       let dayIndex = 0
 
-      // Insert GRU Airport pickup activity if flight info exists
-      console.log('🔍 [Debug] Checking GRU conditions:', {
+      // Insert pickup activities based on starting point type
+      console.log('🔍 [Debug] Checking pickup conditions:', {
         hasFlightInfo: !!formData.flightInfo,
+        hasPickupGroups: !!formData.pickupGroups,
         startingPoint: formData.startingPoint,
         startingPointType: typeof formData.startingPoint,
         exactMatch: formData.startingPoint === 'gru_airport',
-        flightInfo: formData.flightInfo
+        multiCompanyMatch: formData.startingPoint === 'multi_company_pickup',
+        flightInfo: formData.flightInfo,
+        pickupGroupsCount: formData.pickupGroups?.length || 0
       })
       
-      // Enhanced condition matching progressive-save API logic
-      if (formData.startingPoint === 'gru_airport' && formData.flightInfo) {
+      // Handle multi-company pickup groups
+      if (formData.startingPoint === 'multi_company_pickup' && formData.pickupGroups && formData.pickupGroups.length > 0) {
+        console.log('✈️ [AI Itinerary] Processing multi-company pickup groups')
+        
+        // Process each pickup group
+        for (const pickupGroup of formData.pickupGroups) {
+          if (!pickupGroup.flightInfo) continue
+          
+          console.log(`✈️ [AI Itinerary] Adding pickup for group: ${pickupGroup.name}`)
+          
+          const arrivalTime = pickupGroup.flightInfo.arrivalTime
+          const [arrivalHour, arrivalMinute] = arrivalTime.split(':').map(Number)
+          const arrivalInMinutes = arrivalHour * 60 + arrivalMinute
+          
+          // Schedule pickup 30 minutes after arrival
+          const pickupTime = arrivalInMinutes + 30
+          const pickupHour = Math.floor(pickupTime / 60)
+          const pickupMinute = pickupTime % 60
+          const pickupTimeStr = `${pickupHour.toString().padStart(2, '0')}:${pickupMinute.toString().padStart(2, '0')}`
+          
+          // Get guest names for this group
+          const guestNames = pickupGroup.companies.flatMap((company: any) => 
+            company.selectedContacts?.map((contact: any) => contact.name) || []
+          )
+          const guestsList = guestNames.length > 0 ? guestNames.join(', ') : `${pickupGroup.estimatedGuestCount} guests`
+          
+          // Determine drive duration based on destination
+          const driveDuration = pickupGroup.destination?.type === 'hotel' ? 60 : 90 // 1h to hotel, 1.5h to office
+          const driveEndTime = pickupTime + driveDuration
+          const driveEndHour = Math.floor(driveEndTime / 60)
+          const driveEndMinute = driveEndTime % 60
+          const driveEndTimeStr = `${driveEndHour.toString().padStart(2, '0')}:${driveEndMinute.toString().padStart(2, '0')}`
+          
+          const destinationType = pickupGroup.destination?.type === 'hotel' ? 'Hotel Check-in' : 'Business Location'
+          const destinationAddress = pickupGroup.destination?.address || (pickupGroup.destination?.type === 'hotel' ? 'Hotel' : 'Office')
+          
+          const pickupActivity: ActivityFormData = {
+            title: `GRU Airport Pickup - ${pickupGroup.name}`,
+            description: `Airport pickup for ${guestsList} and drive to ${destinationType}`,
+            activity_date: pickupGroup.arrivalDate,
+            start_time: pickupTimeStr,
+            end_time: driveEndTimeStr,
+            location: 'Guarulhos International Airport (GRU)',
+            type: 'transport',
+            notes: `✈️ Flight: ${pickupGroup.flightInfo.airline} ${pickupGroup.flightInfo.flightNumber}${pickupGroup.flightInfo.terminal ? ` (${pickupGroup.flightInfo.terminal})` : ''}\n🛬 Arrival: ${arrivalTime}\n🚗 Pickup: ${pickupTimeStr} (30 min buffer)\n👥 Guests: ${guestsList}\n📍 Destination: ${destinationAddress}\n⏱️ Drive time: ${driveDuration/60}h${pickupGroup.flightInfo.notes ? '\n📝 ' + pickupGroup.flightInfo.notes : ''}`,
+            is_confirmed: false
+          }
+          
+          generatedActivities.push(pickupActivity)
+          
+          // Create separate drive activity to destination
+          const driveActivity: ActivityFormData = {
+            title: `Drive to ${destinationType.replace(' Check-in', '')} - ${pickupGroup.name}`,
+            description: `Drive from GRU Airport to ${destinationType} for ${pickupGroup.name}`,
+            activity_date: pickupGroup.arrivalDate,
+            start_time: pickupTimeStr,
+            end_time: driveEndTimeStr,
+            location: destinationAddress,
+            type: 'transport',
+            notes: `🚗 Drive from GRU Airport\n👥 Passengers: ${guestsList}\n📍 Destination: ${destinationAddress}\n⏱️ Estimated drive time: ${driveDuration/60}h`,
+            is_confirmed: false
+          }
+          
+          generatedActivities.push(driveActivity)
+          
+          console.log(`✈️ [AI Itinerary] Created pickup for ${pickupGroup.name}: ${pickupTimeStr}-${driveEndTimeStr} to ${destinationType}`)
+        }
+        
+        // Update scheduling to start business meetings the next day after pickup
+        console.log('📅 [AI Itinerary] Multi-company pickup detected, scheduling meetings for next day')
+        dayIndex = 1
+        currentDate = new Date(formData.startDate!)
+        currentDate.setDate(currentDate.getDate() + 1)
+        currentTime = 9 * 60 // Start business meetings at 9 AM next day
+      }
+      // Handle single GRU airport pickup (legacy support)
+      else if (formData.startingPoint === 'gru_airport' && formData.flightInfo) {
         console.log('✈️ [AI Itinerary] Adding GRU Airport pickup activity')
         
         const arrivalTime = formData.flightInfo.arrivalTime

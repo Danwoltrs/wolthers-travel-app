@@ -2,7 +2,138 @@
 
 ---
 
-# Current Session - January 13, 2025 (Host/Guest Selection System)
+# Current Session - January 13, 2025 (Guest Pickup Coordination System)
+
+## 🎯 Enhanced Guest Pickup Coordination System - Complete ✅
+
+### **Problem Statement**
+Trip creation workflow needed comprehensive guest pickup coordination for inland trips:
+1. **Auto-populate guest names** from selected companies instead of manual entry
+2. **Multiple pickup groups** with different arrival times/days for different companies
+3. **Calendar integration** to show pickup activities automatically 
+4. **Intercity travel distances** not calculating properly for some close cities
+5. **Overnight travel logic** to prevent driving after 8pm
+
+### **Solutions Implemented**
+
+#### **1. Enhanced FlightInfoModal with Multi-Passenger Support** ✅
+- **File**: `src/components/trips/FlightInfoModal.tsx`
+- **Features**:
+  - Auto-population of passenger names from selected company contacts
+  - Support for multiple passengers with `allowMultiplePassengers` prop
+  - Extended FlightInfo interface with `passengerNames[]` and `guestCount`
+  - Smart guest extraction from formData companies
+
+#### **2. Complete Guest Pickup Manager Component** ✅
+- **File**: `src/components/trips/GuestPickupManager.tsx` (NEW)
+- **Features**:
+  - Multi-company pickup group coordination
+  - Visual cards showing flight info, destinations, guest lists
+  - Auto-creation of pickup groups based on company guests
+  - Integration with enhanced FlightInfoModal for each group
+  - Support for different arrival dates and times per group
+
+#### **3. Starting Point Selection Enhancement** ✅
+- **File**: `src/components/trips/StartingPointSelectionStep.tsx`
+- **Features**:
+  - Added "Multi-Company Coordination" option
+  - Smart detection for multiple companies with guests
+  - Auto-suggestion when multiple companies detected
+  - Integration with GuestPickupManager component
+  - Storage of pickup groups in TripFormData
+
+#### **4. Calendar Generation with Pickup Activities** ✅
+- **File**: `src/components/trips/EnhancedCalendarScheduleStep.tsx`
+- **Features**:
+  - **Multi-company pickup processing**: Handles multiple pickup groups with different arrival times
+  - **Guest name extraction**: Auto-populates passenger lists from pickup group companies
+  - **Dual activity creation**: Separate pickup and drive activities for each group
+  - **Intelligent scheduling**: Business meetings start next day after pickup
+  - **Legacy support**: Maintains single GRU pickup functionality
+  - **Comprehensive logging**: Enhanced debug information for pickup coordination
+
+#### **5. Intercity Travel Distance Fixes** ✅
+- **File**: `src/lib/brazilian-locations.ts`
+- **Fixes**:
+  - Refined `areCompaniesInSameCity()` to only match exact city names
+  - Removed region-based same-city grouping that was hiding intercity travel
+  - Enhanced fuzzy matching for city names with accent handling
+  - Fixed threshold from `> 0.1` to `>= 0.1` hours in calendar generation
+
+#### **6. Google Maps API Error Handling** ✅
+- **File**: `src/lib/google-maps-utils.ts`
+- **Enhancements**:
+  - Enhanced error handling and logging for Distance Matrix API
+  - Added fallback estimates when API fails (30 min / 25 km default)
+  - Improved cache monitoring and response debugging
+
+### **Technical Implementation Details**
+
+#### **TripFormData Interface Extension**
+```typescript
+export interface TripFormData {
+  // ... existing fields
+  pickupGroups?: any[] // Multi-company pickup groups with guest information
+}
+```
+
+#### **PickupGroup Interface**
+```typescript
+interface PickupGroup {
+  id: string
+  name: string
+  companies: Array<{
+    id: string
+    name: string
+    selectedContacts: Array<{
+      name: string
+      email: string
+      phone?: string
+    }>
+  }>
+  arrivalDate: string
+  flightInfo?: {
+    flightNumber: string
+    airline: string
+    arrivalTime: string
+    departureAirport: string
+    departureCity: string
+    terminal?: string
+    notes?: string
+  }
+  destination?: {
+    type: 'hotel' | 'office'
+    address: string
+  }
+  estimatedGuestCount: number
+}
+```
+
+#### **Calendar Integration Logic**
+- **Multi-company pickup detection**: `formData.startingPoint === 'multi_company_pickup'`
+- **Guest name aggregation**: Flatten company contacts into passenger lists
+- **Activity creation**: Pickup activity + drive activity per group
+- **Next-day scheduling**: Business meetings automatically start next day at 9 AM
+
+### **Key Files Modified (6 total)**
+1. `src/components/trips/FlightInfoModal.tsx` - Multi-passenger support
+2. `src/components/trips/GuestPickupManager.tsx` - NEW pickup coordination component
+3. `src/components/trips/StartingPointSelectionStep.tsx` - Multi-company option integration
+4. `src/components/trips/EnhancedCalendarScheduleStep.tsx` - Calendar pickup activities generation
+5. `src/components/trips/TripCreationModal.tsx` - TripFormData interface extension
+6. `src/lib/brazilian-locations.ts` - Same-city detection refinement
+
+### **Results Achieved**
+- ✅ **Guest Auto-Population**: Names automatically filled from selected company contacts
+- ✅ **Multi-Company Coordination**: Support for different arrival times and pickup groups
+- ✅ **Calendar Integration**: Pickup activities automatically generated on calendar
+- ✅ **Intercity Travel Fixed**: All intercity movements now show proper travel times
+- ✅ **Overnight Logic Confirmed**: After 8pm travels reschedule to next day 8am
+- ✅ **Same-City Logic**: Only exact city matches avoid travel activities
+
+---
+
+## Previous Session - January 13, 2025 (Host/Guest Selection System)
 
 ## 🎯 Host and Guest Selection System Implementation - Complete
 

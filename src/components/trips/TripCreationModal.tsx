@@ -117,6 +117,7 @@ export interface TripFormData {
   flightInfo?: any // Flight information for GRU airport pickup
   nextDestination?: 'hotel' | 'office' // Destination after airport pickup
   destinationAddress?: string // Address for hotel/office destination after pickup
+  pickupGroups?: any[] // Multi-company pickup groups with guest information
   
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
