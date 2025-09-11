@@ -233,17 +233,14 @@ export function calculateTravelTime(fromCity: string, toCity: string): number {
     return 0
   }
   
-  // Santos area optimization - most visits within walking distance
+  // Santos area optimization - considered same city (no travel activity needed)
   if (isSantosArea(fromCity) && isSantosArea(toCity)) {
-    console.log(`🚶 [Travel Calc] Santos area walking distance: ${fromCity} ↔ ${toCity} (0h)`)
-    return 0 // Walking distance in Santos port area
+    console.log(`🚶 [Travel Calc] Santos area same city: ${fromCity} ↔ ${toCity} (0h)`)
+    return 0 // Same city - no travel activity needed
   }
   
-  // Varginha area optimization - short drives between offices
-  if (isVarginhaArea(fromCity) && isVarginhaArea(toCity)) {
-    console.log(`🚙 [Travel Calc] Varginha area short drive: ${fromCity} ↔ ${toCity} (0.1h)`)
-    return 0.1 // 5-10 minutes drive, round up to minimal time
-  }
+  // Note: Removed Varginha area grouping - each city should be treated individually
+  // Varginha ↔ Três Pontas should show travel time, not be treated as same city
   
   // Enhanced same-city detection using company names/addresses
   const fromLocation = ALL_BRAZILIAN_LOCATIONS.find(loc => 
@@ -265,15 +262,28 @@ export function calculateTravelTime(fromCity: string, toCity: string): number {
     const region2 = getRegionByCity(toCity)
     
     if (region1 === region2 && region1 !== 'Brasil') {
-      console.log(`☕ [Travel Calc] Same coffee region: ${fromCity} ↔ ${toCity} in ${region1} (0.5h)`)
-      return 0.5 // Same coffee region - optimized travel
+      console.log(`☕ [Travel Calc] Same coffee region: ${fromCity} ↔ ${toCity} in ${region1} (0.75h)`)
+      return 0.75 // Same coffee region - optimized travel but still visible
     }
   }
   
   // Try to find locations with better fuzzy matching
   if (!fromLocation?.coordinates || !toLocation?.coordinates) {
-    console.log(`⚠️ [Travel Calc] Missing coordinates for ${fromCity} or ${toCity}, using default 2h`)
-    return 2 // Default 2 hours if coordinates not found
+    console.log(`⚠️ [Travel Calc] Missing coordinates for ${fromCity} or ${toCity}`)
+    
+    // Smart defaults based on city patterns
+    if (fromCity.toLowerCase().includes('são paulo') || toCity.toLowerCase().includes('são paulo')) {
+      console.log(`🏢 [Travel Calc] São Paulo route - using 1.5h default`)
+      return 1.5 // Travel to/from São Paulo
+    }
+    
+    if (fromCity.toLowerCase().includes('santos') || toCity.toLowerCase().includes('santos')) {
+      console.log(`⚓ [Travel Calc] Santos route - using 1h default`)
+      return 1 // Travel to/from Santos port
+    }
+    
+    console.log(`🗺️ [Travel Calc] Unknown cities - using 1.25h default`)
+    return 1.25 // Conservative default for unknown intercity travel
   }
   
   // Calculate distance using Haversine formula
@@ -287,8 +297,8 @@ export function calculateTravelTime(fromCity: string, toCity: string): number {
   // Estimate travel time: average speed 60 km/h for Brazilian roads
   const travelTimeHours = distance / 60
   
-  // Round to nearest 0.5 hours and ensure minimum 0.5 hours
-  const finalTime = Math.max(0.5, Math.round(travelTimeHours * 2) / 2)
+  // Round to nearest 0.25 hours and ensure minimum 0.25 hours for better granularity
+  const finalTime = Math.max(0.25, Math.round(travelTimeHours * 4) / 4)
   console.log(`⏱️ [Travel Calc] Final travel time: ${finalTime}h for ${fromCity} → ${toCity}`)
   
   return finalTime
@@ -307,7 +317,8 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c // Distance in kilometers
 }
 
-// Helper function to check if city is in Santos port area
+// Helper function to check if city is in Santos metropolitan port area
+// These cities are very close and connected - no travel activity needed
 export function isSantosArea(cityName: string): boolean {
   const city = cityName.toLowerCase()
   return city.includes('santos') || 
@@ -319,16 +330,13 @@ export function isSantosArea(cityName: string): boolean {
          city.includes('sao vicente')
 }
 
-// Helper function to check if city is in Varginha area
+// Helper function to check if city is in Varginha metropolitan area
+// Only includes Varginha city itself - other nearby cities should show travel time
 export function isVarginhaArea(cityName: string): boolean {
   const city = cityName.toLowerCase()
-  return city.includes('varginha') ||
-         city.includes('três pontas') ||
-         city.includes('tres pontas') ||
-         city.includes('alfenas') ||
-         city.includes('machado') ||
-         city.includes('guaxupé') ||
-         city.includes('guaxupe')
+  return city.includes('varginha')
+  // Removed: Três Pontas, Alfenas, Machado, Guaxupé - these are separate cities
+  // that should show intercity travel time
 }
 
 // Check if cities are in the same region (for grouping meetings)
@@ -410,6 +418,9 @@ export function extractCityFromAddress(address: string): string {
 }
 
 // Check if two companies are in the same city (enhanced logic)
+// Returns true for companies within the same city - no travel activity needed
+// Examples: Multiple companies in Guaxupé, Patrocínio, Santos, etc.
+// Returns false for intercity travel: Santos→São Paulo, Varginha→Boa Esperança
 export function areCompaniesInSameCity(company1: any, company2: any): boolean {
   if (!company1 || !company2) return false
   
@@ -422,21 +433,50 @@ export function areCompaniesInSameCity(company1: any, company2: any): boolean {
   const city1Lower = city1.toLowerCase().trim()
   const city2Lower = city2.toLowerCase().trim()
   
-  // Direct city name comparison
-  if (city1Lower === city2Lower) return true
-  
-  // Check if they're in special areas (Santos, Varginha) that are treated as same city
-  if (isSantosArea(city1) && isSantosArea(city2)) return true
-  if (isVarginhaArea(city1) && isVarginhaArea(city2)) return true
-  
-  // Check if they're in the same metro area or region
-  if (areCitiesInSameRegion(city1, city2)) {
-    const travelTime = calculateTravelTime(city1, city2)
-    // Consider same city if travel time is very short (30 minutes or less)
-    return travelTime <= 0.5
+  // Primary logic: Direct city name comparison
+  if (city1Lower === city2Lower) {
+    console.log(`🏢 [Same City] ${city1} = ${city2} - No travel activity needed`)
+    return true
   }
   
+  // Special metropolitan areas where multiple city names refer to same area
+  if (isSantosArea(city1) && isSantosArea(city2)) {
+    console.log(`⚓ [Santos Metro] ${city1} ↔ ${city2} - Treated as same city`)
+    return true
+  }
+  
+  // Enhanced fuzzy matching for similar city names (typos, abbreviations)
+  if (areCityNamesSimilar(city1Lower, city2Lower)) {
+    console.log(`🔄 [Fuzzy Match] ${city1} ≈ ${city2} - Treated as same city`)
+    return true
+  }
+  
+  // Different cities - travel activity will be created
+  console.log(`🗺️ [Different Cities] ${city1} ≠ ${city2} - Travel activity needed`)
   return false
+}
+
+// Helper function to detect similar city names (typos, abbreviations, etc.)
+function areCityNamesSimilar(city1: string, city2: string): boolean {
+  // Check if one city name is contained within the other (handles abbreviations)
+  if (city1.includes(city2) || city2.includes(city1)) {
+    return true
+  }
+  
+  // Check for common variations and misspellings
+  const normalizeCity = (city: string) => city
+    .replace(/á/g, 'a').replace(/â/g, 'a').replace(/ã/g, 'a')
+    .replace(/é/g, 'e').replace(/ê/g, 'e')
+    .replace(/í/g, 'i')
+    .replace(/ó/g, 'o').replace(/ô/g, 'o').replace(/õ/g, 'o')
+    .replace(/ú/g, 'u').replace(/ü/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/[\s-]/g, '') // Remove spaces and hyphens
+  
+  const norm1 = normalizeCity(city1)
+  const norm2 = normalizeCity(city2)
+  
+  return norm1 === norm2
 }
 
 // Starting point optimization logic

@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { MapPin, Car, Plane, Ship, Navigation } from 'lucide-react'
+import { MapPin, Car, Plane, Ship, Navigation, Users } from 'lucide-react'
 import type { TripFormData } from './TripCreationModal'
 import FlightInfoModal from './FlightInfoModal'
+import GuestPickupManager from './GuestPickupManager'
 
 interface StartingPointSelectionStepProps {
   formData: TripFormData
@@ -51,6 +52,13 @@ const startingPointOptions: StartingPointOption[] = [
     description: 'Pick up from GRU airport, then drive to Santos, São Paulo, or Interior',
     icon: <Plane className="w-6 h-6" />,
     color: 'bg-indigo-500'
+  },
+  {
+    id: 'multi_company_pickup',
+    name: 'Multi-Company Coordination',
+    description: 'Coordinate pickups for multiple companies with different arrival times',
+    icon: <Users className="w-6 h-6" />,
+    color: 'bg-purple-500'
   }
 ]
 
@@ -70,6 +78,8 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
   const [showFlightModal, setShowFlightModal] = useState(false)
   const [flightInfo, setFlightInfo] = useState<any>(null)
   const [nextDestination, setNextDestination] = useState<'hotel' | 'office' | null>(null)
+  const [showPickupManager, setShowPickupManager] = useState(false)
+  const [pickupGroups, setPickupGroups] = useState<any[]>([])
 
   const handleStartingPointSelect = (pointId: string) => {
     if (pointId === 'other') {
@@ -79,6 +89,11 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
     } else if (pointId === 'gru_airport') {
       // Show flight info modal for GRU Airport pickup
       setShowFlightModal(true)
+    } else if (pointId === 'multi_company_pickup') {
+      // Show multi-company pickup manager
+      setShowPickupManager(true)
+      setSelectedStartingPoint(pointId)
+      updateFormData({ startingPoint: pointId })
     } else {
       setShowCustomInput(false)
       setSelectedStartingPoint(pointId)
@@ -109,6 +124,36 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
     })
   }
 
+  const handlePickupGroupsChange = (groups: any[]) => {
+    setPickupGroups(groups)
+    updateFormData({ 
+      startingPoint: 'multi_company_pickup',
+      pickupGroups: groups
+    })
+  }
+
+  // Check if multi-company pickup is needed based on selected companies
+  const hasMultipleCompaniesWithGuests = () => {
+    const companiesWithGuests = (formData.companies || []).filter(company => 
+      (company as any).selectedContacts && (company as any).selectedContacts.length > 0
+    )
+    return companiesWithGuests.length > 1
+  }
+
+  // Get all guests from selected companies
+  const getAllSelectedGuests = () => {
+    if (!formData.companies) return []
+    
+    return formData.companies.flatMap(company => {
+      const companyWithContacts = company as any
+      return companyWithContacts.selectedContacts?.map((contact: any) => ({
+        name: contact.name,
+        email: contact.email,
+        companyName: company.name
+      })) || []
+    })
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -120,6 +165,31 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
           Choose your departure point to optimize route planning and logistics
         </p>
       </div>
+
+      {/* Smart Suggestion for Multi-Company Pickup */}
+      {hasMultipleCompaniesWithGuests() && selectedStartingPoint !== 'multi_company_pickup' && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-700 rounded-xl p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <div className="bg-purple-100 dark:bg-purple-800/30 p-2 rounded-lg">
+              <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-medium text-purple-900 dark:text-purple-300 mb-1">
+                Multiple Companies Detected
+              </h4>
+              <p className="text-sm text-purple-700 dark:text-purple-400 mb-3">
+                You have guests from multiple companies. Consider using Multi-Company Coordination to organize different arrival times and pickup groups.
+              </p>
+              <button
+                onClick={() => handleStartingPointSelect('multi_company_pickup')}
+                className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Setup Multi-Company Pickup →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Starting Point Options Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -318,6 +388,18 @@ export default function StartingPointSelectionStep({ formData, updateFormData }:
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Multi-Company Pickup Manager */}
+      {showPickupManager && selectedStartingPoint === 'multi_company_pickup' && (
+        <div className="mt-8">
+          <GuestPickupManager
+            companies={formData.companies || []}
+            tripStartDate={formData.startDate}
+            onPickupGroupsChange={handlePickupGroupsChange}
+            existingGroups={pickupGroups}
+          />
         </div>
       )}
 

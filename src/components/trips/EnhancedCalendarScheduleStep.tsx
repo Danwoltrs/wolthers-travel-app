@@ -481,8 +481,8 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
               // Use finalTravelEndTime to handle multi-day travel properly
               currentTime = finalTravelEndTime
             } else {
-              // Very short travel - just add buffer time
-              currentTime += 30 // 30 minutes buffer for very short trips
+              // Very short travel (< 6 minutes) - just add buffer time
+              currentTime += 15 // 15 minutes buffer for very short trips
               console.log(`🚙 [AI Itinerary] Very short travel: ${previousCity} → ${currentCity} (${travelTimeHours.toFixed(2)}h) - Buffer added`)
             }
           } else {

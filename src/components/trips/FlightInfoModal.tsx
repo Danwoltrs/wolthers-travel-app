@@ -9,6 +9,8 @@ interface FlightInfo {
   departureAirport: string
   departureCity: string
   passengerName: string
+  passengerNames?: string[] // For multiple passengers
+  guestCount?: number
   terminal?: string
   notes?: string
 }
@@ -23,6 +25,9 @@ interface FlightInfoModalProps {
     companyName: string
   }>
   tripStartDate?: Date | null
+  // Enhanced pickup functionality
+  allowMultiplePassengers?: boolean
+  pickupGroupName?: string
 }
 
 const airlines = [
@@ -60,7 +65,15 @@ const commonAirports = [
   { code: 'IST', city: 'Istanbul' }
 ]
 
-export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGuests = [], tripStartDate }: FlightInfoModalProps) {
+export default function FlightInfoModal({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  selectedGuests = [], 
+  tripStartDate,
+  allowMultiplePassengers = false,
+  pickupGroupName
+}: FlightInfoModalProps) {
   const [flightInfo, setFlightInfo] = useState<FlightInfo>({
     flightNumber: '',
     airline: '',
@@ -68,7 +81,12 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
     arrivalTime: '',
     departureAirport: '',
     departureCity: '',
-    passengerName: selectedGuests.length > 0 ? selectedGuests[0].name : '',
+    passengerName: selectedGuests.length > 0 ? 
+      (allowMultiplePassengers ? 
+        selectedGuests.map(g => g.name).join(', ') : 
+        selectedGuests[0].name) : '',
+    passengerNames: selectedGuests.map(g => g.name),
+    guestCount: selectedGuests.length,
     terminal: '',
     notes: ''
   })
@@ -93,10 +111,14 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
     if (selectedGuests.length > 0 && isOpen) {
       setFlightInfo(prev => ({
         ...prev,
-        passengerName: selectedGuests[0].name
+        passengerName: allowMultiplePassengers ? 
+          selectedGuests.map(g => g.name).join(', ') : 
+          selectedGuests[0].name,
+        passengerNames: selectedGuests.map(g => g.name),
+        guestCount: selectedGuests.length
       }))
     }
-  }, [selectedGuests, isOpen])
+  }, [selectedGuests, isOpen, allowMultiplePassengers])
 
   if (!isOpen) return null
 
@@ -168,12 +190,17 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
               <div>
                 <h2 className="text-xl font-semibold text-white">
                   GRU Airport Pickup - Flight Information
+                  {pickupGroupName && (
+                    <span className="text-indigo-200 text-base font-normal ml-2">({pickupGroupName})</span>
+                  )}
                 </h2>
                 <p className="text-indigo-100 text-sm">
                   {showDestinationPrompt 
                     ? 'Where to next?' 
                     : showAddressInput 
                     ? 'Specify destination address'
+                    : allowMultiplePassengers
+                    ? `Coordinating pickup for ${selectedGuests.length} guest${selectedGuests.length > 1 ? 's' : ''}`
                     : 'Enter flight details for airport pickup coordination'}
                 </p>
               </div>
@@ -195,24 +222,48 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
               {/* Passenger Information */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Guest Name *
+                  {allowMultiplePassengers ? 'Passenger Names *' : 'Guest Name *'}
+                  {selectedGuests.length > 0 && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
+                      ({selectedGuests.length} guest{selectedGuests.length > 1 ? 's' : ''} from {pickupGroupName || 'companies'})
+                    </span>
+                  )}
                 </label>
                 
                 {selectedGuests.length > 0 ? (
                   /* Dropdown with guests + manual input option */
                   <div className="space-y-3">
-                    <select
-                      value={flightInfo.passengerName}
-                      onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">Select guest or type custom name below</option>
-                      {selectedGuests.map((guest) => (
-                        <option key={guest.email} value={guest.name}>
-                          {guest.name}
-                        </option>
-                      ))}
-                    </select>
+                    {allowMultiplePassengers ? (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                          Auto-populated passengers from selected companies:
+                        </p>
+                        <div className="text-sm text-blue-800 dark:text-blue-400">
+                          {selectedGuests.map((guest, index) => (
+                            <div key={guest.email} className="flex items-center justify-between py-1">
+                              <span>• {guest.name}</span>
+                              <span className="text-xs text-blue-600 dark:text-blue-500">({guest.companyName})</span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
+                          💡 These names will be used for pickup coordination. You can modify the passenger list below if needed.
+                        </p>
+                      </div>
+                    ) : (
+                      <select
+                        value={flightInfo.passengerName}
+                        onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="">Select guest or type custom name below</option>
+                        {selectedGuests.map((guest) => (
+                          <option key={guest.email} value={guest.name}>
+                            {guest.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     
                     {/* Manual input field that works alongside dropdown */}
                     <div className="relative">
@@ -221,12 +272,21 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
                         id="passengerName"
                         value={flightInfo.passengerName}
                         onChange={(e) => updateFlightInfo({ passengerName: e.target.value })}
-                        placeholder="Or type guest name"
+                        placeholder={allowMultiplePassengers ? 
+                          "Modify passenger list (comma-separated)" : 
+                          "Or type guest name"}
                         className="w-full px-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
+                      {allowMultiplePassengers && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-[#1a1a1a] px-1">
+                            {flightInfo.passengerName.split(',').filter(n => n.trim()).length} guests
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
-                    {selectedGuests.length > 0 && (
+                    {selectedGuests.length > 0 && !allowMultiplePassengers && (
                       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                         <p className="text-xs text-blue-700 dark:text-blue-400">
                           💡 Select from the dropdown above or type a custom name. Available guests from {selectedGuests[0].companyName}:
@@ -462,7 +522,14 @@ export default function FlightInfoModal({ isOpen, onClose, onSubmit, selectedGue
                   Flight Information Saved!
                 </h3>
                 <p className="text-emerald-700 dark:text-emerald-400">
-                  Pickup scheduled for {flightInfo.passengerName} at GRU Airport
+                  Pickup scheduled for {allowMultiplePassengers && flightInfo.guestCount && flightInfo.guestCount > 1 
+                    ? `${flightInfo.guestCount} guests` 
+                    : flightInfo.passengerName} at GRU Airport
+                  {pickupGroupName && (
+                    <span className="block text-emerald-600 dark:text-emerald-500 text-sm mt-1">
+                      Group: {pickupGroupName}
+                    </span>
+                  )}
                 </p>
               </div>
 
