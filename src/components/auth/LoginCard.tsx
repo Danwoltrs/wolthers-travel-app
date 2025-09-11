@@ -15,7 +15,7 @@ type AuthView = 'login' | 'forgot-password' | 'otp'
 
 export function LoginCard() {
   const router = useRouter()
-  const { signInWithEmail, signInWithOtp, signInWithAzure, resetPassword, verifyOtp } = useAuth()
+  const { signInWithEmail, signInWithAzure, resetPassword, sendOtpLogin, verifyOtpLogin } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [authView, setAuthView] = useState<AuthView>('login')
   const [email, setEmail] = useState('')
@@ -58,7 +58,7 @@ export function LoginCard() {
         // Success will be handled by auth state change
       } else {
         // Magic link / OTP flow
-        const { error } = await signInWithOtp(email)
+        const { error } = await sendOtpLogin(email)
         
         if (error) {
           setError(error.message || 'Failed to send verification email. Please try again.')
@@ -83,7 +83,7 @@ export function LoginCard() {
     setIsLoading(true)
     setError(null)
     try {
-      const { error } = await verifyOtp(email, code, 'email')
+      const { error } = await verifyOtpLogin(email, code)
       
       if (error) {
         setError(error.message || 'Invalid verification code. Please try again.')
@@ -204,7 +204,7 @@ export function LoginCard() {
                         // Automatically send OTP to the email they entered
                         setIsLoading(true)
                         try {
-                          const { error } = await signInWithOtp(email)
+                          const { error } = await sendOtpLogin(email)
                           if (error) {
                             setError(error.message || 'Failed to send verification email. Please try again.')
                           } else {
@@ -263,7 +263,7 @@ export function LoginCard() {
               <OTPInputWrapper
                 onComplete={handleOTPVerify}
                 onResend={async () => {
-                  const { error } = await signInWithOtp(email)
+                  const { error } = await sendOtpLogin(email)
                   if (error) {
                     return { success: false, message: 'Failed to resend code.' }
                   }
