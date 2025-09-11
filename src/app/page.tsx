@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import DevAccountSwitcher from "@/components/auth/DevAccountSwitcher";
 import { UserRole } from "@/types";
 import { useModal } from "@/hooks/use-modal";
 import { TripStatus } from "@/types";
@@ -1103,15 +1102,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Development Account Switcher - Only in dev mode */}
-        {process.env.NODE_ENV === "development" && showDevAccounts && (
-          <div className="mt-8">
-            <DevAccountSwitcher
-              onSelectAccount={handleDevAccountSelect}
-              disabled={isLoading}
-            />
-          </div>
-        )}
       </div>
 
       {/* OTP Reset Password Modal */}
