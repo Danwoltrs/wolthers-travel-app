@@ -474,9 +474,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         ) : (
           /* Regular Trip Footer */
           <>
-            {/* Key Visits Count - Left */}
+            {/* Key Meetings Count - Left */}
             <span className="text-xs text-pearl-600 dark:text-gray-400">
-              {trip.visitCount || 0} visit{(trip.visitCount || 0) !== 1 ? 's' : ''}
+              {trip.visitCount || 0} meeting{(trip.visitCount || 0) !== 1 ? 's' : ''}
             </span>
             
             {/* Status Indicator - Center */}

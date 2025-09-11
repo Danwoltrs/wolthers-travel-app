@@ -588,7 +588,7 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
     }
 
     // Insert vehicle assignments if they don't exist
-    if (stepData.vehicleAssignments && Array.isArray(stepData.vehicleAssignments) && stepData.vehicleAssignments.length > 0) {
+    if (stepData.vehicleAssignments) {
       console.log('🚗 Migrating vehicle assignments to normalized table')
       
       // Check if vehicle assignments already exist
@@ -599,24 +599,44 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
         .limit(1)
       
       if (!existingAssignments || existingAssignments.length === 0) {
-        const assignmentInserts = stepData.vehicleAssignments.map((assignment: any) => ({
-          trip_id: tripId,
-          vehicle_id: assignment.vehicle_id || assignment.vehicleId,
-          driver_id: assignment.driver_id || assignment.driverId,
-          assigned_from: assignment.start_date || assignment.startDate || new Date().toISOString().split('T')[0],
-          assigned_to: assignment.end_date || assignment.endDate || new Date().toISOString().split('T')[0],
-          created_at: now,
-          updated_at: now
-        }))
+        let assignmentInserts: any[] = []
 
-        const { error: assignmentsError } = await supabase
-          .from('trip_vehicles')
-          .insert(assignmentInserts)
+        if (Array.isArray(stepData.vehicleAssignments)) {
+          // Handle array format: [{vehicle_id, driver_id, ...}, ...]
+          assignmentInserts = stepData.vehicleAssignments.map((assignment: any) => ({
+            trip_id: tripId,
+            vehicle_id: assignment.vehicle_id || assignment.vehicleId,
+            driver_id: assignment.driver_id || assignment.driverId,
+            assigned_from: assignment.start_date || assignment.startDate || stepData.startDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+            assigned_to: assignment.end_date || assignment.endDate || stepData.endDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+            created_at: now,
+            updated_at: now
+          }))
+        } else if (typeof stepData.vehicleAssignments === 'object') {
+          // Handle object format: {"vehicle_id": "driver_id", ...}
+          assignmentInserts = Object.entries(stepData.vehicleAssignments).map(([vehicleId, driverId]) => ({
+            trip_id: tripId,
+            vehicle_id: vehicleId,
+            driver_id: driverId as string,
+            assigned_from: stepData.startDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+            assigned_to: stepData.endDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+            created_at: now,
+            updated_at: now
+          }))
+        }
 
-        if (assignmentsError) {
-          console.error('⚠️ Failed to migrate vehicle assignments:', assignmentsError)
+        if (assignmentInserts.length > 0) {
+          const { error: assignmentsError } = await supabase
+            .from('trip_vehicles')
+            .insert(assignmentInserts)
+
+          if (assignmentsError) {
+            console.error('⚠️ Failed to migrate vehicle assignments:', assignmentsError)
+          } else {
+            console.log(`✅ Vehicle assignments migrated successfully (${assignmentInserts.length} assignments)`)
+          }
         } else {
-          console.log('✅ Vehicle assignments migrated successfully')
+          console.log('ℹ️ No vehicle assignments to migrate')
         }
       }
     }

@@ -53,7 +53,7 @@ const generateICSContent = (activities: any[], tripTitle: string) => {
       `DTEND:${formatDate(endDateTime)}`,
       `SUMMARY:${escapeText(activity.title)}`,
       `DESCRIPTION:${escapeText(activity.description || '')}`,
-      `LOCATION:${escapeText(activity.custom_location || '')}`,
+      `LOCATION:${escapeText(activity.location || activity.custom_location || '')}`,
       `CATEGORIES:${tripTitle}`,
       'STATUS:CONFIRMED',
       'END:VEVENT'
@@ -364,9 +364,9 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
               address: `${location.address_line1 || ''}, ${location.city || ''}, ${location.country || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',')
             })
           }
-        } else if (activity.custom_location) {
-          // Use custom location string for geocoding
-          address = activity.custom_location
+        } else if (activity.location || activity.custom_location) {
+          // Use location string for geocoding (either location or custom_location field)
+          address = activity.location || activity.custom_location
           locationKey = address
           
           if (!uniqueLocations.has(locationKey)) {

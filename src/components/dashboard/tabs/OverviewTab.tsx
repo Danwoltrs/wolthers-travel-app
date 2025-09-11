@@ -249,7 +249,7 @@ export function OverviewTab({
                     {activityStats.visits}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Visits
+                    Activities
                   </div>
                 </div>
                 <div>
@@ -418,7 +418,7 @@ export function OverviewTab({
           <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
         </div>
 
-        {/* Meetings & Visits */}
+        {/* Meetings & Activities */}
         {(activitiesLoading) ? (
           <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-8 text-center">
             <div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting details...</div>
@@ -560,7 +560,7 @@ export function OverviewTab({
                     {activityStats.visits}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Visits
+                    Activities
                   </div>
                 </div>
                 <div className="text-center">
@@ -598,7 +598,7 @@ export function OverviewTab({
                     {activityStats.visits}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Visits
+                    Activities
                   </div>
                 </div>
                 <div>
