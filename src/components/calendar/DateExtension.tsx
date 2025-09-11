@@ -95,10 +95,20 @@ export function DateExtension({ direction, onExtend }: DateExtensionProps) {
                 </button>
 
                 <button
-                  onClick={() => setShowOptions(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  onClick={() => onExtend(-selectedDays)}
+                  className="flex items-center space-x-1 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                  title="Remove days"
                 >
                   <Minus className="w-3 h-3" />
+                  <span>Remove</span>
+                </button>
+
+                <button
+                  onClick={() => setShowOptions(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Close options"
+                >
+                  ×
                 </button>
               </div>
             )}
@@ -109,10 +119,12 @@ export function DateExtension({ direction, onExtend }: DateExtensionProps) {
         {showOptions && (
           <div className="mt-3 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200 dark:border-emerald-700">
             <div className="text-xs text-emerald-700 dark:text-emerald-300">
-              This will {isBeforeTrip ? 'move the start date' : 'extend the end date'} by {selectedDays} {selectedDays === 1 ? 'day' : 'days'}.
+              <strong>Add:</strong> This will {isBeforeTrip ? 'move the start date backward' : 'extend the end date forward'} by {selectedDays} {selectedDays === 1 ? 'day' : 'days'}.
+              <br />
+              <strong>Remove:</strong> This will {isBeforeTrip ? 'move the start date forward' : 'shorten the end date backward'} by {selectedDays} {selectedDays === 1 ? 'day' : 'days'}.
               {isBeforeTrip && (
                 <span className="block mt-1 text-emerald-600 dark:text-emerald-400">
-                  New activities can be added to the extended period.
+                  New activities can be added to extended periods.
                 </span>
               )}
             </div>

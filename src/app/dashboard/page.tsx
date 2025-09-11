@@ -234,17 +234,35 @@ export default function Dashboard() {
           const continueData = await response.json()
           console.log('✅ Draft data loaded:', continueData)
           
-          // Use the complete draft data from the API
+          // Use the complete draft data from the API or construct from trip data
+          const tripData = continueData.trip || trip
+          const draftData = continueData.draft
+          
+          // Properly construct formData from draft or trip data
+          const formData = draftData?.draft_data || {
+            tripType: draftData?.trip_type || tripData?.trip_type || trip.tripType,
+            title: draftData?.title || tripData?.title || trip.title,
+            description: draftData?.description || tripData?.description || trip.subject || '',
+            subject: draftData?.subject || tripData?.subject || '',
+            startDate: draftData?.startDate ? new Date(draftData.startDate) : 
+                      tripData?.start_date ? new Date(tripData.start_date) :
+                      trip.startDate ? new Date(trip.startDate) : null,
+            endDate: draftData?.endDate ? new Date(draftData.endDate) :
+                    tripData?.end_date ? new Date(tripData.end_date) :
+                    trip.endDate ? new Date(trip.endDate) : null,
+            accessCode: tripData?.access_code || trip.accessCode,
+            companies: draftData?.companies || [],
+            participants: draftData?.participants || [],
+            wolthersStaff: draftData?.wolthersStaff || [],
+            vehicles: draftData?.vehicles || [],
+            itineraryDays: draftData?.itineraryDays || [],
+            activities: draftData?.activities || []
+          }
+          
           const resumeData = {
             tripId: continueData.trip?.id || trip.id,
             accessCode: trip.accessCode,
-            formData: continueData.draft || {
-              tripType: trip.tripType,
-              title: trip.title,
-              description: trip.subject || '',
-              startDate: trip.startDate ? new Date(trip.startDate) : null,
-              endDate: trip.endDate ? new Date(trip.endDate) : null,
-            },
+            formData: formData,
             currentStep: continueData.currentStep || 1,
             canEdit: continueData.canEdit
           }
@@ -254,18 +272,26 @@ export default function Dashboard() {
         } else {
           console.warn('Failed to load draft data, using basic resume:', response.status)
           
-          // Fallback to basic resume data
+          // Fallback to basic resume data constructed from trip card data
           const resumeData = {
             tripId: trip.id,
             accessCode: trip.accessCode,
             formData: {
-              tripType: (trip as any).tripType,
-              title: trip.title,
+              tripType: (trip as any).tripType || 'in_land',
+              title: trip.title || '',
               description: trip.subject || '',
+              subject: trip.subject || '',
               startDate: trip.startDate ? new Date(trip.startDate) : null,
               endDate: trip.endDate ? new Date(trip.endDate) : null,
+              accessCode: trip.accessCode,
+              companies: [],
+              participants: [],
+              wolthersStaff: [],
+              vehicles: [],
+              itineraryDays: [],
+              activities: []
             },
-            currentStep: 1
+            currentStep: (trip as any).currentStep || 1
           }
           
           setResumeData(resumeData)
@@ -274,18 +300,26 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error loading draft trip:', error)
         
-        // Fallback to basic resume data
+        // Fallback to basic resume data on error
         const resumeData = {
           tripId: trip.id,
           accessCode: trip.accessCode,
           formData: {
-            tripType: (trip as any).tripType,
-            title: trip.title,
+            tripType: (trip as any).tripType || 'in_land',
+            title: trip.title || '',
             description: trip.subject || '',
+            subject: trip.subject || '',
             startDate: trip.startDate ? new Date(trip.startDate) : null,
             endDate: trip.endDate ? new Date(trip.endDate) : null,
+            accessCode: trip.accessCode,
+            companies: [],
+            participants: [],
+            wolthersStaff: [],
+            vehicles: [],
+            itineraryDays: [],
+            activities: []
           },
-          currentStep: 1
+          currentStep: (trip as any).currentStep || 1
         }
         
         setResumeData(resumeData)

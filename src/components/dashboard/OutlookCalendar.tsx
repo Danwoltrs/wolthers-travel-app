@@ -2,7 +2,7 @@
  * Outlook-style Calendar Component
  * 
  * Provides a comprehensive calendar view similar to Microsoft Outlook with:
- * - Time slots from 6 AM to 10 PM
+ * - Time slots from 4 AM to 10 PM
  * - Day columns for trip duration
  * - Drag and drop functionality for activities
  * - Activity swapping and time reassignment
@@ -27,7 +27,7 @@ interface OutlookCalendarProps {
   updateActivity: (activityId: string, updates: Partial<ActivityFormData>) => Promise<Activity | null>
   updateActivityDebounced: (activityId: string, updates: Partial<ActivityFormData>, delay?: number) => Promise<void>
   getActivitiesByDate: () => Record<string, Activity[]>
-  onExtendTrip: (direction: 'before' | 'after') => void
+  onExtendTrip: (direction: 'before' | 'after' | 'remove-before' | 'remove-after') => void
   onRemoveDay?: () => Promise<void>
   onRemoveFirstDay?: () => Promise<void>
   onActivityCreate: (timeSlot: string, date: string) => void
@@ -59,9 +59,9 @@ interface CalendarDay {
 
 const ITEM_TYPE = 'ACTIVITY'
 
-// Generate hourly time slots from 6 AM to 10 PM for UI display
-const TIME_SLOTS: TimeSlot[] = Array.from({ length: 17 }, (_, index) => {
-  const hour = 6 + index
+// Generate hourly time slots from 4 AM to 10 PM for UI display
+const TIME_SLOTS: TimeSlot[] = Array.from({ length: 19 }, (_, index) => {
+  const hour = 4 + index
   const time = `${hour.toString().padStart(2, '0')}:00`
   const display = `${hour.toString().padStart(2, '0')}:00`
   return { hour, time, display }
@@ -173,17 +173,17 @@ const ActivityCard = memo(function ActivityCard({
       const startHour = parseInt(activity.start_time?.split(':')[0] || '19')
       const startMinutes = parseInt(activity.start_time?.split(':')[1] || '0')
       
-      if (startHour < 6) {
-        // Start before 6 AM, don't show on this day
+      if (startHour < 4) {
+        // Start before 4 AM, don't show on this day
         return null
       } else if (startHour >= 22) {
         // Start at or after 10 PM, show minimal block at 10 PM
         displayStartTime = '22:00'
         displayEndTime = '22:00'
-        topOffset = (22 - 6) * 60
+        topOffset = (22 - 4) * 60
         duration = 1
       } else {
-        // Normal start time within display range (6 AM - 10 PM)
+        // Normal start time within display range (4 AM - 10 PM)
         displayStartTime = activity.start_time || '19:00'
         displayEndTime = '23:00' // Extend to end of calendar for multi-day activities
         
@@ -195,30 +195,30 @@ const ActivityCard = memo(function ActivityCard({
         duration = (23 * 60 - timeToMinutes(displayStartTime)) / 15
       }
     } else if (isEndDay) {
-      // Last day: show from 6 AM to end time
+      // Last day: show from 4 AM to end time
       const endHour = parseInt(activity.end_time?.split(':')[0] || '10')
       const endMinutes = parseInt(activity.end_time?.split(':')[1] || '0')
       
-      displayStartTime = '06:00'
+      displayStartTime = '04:00'
       topOffset = 0
       
       if (endHour > 22) {
         // End time is after 10 PM, truncate to 10 PM for display
         displayEndTime = '22:00'
-      } else if (endHour < 6) {
-        // End time is before 6 AM, don't show on this day
+      } else if (endHour < 4) {
+        // End time is before 4 AM, don't show on this day
         return null
       } else {
         // End time is within display range, use actual end time
         displayEndTime = activity.end_time || '10:00'
       }
-      duration = Math.max(0, (timeToMinutes(displayEndTime) - 6 * 60) / 15)
+      duration = Math.max(0, (timeToMinutes(displayEndTime) - 4 * 60) / 15)
     } else {
-      // Continuation day: show full day from 6 AM to 11 PM (end of calendar)
-      displayStartTime = '06:00'
+      // Continuation day: show full day from 4 AM to 11 PM (end of calendar)
+      displayStartTime = '04:00'
       displayEndTime = '23:00'
       topOffset = 0
-      duration = (23 - 6) * 4 // 17 hours * 4 quarter-hours
+      duration = (23 - 4) * 4 // 19 hours * 4 quarter-hours
     }
   } else {
     // Single day activity
@@ -294,7 +294,7 @@ const ActivityCard = memo(function ActivityCard({
         let dayOffset = 0
         
         // Handle cross-day scenarios
-        while (totalStartMinutes < 6 * 60) { // Before 6 AM, go to previous day
+        while (totalStartMinutes < 4 * 60) { // Before 4 AM, go to previous day
           totalStartMinutes += 24 * 60
           dayOffset -= 1
         }
@@ -327,7 +327,7 @@ const ActivityCard = memo(function ActivityCard({
         let dayOffset = 0
         
         // Handle cross-day scenarios
-        while (totalEndMinutes < 6 * 60) { // Before 6 AM, go to previous day
+        while (totalEndMinutes < 4 * 60) { // Before 4 AM, go to previous day
           totalEndMinutes += 24 * 60
           dayOffset -= 1
         }
@@ -689,25 +689,37 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
   )
 })
 
-// Helper function to calculate dynamic column widths based on trip duration
+// Helper function to calculate dynamic column widths based on trip duration and browser width
 function getCalendarDimensions(dayCount: number) {
+  // Get available browser width, fallback for SSR
+  const browserWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
+  const availableWidth = Math.max(800, browserWidth * 0.85) // Use 85% of browser width, minimum 800px
+  
   let dayWidth, sideColumns
   
+  // Calculate optimal day width based on available space
+  const reservedSpace = 300 // Space for side columns and gaps
+  const optimalDayWidth = Math.floor((availableWidth - reservedSpace) / dayCount)
+  
   if (dayCount <= 3) {
-    dayWidth = 160  // Wide columns for short trips (1-3 days)
+    dayWidth = Math.max(160, optimalDayWidth)  // Wide columns for short trips (1-3 days)
     sideColumns = 140 // Wide side columns
   } else if (dayCount <= 7) {
-    dayWidth = 140  // Standard width for weekly trips (4-7 days)
+    dayWidth = Math.max(140, Math.min(200, optimalDayWidth))  // Standard width for weekly trips (4-7 days)
     sideColumns = 120
   } else if (dayCount <= 14) {
-    dayWidth = 120  // Compact for bi-weekly trips (8-14 days)
+    dayWidth = Math.max(120, Math.min(160, optimalDayWidth))  // Compact for bi-weekly trips (8-14 days)
     sideColumns = 100
   } else if (dayCount <= 21) {
-    dayWidth = 100  // Narrow for 3-week trips (15-21 days)
+    dayWidth = Math.max(100, Math.min(140, optimalDayWidth))  // Narrow for 3-week trips (15-21 days)
     sideColumns = 80
-  } else {
-    dayWidth = 90   // Very compact for month+ trips (22+ days)
+  } else if (dayCount <= 30) {
+    dayWidth = Math.max(90, Math.min(120, optimalDayWidth))   // Very compact for month trips (22-30 days)
     sideColumns = 70
+  } else {
+    // For very long trips, use minimum width but ensure horizontal scroll is available
+    dayWidth = Math.max(80, optimalDayWidth)   // Ultra compact for extended trips (30+ days)
+    sideColumns = 60
   }
   
   const totalWidth = sideColumns + (dayCount * dayWidth) + sideColumns
@@ -1070,12 +1082,16 @@ export function OutlookCalendar({
           </div>
         </div>
 
-        {/* Calendar Grid - Enhanced Dynamic Width Based on Trip Duration */}
-        <div className="overflow-x-auto">
+        {/* Calendar Grid - Enhanced Dynamic Width Based on Trip Duration and Browser Width */}
+        <div className="overflow-x-auto overflow-y-visible">
           <div className="w-full">
-            <div className={`w-full ${calendarDays.length > 5 ? 'min-w-max' : 'min-w-fit'}`} style={{
-              minWidth: `${calendarDimensions.totalWidth}px`
-            }}>
+            <div 
+              className="w-full min-w-fit" 
+              style={{
+                minWidth: `${calendarDimensions.totalWidth}px`,
+                width: calendarDays.length > 14 ? 'max-content' : '100%'
+              }}
+            >
               {/* Day Headers - Dynamic Responsive Layout Based on Trip Duration */}
               <div className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700" style={{ 
                 gridTemplateColumns: calendarDimensions.gridTemplate
@@ -1298,8 +1314,8 @@ function shouldActivityShowInSlot(
   slotHour: number, 
   displayDate: string
 ): boolean {
-  // Only show activities within calendar display range (6 AM - 10 PM)
-  if (activityHour < 6 || activityHour >= 22) {
+  // Only show activities within calendar display range (4 AM - 10 PM)
+  if (activityHour < 4 || activityHour >= 22) {
     return false
   }
   
@@ -1320,12 +1336,12 @@ function shouldActivityShowInSlot(
   }
   
   if (isEndDay) {
-    // Last day: show in first visible slot (6 AM)
-    return slotHour === 6
+    // Last day: show in first visible slot (4 AM)
+    return slotHour === 4
   }
   
-  // Continuation day: show in first visible slot (6 AM)
-  return slotHour === 6
+  // Continuation day: show in first visible slot (4 AM)
+  return slotHour === 4
 }
 
 // Utility functions

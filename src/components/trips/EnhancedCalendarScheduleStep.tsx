@@ -764,7 +764,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
   }
 
   // Handle extending trip (add days before or after)
-  const handleExtendTrip = (direction: 'before' | 'after') => {
+  const handleExtendTrip = (direction: 'before' | 'after' | 'remove-before' | 'remove-after') => {
     if (!formData.startDate || !formData.endDate) return
 
     const newStartDate = new Date(formData.startDate)
@@ -772,8 +772,20 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
 
     if (direction === 'before') {
       newStartDate.setDate(newStartDate.getDate() - 1)
-    } else {
+    } else if (direction === 'after') {
       newEndDate.setDate(newEndDate.getDate() + 1)
+    } else if (direction === 'remove-before') {
+      // Remove day from beginning
+      newStartDate.setDate(newStartDate.getDate() + 1)
+    } else if (direction === 'remove-after') {
+      // Remove day from end
+      newEndDate.setDate(newEndDate.getDate() - 1)
+    }
+
+    // Ensure we don't create invalid date ranges
+    if (newStartDate >= newEndDate) {
+      console.warn('Cannot remove day: Trip must have at least one day')
+      return
     }
 
     updateFormData({
@@ -867,7 +879,7 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
       )}
 
       {/* Calendar Component */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-pearl-200 dark:border-[#2a2a2a] overflow-x-auto">
         <OutlookCalendar 
           trip={mockTrip}
           activities={activities}

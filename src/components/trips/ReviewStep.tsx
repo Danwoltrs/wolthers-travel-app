@@ -55,112 +55,60 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
             <p className="text-gray-900 dark:text-white mt-1">{formData.description}</p>
           </div>
         )}
-      </div>
 
-      {/* Companies & Representatives */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-        <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center">
-          <Building className="w-4 h-4 mr-2" />
-          Companies & Representatives ({(formData.companies || []).length})
-        </h3>
-        <div className="space-y-3">
-          {(formData.companies || []).map(company => (
-            <div key={company.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {company.fantasyName || company.name}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {company.city}, {company.state}
-                </span>
-              </div>
-              
-              {/* Company Representatives */}
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                <div className="flex items-center mb-1">
-                  <Users className="w-3 h-3 mr-1" />
-                  <span className="font-medium">Representatives:</span>
-                </div>
-                <div className="ml-4">
-                  {company.representatives && company.representatives.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {company.representatives.map((rep: any, index: number) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
-                        >
-                          {rep.name} {rep.role && `(${rep.role})`}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400 text-xs">
-                      No representatives added - add during company selection step
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Team & Drivers */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-        <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center">
-          <Users className="w-4 h-4 mr-2" />
-          Team Members & Drivers
-        </h3>
-        
-        <div className="space-y-4">
-          {/* Display staff members (prioritize participants, fallback to wolthersStaff) */}
-          {(() => {
-            const staff = (formData.participants || []).length > 0 
-              ? formData.participants 
-              : formData.wolthersStaff || []
-            
-            const drivers = staff.filter((p: any) => p.isDriver)
-            
-            return staff.length > 0 ? (
-              <>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Wolthers Staff ({staff.length})
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {staff.map(member => (
-                      <div key={member.id} className="text-sm">
-                        <div className="text-gray-700 dark:text-gray-300 font-medium">
-                          {member.fullName || member.full_name || member.name || 'Unnamed Staff'}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {member.email}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Driver summary */}
-                {drivers.length > 0 && (
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-700">
-                    <div className="flex items-center text-emerald-700 dark:text-emerald-400">
-                      <Car className="w-4 h-4 mr-2" />
-                      <span className="text-sm font-medium">
-                        {drivers.length} Staff Member{drivers.length !== 1 ? 's' : ''} Available as Driver{drivers.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
+        {/* Guest Information */}
+        {formData.flightInfo && formData.flightInfo.passengerName && (
+          <div>
+            <span className="text-gray-500 dark:text-gray-400 flex items-center">
+              <User className="w-4 h-4 mr-1" />
+              Guest:
+            </span>
+            <div className="mt-1">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
+                {formData.flightInfo.passengerName}
+                {formData.companies && formData.companies.length > 0 && (
+                  <span className="ml-1 text-emerald-600 dark:text-emerald-400">
+                    ({formData.companies[0].fantasyName || formData.companies[0].name})
+                  </span>
                 )}
-              </>
-            ) : (
-              <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                No team members selected
-              </div>
-            )
-          })()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Team Members */}
+        <div>
+          <span className="text-gray-500 dark:text-gray-400 flex items-center">
+            <Users className="w-4 h-4 mr-1" />
+            Team:
+          </span>
+          <div className="mt-1">
+            {(() => {
+              const staff = (formData.participants || []).length > 0 
+                ? formData.participants 
+                : formData.wolthersStaff || []
+              
+              return staff.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {staff.map(member => (
+                    <span
+                      key={member.id}
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200"
+                    >
+                      {member.fullName || member.full_name || member.name || 'Unnamed Staff'}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 text-xs">
+                  No team members selected
+                </span>
+              )
+            })()}
+          </div>
         </div>
       </div>
+
 
       {/* Vehicles */}
       {(formData.vehicles || []).length > 0 && (

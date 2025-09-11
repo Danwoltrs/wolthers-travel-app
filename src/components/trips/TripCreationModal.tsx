@@ -8,19 +8,8 @@ import CalendarItineraryStep from './CalendarItineraryStep'
 import MeetingAgendaStep from './MeetingAgendaStep'
 import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
-import dynamic from 'next/dynamic'
-
-// Dynamically import Enhanced Driver & Vehicle Step to prevent SSR issues
-const EnhancedDriverVehicleStep = dynamic(() => import('./EnhancedDriverVehicleStep'), {
-  ssr: false,
-  loading: () => (
-    <div className="space-y-8">
-      <div className="flex items-center justify-center py-8">
-        <div className="text-gray-500 dark:text-gray-400">Loading drivers & vehicles...</div>
-      </div>
-    </div>
-  )
-})
+// Import Enhanced Driver & Vehicle Step statically
+import EnhancedDriverVehicleStep from './EnhancedDriverVehicleStep'
 import ReviewStep from './ReviewStep'
 import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'

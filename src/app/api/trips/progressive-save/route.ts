@@ -528,11 +528,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Also create trip participants for Wolthers staff if they exist in step data
-        if (stepData.wolthersStaff && Array.isArray(stepData.wolthersStaff) && stepData.wolthersStaff.length > 0) {
-          console.log('👥 Creating trip participants for Wolthers staff:', stepData.wolthersStaff.length)
+        // Create trip participants for Wolthers staff (support both old and new field names)
+        const staffMembers = stepData.participants || stepData.wolthersStaff || []
+        if (Array.isArray(staffMembers) && staffMembers.length > 0) {
+          console.log('👥 Creating trip participants for Wolthers staff:', staffMembers.length)
           
-          const participantInserts = stepData.wolthersStaff.map((staff: any) => ({
+          const participantInserts = staffMembers.map((staff: any) => ({
             trip_id: finalTripId,
             user_id: staff.id,
             company_id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Wolthers & Associates company ID
@@ -551,6 +552,45 @@ export async function POST(request: NextRequest) {
             // Don't fail the trip creation, just log the error
           } else {
             console.log('✅ Trip participants created successfully')
+          }
+        }
+
+        // Save host companies and their representatives
+        if (stepData.hostCompanies && Array.isArray(stepData.hostCompanies) && stepData.hostCompanies.length > 0) {
+          console.log('🏢 Processing host companies with representatives:', stepData.hostCompanies.length)
+          
+          for (const hostCompany of stepData.hostCompanies) {
+            // Save or update the company if needed (if it's not in the database)
+            
+            // Save representatives as trip participants
+            if (hostCompany.representatives && Array.isArray(hostCompany.representatives) && hostCompany.representatives.length > 0) {
+              console.log(`👤 Creating representatives for ${hostCompany.name}:`, hostCompany.representatives.length)
+              
+              const representativeInserts = hostCompany.representatives.map((rep: any) => ({
+                trip_id: finalTripId,
+                user_id: null, // Representatives might not have user accounts
+                company_id: hostCompany.id, // Company ID
+                role: 'representative',
+                participant_name: rep.name,
+                participant_email: rep.email,
+                participant_phone: rep.phone,
+                participant_role: rep.role,
+                is_partial: false,
+                created_at: now,
+                updated_at: now
+              }))
+
+              const { error: repError } = await supabase
+                .from('trip_participants')
+                .insert(representativeInserts)
+
+              if (repError) {
+                console.error(`⚠️ Failed to create representatives for ${hostCompany.name}:`, repError)
+                // Don't fail the trip creation, just log the error
+              } else {
+                console.log(`✅ Representatives created successfully for ${hostCompany.name}`)
+              }
+            }
           }
         }
 
@@ -1037,6 +1077,9 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     
     // Also delete existing activities (we'll re-insert them if they exist in stepData)
     await supabase.from('activities').delete().eq('trip_id', tripId)
+    
+    // Clear existing trip participants to re-insert
+    await supabase.from('trip_participants').delete().eq('trip_id', tripId)
 
     // Re-insert hotels
     if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
@@ -1160,14 +1203,18 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
       const flight = stepData.flightInfo
       const arrivalDate = new Date(flight.arrivalDate)
-      const destinationType = stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office'
+      
+      // Extract destination name from address for better activity title
+      const destinationName = stepData.destinationAddress ? 
+        extractDestinationName(stepData.destinationAddress) : 
+        (stepData.nextDestination === 'hotel' ? 'Hotel' : 'Office')
       
       // Calculate total duration: 30min pickup + ~2 hours drive (117min from Google Maps API) = 147min total
       const totalDurationMinutes = 147
       
       activities.push({
         trip_id: tripId,
-        title: `Airport Pickup & Drive to ${destinationType}`,
+        title: `Pickup at Airport and Drive to ${destinationName}`,
         description: `Pick up ${flight.passengerName} at GRU Airport Terminal ${flight.terminal || 'TBD'} and drive to ${stepData.destinationAddress || 'destination'}`,
         activity_date: arrivalDate.toISOString().split('T')[0],
         start_time: flight.arrivalTime,
@@ -1266,6 +1313,67 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       }
     }
 
+    // Re-insert trip participants (Wolthers staff)
+    const staffMembers = stepData.participants || stepData.wolthersStaff || []
+    if (Array.isArray(staffMembers) && staffMembers.length > 0) {
+      console.log('👥 Re-inserting trip participants for Wolthers staff:', staffMembers.length)
+      
+      const participantInserts = staffMembers.map((staff: any) => ({
+        trip_id: tripId,
+        user_id: staff.id,
+        company_id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Wolthers & Associates company ID
+        role: 'staff',
+        is_partial: false,
+        created_at: now,
+        updated_at: now
+      }))
+
+      const { error: participantsError } = await supabase
+        .from('trip_participants')
+        .insert(participantInserts)
+
+      if (participantsError) {
+        console.error('⚠️ Failed to re-insert trip participants:', participantsError)
+      } else {
+        console.log('✅ Trip participants re-inserted successfully')
+      }
+    }
+
+    // Re-insert host companies representatives
+    if (stepData.hostCompanies && Array.isArray(stepData.hostCompanies) && stepData.hostCompanies.length > 0) {
+      console.log('🏢 Re-inserting host companies with representatives:', stepData.hostCompanies.length)
+      
+      for (const hostCompany of stepData.hostCompanies) {
+        if (hostCompany.representatives && Array.isArray(hostCompany.representatives) && hostCompany.representatives.length > 0) {
+          console.log(`👤 Re-inserting representatives for ${hostCompany.name}:`, hostCompany.representatives.length)
+          
+          const representativeInserts = hostCompany.representatives.map((rep: any) => ({
+            trip_id: tripId,
+            user_id: null, // Representatives might not have user accounts
+            company_id: hostCompany.id, // Company ID
+            role: 'representative',
+            participant_name: rep.name,
+            participant_email: rep.email,
+            participant_phone: rep.phone,
+            participant_role: rep.role,
+            is_partial: false,
+            created_at: now,
+            updated_at: now
+          }))
+
+          const { error: repError } = await supabase
+            .from('trip_participants')
+            .insert(representativeInserts)
+
+          if (repError) {
+            console.error(`⚠️ Failed to re-insert representatives for ${hostCompany.name}:`, repError)
+          } else {
+            console.log(`✅ Representatives re-inserted successfully for ${hostCompany.name}`)
+          }
+        }
+      }
+    }
+
     console.log('✅ Extended trip data updated successfully')
   } catch (error) {
     console.error('⚠️ Failed to update extended trip data:', error)
@@ -1282,6 +1390,35 @@ function hash(str: string): number {
     hash = hash & hash // Convert to 32bit integer
   }
   return hash
+}
+
+// Helper function to extract a meaningful destination name from an address
+function extractDestinationName(address: string): string {
+  // Check for specific hotel/office names first
+  if (address.includes('Sheraton')) return 'Sheraton'
+  if (address.includes('W&A HQ')) return 'W&A HQ Santos'
+  if (address.includes('Wolthers')) return 'W&A Office'
+  if (address.includes('Santos')) return 'Santos Office'
+  
+  // Try to extract hotel/company names from common patterns
+  // Look for "Hotel [Name]" or "[Name] Hotel"
+  const hotelMatch = address.match(/(?:Hotel\s+(\w+)|(\w+)\s+Hotel)/i)
+  if (hotelMatch) {
+    return `${hotelMatch[1] || hotelMatch[2]} Hotel`
+  }
+  
+  // Look for business names before street addresses
+  const businessMatch = address.match(/^([^,\d]+?)(?:\s*-\s*|,)/i)
+  if (businessMatch) {
+    const businessName = businessMatch[1].trim()
+    if (businessName.length > 3 && !businessName.toLowerCase().includes('rua')) {
+      return businessName
+    }
+  }
+  
+  // Fallback: use first few words or return generic
+  const words = address.split(/[,\-]/)
+  return words[0].trim() || 'Destination'
 }
 
 // Helper function to add minutes to a time string (HH:MM format)

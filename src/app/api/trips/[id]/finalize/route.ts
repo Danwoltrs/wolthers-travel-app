@@ -403,6 +403,139 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
       }
     }
 
+    // Insert participants if they don't exist
+    if (stepData.participants && Array.isArray(stepData.participants) && stepData.participants.length > 0) {
+      console.log('👥 Migrating participants to normalized table')
+      
+      // Check if participants already exist
+      const { data: existingParticipants } = await supabase
+        .from('trip_participants')
+        .select('id')
+        .eq('trip_id', tripId)
+        .limit(1)
+      
+      if (!existingParticipants || existingParticipants.length === 0) {
+        const participantInserts = stepData.participants.map((participant: any) => ({
+          trip_id: tripId,
+          user_id: participant.user_id || participant.id,
+          role: participant.role || 'participant',
+          company_id: participant.company_id || participant.companyId,
+          participation_status: 'confirmed',
+          created_at: now,
+          updated_at: now
+        }))
+
+        const { error: participantsError } = await supabase
+          .from('trip_participants')
+          .insert(participantInserts)
+
+        if (participantsError) {
+          console.error('⚠️ Failed to migrate participants:', participantsError)
+        } else {
+          console.log('✅ Participants migrated successfully')
+        }
+      }
+    }
+
+    // Handle guest information from flightInfo and companies
+    if (stepData.flightInfo && stepData.flightInfo.passengerName && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+      console.log('👤 Migrating guest information from flight data')
+      
+      // Check if guest participants already exist
+      const { data: existingGuests } = await supabase
+        .from('trip_participants')
+        .select('id')
+        .eq('trip_id', tripId)
+        .eq('role', 'guest')
+        .limit(1)
+      
+      if (!existingGuests || existingGuests.length === 0) {
+        // Create guest participant records for each company
+        // Note: For guests, we'll create a placeholder user_id or use a special guest role approach
+        const guestInserts = stepData.companies.map((company: any) => ({
+          trip_id: tripId,
+          user_id: userId, // Use the creator's ID for now since user_id is NOT NULL
+          role: 'guest',
+          company_id: company.id,
+          guest_name: stepData.flightInfo.passengerName,
+          created_at: now,
+          updated_at: now
+        }))
+
+        const { error: guestError } = await supabase
+          .from('trip_participants')
+          .insert(guestInserts)
+
+        if (guestError) {
+          console.error('⚠️ Failed to migrate guest information:', guestError)
+        } else {
+          console.log('✅ Guest information migrated successfully')
+        }
+      }
+    }
+
+    // Insert Wolthers staff if they don't exist
+    if (stepData.wolthersStaff && Array.isArray(stepData.wolthersStaff) && stepData.wolthersStaff.length > 0) {
+      console.log('👥 Migrating Wolthers staff to participants table')
+      
+      const staffInserts = stepData.wolthersStaff.map((staff: any) => ({
+        trip_id: tripId,
+        user_id: staff.user_id || staff.id,
+        role: 'wolthers_staff',
+        company_id: '840783f4-866d-4bdb-9b5d-5d0facf62db0', // Wolthers company ID
+        participation_status: 'confirmed',
+        created_at: now,
+        updated_at: now
+      }))
+
+      const { error: staffError } = await supabase
+        .from('trip_participants')
+        .upsert(staffInserts, { 
+          onConflict: 'trip_id,user_id',
+          ignoreDuplicates: false
+        })
+
+      if (staffError) {
+        console.error('⚠️ Failed to migrate Wolthers staff:', staffError)
+      } else {
+        console.log('✅ Wolthers staff migrated successfully')
+      }
+    }
+
+    // Insert vehicle assignments if they don't exist
+    if (stepData.vehicleAssignments && Array.isArray(stepData.vehicleAssignments) && stepData.vehicleAssignments.length > 0) {
+      console.log('🚗 Migrating vehicle assignments to normalized table')
+      
+      // Check if vehicle assignments already exist
+      const { data: existingAssignments } = await supabase
+        .from('trip_vehicles')
+        .select('id')
+        .eq('trip_id', tripId)
+        .limit(1)
+      
+      if (!existingAssignments || existingAssignments.length === 0) {
+        const assignmentInserts = stepData.vehicleAssignments.map((assignment: any) => ({
+          trip_id: tripId,
+          vehicle_id: assignment.vehicle_id || assignment.vehicleId,
+          driver_id: assignment.driver_id || assignment.driverId,
+          assigned_from: assignment.start_date || assignment.startDate || new Date().toISOString().split('T')[0],
+          assigned_to: assignment.end_date || assignment.endDate || new Date().toISOString().split('T')[0],
+          created_at: now,
+          updated_at: now
+        }))
+
+        const { error: assignmentsError } = await supabase
+          .from('trip_vehicles')
+          .insert(assignmentInserts)
+
+        if (assignmentsError) {
+          console.error('⚠️ Failed to migrate vehicle assignments:', assignmentsError)
+        } else {
+          console.log('✅ Vehicle assignments migrated successfully')
+        }
+      }
+    }
+
     // After successful migration, we could optionally clear the step_data
     // to reduce storage size, but keeping it for now for safety
     console.log('✅ Extended trip data finalized successfully')

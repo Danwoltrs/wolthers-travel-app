@@ -102,6 +102,11 @@ export async function GET(request: NextRequest) {
           id,
           activity_type,
           meeting_notes (id)
+        ),
+        activities (
+          id,
+          title,
+          activity_type
         )
       `)
       .order('start_date', { ascending: false })
@@ -185,12 +190,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Add draft IDs to trips
-    const tripsWithDrafts = trips?.map(trip => ({
-      ...trip,
-      draftId: draftsMap[trip.id] || null,
-      isDraft: trip.status === 'planning'
-    })) || []
+    // Add draft IDs and visit counts to trips
+    const tripsWithDrafts = trips?.map(trip => {
+      // Calculate visit count from activities (meetings, company visits, etc.)
+      const visitCount = trip.activities?.filter(activity => 
+        activity.activity_type === 'meeting' || 
+        activity.activity_type === 'company_visit' ||
+        activity.activity_type === 'facility_tour'
+      ).length || 0
+      
+      return {
+        ...trip,
+        draftId: draftsMap[trip.id] || null,
+        isDraft: trip.status === 'planning',
+        visitCount: visitCount
+      }
+    }) || []
     const uniqueTrips = Array.from(new Map(tripsWithDrafts.map(t => [t.id, t])).values())
 
     console.log(`✅ API: Returning ${uniqueTrips.length} trips for user ${user.email}`)

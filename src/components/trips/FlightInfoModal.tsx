@@ -140,7 +140,7 @@ export default function FlightInfoModal({
     if (destination === 'hotel') {
       setDestinationAddress('Sheraton Santos Hotel, Santos, SP, Brazil')
     } else {
-      setDestinationAddress('Wolthers & Associates HQ, Santos, SP, Brazil')
+      setDestinationAddress('W&A HQ - Rua XV de Novembro, 96, Santos, SP, Brazil')
     }
   }
 
@@ -685,17 +685,10 @@ export default function FlightInfoModal({
                   <div className="space-y-1 text-sm">
                     <button
                       type="button"
-                      onClick={() => setDestinationAddress('Wolthers & Associates HQ, Santos Port Area, Santos - SP, Brazil')}
+                      onClick={() => setDestinationAddress('W&A HQ - Rua XV de Novembro, 96, Santos, SP, Brazil')}
                       className="block w-full text-left text-orange-700 dark:text-orange-400 hover:text-orange-900 dark:hover:text-orange-300 underline"
                     >
-                      Wolthers & Associates HQ - Santos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDestinationAddress('Santos Port Authority, Praça Visconde de Mauá, s/n - Centro, Santos - SP, Brazil')}
-                      className="block w-full text-left text-orange-700 dark:text-orange-400 hover:text-orange-900 dark:hover:text-orange-300 underline"
-                    >
-                      Santos Port Authority
+                      W&A HQ - Santos
                     </button>
                   </div>
                 </div>

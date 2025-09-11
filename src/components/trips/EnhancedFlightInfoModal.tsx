@@ -165,7 +165,7 @@ export default function EnhancedFlightInfoModal({
     if (destination === 'hotel') {
       setDestinationAddress('Sheraton Santos Hotel, Av. Washington Luís, 295 - Gonzaga, Santos - SP, 11055-001, Brazil')
     } else {
-      setDestinationAddress('Wolthers & Associates HQ, Santos Port Area, Santos - SP, Brazil')
+      setDestinationAddress('W&A HQ - Rua XV de Novembro, 96, Santos, SP, Brazil')
     }
   }
 
