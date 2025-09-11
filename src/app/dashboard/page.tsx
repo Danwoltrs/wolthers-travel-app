@@ -219,23 +219,78 @@ export default function Dashboard() {
     return calculatedStatus === 'completed' && !isPlanningTrip
   })
 
-  const handleTripClick = (trip: TripCardType) => {
+  const handleTripClick = async (trip: TripCardType) => {
     // If it's a draft trip, open trip creation modal to continue
-    if ((trip as any).isDraft) {
-      const resumeData = {
-        tripId: (trip as any).trip_id,
-        formData: {
-          tripType: (trip as any).tripType,
-          title: trip.title,
-          description: trip.subject || '',
-          startDate: trip.startDate ? new Date(trip.startDate) : null,
-          endDate: trip.endDate ? new Date(trip.endDate) : null,
-          // Add other form data as needed
-        },
-        currentStep: (trip as any).currentStep || 1
+    if ((trip as any).isDraft || (trip as any).status === 'planning') {
+      try {
+        console.log('🔄 Loading draft trip data for:', trip.accessCode)
+        
+        // Use the existing continue endpoint to load complete draft data
+        const response = await fetch(`/api/trips/continue/${trip.accessCode}`, {
+          credentials: 'include'
+        })
+        
+        if (response.ok) {
+          const continueData = await response.json()
+          console.log('✅ Draft data loaded:', continueData)
+          
+          // Use the complete draft data from the API
+          const resumeData = {
+            tripId: continueData.trip?.id || trip.id,
+            accessCode: trip.accessCode,
+            formData: continueData.draft || {
+              tripType: trip.tripType,
+              title: trip.title,
+              description: trip.subject || '',
+              startDate: trip.startDate ? new Date(trip.startDate) : null,
+              endDate: trip.endDate ? new Date(trip.endDate) : null,
+            },
+            currentStep: continueData.currentStep || 1,
+            canEdit: continueData.canEdit
+          }
+          
+          setResumeData(resumeData)
+          setShowTripCreationModal(true)
+        } else {
+          console.warn('Failed to load draft data, using basic resume:', response.status)
+          
+          // Fallback to basic resume data
+          const resumeData = {
+            tripId: trip.id,
+            accessCode: trip.accessCode,
+            formData: {
+              tripType: (trip as any).tripType,
+              title: trip.title,
+              description: trip.subject || '',
+              startDate: trip.startDate ? new Date(trip.startDate) : null,
+              endDate: trip.endDate ? new Date(trip.endDate) : null,
+            },
+            currentStep: 1
+          }
+          
+          setResumeData(resumeData)
+          setShowTripCreationModal(true)
+        }
+      } catch (error) {
+        console.error('Error loading draft trip:', error)
+        
+        // Fallback to basic resume data
+        const resumeData = {
+          tripId: trip.id,
+          accessCode: trip.accessCode,
+          formData: {
+            tripType: (trip as any).tripType,
+            title: trip.title,
+            description: trip.subject || '',
+            startDate: trip.startDate ? new Date(trip.startDate) : null,
+            endDate: trip.endDate ? new Date(trip.endDate) : null,
+          },
+          currentStep: 1
+        }
+        
+        setResumeData(resumeData)
+        setShowTripCreationModal(true)
       }
-      setResumeData(resumeData)
-      setShowTripCreationModal(true)
     } else {
       // Open quick view modal for regular trips
       setSelectedTrip(trip)

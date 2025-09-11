@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
     const tripsWithDrafts = trips?.map(trip => ({
       ...trip,
       draftId: draftsMap[trip.id] || null,
-      isDraft: trip.status === 'planning' && draftsMap[trip.id] != null
+      isDraft: trip.status === 'planning'
     })) || []
     const uniqueTrips = Array.from(new Map(tripsWithDrafts.map(t => [t.id, t])).values())
 
