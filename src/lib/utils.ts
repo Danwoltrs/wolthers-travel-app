@@ -322,6 +322,39 @@ export function formatTime(time: string, use24Hour: boolean = true): string {
 }
 
 /**
+ * Formats duration from seconds to readable format (e.g., "4hr 30min")
+ * Rounds minutes to the nearest 5-minute interval
+ */
+export function formatDurationReadable(seconds: number): string {
+  if (!seconds || seconds < 0) return '0min'
+  
+  const totalMinutes = Math.round(seconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  let minutes = totalMinutes % 60
+  
+  // Round minutes to nearest 5-minute interval
+  minutes = Math.round(minutes / 5) * 5
+  
+  // Ensure minimum 5 minutes for any non-zero duration
+  if (minutes === 0 && hours === 0 && seconds > 0) {
+    minutes = 5
+  }
+  
+  // Handle case where rounding brings minutes to 60
+  if (minutes === 60) {
+    return `${hours + 1}hr`
+  }
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours}hr ${minutes}min`
+  } else if (hours > 0) {
+    return `${hours}hr`
+  } else {
+    return `${minutes}min`
+  }
+}
+
+/**
  * Calculates the end time based on start time and duration
  */
 export function calculateEndTime(startTime: string, durationMinutes: number): string {

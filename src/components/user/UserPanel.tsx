@@ -125,9 +125,16 @@ const UserPanel: React.FC<UserPanelProps> = ({
       setPasswordSuccess(true)
       setPasswordData({ current: '', new: '', confirm: '' })
       
+      // Success! Close panel and redirect to dashboard after password change
       setTimeout(() => {
         setPasswordSuccess(false)
-      }, 3000)
+        handleClose() // Close the user panel
+        
+        // If this was an OTP login (first time password setup), redirect to dashboard
+        if (user?.otp_login) {
+          window.location.href = '/dashboard' // Force page reload to refresh auth state
+        }
+      }, 2000) // Show success message for 2 seconds before redirecting
 
     } catch (error) {
       setPasswordError('Network error. Please try again.')

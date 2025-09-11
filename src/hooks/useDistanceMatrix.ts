@@ -159,13 +159,32 @@ export function useIntercityTravel() {
 
 // Helper function to format duration in a human-readable way
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
+  if (!seconds || seconds < 0) return '0min'
   
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
+  const totalMinutes = Math.round(seconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  let minutes = totalMinutes % 60
+  
+  // Round minutes to nearest 5-minute interval
+  minutes = Math.round(minutes / 5) * 5
+  
+  // Ensure minimum 5 minutes for any non-zero duration
+  if (minutes === 0 && hours === 0 && seconds > 0) {
+    minutes = 5
   }
-  return `${minutes}m`
+  
+  // Handle case where rounding brings minutes to 60
+  if (minutes === 60) {
+    return `${hours + 1}hr`
+  }
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours}hr ${minutes}min`
+  } else if (hours > 0) {
+    return `${hours}hr`
+  } else {
+    return `${minutes}min`
+  }
 }
 
 // Helper function to format distance in a human-readable way

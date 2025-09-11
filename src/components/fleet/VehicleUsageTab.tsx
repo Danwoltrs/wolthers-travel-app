@@ -101,13 +101,30 @@ export default function VehicleUsageTab({ vehicle }: VehicleUsageTabProps) {
     const start = new Date(startTime);
     const end = new Date(endTime);
     const diffMs = end.getTime() - start.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const totalMinutes = Math.round(diffMs / (1000 * 60));
+    const diffHours = Math.floor(totalMinutes / 60);
+    let diffMinutes = totalMinutes % 60;
     
-    if (diffHours > 0) {
-      return `${diffHours}h ${diffMinutes}m`;
+    // Round minutes to nearest 5-minute interval
+    diffMinutes = Math.round(diffMinutes / 5) * 5;
+    
+    // Ensure minimum 5 minutes for any non-zero duration
+    if (diffMinutes === 0 && diffHours === 0 && diffMs > 0) {
+      diffMinutes = 5;
     }
-    return `${diffMinutes}m`;
+    
+    // Handle case where rounding brings minutes to 60
+    if (diffMinutes === 60) {
+      return `${diffHours + 1}hr`;
+    }
+    
+    if (diffHours > 0 && diffMinutes > 0) {
+      return `${diffHours}hr ${diffMinutes}min`;
+    } else if (diffHours > 0) {
+      return `${diffHours}hr`;
+    } else {
+      return `${diffMinutes}min`;
+    }
   };
 
   const getUsageTypeIcon = (type: string) => {

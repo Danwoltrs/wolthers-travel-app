@@ -105,7 +105,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   // Check if there are any locations to show on map
   const hasLocations = activities.some(activity => 
     (activity.company_locations && activity.company_locations.latitude && activity.company_locations.longitude) ||
-    activity.custom_location
+    activity.custom_location ||
+    activity.location
   )
 
   const handleNewTrip = async () => {

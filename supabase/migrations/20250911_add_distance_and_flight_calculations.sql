@@ -84,8 +84,20 @@ SELECT
   CASE 
     WHEN a.duration_seconds IS NOT NULL THEN
       CASE 
-        WHEN a.duration_seconds < 3600 THEN ROUND(a.duration_seconds / 60.0) || 'min'
-        ELSE FLOOR(a.duration_seconds / 3600.0) || 'h ' || ROUND((a.duration_seconds % 3600) / 60.0) || 'min'
+        WHEN a.duration_seconds < 3600 THEN 
+          CASE 
+            WHEN ROUND(ROUND(a.duration_seconds / 60.0) / 5.0) * 5 = 0 THEN '5min'
+            ELSE (ROUND(ROUND(a.duration_seconds / 60.0) / 5.0) * 5)::TEXT || 'min'
+          END
+        ELSE 
+          CASE 
+            WHEN ROUND((a.duration_seconds % 3600) / 60.0 / 5.0) * 5 = 0 THEN 
+              FLOOR(a.duration_seconds / 3600.0)::TEXT || 'hr'
+            WHEN ROUND((a.duration_seconds % 3600) / 60.0 / 5.0) * 5 = 60 THEN
+              (FLOOR(a.duration_seconds / 3600.0) + 1)::TEXT || 'hr'
+            ELSE 
+              FLOOR(a.duration_seconds / 3600.0)::TEXT || 'hr ' || (ROUND((a.duration_seconds % 3600) / 60.0 / 5.0) * 5)::TEXT || 'min'
+          END
       END
     ELSE NULL
   END AS formatted_duration,

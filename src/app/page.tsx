@@ -181,10 +181,11 @@ export default function LoginPage() {
 
   // Redirect authenticated users to main dashboard
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && isAuthenticated && !showPasswordPrompt && !showUserPanel) {
+      // Only redirect if not showing password prompts/panels
       router.push("/dashboard");
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading, router, showPasswordPrompt, showUserPanel]);
 
   // Load saved users on component mount
   useEffect(() => {
@@ -594,7 +595,8 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) {
+  // Show loading screen only when actively loading and not authenticated
+  if (isLoading || (authLoading && !isAuthenticated)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pearl-50 via-amber-50/30 to-emerald-50/20 dark:from-[#212121] dark:via-[#1a1a1a] dark:to-[#0E3D2F]/10 flex items-center justify-center">
         <div className="text-center">

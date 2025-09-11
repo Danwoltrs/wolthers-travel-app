@@ -103,11 +103,12 @@ export async function POST(request: NextRequest) {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    // Update password in database
+    // Update password in database and clear otp_login flag
     const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({ 
         password_hash: hashedPassword,
+        otp_login: false, // Clear the OTP login flag since they now have a password
         updated_at: new Date().toISOString()
       })
       .eq('id', userData.id);

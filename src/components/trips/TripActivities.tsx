@@ -54,7 +54,7 @@ const generateDayICSContent = (activities: any[], date: string, dayIndex: number
       `DTEND:${formatDate(endDateTime)}`,
       `SUMMARY:${escapeText(activity.title)}`,
       `DESCRIPTION:${escapeText(activity.description || '')}`,
-      `LOCATION:${escapeText(activity.custom_location || '')}`,
+      `LOCATION:${escapeText(activity.location || activity.custom_location || '')}`,
       `CATEGORIES:Day ${dayIndex + 1} - ${formattedDate}`,
       'STATUS:CONFIRMED',
       'END:VEVENT'
