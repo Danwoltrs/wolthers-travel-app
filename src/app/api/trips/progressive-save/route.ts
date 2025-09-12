@@ -555,6 +555,43 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Save external company participants (like client representatives, guests)
+        if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+          console.log('🏢 Processing external companies with participants:', stepData.companies.length)
+          
+          for (const company of stepData.companies) {
+            // Save participants from external companies as trip participants
+            if (company.participants && Array.isArray(company.participants) && company.participants.length > 0) {
+              console.log(`👤 Creating participants for ${company.name}:`, company.participants.length)
+              
+              const participantInserts = company.participants.map((participant: any) => ({
+                trip_id: finalTripId,
+                user_id: participant.id || null, // Participant might have a user account
+                company_id: company.id, // Company ID
+                role: company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0' ? 'staff' : 'client_representative', // Wolthers staff vs external clients
+                guest_name: participant.full_name || participant.name,
+                guest_email: participant.email,
+                guest_phone: participant.phone,
+                guest_company: company.name,
+                is_partial: false,
+                created_at: now,
+                updated_at: now
+              }))
+
+              const { error: participantError } = await supabase
+                .from('trip_participants')
+                .insert(participantInserts)
+
+              if (participantError) {
+                console.error(`⚠️ Failed to create participants for ${company.name}:`, participantError)
+                // Don't fail the trip creation, just log the error
+              } else {
+                console.log(`✅ Participants created successfully for ${company.name}`)
+              }
+            }
+          }
+        }
+
         // Save host companies and their representatives
         if (stepData.hostCompanies && Array.isArray(stepData.hostCompanies) && stepData.hostCompanies.length > 0) {
           console.log('🏢 Processing host companies with representatives:', stepData.hostCompanies.length)
@@ -571,10 +608,10 @@ export async function POST(request: NextRequest) {
                 user_id: null, // Representatives might not have user accounts
                 company_id: hostCompany.id, // Company ID
                 role: 'representative',
-                participant_name: rep.name,
-                participant_email: rep.email,
-                participant_phone: rep.phone,
-                participant_role: rep.role,
+                guest_name: rep.name,
+                guest_email: rep.email,
+                guest_phone: rep.phone,
+                guest_company: hostCompany.name,
                 is_partial: false,
                 created_at: now,
                 updated_at: now
@@ -879,8 +916,15 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Create ending point drive activity (drive to final destination)
-        if (stepData.endingPoint && stepData.endingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
-          console.log('🏁 Creating drive activity to ending point:', stepData.endingPoint)
+        // Create return drive if: explicit ending point set OR trip starts/ends in Santos area
+        const shouldCreateReturnDrive = stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0 && (
+          (stepData.endingPoint && stepData.endingPoint !== 'gru_airport') ||
+          (stepData.startingPoint && ['santos', 'w&a_hq_santos'].includes(stepData.startingPoint) && !stepData.endingPoint)
+        )
+        
+        if (shouldCreateReturnDrive) {
+          const actualEndingPoint = stepData.endingPoint || stepData.startingPoint || 'santos'
+          console.log('🏁 Creating drive activity to ending point:', actualEndingPoint)
           
           // Get the last company location as starting point for final drive
           const lastCompany = stepData.companies[stepData.companies.length - 1]
@@ -890,22 +934,22 @@ export async function POST(request: NextRequest) {
           let endLocationName = 'Destination'
           let endLocationAddress = 'Final destination'
           
-          if (stepData.endingPoint === 'guarulhos') {
+          if (actualEndingPoint === 'guarulhos') {
             endLocationName = 'Guarulhos Area'
             endLocationAddress = 'Guarulhos metropolitan area, São Paulo'
-          } else if (stepData.endingPoint === 'santos') {
+          } else if (actualEndingPoint === 'santos') {
             endLocationName = 'Santos'
             endLocationAddress = 'Santos, São Paulo'
-          } else if (stepData.endingPoint === 'w&a_hq_santos') {
+          } else if (actualEndingPoint === 'w&a_hq_santos') {
             endLocationName = 'W&A HQ Santos'
             endLocationAddress = 'Wolthers & Associates HQ, Santos'
           } else if (stepData.endingPoint === 'other' && stepData.customEndingPoint) {
             endLocationName = stepData.customEndingPoint
             endLocationAddress = stepData.customEndingPoint
-          } else if (typeof stepData.endingPoint === 'string' && stepData.endingPoint.length > 0) {
+          } else if (typeof actualEndingPoint === 'string' && actualEndingPoint.length > 0) {
             // Handle custom ending points that aren't 'other'
-            endLocationName = stepData.endingPoint
-            endLocationAddress = stepData.endingPoint
+            endLocationName = actualEndingPoint
+            endLocationAddress = actualEndingPoint
           }
           
           // Calculate the last meeting end time to schedule drive after
@@ -1457,8 +1501,15 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     }
 
     // 5. Create ending point drive activity (drive to final destination) - UPDATE VERSION
-    if (stepData.endingPoint && stepData.endingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
-      console.log('🏁 Updating drive activity to ending point:', stepData.endingPoint)
+    // Create return drive if: explicit ending point set OR trip starts/ends in Santos area
+    const shouldCreateReturnDrive = stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0 && (
+      (stepData.endingPoint && stepData.endingPoint !== 'gru_airport') ||
+      (stepData.startingPoint && ['santos', 'w&a_hq_santos'].includes(stepData.startingPoint) && !stepData.endingPoint)
+    )
+    
+    if (shouldCreateReturnDrive) {
+      const actualEndingPoint = stepData.endingPoint || stepData.startingPoint || 'santos'
+      console.log('🏁 Updating drive activity to ending point:', actualEndingPoint)
       
       // Get the last company location as starting point for final drive
       const lastCompany = stepData.companies[stepData.companies.length - 1]
@@ -1468,22 +1519,22 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       let endLocationName = 'Destination'
       let endLocationAddress = 'Final destination'
       
-      if (stepData.endingPoint === 'guarulhos') {
+      if (actualEndingPoint === 'guarulhos') {
         endLocationName = 'Guarulhos Area'
         endLocationAddress = 'Guarulhos metropolitan area, São Paulo'
-      } else if (stepData.endingPoint === 'santos') {
+      } else if (actualEndingPoint === 'santos') {
         endLocationName = 'Santos'
         endLocationAddress = 'Santos, São Paulo'
-      } else if (stepData.endingPoint === 'w&a_hq_santos') {
+      } else if (actualEndingPoint === 'w&a_hq_santos') {
         endLocationName = 'W&A HQ Santos'
         endLocationAddress = 'Wolthers & Associates HQ, Santos'
       } else if (stepData.endingPoint === 'other' && stepData.customEndingPoint) {
         endLocationName = stepData.customEndingPoint
         endLocationAddress = stepData.customEndingPoint
-      } else if (typeof stepData.endingPoint === 'string' && stepData.endingPoint.length > 0) {
+      } else if (typeof actualEndingPoint === 'string' && actualEndingPoint.length > 0) {
         // Handle custom ending points that aren't 'other'
-        endLocationName = stepData.endingPoint
-        endLocationAddress = stepData.endingPoint
+        endLocationName = actualEndingPoint
+        endLocationAddress = actualEndingPoint
       }
       
       // Calculate the last meeting end time to schedule drive after
@@ -1573,6 +1624,42 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       }
     }
 
+    // Re-insert external company participants (like client representatives, guests)
+    if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+      console.log('🏢 Re-inserting external companies with participants:', stepData.companies.length)
+      
+      for (const company of stepData.companies) {
+        // Re-insert participants from external companies as trip participants
+        if (company.participants && Array.isArray(company.participants) && company.participants.length > 0) {
+          console.log(`👤 Re-inserting participants for ${company.name}:`, company.participants.length)
+          
+          const participantInserts = company.participants.map((participant: any) => ({
+            trip_id: tripId,
+            user_id: participant.id || null, // Participant might have a user account
+            company_id: company.id, // Company ID
+            role: company.id === '840783f4-866d-4bdb-9b5d-5d0facf62db0' ? 'staff' : 'client_representative', // Wolthers staff vs external clients
+            guest_name: participant.full_name || participant.name,
+            guest_email: participant.email,
+            guest_phone: participant.phone,
+            guest_company: company.name,
+            is_partial: false,
+            created_at: now,
+            updated_at: now
+          }))
+
+          const { error: participantError } = await supabase
+            .from('trip_participants')
+            .insert(participantInserts)
+
+          if (participantError) {
+            console.error(`⚠️ Failed to re-insert participants for ${company.name}:`, participantError)
+          } else {
+            console.log(`✅ Participants re-inserted successfully for ${company.name}`)
+          }
+        }
+      }
+    }
+
     // Re-insert host companies representatives
     if (stepData.hostCompanies && Array.isArray(stepData.hostCompanies) && stepData.hostCompanies.length > 0) {
       console.log('🏢 Re-inserting host companies with representatives:', stepData.hostCompanies.length)
@@ -1586,10 +1673,10 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
             user_id: null, // Representatives might not have user accounts
             company_id: hostCompany.id, // Company ID
             role: 'representative',
-            participant_name: rep.name,
-            participant_email: rep.email,
-            participant_phone: rep.phone,
-            participant_role: rep.role,
+            guest_name: rep.name,
+            guest_email: rep.email,
+            guest_phone: rep.phone,
+            guest_company: hostCompany.name,
             is_partial: false,
             created_at: now,
             updated_at: now

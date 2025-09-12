@@ -176,13 +176,17 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       const tripParticipants = trip.trip_participants || []
       
       // Separate companies and Wolthers staff
-      const companies = tripParticipants
-        .filter((p: any) => p.companies && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
+      const externalParticipants = tripParticipants
+        .filter((p: any) => (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
+      
+      // Get companies from both linked users and guest entries
+      const companies = externalParticipants
         .map((p: any) => ({
-          id: p.companies?.id,
-          name: p.companies?.name,
-          fantasyName: p.companies?.fantasy_name
+          id: p.companies?.id || p.company_id,
+          name: p.companies?.name || p.guest_company,
+          fantasyName: p.companies?.fantasy_name || p.guest_company
         }))
+        .filter(company => company.id) // Only include entries with valid company IDs
       
       // Remove duplicates by company id
       const uniqueCompanies = companies.filter((company: any, index: number, self: any[]) => 
@@ -191,14 +195,18 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       
       const guests = uniqueCompanies.map((company: any) => ({
         companyId: company.id,
-        names: tripParticipants
-          .filter((p: any) => p.company_id === company.id && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
-          .map((p: any) => p.users?.full_name || p.participant_name) // Use participant_name for representatives without user accounts
+        names: externalParticipants
+          .filter((p: any) => p.company_id === company.id)
+          .map((p: any) => p.users?.full_name || p.guest_name) // Use guest_name for external guests
           .filter(Boolean)
       }))
 
       const wolthersStaff = tripParticipants
-        .filter((p: any) => p.users && (p.users.user_type === 'wolthers_staff' || p.users.email?.endsWith('@wolthers.com')))
+        .filter((p: any) => p.users && (
+          p.users.user_type === 'wolthers_staff' || 
+          p.users.email?.endsWith('@wolthers.com') ||
+          (p.role === 'staff' && p.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0') // Wolthers company ID
+        ))
         .map((p: any) => ({
           id: p.users?.id,
           fullName: p.users?.full_name,
@@ -210,14 +218,15 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       const vehicles = tripVehicles
         .filter((v: any) => v.vehicles)
         .map((v: any) => {
-          const modelParts = v.vehicles?.model?.split(' ') || []
-          const make = modelParts[0] || ''
-          const model = modelParts.slice(1).join(' ') || v.vehicles?.model || ''
+          const fullModel = v.vehicles?.model || ''
+          const modelParts = fullModel.split(' ')
+          const make = modelParts[0] || fullModel
+          const model = modelParts.length > 1 ? modelParts.slice(1).join(' ') : ''
           
           return {
             id: v.vehicles?.id,
             make,
-            model,
+            model: model || fullModel, // Fallback to full model if no space found
             licensePlate: v.vehicles?.license_plate
           }
         })

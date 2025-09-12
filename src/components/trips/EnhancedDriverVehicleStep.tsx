@@ -147,9 +147,26 @@ export default function EnhancedDriverVehicleStep({ formData, updateFormData }: 
   const handleVehicleAssignment = (vehicleId: string, driverId: string) => {
     const newAssignments = { ...vehicleAssignments, [vehicleId]: driverId }
     setVehicleAssignments(newAssignments)
-    // Update form data with vehicle assignments
+    
+    // Convert to full objects for form data
+    const assignmentArray = Object.entries(newAssignments).map(([vehicleId, driverId]) => {
+      // Find driver (could be from staff or external drivers)
+      const staffDriver = participatingStaff.find(s => s.id === driverId)
+      const externalDriver = externalDrivers.find(d => d.id === driverId)
+      const driver = staffDriver || externalDriver
+      
+      // Find vehicle
+      const vehicle = availableVehicles.find(v => v.id === vehicleId)
+      
+      return {
+        driver,
+        vehicle
+      }
+    }).filter(assignment => assignment.driver && assignment.vehicle)
+    
+    // Update form data with full vehicle assignments
     updateFormData({
-      vehicleAssignments: newAssignments
+      vehicleAssignments: assignmentArray
     })
   }
 

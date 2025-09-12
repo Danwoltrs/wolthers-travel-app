@@ -509,6 +509,13 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         console.log(`✈️ [AI Itinerary] Created GRU pickup: ${pickupTimeStr}-${driveEndTimeStr} to ${destinationType}`)
       }
 
+      // Calculate day distribution for proper scheduling across trip duration
+      const availableDays = Math.max(tripDurationDays - (dayIndex > 0 ? dayIndex : 0), 1)
+      const companiesPerDay = Math.ceil(optimizedLocations.length / availableDays)
+      let companiesScheduledToday = 0
+      
+      console.log(`📊 [AI Itinerary] Day distribution: ${optimizedLocations.length} companies across ${availableDays} days = ${companiesPerDay} companies per day (starting from day ${dayIndex})`)
+
       for (let i = 0; i < optimizedLocations.length; i++) {
         const location = optimizedLocations[i]
         const company = location.company
@@ -603,18 +610,19 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
               
               // Enhanced travel descriptions with duration included in title
               const strategy = getStartingPointStrategy(formData.startingPoint || 'santos')
-              const roundedHours = Math.round(travelTimeHours * 10) / 10 // Round to 1 decimal place
-              let travelTitle = `Drive from ${previousCity} to ${currentCity} (${roundedHours}h)`
-              let travelDescription = `Travel from ${previousCity} to ${currentCity} (${roundedHours} hour drive)`
+              const travelTimeSeconds = travelMinutes * 60
+              const formattedDuration = formatDuration(travelTimeSeconds) // Use formatDuration for proper h:min format
+              let travelTitle = `Drive from ${previousCity} to ${currentCity} (${formattedDuration})`
+              let travelDescription = `Travel from ${previousCity} to ${currentCity} (${formattedDuration} drive)`
               
               if (strategy.routingStrategy === 'port-inland' && isSantosArea(previousCity)) {
-                travelDescription = `Drive inland from Santos port to ${currentCity} coffee region (${roundedHours} hour drive)`
+                travelDescription = `Drive inland from Santos port to ${currentCity} coffee region (${formattedDuration} drive)`
               } else if (strategy.routingStrategy === 'north-south') {
-                travelDescription = `Continue south through coffee regions: ${previousCity} → ${currentCity} (${roundedHours} hour drive)`
+                travelDescription = `Continue south through coffee regions: ${previousCity} → ${currentCity} (${formattedDuration} drive)`
               } else if (strategy.routingStrategy === 'fly-drive') {
-                travelDescription = `Rental car drive from ${previousCity} to ${currentCity} (${roundedHours} hour drive)`
+                travelDescription = `Rental car drive from ${previousCity} to ${currentCity} (${formattedDuration} drive)`
               } else if (strategy.routingStrategy === 'hub-spoke') {
-                travelDescription = `Drive from ${previousCity} to ${currentCity} (${roundedHours} hour drive each way)`
+                travelDescription = `Drive from ${previousCity} to ${currentCity} (${formattedDuration} drive each way)`
               }
               
               const travelActivity: ActivityFormData = {
@@ -625,12 +633,12 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                 end_time: travelEndTime,
                 location: `${previousCity} → ${currentCity}`,
                 type: 'travel',
-                notes: `🚗 Travel time: ${roundedHours} hours (${travelMethod})\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing\n⏱️ Duration: ${travelMinutes} minutes${originalCurrentTime >= 1200 ? '\n🌅 Rescheduled to next day (no overnight driving)' : ''}`,
+                notes: `🚗 Travel time: ${formattedDuration} (${travelMethod})\n🎯 Strategy: ${strategy.name}\n📍 Route: ${previousCity} to ${currentCity}\n🗺️ Starting point optimized routing\n⏱️ Duration: ${travelMinutes} minutes${originalCurrentTime >= 1200 ? '\n🌅 Rescheduled to next day (no overnight driving)' : ''}`,
                 is_confirmed: false
               }
               
               generatedActivities.push(travelActivity)
-              console.log(`🚗 [AI Itinerary] ✅ Created travel activity: ${previousCity} → ${currentCity} (${roundedHours}h via ${travelMethod})`)
+              console.log(`🚗 [AI Itinerary] ✅ Created travel activity: ${previousCity} → ${currentCity} (${formattedDuration} via ${travelMethod})`)
               
               // Update current time to the end of travel
               // Use finalTravelEndTime to handle multi-day travel properly
@@ -718,6 +726,113 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         
         // Update current time for next activity (add 1h break between meetings)
         currentTime = endTimeMinutes + 60
+        companiesScheduledToday++
+        
+        // Check if we should advance to the next day based on companies-per-day limit
+        if (companiesScheduledToday >= companiesPerDay && i < optimizedLocations.length - 1) {
+          console.log(`📅 [AI Itinerary] Reached daily limit of ${companiesPerDay} companies, advancing to next day`)
+          dayIndex++
+          if (dayIndex >= tripDurationDays) {
+            console.warn('⚠️ [AI Itinerary] Trip duration exceeded, truncating remaining activities')
+            break
+          }
+          currentDate = new Date(formData.startDate!)
+          currentDate.setDate(currentDate.getDate() + dayIndex)
+          currentTime = 9 * 60 // Start at 9 AM on the new day
+          companiesScheduledToday = 0
+          console.log(`🌅 [AI Itinerary] Advanced to day ${dayIndex + 1} (${currentDate.toISOString().split('T')[0]}) at 9:00 AM`)
+        }
+      }
+
+      // Add return drive - prioritize starting point as default ending point for round trips
+      const actualEndingPoint = formData.endingPoint || formData.startingPoint || 'santos'
+      
+      console.log('🏁 [AI Itinerary] Return drive logic:', {
+        formDataEndingPoint: formData.endingPoint,
+        formDataStartingPoint: formData.startingPoint,
+        calculatedEndingPoint: actualEndingPoint
+      })
+      
+      const shouldAddReturnDrive = actualEndingPoint && 
+        actualEndingPoint !== 'gru_airport' && 
+        optimizedLocations.length > 0
+      
+      if (shouldAddReturnDrive) {
+        console.log('🏁 [AI Itinerary] Adding return drive to ending point:', actualEndingPoint)
+        
+        const lastLocation = optimizedLocations[optimizedLocations.length - 1]
+        
+        // Determine return destination name and location
+        let returnDestination = 'Destination'
+        let returnLocationForAPI = ''
+        
+        if (actualEndingPoint === 'santos') {
+          returnDestination = 'Santos'
+          returnLocationForAPI = 'Santos, São Paulo, Brazil'
+        } else if (actualEndingPoint === 'w&a_hq_santos') {
+          returnDestination = 'W&A HQ Santos'
+          returnLocationForAPI = 'Santos, São Paulo, Brazil'
+        } else if (actualEndingPoint === 'guarulhos') {
+          returnDestination = 'Guarulhos Area'
+          returnLocationForAPI = 'Guarulhos, São Paulo, Brazil'
+        } else if (formData.customEndingPoint) {
+          returnDestination = formData.customEndingPoint
+          returnLocationForAPI = formData.customEndingPoint
+        } else {
+          returnDestination = actualEndingPoint
+          returnLocationForAPI = actualEndingPoint
+        }
+        
+        // Calculate actual return travel time using Google Maps API
+        let returnTravelMinutes = 120 // Default 2 hours fallback
+        
+        try {
+          const returnTravelInfo = await calculateTravelTime(lastLocation, {
+            name: returnDestination,
+            address: returnLocationForAPI,
+            lat: 0, // Will be geocoded by calculateTravelTime
+            lng: 0
+          })
+          
+          if (returnTravelInfo) {
+            returnTravelMinutes = Math.ceil(returnTravelInfo.duration.value / 60)
+            console.log(`🗺️ [AI Itinerary] Return travel time calculated: ${formatDuration(returnTravelInfo.duration.value)} (${returnTravelMinutes} minutes)`)
+          }
+        } catch (error) {
+          console.log('⚠️ [AI Itinerary] Could not calculate return travel time, using default 2 hours')
+        }
+        
+        // Schedule return drive after last meeting (add 1 hour buffer)
+        let returnStartTime = currentTime + 60 // 1 hour after last meeting
+        
+        // If return drive would start late, schedule for next day
+        let returnDate = currentDate
+        if (returnStartTime >= 1200) { // After 8 PM
+          returnDate = new Date(currentDate)
+          returnDate.setDate(returnDate.getDate() + 1)
+          returnStartTime = 480 // 8:00 AM next day
+        }
+        
+        const returnStartTimeStr = `${Math.floor(returnStartTime / 60).toString().padStart(2, '0')}:${(returnStartTime % 60).toString().padStart(2, '0')}`
+        const returnEndTime = returnStartTime + returnTravelMinutes
+        const returnEndTimeStr = `${Math.floor(returnEndTime / 60).toString().padStart(2, '0')}:${(returnEndTime % 60).toString().padStart(2, '0')}`
+        
+        const returnDuration = formatDuration(returnTravelMinutes * 60)
+        
+        const returnActivity: ActivityFormData = {
+          title: `Return Drive to ${returnDestination}`,
+          description: `Drive back to ${returnDestination} from ${lastLocation.name} (${returnDuration})`,
+          activity_date: returnDate.toISOString().split('T')[0],
+          start_time: returnStartTimeStr,
+          end_time: returnEndTimeStr,
+          location: `${lastLocation.name} → ${returnDestination}`,
+          type: 'travel',
+          notes: `🏁 Return journey to trip starting point\n📍 Route: ${lastLocation.name} to ${returnDestination}\n⏱️ Duration: ${returnTravelMinutes} minutes\n🎯 Completing round trip`,
+          is_confirmed: false
+        }
+        
+        generatedActivities.push(returnActivity)
+        console.log(`🏁 [AI Itinerary] ✅ Added return drive: ${lastLocation.name} → ${returnDestination} (${returnDuration})`)
       }
 
       console.log(`✅ [AI Itinerary] Generated ${generatedActivities.length} optimized activities`)

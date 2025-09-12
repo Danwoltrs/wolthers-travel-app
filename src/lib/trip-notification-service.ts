@@ -153,15 +153,24 @@ export class TripNotificationService {
         <body style="margin: 0; padding: 40px 20px; background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; border: 1px solid #e9ecef;">
             
-            <!-- Logo Header -->
-            <div style="padding: 40px 30px 20px; text-align: center;">
-              <img src="https://wolthers.com/images/wolthers-logo-green.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
-              <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2;">
+            <!-- Header with Gradient Background -->
+            <div style="padding: 40px 30px 30px; text-align: center; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white;">
+              <div style="margin-bottom: 20px;">
+                <div style="background: rgba(255,255,255,0.1); display: inline-block; padding: 12px 20px; border-radius: 50px; backdrop-filter: blur(10px);">
+                  <span style="font-size: 24px;">☕</span>
+                </div>
+              </div>
+              <h1 style="color: #ffffff; margin: 0 0 10px; font-size: 28px; font-weight: 700; line-height: 1.2; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 New Trip Created
               </h1>
-              <p style="color: #666666; margin: 10px 0 0; font-size: 16px; line-height: 1.4;">
-                You've been invited to join a coffee origin trip
+              <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 18px; line-height: 1.4;">
+                You've been invited to join a coffee origin experience
               </p>
+              <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 0.5px;">
+                  WOLTHERS & ASSOCIATES TRAVEL PLATFORM
+                </p>
+              </div>
             </div>
             
             <!-- Trip Details Card -->
@@ -198,38 +207,65 @@ export class TripNotificationService {
                 Wolthers Team Members:
               </h3>
               ${data.participants.filter(p => p.role === 'Wolthers Staff').map(participant => `
-                <div style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
-                  <span style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</span>
+                <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</span>
+                    <div style="color: #6b7280; font-size: 14px; margin-top: 2px;">${participant.role}</div>
+                  </div>
+                  <div style="color: #059669; font-size: 14px; font-weight: 500;">✓ Assigned</div>
                 </div>
               `).join('')}
               
-              ${data.participants.filter(p => p.role !== 'Wolthers Staff' && p.company).length > 0 ? `
-              <h3 style="color: #1f2937; margin: 20px 0 15px; font-size: 18px; font-weight: 600;">
-                Partner Companies:
+              ${data.participants.filter(p => p.role !== 'Wolthers Staff').length > 0 ? `
+              <h3 style="color: #1f2937; margin: 30px 0 15px; font-size: 18px; font-weight: 600;">
+                Trip Participants:
               </h3>
-              ${data.participants.filter(p => p.role !== 'Wolthers Staff' && p.company).map(participant => `
-                <div style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
-                  <div style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</div>
-                  <div style="color: #6b7280; font-size: 14px;">${participant.company}</div>
+              ${data.participants.filter(p => p.role !== 'Wolthers Staff').map(participant => `
+                <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</div>
+                    <div style="color: #6b7280; font-size: 14px; margin-top: 2px;">
+                      ${participant.role}${participant.company ? ` • ${participant.company}` : ''}
+                    </div>
+                  </div>
+                  <div style="color: #3b82f6; font-size: 14px; font-weight: 500;">👤 Invited</div>
                 </div>
               `).join('')}
               ` : ''}
             </div>
             
             <!-- Call to Action -->
-            <div style="text-align: center; margin: 40px 30px;">
-              <a href="https://trips.wolthers.com/trips/${data.tripCode}" style="display: inline-block; background: #059669; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);">
-                View Trip Details
+            <div style="text-align: center; margin: 40px 30px; padding: 30px 0; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; border: 1px solid #bbf7d0;">
+              <h3 style="color: #047857; margin: 0 0 20px; font-size: 20px; font-weight: 600;">
+                Ready to get started?
+              </h3>
+              <a href="https://trips.wolthers.com/trips/${data.tripCode}" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; padding: 18px 36px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); transition: all 0.2s ease; margin: 0 10px 10px 0;">
+                📋 View Trip Details
+              </a>
+              <a href="https://trips.wolthers.com/calendar/export/${data.tripCode}" style="display: inline-block; background: #ffffff; color: #059669; padding: 18px 36px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; border: 2px solid #059669; margin: 0 10px 10px 0;">
+                📅 Export Calendar
               </a>
             </div>
             
             <!-- Footer -->
-            <div style="background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="color: #666666; font-size: 14px; margin: 0; line-height: 1.6;">
-                Wolthers & Associates Travel Team<br>
-                © ${new Date().getFullYear()} Wolthers & Associates. All rights reserved.<br>
-                <a href="https://trips.wolthers.com" style="color: #059669; text-decoration: none;">trips.wolthers.com</a>
+            <div style="background: linear-gradient(135deg, #1f2937 0%, #111827 100%); padding: 35px; text-align: center;">
+              <div style="margin-bottom: 15px;">
+                <span style="color: #10b981; font-size: 20px;">☕</span>
+                <span style="color: #ffffff; font-size: 16px; font-weight: 600; margin-left: 8px; letter-spacing: 0.5px;">WOLTHERS & ASSOCIATES</span>
+              </div>
+              <p style="color: rgba(255,255,255,0.8); font-size: 14px; margin: 0 0 10px; line-height: 1.6;">
+                Coffee Origin Travel Specialists<br>
+                © ${new Date().getFullYear()} Wolthers & Associates. All rights reserved.
               </p>
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <a href="https://trips.wolthers.com" style="color: #10b981; text-decoration: none; font-weight: 500; font-size: 14px;">
+                  trips.wolthers.com
+                </a>
+                <span style="color: rgba(255,255,255,0.4); margin: 0 15px;">|</span>
+                <a href="mailto:trips@trips.wolthers.com" style="color: #10b981; text-decoration: none; font-weight: 500; font-size: 14px;">
+                  trips@trips.wolthers.com
+                </a>
+              </div>
             </div>
           </div>
         </body>
@@ -559,13 +595,46 @@ export class TripNotificationService {
       const endDate = new Date(trip.end_date)
       const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
-      // Parse participants
-      const participants = (trip.trip_participants || []).map((p: any) => ({
-        email: p.users?.email || `guest-${Date.now()}@example.com`,
-        name: p.guest_name || p.users?.full_name || 'Guest',
-        role: p.role === 'guest' ? 'Guest' : (p.role === 'wolthers_staff' ? 'Wolthers Staff' : 'Participant'),
-        company: p.companies?.fantasy_name || p.companies?.name
-      }))
+      // Parse participants - properly handle both user accounts and external guests
+      const participants = (trip.trip_participants || []).map((p: any) => {
+        // Determine the best email - prioritize user email, then guest email
+        let participantEmail = null
+        if (p.users?.email) {
+          participantEmail = p.users.email
+        } else if (p.guest_email) {
+          participantEmail = p.guest_email
+        }
+        
+        // Only include participants with valid email addresses
+        if (!participantEmail || participantEmail.includes('guest-') || participantEmail.includes('@example.com')) {
+          return null
+        }
+        
+        // Determine the best name - prioritize user name, then guest name
+        const participantName = p.users?.full_name || p.guest_name || 'Participant'
+        
+        // Determine role display name
+        let roleDisplayName = 'Participant'
+        if (p.role === 'staff' || p.role === 'wolthers_staff') {
+          roleDisplayName = 'Wolthers Staff'
+        } else if (p.role === 'client_representative') {
+          roleDisplayName = 'Client Representative'
+        } else if (p.role === 'representative') {
+          roleDisplayName = 'Company Representative'
+        } else if (p.role === 'guest') {
+          roleDisplayName = 'Guest'
+        }
+        
+        // Determine company name - prioritize user company, then guest company
+        const companyName = p.companies?.fantasy_name || p.companies?.name || p.guest_company
+        
+        return {
+          email: participantEmail,
+          name: participantName,
+          role: roleDisplayName,
+          company: companyName
+        }
+      }).filter(Boolean) // Remove null entries
 
       // Parse activities
       const activities = (trip.activities || []).map((a: any) => ({

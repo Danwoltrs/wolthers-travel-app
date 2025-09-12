@@ -88,6 +88,10 @@ export async function GET(request: NextRequest) {
           user_id,
           company_id,
           role,
+          guest_name,
+          guest_email,
+          guest_company,
+          guest_phone,
           users!trip_participants_user_id_fkey (id, full_name, email),
           companies (id, name, fantasy_name)
         ),

@@ -10,11 +10,10 @@ import { Calendar, MapPin, Users, Clock, AlertCircle } from 'lucide-react'
 import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
-import ConfirmationModal from '@/components/ui/ConfirmationModal'
+import TripCancellationModal from '@/components/trips/TripCancellationModal'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripActions } from '@/hooks/useSmartTrips'
-import { cancelTrip } from '@/lib/trip-actions'
 
 interface OverviewTabProps {
   trip: TripCard
@@ -101,17 +100,43 @@ export function OverviewTab({
     return validationState.fieldStates[field]?.isValid !== false
   }
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (sendNotifications: boolean, reason?: string) => {
     setIsDeleting(true)
     try {
+      // Call the DELETE API endpoint which properly sends cancellation emails
+      const token = localStorage.getItem('auth-token') || document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/trips/${trip.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && token.length > 200 ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          sendNotifications,
+          reason: reason || 'Trip cancelled by user'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to cancel trip: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Trip cancelled successfully:', result)
+
+      // Remove from local cache
       await removeTrip(trip.id)
-      const mutationId = crypto.randomUUID()
-      await cancelTrip(trip.id, user?.id || '', mutationId)
+      
       setShowDeleteConfirm(false)
       onClose?.()
       router.refresh()
     } catch (error) {
-      console.error('Delete trip error:', error)
+      console.error('❌ Delete trip error:', error)
     } finally {
       setIsDeleting(false)
     }
@@ -869,24 +894,15 @@ export function OverviewTab({
         </div>
       )}
 
-      {/* Trip Cancellation Confirmation Modal */}
-      <ConfirmationModal
+      {/* Trip Cancellation Modal */}
+      <TripCancellationModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConfirm}
-        title="Trip Cancellation Confirmation"
-        message={`This will PERMANENTLY DELETE the trip "${trip.title}" and:
-
-• Remove all activities and schedule
-• Delete all participant assignments  
-• Send cancellation emails to hosts and team
-• Cannot be undone
-
-Are you sure you want to cancel and delete this trip?`}
-        confirmText="Delete Trip"
-        cancelText="Keep Trip"
-        variant="danger"
-        isLoading={isDeleting}
+        tripTitle={trip.title}
+        tripAccessCode={trip.accessCode || trip.id}
+        participantCount={liveParticipantStats?.total || 0}
+        loading={isDeleting}
       />
     </div>
   )
