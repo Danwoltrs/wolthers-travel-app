@@ -48,7 +48,7 @@ export class EmailService {
       console.log(`[EMAIL SERVICE] Subject: ${subject}`)
       
       const { data, error } = await resend.emails.send({
-        from: 'Wolthers Travel Platform <noreply@trips.wolthers.com>',
+        from: 'Wolthers Travel Platform <trips@trips.wolthers.com>',
         to: [to],
         subject: subject,
         html: html,

@@ -99,7 +99,7 @@ export class TripNotificationService {
       console.log(`[TRIP NOTIFICATIONS] Subject: ${subject}`)
       
       const { data, error } = await resend.emails.send({
-        from: 'Wolthers Travel Platform <noreply@trips.wolthers.com>',
+        from: 'Wolthers Travel Platform <trips@trips.wolthers.com>',
         to: Array.isArray(to) ? to : [to],
         subject: subject,
         html: html,
@@ -140,14 +140,7 @@ export class TripNotificationService {
   static async sendTripCreationNotification(data: TripCreationEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       const participantEmails = data.participants.map(p => p.email)
-      const subject = `🌍 New Trip Created: ${data.tripTitle}`
-      
-      // Group activities by date for better display
-      const activitiesByDate = data.activities.reduce((acc, activity) => {
-        if (!acc[activity.date]) acc[activity.date] = []
-        acc[activity.date].push(activity)
-        return acc
-      }, {} as Record<string, typeof data.activities>)
+      const subject = `New Trip Created: ${data.tripTitle}`
 
       const html = `
         <!DOCTYPE html>
@@ -158,122 +151,82 @@ export class TripNotificationService {
           <title>New Trip Created - ${data.tripTitle}</title>
         </head>
         <body style="margin: 0; padding: 40px 20px; background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="max-width: 700px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; border: 1px solid #e9ecef;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; border: 1px solid #e9ecef;">
             
             <!-- Logo Header -->
-            <div style="padding: 40px 30px 20px; text-align: center; background: linear-gradient(135deg, #059669, #047857);">
-              <img src="https://wolthers.com/images/wolthers-logo-white.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2;">
-                🌍 NEW TRIP CREATED
+            <div style="padding: 40px 30px 20px; text-align: center;">
+              <img src="https://wolthers.com/images/wolthers-logo-green.png" alt="Wolthers & Associates" style="width: 200px; height: auto; margin-bottom: 20px;">
+              <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2;">
+                New Trip Created
               </h1>
-              <p style="color: #d1fae5; margin: 10px 0 0; font-size: 18px; line-height: 1.4;">
-                You're invited to join an exciting coffee origin trip!
+              <p style="color: #666666; margin: 10px 0 0; font-size: 16px; line-height: 1.4;">
+                You've been invited to join a coffee origin trip
               </p>
             </div>
             
             <!-- Trip Details Card -->
-            <div style="margin: 30px; padding: 25px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 12px; color: white;">
-              <h2 style="margin: 0 0 15px; font-size: 24px; font-weight: 700; text-align: center;">
-                ✨ ${data.tripCode} - ${data.tripTitle}
+            <div style="margin: 30px; padding: 25px; background-color: #f8fffe; border: 1px solid #d1fae5; border-radius: 12px;">
+              <h2 style="margin: 0 0 20px; font-size: 22px; font-weight: 600; color: #065f46; text-align: center;">
+                ${data.tripCode}
               </h2>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-                <div>
-                  <p style="margin: 5px 0; font-size: 16px;"><strong>📅 Dates:</strong></p>
-                  <p style="margin: 0; font-size: 16px;">${this.formatDate(data.startDate)} - ${this.formatDate(data.endDate)}</p>
-                  <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">(${data.duration} days)</p>
-                </div>
-                <div>
-                  <p style="margin: 5px 0; font-size: 16px;"><strong>👤 Trip Leader:</strong></p>
-                  <p style="margin: 0; font-size: 16px;">${data.createdBy}</p>
-                  ${data.flightInfo ? `
-                  <p style="margin: 10px 0 5px; font-size: 16px;"><strong>✈️ Flight Info:</strong></p>
-                  <p style="margin: 0; font-size: 14px;">Passenger: ${data.flightInfo.passengerName}</p>
-                  <p style="margin: 0; font-size: 14px;">Arrival: ${data.flightInfo.arrivalTime}${data.flightInfo.terminal ? ` (Terminal ${data.flightInfo.terminal})` : ''}</p>
-                  ` : ''}
+              <h3 style="margin: 0 0 20px; font-size: 18px; font-weight: 500; color: #047857; text-align: center;">
+                ${data.tripTitle}
+              </h3>
+              
+              <div style="margin-bottom: 20px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Trip Code:</div>
+                <div style="color: #374151; font-size: 16px; line-height: 1.4;">${data.tripCode}</div>
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Dates:</div>
+                <div style="color: #374151; font-size: 16px; line-height: 1.4;">
+                  ${this.formatDate(data.startDate)} - ${this.formatDate(data.endDate)}
+                  <span style="color: #6b7280; font-size: 14px;">(${data.duration} days)</span>
                 </div>
               </div>
-            </div>
-            
-            <!-- Itinerary Section -->
-            <div style="margin: 30px;">
-              <h3 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600; border-bottom: 2px solid #059669; padding-bottom: 10px;">
-                📋 PRELIMINARY ITINERARY
-              </h3>
-              ${Object.entries(activitiesByDate).map(([date, activities], index) => `
-                <div style="margin-bottom: 25px; padding: 20px; background-color: ${index % 2 === 0 ? '#f8fffe' : '#f0fdf4'}; border-radius: 8px; border-left: 4px solid #059669;">
-                  <h4 style="color: #047857; margin: 0 0 15px; font-size: 18px; font-weight: 600;">
-                    Day ${index + 1} - ${this.formatDate(date)}
-                  </h4>
-                  ${activities.map(activity => `
-                    <div style="margin-bottom: 10px; padding-left: 15px;">
-                      <p style="margin: 0; color: #1f2937; font-size: 16px;">
-                        <strong style="color: #059669;">${activity.time}</strong> - ${activity.title}
-                      </p>
-                      ${activity.description ? `
-                        <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px; padding-left: 15px;">
-                          ${activity.description}
-                        </p>
-                      ` : ''}
-                    </div>
-                  `).join('')}
-                </div>
-              `).join('')}
+              
+              <div style="margin-bottom: 0;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Created By:</div>
+                <div style="color: #374151; font-size: 16px; line-height: 1.4;">${data.createdBy}</div>
+              </div>
             </div>
             
             <!-- Team Section -->
             <div style="margin: 30px;">
-              <h3 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600; border-bottom: 2px solid #059669; padding-bottom: 10px;">
-                👥 TRAVEL TEAM
+              <h3 style="color: #1f2937; margin: 0 0 15px; font-size: 18px; font-weight: 600;">
+                Wolthers Team Members:
               </h3>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                ${data.participants.map(participant => `
-                  <div style="padding: 15px; background-color: #f3f4f6; border-radius: 8px; text-align: center;">
-                    <p style="margin: 0 0 5px; font-weight: 600; color: #1f2937; font-size: 16px;">${participant.name}</p>
-                    <p style="margin: 0 0 5px; color: #6b7280; font-size: 14px;">${participant.role}</p>
-                    ${participant.company ? `<p style="margin: 0; color: #059669; font-size: 14px; font-weight: 500;">${participant.company}</p>` : ''}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            
-            ${data.vehicles && data.vehicles.length > 0 ? `
-            <!-- Logistics Section -->
-            <div style="margin: 30px;">
-              <h3 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600; border-bottom: 2px solid #059669; padding-bottom: 10px;">
-                🚗 LOGISTICS
-              </h3>
-              ${data.vehicles.map((vehicle, index) => `
-                <div style="padding: 15px; background-color: #fef3c7; border-radius: 8px; margin-bottom: 10px;">
-                  <p style="margin: 0; color: #1f2937; font-size: 16px;">
-                    <strong>Vehicle:</strong> ${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})
-                  </p>
-                  ${data.drivers && data.drivers[index] ? `
-                    <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">
-                      <strong>Driver:</strong> ${data.drivers[index].name}${data.drivers[index].phone ? ` (${data.drivers[index].phone})` : ''}
-                    </p>
-                  ` : ''}
+              ${data.participants.filter(p => p.role === 'Wolthers Staff').map(participant => `
+                <div style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
+                  <span style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</span>
                 </div>
               `).join('')}
+              
+              ${data.participants.filter(p => p.role !== 'Wolthers Staff' && p.company).length > 0 ? `
+              <h3 style="color: #1f2937; margin: 20px 0 15px; font-size: 18px; font-weight: 600;">
+                Partner Companies:
+              </h3>
+              ${data.participants.filter(p => p.role !== 'Wolthers Staff' && p.company).map(participant => `
+                <div style="padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
+                  <div style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</div>
+                  <div style="color: #6b7280; font-size: 14px;">${participant.company}</div>
+                </div>
+              `).join('')}
+              ` : ''}
             </div>
-            ` : ''}
             
-            <!-- Action Buttons -->
+            <!-- Call to Action -->
             <div style="text-align: center; margin: 40px 30px;">
-              <a href="https://trips.wolthers.com/trips/${data.tripCode}" style="display: inline-block; background: #059669; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);">
-                📱 View Full Itinerary
-              </a>
-              <a href="https://trips.wolthers.com/calendar/export/${data.tripCode}" style="display: inline-block; background: #6366f1; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);">
-                📅 Export to Calendar
+              <a href="https://trips.wolthers.com/trips/${data.tripCode}" style="display: inline-block; background: #059669; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);">
+                View Trip Details
               </a>
             </div>
             
             <!-- Footer -->
             <div style="background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px; line-height: 1.6;">
-                This is an automated notification from Wolthers Travel Platform.<br>
-                Trip created by <strong>${data.createdBy}</strong> • ${new Date().toLocaleDateString()}
-              </p>
-              <p style="color: #9ca3af; font-size: 12px; margin: 0; line-height: 1.6;">
+              <p style="color: #666666; font-size: 14px; margin: 0; line-height: 1.6;">
+                Wolthers & Associates Travel Team<br>
                 © ${new Date().getFullYear()} Wolthers & Associates. All rights reserved.<br>
                 <a href="https://trips.wolthers.com" style="color: #059669; text-decoration: none;">trips.wolthers.com</a>
               </p>

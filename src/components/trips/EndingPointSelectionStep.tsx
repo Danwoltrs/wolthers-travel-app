@@ -27,7 +27,7 @@ const endingPointOptions: EndingPointOption[] = [
   },
   {
     id: 'gru_airport',
-    name: 'GRU Airport Drop-off',
+    name: 'Airport dropoff',
     description: 'Drop-off at GRU airport for international departure',
     icon: <Plane className="w-6 h-6" />,
     color: 'bg-indigo-500'
@@ -304,7 +304,7 @@ export default function EndingPointSelectionStep({ formData, updateFormData }: E
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-2">
-                GRU Airport Drop-off Scheduled
+                Airport Dropoff Scheduled
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
@@ -315,7 +315,7 @@ export default function EndingPointSelectionStep({ formData, updateFormData }: E
                     <strong>Flight:</strong> {flightInfo.airline} {flightInfo.flightNumber}
                   </p>
                   <p className="text-indigo-700 dark:text-indigo-400">
-                    <strong>Departure:</strong> {new Date(flightInfo.departureDate).toLocaleDateString()} at {flightInfo.departureTime}
+                    <strong>Departure:</strong> {flightInfo.departureDate && new Date(flightInfo.departureDate).toLocaleDateString()} at {flightInfo.departureTime}
                   </p>
                 </div>
                 <div>
@@ -420,7 +420,7 @@ export default function EndingPointSelectionStep({ formData, updateFormData }: E
           return guests
         })()}
         tripStartDate={formData.endDate} // Use end date for departure flights
-        mode="departure" // This would need to be added to FlightInfoModal
+        mode="departure"
       />
     </div>
   )

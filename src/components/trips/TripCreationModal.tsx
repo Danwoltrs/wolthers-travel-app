@@ -210,16 +210,85 @@ const getStepsForTripType = (tripType: TripType | null) => {
   }
 }
 
+  // Helper function to determine step based on existing trip data
+  const determineStepFromTripData = (tripData: any): number => {
+    if (!tripData) return 1;
+    
+    // Step 1: Trip type selection (if no trip_type)
+    if (!tripData.trip_type && !tripData.tripType) return 1;
+    
+    // Step 2: Basic info (if no title or dates)
+    if (!tripData.title || !tripData.start_date || !tripData.end_date) return 2;
+    
+    // Step 3: Team & Vehicle (if no participants assigned)
+    if (!tripData.participants || tripData.participants.length === 0) return 3;
+    
+    // Step 4: Driver & Vehicle assignments
+    if (!tripData.vehicleAssignments || Object.keys(tripData.vehicleAssignments).length === 0) return 4;
+    
+    // Step 5+: Move to next step based on completion_step or default
+    return Math.max(tripData.completion_step || 5, 5);
+  };
+
+  // Helper function to convert trip data to form data structure
+  const convertTripDataToFormData = (tripData: any): TripFormData => {
+    if (!tripData) return initialFormData;
+    
+    return {
+      tripType: tripData.trip_type || tripData.tripType || null,
+      title: tripData.title || '',
+      description: tripData.description || '',
+      subject: tripData.subject || '',
+      companies: tripData.companies || [],
+      participants: tripData.participants || [],
+      startDate: tripData.start_date ? new Date(tripData.start_date) : 
+                 tripData.startDate ? new Date(tripData.startDate) : null,
+      endDate: tripData.end_date ? new Date(tripData.end_date) : 
+               tripData.endDate ? new Date(tripData.endDate) : null,
+      accessCode: tripData.access_code || tripData.accessCode || '',
+      itineraryDays: tripData.itineraryDays || [],
+      wolthersStaff: tripData.wolthersStaff || [],
+      vehicles: tripData.vehicles || [],
+      vehicleAssignments: tripData.vehicleAssignments || [],
+      meetings: tripData.meetings || [],
+      hotels: tripData.hotels || [],
+      flights: tripData.flights || [],
+      startingPoint: tripData.startingPoint,
+      endingPoint: tripData.endingPoint
+    };
+  };
+
 export default function TripCreationModal({ isOpen, onClose, onTripCreated, resumeData }: TripCreationModalProps) {
-  const [currentStep, setCurrentStep] = useState(resumeData?.currentStep || 1)
-  const [formData, setFormData] = useState<TripFormData>(resumeData?.formData || initialFormData)
+  const [currentStep, setCurrentStep] = useState(() => {
+    // If we have resumeData with step info, use that
+    if (resumeData?.currentStep) return resumeData.currentStep;
+    
+    // If we're continuing an existing trip, determine step from trip data
+    if (resumeData?.tripId && resumeData?.formData) {
+      return determineStepFromTripData(resumeData.formData);
+    }
+    
+    // Default to step 1 for new trips
+    return 1;
+  })
+  
+  const [formData, setFormData] = useState<TripFormData>(() => {
+    // Priority 1: Use provided formData if available
+    if (resumeData?.formData) {
+      return resumeData.formData;
+    }
+    
+    // Priority 2: Default empty form
+    return initialFormData;
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>({
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(() => ({
     isSaving: false,
     lastSaved: null,
     error: null,
-    tripId: resumeData?.tripId
-  })
+    tripId: resumeData?.tripId,
+    accessCode: resumeData?.formData?.accessCode || formData.accessCode
+  }))
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
     // Get auto-save preference from localStorage, default to true

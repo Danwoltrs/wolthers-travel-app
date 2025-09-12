@@ -85,19 +85,42 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
 
     const supabase = createServerSupabaseClient()
 
-    // First, try to find the trip by access code
+    // First, try to find the trip by access code with detailed debugging
+    console.log(`🔍 [Continue Trip] Searching for trip with access code: ${accessCode}`)
+    
+    // Debug: Check all trips created by this user to understand access code patterns
+    const { data: userTrips, error: userTripsError } = await supabase
+      .from('trips')
+      .select('id, title, access_code, status, completion_step, creator_id')
+      .eq('creator_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    
+    if (!userTripsError && userTrips) {
+      console.log(`🔍 [Continue Trip] User's recent trips for debugging:`)
+      userTrips.forEach(t => {
+        console.log(`  - "${t.title}" (${t.access_code}) status: ${t.status}, step: ${t.completion_step}`)
+      })
+    }
+    
+    // Try simple query first
     const { data: trip, error: tripError } = await supabase
       .from('trips')
-      .select(`
-        *,
-        trip_access_permissions (user_id, permission_type, expires_at),
-        trip_participants (user_id, role, company_id),
-        company_user_roles (user_id, role, can_edit_all_company_trips)
-      `)
+      .select('*')
       .eq('access_code', accessCode)
       .single()
 
-    if (tripError || !trip) {
+    if (tripError) {
+      console.log(`❌ [Continue Trip] Trip query error:`, tripError)
+      console.log(`❌ [Continue Trip] Error details:`, {
+        message: tripError.message,
+        details: tripError.details,
+        hint: tripError.hint,
+        code: tripError.code
+      })
+    }
+
+    if (!trip) {
       console.log(`🔍 [Continue Trip] Trip not found by access code: ${accessCode}`)
       
       // Try to find by access token in trip_drafts table first

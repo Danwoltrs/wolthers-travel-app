@@ -177,7 +177,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       
       // Separate companies and Wolthers staff
       const companies = tripParticipants
-        .filter((p: any) => p.companies && (p.role === 'client_representative' || p.role === 'participant'))
+        .filter((p: any) => p.companies && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
         .map((p: any) => ({
           id: p.companies?.id,
           name: p.companies?.name,
@@ -192,8 +192,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       const guests = uniqueCompanies.map((company: any) => ({
         companyId: company.id,
         names: tripParticipants
-          .filter((p: any) => p.company_id === company.id && p.users && (p.role === 'client_representative' || p.role === 'participant'))
-          .map((p: any) => p.users?.full_name)
+          .filter((p: any) => p.company_id === company.id && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
+          .map((p: any) => p.users?.full_name || p.participant_name) // Use participant_name for representatives without user accounts
           .filter(Boolean)
       }))
 

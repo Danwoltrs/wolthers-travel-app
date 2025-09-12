@@ -458,7 +458,7 @@ export function createHostInvitationTemplate(data: HostInvitationEmailData): Ema
     visitTime
   } = data
 
-  const subject = `Visit Confirmation Required - ${visitingCompanyName || 'Wolthers & Associates'} ${visitDate ? `on ${visitDate}` : ''}`
+  const subject = `Visit Confirmation Required - ${visitingCompanyName || companyName} ${visitDate ? `on ${visitDate}` : ''}`
   
   const html = `
     <!DOCTYPE html>
@@ -649,7 +649,7 @@ export function createHostInvitationTemplate(data: HostInvitationEmailData): Ema
             
             <div class="trip-details">
               <h3>📅 Visit Details</h3>
-              <p><strong>Company Visiting:</strong> ${visitingCompanyName || 'Wolthers & Associates'}</p>
+              <p><strong>Company Visiting:</strong> ${visitingCompanyName || companyName}</p>
               ${visitDate ? `<p><strong>Visit Date:</strong> ${visitDate}</p>` : ''}
               ${visitTime ? `<p><strong>Visit Time:</strong> ${visitTime}</p>` : ''}
               <p><strong>Organized by:</strong> ${inviterName} (${inviterEmail})</p>
@@ -744,9 +744,9 @@ URGENT: VISIT CONFIRMATION REQUIRED
 Please confirm your availability for our upcoming visit.
 
 VISIT DETAILS
-Trip: ${tripTitle}
-Reference: ${tripAccessCode}
-Visit Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}
+Company Visiting: ${visitingCompanyName || companyName}
+${visitDate ? `Visit Date: ${visitDate}` : `Visit Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}`}
+${visitTime ? `Visit Time: ${visitTime}` : ''}
 Organized by: ${inviterName} (${inviterEmail})
 
 ${wolthersTeam.length > 0 ? `

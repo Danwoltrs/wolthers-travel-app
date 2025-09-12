@@ -225,8 +225,14 @@ export default function Dashboard() {
       try {
         console.log('🔄 Loading draft trip data for:', trip.accessCode)
         
+        // Get auth token for API call
+        const token = localStorage.getItem('auth-token') || sessionStorage.getItem('supabase-token')
+        
         // Use the existing continue endpoint to load complete draft data
         const response = await fetch(`/api/trips/continue/${trip.accessCode}`, {
+          headers: token ? {
+            'Authorization': `Bearer ${token}`
+          } : {},
           credentials: 'include'
         })
         
@@ -238,8 +244,21 @@ export default function Dashboard() {
           const tripData = continueData.trip || trip
           const draftData = continueData.draft
           
-          // Properly construct formData from draft or trip data
-          const formData = draftData?.draft_data || {
+          // Properly construct formData from saved step_data, draft data, or trip data
+          let formData = tripData?.step_data || draftData?.draft_data
+          
+          // If we have saved step_data, ensure dates are properly converted to Date objects
+          if (formData && (formData.startDate || formData.endDate)) {
+            formData = {
+              ...formData,
+              startDate: formData.startDate ? new Date(formData.startDate) : null,
+              endDate: formData.endDate ? new Date(formData.endDate) : null
+            }
+          }
+          
+          // Fallback construction if no saved data available
+          if (!formData) {
+            formData = {
             tripType: draftData?.trip_type || tripData?.trip_type || trip.tripType,
             title: draftData?.title || tripData?.title || trip.title,
             description: draftData?.description || tripData?.description || trip.subject || '',
@@ -257,7 +276,18 @@ export default function Dashboard() {
             vehicles: draftData?.vehicles || [],
             itineraryDays: draftData?.itineraryDays || [],
             activities: draftData?.activities || []
+            }
           }
+          
+          console.log('🔄 Resume data construction:', {
+            hasStepData: !!tripData?.step_data,
+            hasDraftData: !!draftData?.draft_data,
+            formDataKeys: formData ? Object.keys(formData) : [],
+            tripType: formData?.tripType,
+            title: formData?.title,
+            companiesCount: formData?.companies?.length || 0,
+            participantsCount: formData?.participants?.length || 0
+          })
           
           const resumeData = {
             tripId: continueData.trip?.id || trip.id,

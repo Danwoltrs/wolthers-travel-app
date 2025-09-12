@@ -319,7 +319,7 @@ function useTripsLegacy() {
             
             // Separate companies and Wolthers staff based on actual database roles
             const companies = tripParticipants
-              .filter(p => p.companies && (p.role === 'client_representative' || p.role === 'participant'))
+              .filter(p => p.companies && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
               .map(p => ({
                 id: p.companies?.id,
                 name: p.companies?.name,
@@ -334,8 +334,8 @@ function useTripsLegacy() {
             const guests = uniqueCompanies.map(company => ({
               companyId: company.id,
               names: tripParticipants
-                .filter(p => p.company_id === company.id && p.users && (p.role === 'client_representative' || p.role === 'participant'))
-                .map(p => p.users?.full_name)
+                .filter(p => p.company_id === company.id && (p.role === 'client_representative' || p.role === 'participant' || p.role === 'representative'))
+                .map(p => p.users?.full_name || p.participant_name) // Use participant_name for representatives without user accounts
                 .filter(Boolean)
             }))
 

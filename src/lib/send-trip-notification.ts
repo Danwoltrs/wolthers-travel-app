@@ -91,7 +91,7 @@ export async function sendTripNotification({ type, tripId, inviteEmail }: Params
 
   try {
     await resend.emails.send({
-      from: 'Wolthers Travel Platform <noreply@trips.wolthers.com>',
+      from: 'Wolthers Travel Platform <trips@trips.wolthers.com>',
       to: emails,
       subject,
       html,

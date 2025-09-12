@@ -106,7 +106,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // Get company contacts from trip activities (fetch before deletion)  
     const { data: activities } = await supabase
       .from('activities')
-      .select('host, location')
+      .select('host, location, title')
       .eq('trip_id', tripId)
     
     // SECOND: Delete related data (cascading delete)
@@ -207,34 +207,81 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         }
       }
       
-      // Get company contacts from activities hosts (if any)
+      // Extract host companies from activity titles and find host users
       if (activities && activities.length > 0) {
-        const hostCompanies = [...new Set(activities.map(a => a.host).filter(Boolean))]
+        console.log(`   🔍 Analyzing ${activities.length} activities for host companies...`)
         
-        for (const hostName of hostCompanies) {
-          // Try to find company contact info
-          const { data: companyContacts } = await supabase
-            .from('companies')
-            .select('name, email, contact_person')
-            .ilike('name', `%${hostName}%`)
-            .limit(1)
-            .single()
-          
-          if (companyContacts && companyContacts.email) {
-            const emailData: TripCancellationEmailData = {
-              email: companyContacts.email,
-              name: companyContacts.contact_person || 'Host Company',
-              tripTitle: trip.title,
-              tripDates,
-              cancelledBy: user.full_name || user.name || 'Wolthers Team',
-              originalStartDate: trip.start_date,
-              originalEndDate: trip.end_date
+        // Extract company names from activity titles like "Visit COOXUPE" → "COOXUPE"
+        const hostCompanyNames = new Set<string>()
+        
+        activities.forEach(activity => {
+          if (activity.title) {
+            const title = activity.title.trim()
+            
+            // Match patterns like "Visit [COMPANY]", "Meeting with [COMPANY]", etc.
+            const visitMatch = title.match(/^Visit\s+(.+)$/i)
+            const meetingMatch = title.match(/^Meeting\s+(?:with\s+)?(.+)$/i)
+            
+            if (visitMatch) {
+              const companyName = visitMatch[1].trim()
+              hostCompanyNames.add(companyName)
+              console.log(`   🏢 Found host from visit: "${companyName}"`)
+            } else if (meetingMatch) {
+              const companyName = meetingMatch[1].trim()
+              hostCompanyNames.add(companyName)
+              console.log(`   🏢 Found host from meeting: "${companyName}"`)
+            }
+          }
+        })
+        
+        // Also check the host field (legacy support)
+        const legacyHosts = activities.map(a => a.host).filter(Boolean)
+        legacyHosts.forEach(host => {
+          hostCompanyNames.add(host)
+          console.log(`   🏢 Found legacy host: "${host}"`)
+        })
+        
+        console.log(`   📊 Total unique host companies found: ${hostCompanyNames.size}`)
+        
+        // Find users registered to these host companies
+        for (const hostName of hostCompanyNames) {
+          try {
+            console.log(`   🔎 Searching for users at host company: "${hostName}"`)
+            
+            const { data: hostUsers, error: hostError } = await supabase
+              .from('users')
+              .select('email, full_name, companies(name, fantasy_name)')
+              .or(`companies.name.ilike.%${hostName}%,companies.fantasy_name.ilike.%${hostName}%`)
+              .not('email', 'is', null)
+            
+            if (hostError) {
+              console.error(`   ❌ Error finding users for ${hostName}:`, hostError)
+              continue
             }
             
-            console.log(`   📤 Sending to Host: ${hostName} (${companyContacts.email})`)
-            emailPromises.push(EmailService.sendTripCancellationEmail(emailData))
-          } else {
-            console.log(`   ⚠️ No email found for host: ${hostName}`)
+            if (hostUsers && hostUsers.length > 0) {
+              for (const hostUser of hostUsers) {
+                if (hostUser.email) {
+                  const emailData: TripCancellationEmailData = {
+                    email: hostUser.email,
+                    name: hostUser.full_name || 'Host Representative',
+                    tripTitle: trip.title,
+                    tripDates,
+                    cancelledBy: user.full_name || user.name || 'Wolthers Team',
+                    originalStartDate: trip.start_date,
+                    originalEndDate: trip.end_date
+                  }
+                  
+                  const companyName = hostUser.companies?.fantasy_name || hostUser.companies?.name || hostName
+                  console.log(`   📤 Sending to Host User: ${hostUser.full_name} at ${companyName} (${hostUser.email})`)
+                  emailPromises.push(EmailService.sendTripCancellationEmail(emailData))
+                }
+              }
+            } else {
+              console.log(`   ⚠️ No registered users found for host company: ${hostName}`)
+            }
+          } catch (error) {
+            console.error(`   ❌ Error processing host company ${hostName}:`, error)
           }
         }
       }

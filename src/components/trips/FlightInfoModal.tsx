@@ -28,6 +28,7 @@ interface FlightInfoModalProps {
   // Enhanced pickup functionality
   allowMultiplePassengers?: boolean
   pickupGroupName?: string
+  mode?: 'arrival' | 'departure'
 }
 
 const airlines = [
@@ -72,7 +73,8 @@ export default function FlightInfoModal({
   selectedGuests = [], 
   tripStartDate,
   allowMultiplePassengers = false,
-  pickupGroupName
+  pickupGroupName,
+  mode = 'arrival'
 }: FlightInfoModalProps) {
   const [flightInfo, setFlightInfo] = useState<FlightInfo>({
     flightNumber: '',
@@ -152,10 +154,14 @@ export default function FlightInfoModal({
       setFlightInfo({
         flightNumber: '',
         airline: '',
-        arrivalDate: '',
-        arrivalTime: '',
-        departureAirport: '',
-        departureCity: '',
+        arrivalDate: mode === 'arrival' ? '' : undefined,
+        arrivalTime: mode === 'arrival' ? '' : undefined,
+        departureDate: mode === 'departure' ? '' : undefined,
+        departureTime: mode === 'departure' ? '' : undefined,
+        departureAirport: mode === 'departure' ? 'GRU' : '',
+        departureCity: mode === 'departure' ? 'São Paulo (Guarulhos)' : '',
+        arrivalAirport: mode === 'arrival' ? 'GRU' : '',
+        arrivalCity: mode === 'arrival' ? 'São Paulo (Guarulhos)' : '',
         passengerName: '',
         terminal: '',
         notes: ''
@@ -646,9 +652,13 @@ export default function FlightInfoModal({
                     value={destinationAddress}
                     onChange={(e) => setDestinationAddress(e.target.value)}
                     rows={3}
-                    placeholder={selectedDestinationType === 'hotel' 
-                      ? 'Enter hotel name and complete address...' 
-                      : 'Enter office name and complete address...'}
+                    placeholder={mode === 'departure' 
+                      ? (selectedDestinationType === 'hotel' 
+                         ? 'Enter hotel name and complete address for pickup...' 
+                         : 'Enter office name and complete address for pickup...')
+                      : (selectedDestinationType === 'hotel' 
+                         ? 'Enter hotel name and complete address...' 
+                         : 'Enter office name and complete address...')}
                     className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-[#2a2a2a] rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
                   />
                 </div>

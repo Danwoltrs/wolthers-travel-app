@@ -741,6 +741,7 @@ export async function POST(request: NextRequest) {
         // Create activities from flight info and host companies if available
         const activities = []
         const tripStartDate = new Date(tripData.start_date || new Date())
+        const tripEndDate = new Date(tripData.end_date || tripStartDate)
         
         // 1. Create combined airport pickup and drive activity if GRU airport pickup is selected
         if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -762,6 +763,42 @@ export async function POST(request: NextRequest) {
             activity_type: 'travel',
             priority: 'high',
             notes: `Combined pickup and drive activity. Flight: ${flight.airline} ${flight.flightNumber}. Destination: ${stepData.destinationAddress || 'TBD'}`,
+            visibility_level: 'all',
+            is_confirmed: false,
+            created_at: now,
+            updated_at: now
+          })
+        }
+
+        // 2. Create drive activity for Santos starting point (non-airport starts)
+        if (stepData.startingPoint && stepData.startingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+          console.log('🚗 Creating drive activity for Santos-based trip start')
+          
+          // Determine the starting location name
+          let startLocationName = 'Santos'
+          if (stepData.startingPoint === 'santos') startLocationName = 'Santos'
+          else if (stepData.startingPoint === 'w&a_hq_santos') startLocationName = 'W&A HQ Santos'
+          else if (stepData.startingPoint === 'other_location' && stepData.customStartingPoint) {
+            startLocationName = stepData.customStartingPoint
+          }
+          
+          // Get first company as destination
+          const firstCompany = stepData.companies[0]
+          const destinationName = firstCompany.name
+          const destinationLocation = firstCompany.address || `${firstCompany.city || ''}, ${firstCompany.state || 'Brazil'}`
+          
+          // Schedule drive on trip start date at 8:00 AM (before 9:00 AM meetings)
+          activities.push({
+            trip_id: finalTripId,
+            title: `Drive from ${startLocationName} to ${destinationName}`,
+            description: `Travel from ${startLocationName} to first meeting location at ${destinationName}`,
+            activity_date: tripStartDate.toISOString().split('T')[0],
+            start_time: '08:00',
+            end_time: '09:00', // 1 hour drive time estimate
+            location: destinationLocation,
+            activity_type: 'travel',
+            priority: 'high',
+            notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}`,
             visibility_level: 'all',
             is_confirmed: false,
             created_at: now,
@@ -838,6 +875,84 @@ export async function POST(request: NextRequest) {
               created_at: now,
               updated_at: now
             })
+          })
+        }
+
+        // 5. Create ending point drive activity (drive to final destination)
+        if (stepData.endingPoint && stepData.endingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+          console.log('🏁 Creating drive activity to ending point:', stepData.endingPoint)
+          
+          // Get the last company location as starting point for final drive
+          const lastCompany = stepData.companies[stepData.companies.length - 1]
+          const lastCompanyLocation = lastCompany.address || `${lastCompany.city || ''}, ${lastCompany.state || 'Brazil'}`
+          
+          // Determine the ending location name and address
+          let endLocationName = 'Destination'
+          let endLocationAddress = 'Final destination'
+          
+          if (stepData.endingPoint === 'guarulhos') {
+            endLocationName = 'Guarulhos Area'
+            endLocationAddress = 'Guarulhos metropolitan area, São Paulo'
+          } else if (stepData.endingPoint === 'santos') {
+            endLocationName = 'Santos'
+            endLocationAddress = 'Santos, São Paulo'
+          } else if (stepData.endingPoint === 'w&a_hq_santos') {
+            endLocationName = 'W&A HQ Santos'
+            endLocationAddress = 'Wolthers & Associates HQ, Santos'
+          } else if (stepData.endingPoint === 'other' && stepData.customEndingPoint) {
+            endLocationName = stepData.customEndingPoint
+            endLocationAddress = stepData.customEndingPoint
+          } else if (typeof stepData.endingPoint === 'string' && stepData.endingPoint.length > 0) {
+            // Handle custom ending points that aren't 'other'
+            endLocationName = stepData.endingPoint
+            endLocationAddress = stepData.endingPoint
+          }
+          
+          // Calculate the last meeting end time to schedule drive after
+          const lastMeetingDate = new Date(tripEndDate)
+          
+          // If we have company meetings, schedule drive after the last meeting
+          let driveStartTime = '14:00' // Default 2 PM start
+          if (stepData.companies.length > 0) {
+            // Calculate when the last meetings would end
+            const totalMeetingDays = Math.ceil(stepData.companies.length / 2)
+            const lastMeetingDayOffset = totalMeetingDays - 1
+            
+            // Adjust the date to the last meeting day
+            if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+              // Meetings start day after airport arrival
+              const arrivalDate = new Date(stepData.flightInfo.arrivalDate)
+              lastMeetingDate.setTime(arrivalDate.getTime() + (lastMeetingDayOffset + 1) * 24 * 60 * 60 * 1000)
+            } else {
+              // Meetings start on trip start date  
+              lastMeetingDate.setTime(tripStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
+            }
+            
+            // Schedule drive after last meeting (which would end around 11:00 AM + 2 hours = 1:00 PM)
+            const companiesOnLastDay = stepData.companies.length % 2 || 2
+            if (companiesOnLastDay === 1) {
+              driveStartTime = '11:00' // Single meeting ends at 11:00 AM
+            } else {
+              driveStartTime = '13:30' // Two meetings end around 1:30 PM (9-11 AM + 11:30-1:30 PM)
+            }
+          }
+          
+          // Create the final drive activity
+          activities.push({
+            trip_id: finalTripId,
+            title: `Drive to ${endLocationName}`,
+            description: `Final journey from ${lastCompany.name} to ${endLocationName}`,
+            activity_date: lastMeetingDate.toISOString().split('T')[0],
+            start_time: driveStartTime,
+            end_time: addMinutesToTime(driveStartTime, 90), // 1.5 hour drive time estimate
+            location: endLocationAddress,
+            activity_type: 'travel',
+            priority: 'high',
+            notes: `Final drive to trip ending point: ${endLocationName}. Starting from ${lastCompany.name}`,
+            visibility_level: 'all',
+            is_confirmed: false,
+            created_at: now,
+            updated_at: now
           })
         }
 
@@ -1200,6 +1315,7 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     const activities = []
     const tripData = extractTripData(stepData, 0)
     const tripStartDate = new Date(tripData.start_date || new Date())
+    const tripEndDate = new Date(tripData.end_date || tripStartDate)
     
     // 1. Create combined airport pickup and drive activity if GRU airport pickup is selected
     if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -1225,6 +1341,42 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
         activity_type: 'travel',
         priority: 'high',
         notes: `Combined pickup and drive activity. Flight: ${flight.airline} ${flight.flightNumber}. Destination: ${stepData.destinationAddress || 'TBD'}`,
+        visibility_level: 'all',
+        is_confirmed: false,
+        created_at: now,
+        updated_at: now
+      })
+    }
+
+    // 2. Create drive activity for Santos starting point (non-airport starts)
+    if (stepData.startingPoint && stepData.startingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+      console.log('🚗 Updating drive activity for Santos-based trip start')
+      
+      // Determine the starting location name
+      let startLocationName = 'Santos'
+      if (stepData.startingPoint === 'santos') startLocationName = 'Santos'
+      else if (stepData.startingPoint === 'w&a_hq_santos') startLocationName = 'W&A HQ Santos'
+      else if (stepData.startingPoint === 'other_location' && stepData.customStartingPoint) {
+        startLocationName = stepData.customStartingPoint
+      }
+      
+      // Get first company as destination
+      const firstCompany = stepData.companies[0]
+      const destinationName = firstCompany.name
+      const destinationLocation = firstCompany.address || `${firstCompany.city || ''}, ${firstCompany.state || 'Brazil'}`
+      
+      // Schedule drive on trip start date at 8:00 AM (before 9:00 AM meetings)
+      activities.push({
+        trip_id: tripId,
+        title: `Drive from ${startLocationName} to ${destinationName}`,
+        description: `Travel from ${startLocationName} to first meeting location at ${destinationName}`,
+        activity_date: tripStartDate.toISOString().split('T')[0],
+        start_time: '08:00',
+        end_time: '09:00', // 1 hour drive time estimate
+        location: destinationLocation,
+        activity_type: 'travel',
+        priority: 'high',
+        notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}`,
         visibility_level: 'all',
         is_confirmed: false,
         created_at: now,
@@ -1301,6 +1453,84 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
           created_at: now,
           updated_at: now
         })
+      })
+    }
+
+    // 5. Create ending point drive activity (drive to final destination) - UPDATE VERSION
+    if (stepData.endingPoint && stepData.endingPoint !== 'gru_airport' && stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
+      console.log('🏁 Updating drive activity to ending point:', stepData.endingPoint)
+      
+      // Get the last company location as starting point for final drive
+      const lastCompany = stepData.companies[stepData.companies.length - 1]
+      const lastCompanyLocation = lastCompany.address || `${lastCompany.city || ''}, ${lastCompany.state || 'Brazil'}`
+      
+      // Determine the ending location name and address
+      let endLocationName = 'Destination'
+      let endLocationAddress = 'Final destination'
+      
+      if (stepData.endingPoint === 'guarulhos') {
+        endLocationName = 'Guarulhos Area'
+        endLocationAddress = 'Guarulhos metropolitan area, São Paulo'
+      } else if (stepData.endingPoint === 'santos') {
+        endLocationName = 'Santos'
+        endLocationAddress = 'Santos, São Paulo'
+      } else if (stepData.endingPoint === 'w&a_hq_santos') {
+        endLocationName = 'W&A HQ Santos'
+        endLocationAddress = 'Wolthers & Associates HQ, Santos'
+      } else if (stepData.endingPoint === 'other' && stepData.customEndingPoint) {
+        endLocationName = stepData.customEndingPoint
+        endLocationAddress = stepData.customEndingPoint
+      } else if (typeof stepData.endingPoint === 'string' && stepData.endingPoint.length > 0) {
+        // Handle custom ending points that aren't 'other'
+        endLocationName = stepData.endingPoint
+        endLocationAddress = stepData.endingPoint
+      }
+      
+      // Calculate the last meeting end time to schedule drive after
+      const lastMeetingDate = new Date(tripEndDate)
+      
+      // If we have company meetings, schedule drive after the last meeting
+      let driveStartTime = '14:00' // Default 2 PM start
+      if (stepData.companies.length > 0) {
+        // Calculate when the last meetings would end
+        const totalMeetingDays = Math.ceil(stepData.companies.length / 2)
+        const lastMeetingDayOffset = totalMeetingDays - 1
+        
+        // Adjust the date to the last meeting day
+        if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
+          // Meetings start day after airport arrival
+          const arrivalDate = new Date(stepData.flightInfo.arrivalDate)
+          lastMeetingDate.setTime(arrivalDate.getTime() + (lastMeetingDayOffset + 1) * 24 * 60 * 60 * 1000)
+        } else {
+          // Meetings start on trip start date  
+          lastMeetingDate.setTime(tripStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
+        }
+        
+        // Schedule drive after last meeting (which would end around 11:00 AM + 2 hours = 1:00 PM)
+        const companiesOnLastDay = stepData.companies.length % 2 || 2
+        if (companiesOnLastDay === 1) {
+          driveStartTime = '11:00' // Single meeting ends at 11:00 AM
+        } else {
+          driveStartTime = '13:30' // Two meetings end around 1:30 PM (9-11 AM + 11:30-1:30 PM)
+        }
+      }
+      
+      // Create the final drive activity
+      activities.push({
+        trip_id: tripId,
+        title: `Drive to ${endLocationName}`,
+        description: `Final journey from ${lastCompany.name} to ${endLocationName}`,
+        activity_date: lastMeetingDate.toISOString().split('T')[0],
+        start_time: driveStartTime,
+        end_time: addMinutesToTime(driveStartTime, 90), // 1.5 hour drive time estimate
+        location: endLocationAddress,
+        activity_type: 'travel',
+        priority: 'high',
+        notes: `Final drive to trip ending point: ${endLocationName}. Starting from ${lastCompany.name}`,
+        visibility_level: 'all',
+        is_confirmed: false,
+        created_at: now,
+        updated_at: now
       })
     }
 
