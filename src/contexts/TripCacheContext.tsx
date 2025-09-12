@@ -126,27 +126,13 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
    * Fetch trips from API with authentication
    */
   const fetchTripsFromAPI = useCallback(async (): Promise<TripCard[]> => {
-    // Get authentication token from multiple sources
-    let authToken = localStorage.getItem('auth-token')
-    
-    if (!authToken) {
-      // Try session storage as fallback
-      authToken = sessionStorage.getItem('supabase-token')
-    }
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    }
-    
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`
-    }
-    
     console.log('TripCache: Fetching trips from API...')
     const response = await fetch('/api/trips?includeDrafts=1', {
       method: 'GET',
-      credentials: 'include',
-      headers,
+      credentials: 'include', // This ensures httpOnly cookies are sent
+      headers: {
+        'Content-Type': 'application/json'
+      },
       next: { tags: ['trips', `trips:user:${userId}`] }
     })
 
@@ -158,13 +144,31 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         const errorData = JSON.parse(errorText)
         errorMessage = errorData.error || errorData.message || errorMessage
       } catch {
-        errorMessage = response.statusText || errorMessage
+        // If we can't parse as JSON, check if it's HTML (indicates redirect or error page)
+        if (errorText.startsWith('<!DOCTYPE') || errorText.includes('<html>')) {
+          errorMessage = `Authentication required - redirected to error page`
+          console.error('TripCache: Received HTML instead of JSON:', errorText.substring(0, 200))
+        } else {
+          errorMessage = response.statusText || errorMessage
+        }
       }
       
       throw new Error(errorMessage)
     }
 
-    const result = await response.json()
+    let result
+    try {
+      result = await response.json()
+    } catch (jsonError) {
+      const responseText = await response.clone().text()
+      console.error('TripCache: JSON parsing failed:', jsonError)
+      console.error('TripCache: Response text:', responseText.substring(0, 500))
+      
+      if (responseText.startsWith('<!DOCTYPE') || responseText.includes('<html>')) {
+        throw new Error('Authentication required - received HTML page instead of JSON')
+      }
+      throw new Error(`Failed to parse API response: ${jsonError.message}`)
+    }
     const apiTrips = result.trips || []
 
     // Transform API data to TripCard format
@@ -326,7 +330,11 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
             `activities-${trip.id}`,
             async () => {
               const response = await fetch(`/api/activities?tripId=${trip.id}`, {
-                credentials: 'include'
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json'
+                }
               })
               if (!response.ok && response.status !== 404) {
                 throw new Error(`HTTP ${response.status}`)

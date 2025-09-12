@@ -226,8 +226,14 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ API: Trip fetch error:', error)
+    console.error('❌ API: Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      cause: error.cause
+    })
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     )
   }
