@@ -247,7 +247,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         status: trip.status,
         progress: 0,
         notesCount,
-        visitCount: 0, // Will be updated asynchronously
+        visitCount: trip.visitCount || 0, // Use visitCount from the main trips API
         accessCode: trip.access_code,
         draftId: trip.draftId || null,
         isDraft: trip.isDraft || false
@@ -337,7 +337,10 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           )
 
           const visitCount = activities.filter((a: any) => 
-            a.type === 'meeting' || a.type === 'visit' || a.type === 'event'
+            a.activity_type === 'meeting' || 
+            a.activity_type === 'visit' ||
+            a.activity_type === 'company_visit' ||
+            a.activity_type === 'facility_tour'
           ).length
 
           return { ...trip, visitCount }

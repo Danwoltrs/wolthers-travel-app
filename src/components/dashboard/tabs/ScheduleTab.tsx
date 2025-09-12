@@ -82,9 +82,6 @@ export function ScheduleTab({
       date: activity.activity_date
     })
     
-    // Clear any existing errors
-    setError(null)
-    
     setEditingActivity(activity)
     setFormData({
       title: activity.title || '',
@@ -104,14 +101,11 @@ export function ScheduleTab({
     setShowActivityEditor(true)
     
     console.log('🎯 [ScheduleTab] Activity edit modal opened')
-  }, [setError])
+  }, [])
 
   // Handle new activity creation with improved state management
   const handleNewActivity = useCallback((timeSlot?: string, date?: string) => {
     console.log('🆕 [ScheduleTab] handleNewActivity called:', { timeSlot, date })
-    
-    // Clear any existing errors
-    setError(null)
     
     // Reset editing state
     setEditingActivity(null)
@@ -150,7 +144,7 @@ export function ScheduleTab({
     
     console.log('🔧 [ScheduleTab] Opening activity editor modal')
     setShowActivityEditor(true)
-  }, [trip.startDate, setError])
+  }, [trip.startDate])
 
   // Handle trip extension with proper day management logic
   const handleExtendTrip = useCallback(async (direction: 'before' | 'after' | 'remove-after' | 'remove-before') => {
@@ -240,8 +234,7 @@ export function ScheduleTab({
       console.log(`✅ [ScheduleTab] Trip modification and state update complete`)
     } catch (error: any) {
       console.error(`❌ [ScheduleTab] Trip ${days > 0 ? 'extension' : 'day removal'} failed:`, error)
-      // Show user-friendly error
-      setError(`Failed to ${days > 0 ? 'extend' : 'remove day from'} trip: ${error.message}`)
+      // Show user-friendly error - error will be handled by useActivityManager hook
     } finally {
       setIsExtending(false)
     }
@@ -255,13 +248,11 @@ export function ScheduleTab({
       // Validate required fields
       if (!formData.title.trim()) {
         console.error('❌ [ScheduleTab] Title is required')
-        setError('Activity title is required')
         return
       }
       
       if (!formData.activity_date) {
         console.error('❌ [ScheduleTab] Activity date is required')
-        setError('Activity date is required')
         return
       }
       
@@ -281,10 +272,8 @@ export function ScheduleTab({
           console.log('✅ [ScheduleTab] Activity update successful')
           setShowActivityEditor(false)
           setEditingActivity(null)
-          setError(null) // Clear any previous errors
         } else {
           console.error('❌ [ScheduleTab] Activity update returned null')
-          setError('Failed to update activity')
         }
       } else {
         // Create new activity 
@@ -299,7 +288,6 @@ export function ScheduleTab({
         if (result) {
           console.log('✅ [ScheduleTab] Activity creation successful, closing modal')
           setShowActivityEditor(false)
-          setError(null) // Clear any previous errors
           
           // Reset form for next use
           setFormData({
@@ -319,14 +307,12 @@ export function ScheduleTab({
           })
         } else {
           console.error('❌ [ScheduleTab] Activity creation returned null')
-          setError('Failed to create activity')
         }
       }
     } catch (error: any) {
       console.error('❌ [ScheduleTab] Activity save failed:', error)
-      setError(error.message || 'Failed to save activity')
     }
-  }, [editingActivity, formData, updateActivity, createActivity, setError])
+  }, [editingActivity, formData, updateActivity, createActivity])
 
   // Handle activity delete with improved error handling
   const handleActivityDelete = useCallback(async () => {
@@ -353,7 +339,6 @@ export function ScheduleTab({
         console.log('✅ [ScheduleTab] Activity deletion successful, closing editor')
         setShowActivityEditor(false)
         setEditingActivity(null)
-        setError(null) // Clear any previous errors
         
         // Reset form state
         setFormData({
@@ -373,13 +358,11 @@ export function ScheduleTab({
         })
       } else {
         console.error('❌ [ScheduleTab] Delete operation returned false')
-        setError('Failed to delete activity')
       }
     } catch (error: any) {
       console.error('❌ [ScheduleTab] Activity deletion failed:', error)
-      setError(error.message || 'Failed to delete activity')
     }
-  }, [editingActivity, deleteActivity, setError])
+  }, [editingActivity, deleteActivity])
 
   // Close activity editor with proper state cleanup
   const handleCloseEditor = useCallback(() => {
@@ -387,7 +370,6 @@ export function ScheduleTab({
     
     setShowActivityEditor(false)
     setEditingActivity(null)
-    setError(null) // Clear any errors
     
     // Reset form data to prevent stale data
     setFormData({
@@ -405,7 +387,7 @@ export function ScheduleTab({
       is_confirmed: false,
       notes: ''
     })
-  }, [setError])
+  }, [])
 
 
   // Get activities grouped by date and statistics

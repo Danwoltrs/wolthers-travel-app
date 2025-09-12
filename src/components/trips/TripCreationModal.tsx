@@ -14,6 +14,7 @@ import ReviewStep from './ReviewStep'
 import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'
 import StartingPointSelectionStep from './StartingPointSelectionStep'
+import EndingPointSelectionStep from './EndingPointSelectionStep'
 import EnhancedCalendarScheduleStep from './EnhancedCalendarScheduleStep'
 import PersonalMessageModal from './PersonalMessageModal'
 import type { 
@@ -108,6 +109,13 @@ export interface TripFormData {
   destinationAddress?: string // Address for hotel/office destination after pickup
   pickupGroups?: any[] // Multi-company pickup groups with guest information
   
+  // Step 5: Ending Point Selection
+  endingPoint?: string // Ending location for the trip
+  departureFlightInfo?: any // Flight information for GRU airport drop-off
+  preFlightDestination?: 'hotel' | 'office' // Destination before airport drop-off
+  preFlightDestinationAddress?: string // Address for hotel/office before drop-off
+  dropoffGroups?: any[] // Multi-company drop-off groups with guest information
+  
   // Step 4: Calendar & Itinerary
   itineraryDays: ItineraryDay[]
   activities?: Activity[] // Calendar activities with travel time
@@ -191,8 +199,9 @@ const getStepsForTripType = (tripType: TripType | null) => {
       { id: 4, name: 'Drivers & Vehicles', description: 'Assign staff as drivers and fleet vehicles' },
       { id: 5, name: 'Host/Visits Selector', description: 'Select host companies for the trip' },
       { id: 6, name: 'Starting Point', description: 'Choose where the trip begins' },
-      { id: 7, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
-      { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
+      { id: 7, name: 'Ending Point', description: 'Choose where the trip ends' },
+      { id: 8, name: 'Calendar Schedule', description: 'Create itinerary with travel time optimization' },
+      { id: 9, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else {
     return [
@@ -833,9 +842,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           // Starting Point Selection: require starting point selection
           return formData.startingPoint && formData.startingPoint.trim() !== ''
         case 7:
+          // Ending Point Selection: require ending point selection
+          return formData.endingPoint && formData.endingPoint.trim() !== ''
+        case 8:
           // Calendar Schedule: allow proceeding (activities can be added later)
           return true
-        case 8:
+        case 9:
           return true
         default:
           return false
@@ -1045,13 +1057,20 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'in_land' && currentStep === 7 && (
-            <EnhancedCalendarScheduleStep
+            <EndingPointSelectionStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'in_land' && currentStep === 8 && (
+            <EnhancedCalendarScheduleStep
+              formData={formData}
+              updateFormData={updateFormData}
+            />
+          )}
+          
+          {formData.tripType === 'in_land' && currentStep === 9 && (
             <ReviewStep formData={formData} />
           )}
         </div>

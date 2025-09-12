@@ -195,6 +195,7 @@ export async function GET(request: NextRequest) {
       // Calculate visit count from activities (meetings, company visits, etc.)
       const visitCount = trip.activities?.filter(activity => 
         activity.activity_type === 'meeting' || 
+        activity.activity_type === 'visit' ||
         activity.activity_type === 'company_visit' ||
         activity.activity_type === 'facility_tour'
       ).length || 0
