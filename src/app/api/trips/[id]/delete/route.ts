@@ -248,9 +248,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           try {
             console.log(`   🔎 Searching for users at host company: "${hostName}"`)
             
+            // Find users by company name or fantasy name  
             const { data: hostUsers, error: hostError } = await supabase
               .from('users')
-              .select('email, full_name, companies(name, fantasy_name)')
+              .select(`
+                email, 
+                full_name, 
+                companies!inner(name, fantasy_name)
+              `)
               .or(`companies.name.ilike.%${hostName}%,companies.fantasy_name.ilike.%${hostName}%`)
               .not('email', 'is', null)
             
