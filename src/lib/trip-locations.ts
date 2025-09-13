@@ -142,7 +142,9 @@ export function calculateLocationStays(
         // We're moving to a new location
         if (currentLocation && currentStartDate) {
           // Finalize the previous stay
-          const nights = Math.max(0, differenceInDays(parseISO(date), parseISO(currentStartDate)))
+          const startDate = typeof currentStartDate === 'string' ? parseISO(currentStartDate) : new Date(currentStartDate)
+          const endDate = typeof date === 'string' ? parseISO(date) : new Date(date)
+          const nights = Math.max(0, differenceInDays(endDate, startDate))
           if (nights > 0) {
             locationStays.push({
               city: currentLocation,
@@ -162,7 +164,9 @@ export function calculateLocationStays(
   
   // Handle the final location stay
   if (currentLocation && currentStartDate) {
-    const nights = Math.max(1, differenceInDays(parseISO(tripEndDate), parseISO(currentStartDate)))
+    const startDate = typeof currentStartDate === 'string' ? parseISO(currentStartDate) : new Date(currentStartDate)
+    const endDate = typeof tripEndDate === 'string' ? parseISO(tripEndDate) : new Date(tripEndDate)
+    const nights = Math.max(1, differenceInDays(endDate, startDate))
     locationStays.push({
       city: currentLocation,
       nights,
