@@ -328,31 +328,24 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
           </div>
         ) : (
           // For regular trips, show location and weather data
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <CloudSun className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
-              <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">
-                Locations & Weather
-              </span>
-            </div>
-            <div className="space-y-1 overflow-hidden">
+          <div className="space-y-1 overflow-hidden">
               {weatherLoading ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
                   Loading location data...
                 </div>
               ) : weatherError ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
                   Location data unavailable
                 </div>
               ) : locationStays.length > 0 ? (
                 locationStays.slice(0, 2).map((stay, index) => (
-                  <div key={index} className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                    <span className="font-medium">{stay.city}:</span>{' '}
+                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                    <span>{stay.city}:</span>{' '}
                     <span>{stay.nights} night{stay.nights !== 1 ? 's' : ''}</span>
                     {stay.weather && (
                       <>
-                        <span className="mx-1 text-gray-400">•</span>
-                        <span className="text-blue-600 dark:text-blue-400">
+                        <span className="mx-1">•</span>
+                        <span>
                           {stay.weather.temperature}°C
                         </span>
                         <span className="ml-1">{stay.weather.icon}</span>
@@ -360,23 +353,22 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                     )}
                     {stay.weatherError && (
                       <>
-                        <span className="mx-1 text-gray-400">•</span>
-                        <span className="text-gray-400 text-xs">weather unavailable</span>
+                        <span className="mx-1">•</span>
+                        <span>weather unavailable</span>
                       </>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
                   No locations scheduled
                 </div>
               )}
               {locationStays.length > 2 && (
-                <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
+                <div className="text-xs text-pearl-600 dark:text-gray-400">
                   +{locationStays.length - 2} more locations
                 </div>
               )}
-            </div>
           </div>
         )}
       </div>

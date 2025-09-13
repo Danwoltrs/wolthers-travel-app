@@ -66,6 +66,11 @@ export function useTripWeather(trip: TripCard): UseTripWeatherReturn {
         return
       }
       
+      // Check if trip is in the past - skip weather updates for past trips
+      const tripEndDate = new Date(trip.endDate)
+      const today = new Date()
+      const isPastTrip = tripEndDate < today
+      
       setIsLoading(true)
       setError(null)
       
@@ -84,23 +89,35 @@ export function useTripWeather(trip: TripCard): UseTripWeatherReturn {
           return
         }
         
-        // Fetch weather data for each location
-        const weatherPromises = stays.map(async (stay): Promise<LocationWithWeather> => {
-          try {
-            const weather = await fetchWeatherForCity(stay.city, stay.startDate)
-            
-            if (weather) {
-              return { ...stay, weather }
-            } else {
+        // For past trips, skip weather API calls and show locations only
+        let staysWithWeather: LocationWithWeather[]
+        
+        if (isPastTrip) {
+          // Past trips: show locations without weather data
+          staysWithWeather = stays.map(stay => ({
+            ...stay,
+            weather: null,
+            weatherError: undefined // No error, just no weather for past trips
+          }))
+        } else {
+          // Current/future trips: fetch weather data for each location
+          const weatherPromises = stays.map(async (stay): Promise<LocationWithWeather> => {
+            try {
+              const weather = await fetchWeatherForCity(stay.city, stay.startDate)
+              
+              if (weather) {
+                return { ...stay, weather }
+              } else {
+                return { ...stay, weather: null, weatherError: 'Weather data unavailable' }
+              }
+            } catch (error) {
+              console.error(`Weather error for ${stay.city}:`, error)
               return { ...stay, weather: null, weatherError: 'Weather data unavailable' }
             }
-          } catch (error) {
-            console.error(`Weather error for ${stay.city}:`, error)
-            return { ...stay, weather: null, weatherError: 'Weather data unavailable' }
-          }
-        })
-        
-        const staysWithWeather = await Promise.all(weatherPromises)
+          })
+          
+          staysWithWeather = await Promise.all(weatherPromises)
+        }
         
         if (!isCancelled) {
           setLocationStays(staysWithWeather)

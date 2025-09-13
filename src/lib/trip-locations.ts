@@ -110,12 +110,14 @@ export function calculateLocationStays(
     return []
   }
 
-  // Group activities by date and extract locations
+  // Extract all unique cities from activities
+  const allCities = new Set<string>()
   const locationsByDate = new Map<string, Set<string>>()
   
   activities.forEach(activity => {
     const city = extractCityFromLocation(activity.location)
     if (city) {
+      allCities.add(city)
       if (!locationsByDate.has(activity.activity_date)) {
         locationsByDate.set(activity.activity_date, new Set())
       }
@@ -123,7 +125,22 @@ export function calculateLocationStays(
     }
   })
 
-  // Sort dates and determine location sequences
+  // If only one unique city across all activities, assume entire trip is at that location
+  if (allCities.size === 1) {
+    const singleCity = Array.from(allCities)[0]
+    const startDate = typeof tripStartDate === 'string' ? parseISO(tripStartDate) : new Date(tripStartDate)
+    const endDate = typeof tripEndDate === 'string' ? parseISO(tripEndDate) : new Date(tripEndDate)
+    const nights = Math.max(1, differenceInDays(endDate, startDate))
+    
+    return [{
+      city: singleCity,
+      nights,
+      startDate: tripStartDate,
+      endDate: tripEndDate
+    }]
+  }
+
+  // Multiple cities - calculate stays based on activity dates
   const sortedDates = Array.from(locationsByDate.keys()).sort()
   const locationStays: LocationStay[] = []
   
