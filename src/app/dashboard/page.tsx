@@ -368,6 +368,47 @@ export default function Dashboard() {
     setShowTripCreationModal(true)
   }
 
+  const handleTripUpdate = async (tripId: string, updates: any) => {
+    console.log('📝 [Dashboard] Updating trip:', tripId, updates)
+    
+    try {
+      // Call the progressive-save endpoint
+      const response = await fetch('/api/trips/progressive-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          tripId,
+          stepNumber: 3, // TeamVehicle step for logistics
+          stepData: {
+            vehicles: updates.vehicles || [],
+            drivers: updates.drivers || [],
+            hotels: updates.hotels || [],
+            equipment: updates.equipment || []
+          },
+          isComplete: true
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to save: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ [Dashboard] Trip updated successfully:', result)
+      
+      // Refresh trips to show updated data
+      await loadTrips()
+      
+      return result
+    } catch (error) {
+      console.error('❌ [Dashboard] Error updating trip:', error)
+      throw error
+    }
+  }
+
   const handleTripCreated = async (trip: any) => {
     console.log('🎉 [Dashboard] Trip created callback triggered with data:', trip)
     
@@ -596,6 +637,7 @@ export default function Dashboard() {
             trip={selectedTrip}
             isOpen={!!selectedTrip}
             onClose={closeModal}
+            onSave={(updates) => handleTripUpdate(selectedTrip.id, updates)}
           />
         )}
 

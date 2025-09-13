@@ -220,12 +220,12 @@ export function formatLocationStays(locationStays: LocationWithWeather[]): strin
 }
 
 /**
- * Simple weather icon mapping for common conditions
+ * Minimalistic weather icon mapping for common conditions
  */
 export function getWeatherIcon(iconCode: string): string {
   const iconMap: Record<string, string> = {
     '01d': '☀️', // clear sky day
-    '01n': '🌙', // clear sky night
+    '01n': '🌙', // clear sky night  
     '02d': '⛅', // few clouds day
     '02n': '☁️', // few clouds night
     '03d': '☁️', // scattered clouds
@@ -238,11 +238,11 @@ export function getWeatherIcon(iconCode: string): string {
     '10n': '🌧️', // rain night
     '11d': '⛈️', // thunderstorm
     '11n': '⛈️',
-    '13d': '🌨️', // snow
-    '13n': '🌨️',
+    '13d': '❄️', // snow (more minimalistic)
+    '13n': '❄️',
     '50d': '🌫️', // mist
     '50n': '🌫️'
   }
   
-  return iconMap[iconCode] || '🌤️'
+  return iconMap[iconCode] || '☀️' // Default to sunny
 }

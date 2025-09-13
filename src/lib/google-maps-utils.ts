@@ -194,18 +194,61 @@ const fallbackToClientSideAPI = async (origin: Location, destination: Location):
         console.warn(`Fallback distance calculation failed - Status: ${status}, Element Status: ${elementStatus}`)
         console.warn('Fallback response:', JSON.stringify(response, null, 2))
         
-        // Create a minimal travel estimate if both Google APIs fail
-        // This ensures intercity travel always shows up even if APIs fail
-        const estimatedDuration = {
-          text: '30 min',
-          value: 1800 // 30 minutes in seconds
-        }
-        const estimatedDistance = {
-          text: '25 km',
-          value: 25000 // 25 km in meters
+        // Use Brazilian location-based calculation as intelligent fallback
+        // This provides much more accurate estimates than hardcoded 30 minutes
+        console.log('🔄 [Maps Utils] Google APIs failed, using Brazilian location fallback')
+        
+        try {
+          // Import Brazilian calculation function
+          const { calculateTravelTime: calculateLocalTravelTime } = require('./brazilian-locations')
+          
+          // Extract city names from addresses for Brazilian calculation
+          const originCity = extractCityFromLocation(origin)
+          const destinationCity = extractCityFromLocation(destination)
+          
+          console.log(`🗺️ [Maps Utils] Fallback calculation: ${originCity} → ${destinationCity}`)
+          
+          if (originCity && destinationCity) {
+            const fallbackHours = calculateLocalTravelTime(originCity, destinationCity)
+            const fallbackSeconds = Math.round(fallbackHours * 3600)
+            const fallbackMinutes = Math.round(fallbackHours * 60)
+            
+            // Estimate distance based on travel time (60 km/h average)
+            const estimatedDistanceKm = Math.round(fallbackHours * 60)
+            
+            const estimatedDuration = {
+              text: formatDurationFromHours(fallbackHours),
+              value: fallbackSeconds
+            }
+            const estimatedDistance = {
+              text: `${estimatedDistanceKm} km`,
+              value: estimatedDistanceKm * 1000 // meters
+            }
+            
+            console.log(`✅ [Maps Utils] Brazilian fallback: ${estimatedDuration.text} (${estimatedDistance.text})`)
+            resolve({
+              distance: estimatedDistance,
+              duration: estimatedDuration,
+              origin,
+              destination
+            })
+            return
+          }
+        } catch (error) {
+          console.warn('🚨 [Maps Utils] Brazilian fallback failed:', error.message)
         }
         
-        console.log('🔄 [Maps Utils] Using estimated travel time for failed API call')
+        // Final conservative fallback for completely unknown locations
+        const estimatedDuration = {
+          text: '2h 30min',
+          value: 9000 // 2.5 hours in seconds (much more reasonable than 30 minutes)
+        }
+        const estimatedDistance = {
+          text: '150 km',
+          value: 150000 // 150 km in meters
+        }
+        
+        console.log('🔄 [Maps Utils] Using conservative 2.5h fallback for unknown locations')
         resolve({
           distance: estimatedDistance,
           duration: estimatedDuration,
@@ -300,4 +343,50 @@ export const formatDistance = (meters: number): string => {
     return `${Math.round(meters)}m`
   }
   return `${(meters / 1000).toFixed(1)}km`
+}
+
+// Helper function to extract city name from location object for Brazilian calculation
+const extractCityFromLocation = (location: Location): string => {
+  if (location.name && location.name !== location.address) {
+    // If name is provided and different from address, use name
+    return location.name
+  }
+  
+  if (location.address) {
+    // Try to extract city from address string
+    const addressParts = location.address.split(',')
+    if (addressParts.length > 0) {
+      // Take the first part as city (before first comma)
+      const cityPart = addressParts[0].trim()
+      
+      // Remove common address prefixes
+      const cleanCity = cityPart
+        .replace(/^\d+\s+/, '') // Remove leading numbers
+        .replace(/^(rua|av|avenida|alameda|estrada|rodovia)\s+/i, '') // Remove street prefixes
+        .trim()
+      
+      return cleanCity
+    }
+  }
+  
+  return ''
+}
+
+// Helper function to format hours into readable duration text
+const formatDurationFromHours = (hours: number): string => {
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60)
+    return `${minutes} min`
+  }
+  
+  const wholeHours = Math.floor(hours)
+  const minutes = Math.round((hours - wholeHours) * 60)
+  
+  if (minutes === 0) {
+    return `${wholeHours}h`
+  } else if (minutes === 60) {
+    return `${wholeHours + 1}h`
+  } else {
+    return `${wholeHours}h ${minutes}min`
+  }
 }

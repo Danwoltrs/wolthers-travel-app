@@ -93,6 +93,31 @@ const activityCacheManager = new CacheManager<any>(getActivityCacheConfig())
 // Initialize sync manager
 let syncManager: SyncManager | null = null
 
+// Helper function to fetch weather data
+async function fetchWeatherForCity(city: string, date: string): Promise<{ temperature: number; condition: string; icon: string } | null> {
+  try {
+    // Extract just the city name (remove state/country parts)
+    const cityName = city.split(' - ')[0].trim()
+    
+    const response = await fetch(`/api/weather?city=${encodeURIComponent(cityName)}&date=${date}`)
+    
+    if (!response.ok) {
+      console.warn(`Weather fetch failed for ${cityName}:`, response.status)
+      return null
+    }
+    
+    const weatherData = await response.json()
+    return {
+      temperature: weatherData.temperature,
+      condition: weatherData.condition,
+      icon: weatherData.icon
+    }
+  } catch (error) {
+    console.warn(`Error fetching weather for ${city}:`, error)
+    return null
+  }
+}
+
 interface TripCacheProviderProps {
   children: React.ReactNode
 }
@@ -245,6 +270,242 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         return total + (item.meeting_notes?.length || 0)
       }, 0)
 
+      // Extract location data from activities for instant display
+      const activities = trip.activities || []
+      
+      // Filter only actual meetings and company visits (exclude drive/travel activities)
+      const meetingActivities = activities.filter((a: any) => 
+        a.location && (
+          a.activity_type === 'meeting' || 
+          a.activity_type === 'company_visit' ||
+          a.activity_type === 'visit' ||
+          a.activity_type === 'facility_tour'
+        ) && 
+        // Exclude activities that are clearly travel/transport
+        !a.title?.toLowerCase().includes('drive') &&
+        !a.title?.toLowerCase().includes('return') &&
+        !a.activity_type?.includes('transport')
+      )
+
+      // Helper function to extract city and state from location
+      const extractCityFromLocation = (location: string): { city: string, state?: string } | null => {
+        if (!location) return null
+        
+        // Skip event/venue names that aren't cities
+        const eventVenueNames = [
+          'SCTA', 'BWC', 'COFCO', 'EISA', 'COMEXIM', 'BRASCOF', 'Minasul', 
+          'COCATREL', 'Veloso Green Coffee', 'Hyperion Hotel', 'Hotel', 
+          'Conference', 'Center', 'Office', 'Building', 'Hall'
+        ]
+        
+        // Check if location is just an event/venue name
+        const cleanLocation = location.trim()
+        const isEventVenue = eventVenueNames.some(name => 
+          cleanLocation.toUpperCase() === name.toUpperCase() || 
+          cleanLocation.toUpperCase().includes(name.toUpperCase())
+        )
+        
+        if (isEventVenue && !location.includes(',')) {
+          // Skip pure event/venue names without address info
+          return null
+        }
+        
+        // Handle address formats with city/state info
+        const parts = location.split(',').map(part => part.trim())
+        
+        if (parts.length >= 3) {
+          // Pattern: "Venue/Street, City, State" or "Company, City, State"
+          const city = parts[parts.length - 3]
+          const state = parts[parts.length - 2]
+          
+          // Skip if city part looks like a venue/street
+          if (eventVenueNames.some(name => city.toUpperCase().includes(name.toUpperCase()))) {
+            return null
+          }
+          
+          return { city, state }
+        } else if (parts.length === 2) {
+          // Pattern: "City, State" 
+          const city = parts[0]
+          const state = parts[1]
+          
+          // Skip if first part looks like a venue
+          if (eventVenueNames.some(name => city.toUpperCase().includes(name.toUpperCase()))) {
+            return null
+          }
+          
+          return { city, state }
+        }
+        
+        // Single part - check if it's a valid city name
+        if (!eventVenueNames.some(name => cleanLocation.toUpperCase().includes(name.toUpperCase()))) {
+          // Only Brazilian cities for this context
+          const brazilianCities = ['SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'RIO DE JANEIRO', 'CAMPINAS']
+          if (brazilianCities.some(city => cleanLocation.toUpperCase().includes(city))) {
+            return { city: cleanLocation }
+          }
+        }
+        
+        return null
+      }
+
+      // Group activities by city and calculate nights based on activity sequence
+      const cityStaysMap = new Map()
+      const tripStartDate = new Date(trip.start_date)
+      const tripEndDate = new Date(trip.end_date)
+      const totalDays = Math.ceil((tripEndDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      // First pass: collect all activities with valid cities
+      const activitiesWithCities = meetingActivities
+        .map((activity: any) => {
+          const cityInfo = extractCityFromLocation(activity.location)
+          if (!cityInfo) return null
+          
+          const cityKey = cityInfo.state ? `${cityInfo.city} - ${cityInfo.state}` : cityInfo.city
+          return {
+            ...activity,
+            cityKey,
+            activityDate: new Date(activity.activity_date || activity.date)
+          }
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.activityDate.getTime() - b.activityDate.getTime())
+
+      // Group activities by city
+      activitiesWithCities.forEach((activity: any) => {
+        if (!cityStaysMap.has(activity.cityKey)) {
+          cityStaysMap.set(activity.cityKey, {
+            city: activity.cityKey,
+            meetings: [],
+            companies: new Set(),
+            firstDate: activity.activityDate,
+            lastDate: activity.activityDate
+          })
+        }
+        
+        const cityData = cityStaysMap.get(activity.cityKey)
+        cityData.meetings.push(activity)
+        if (activity.company_name) {
+          cityData.companies.add(activity.company_name)
+        }
+        
+        // Track date range for this city
+        if (activity.activityDate < cityData.firstDate) {
+          cityData.firstDate = activity.activityDate
+        }
+        if (activity.activityDate > cityData.lastDate) {
+          cityData.lastDate = activity.activityDate
+        }
+      })
+
+      // Calculate nights based on city sequence and logic
+      const citiesWithMeetings = Array.from(cityStaysMap.keys())
+      let cityNightsMap = new Map()
+
+      if (citiesWithMeetings.length === 1) {
+        // Single location: entire trip duration
+        const singleCity = citiesWithMeetings[0]
+        cityNightsMap.set(singleCity, Math.max(1, totalDays - 1)) // nights = days - 1
+      } else if (citiesWithMeetings.length > 1) {
+        // Multiple cities: calculate based on sequence
+        // Example: Santos (day 1) → Guaxupe (day 2) → Varginha (day 3) → Santos (day 4)
+        // Result: Santos 2 nights, Guaxupe 1 night, Varginha 1 night
+        
+        const citySequence = []
+        const dateToCity = new Map()
+        
+        // Map each day to a city based on activities
+        activitiesWithCities.forEach((activity: any) => {
+          const dateKey = activity.activityDate.toDateString()
+          dateToCity.set(dateKey, activity.cityKey)
+        })
+        
+        // Create sequence of cities by day
+        const currentDate = new Date(tripStartDate)
+        const endDate = new Date(tripEndDate)
+        
+        while (currentDate <= endDate) {
+          const dateKey = currentDate.toDateString()
+          const cityForDay = dateToCity.get(dateKey)
+          
+          if (cityForDay) {
+            citySequence.push(cityForDay)
+          } else if (citySequence.length > 0) {
+            // No activity this day - assume staying in last city
+            citySequence.push(citySequence[citySequence.length - 1])
+          }
+          
+          currentDate.setDate(currentDate.getDate() + 1)
+        }
+        
+        // Count nights per city (nights = consecutive days - 1)
+        let currentStay = null
+        let stayDays = 0
+        
+        citySequence.forEach((city, index) => {
+          if (city !== currentStay) {
+            // Switching cities - finalize previous stay
+            if (currentStay && stayDays > 0) {
+              const nights = Math.max(1, stayDays)
+              cityNightsMap.set(currentStay, (cityNightsMap.get(currentStay) || 0) + nights)
+            }
+            currentStay = city
+            stayDays = 1
+          } else {
+            stayDays++
+          }
+          
+          // Handle last city
+          if (index === citySequence.length - 1 && currentStay && stayDays > 0) {
+            const nights = Math.max(1, stayDays - 1) // Last day is departure, no night
+            cityNightsMap.set(currentStay, (cityNightsMap.get(currentStay) || 0) + nights)
+          }
+        })
+      }
+
+      // Create location details with accurate night counts
+      const locationDetails = Array.from(cityStaysMap.entries()).map(([cityKey, data]: [string, any]) => ({
+        city: cityKey,
+        nights: cityNightsMap.get(cityKey) || 1,
+        meetings: data.meetings.length,
+        companies: Array.from(data.companies),
+        activities: data.meetings,
+        weather: undefined // Will be populated asynchronously
+      }))
+
+      // Fetch weather data for each location (only for current/future trips)
+      const tripEndDate = new Date(trip.end_date)
+      const today = new Date()
+      const isPastTrip = tripEndDate < today
+
+      if (!isPastTrip && locationDetails.length > 0) {
+        // Use trip start date as the reference date for weather
+        const weatherDate = trip.start_date
+        
+        // Fetch weather for each city in parallel
+        const weatherPromises = locationDetails.map(async (location) => {
+          const weather = await fetchWeatherForCity(location.city, weatherDate)
+          return {
+            ...location,
+            weather
+          }
+        })
+
+        try {
+          const locationsWithWeather = await Promise.all(weatherPromises)
+          locationDetails.splice(0, locationDetails.length, ...locationsWithWeather)
+        } catch (error) {
+          console.warn('Failed to fetch weather data for some locations:', error)
+          // Continue without weather data
+        }
+      }
+
+      // Get unique cities for weather fetching
+      const uniqueLocations = citiesWithMeetings
+
+      // Calculate visit count from filtered activities
+      const visitCount = meetingActivities.length
+
       return {
         id: trip.id,
         title: trip.title,
@@ -260,7 +521,11 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         status: trip.status,
         progress: 0,
         notesCount,
-        visitCount: trip.visitCount || 0, // Use visitCount from the main trips API
+        visitCount: visitCount,
+        locations: uniqueLocations, // Unique cities from meetings/visits for instant display
+        locationDetails: locationDetails, // Detailed location data with companies
+        activities: meetingActivities, // Only meeting/visit activities for display
+        allActivities: activities, // Keep all activities for other uses
         accessCode: trip.access_code,
         draftId: trip.draftId || null,
         isDraft: trip.isDraft || false
@@ -303,12 +568,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           lastRefresh: Date.now()
         }))
 
-        // If data was stale, fetch activity counts in background
-        if (isStale && trips.length > 0) {
-          fetchActivityCounts(trips).then(updatedTrips => {
-            setState(prev => ({ ...prev, trips: updatedTrips }))
-          }).catch(console.warn)
-        }
+        // No longer need to fetch activity counts separately - data comes from main API
 
         if (systemConfig.development.enableVerboseLogging) {
           console.log(`TripCache: Loaded ${trips.length} trips (${isStale ? 'stale' : 'fresh'})`)

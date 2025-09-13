@@ -555,6 +555,81 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Save vehicles and drivers
+        const vehicles = stepData.vehicles || []
+        const drivers = stepData.drivers || []
+        
+        if ((vehicles.length > 0 || drivers.length > 0) && finalTripId) {
+          console.log('🚗 Creating vehicle and driver assignments:', { vehicles: vehicles.length, drivers: drivers.length })
+          
+          // Get trip dates for vehicle assignments
+          const tripStartDate = tripData.start_date || new Date().toISOString().split('T')[0]
+          const tripEndDate = tripData.end_date || new Date().toISOString().split('T')[0]
+          
+          // Create trip_vehicles entries for each vehicle/driver combination
+          const vehicleInserts = []
+          
+          // If we have both vehicles and drivers, pair them up
+          if (vehicles.length > 0 && drivers.length > 0) {
+            const maxLength = Math.max(vehicles.length, drivers.length)
+            for (let i = 0; i < maxLength; i++) {
+              const vehicle = vehicles[i % vehicles.length]
+              const driver = drivers[i % drivers.length]
+              
+              vehicleInserts.push({
+                id: crypto.randomUUID(),
+                trip_id: finalTripId,
+                vehicle_id: vehicle.id,
+                driver_id: driver.id,
+                assigned_from: tripStartDate,
+                assigned_to: tripEndDate,
+                created_at: now,
+                updated_at: now
+              })
+            }
+          } else if (vehicles.length > 0) {
+            // Only vehicles, no drivers
+            for (const vehicle of vehicles) {
+              vehicleInserts.push({
+                id: crypto.randomUUID(),
+                trip_id: finalTripId,
+                vehicle_id: vehicle.id,
+                driver_id: null,
+                assigned_from: tripStartDate,
+                assigned_to: tripEndDate,
+                created_at: now,
+                updated_at: now
+              })
+            }
+          } else if (drivers.length > 0) {
+            // Only drivers, no vehicles
+            for (const driver of drivers) {
+              vehicleInserts.push({
+                id: crypto.randomUUID(),
+                trip_id: finalTripId,
+                vehicle_id: null,
+                driver_id: driver.id,
+                assigned_from: tripStartDate,
+                assigned_to: tripEndDate,
+                created_at: now,
+                updated_at: now
+              })
+            }
+          }
+          
+          if (vehicleInserts.length > 0) {
+            const { error: vehicleError } = await supabase
+              .from('trip_vehicles')
+              .insert(vehicleInserts)
+            
+            if (vehicleError) {
+              console.error('⚠️ Failed to create vehicle/driver assignments:', vehicleError)
+            } else {
+              console.log('✅ Vehicle/driver assignments created successfully')
+            }
+          }
+        }
+
         // Save external company participants (like client representatives, guests)
         if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
           console.log('🏢 Processing external companies with participants:', stepData.companies.length)
@@ -824,18 +899,46 @@ export async function POST(request: NextRequest) {
           const destinationName = firstCompany.name
           const destinationLocation = firstCompany.address || `${firstCompany.city || ''}, ${firstCompany.state || 'Brazil'}`
           
-          // Schedule drive on trip start date at 8:00 AM (before 9:00 AM meetings)
+          // Calculate drive time from starting point to first company
+          let driveDurationMinutes = 60 // Default 1 hour fallback
+          let driveStartTime = '08:00'
+          
+          try {
+            const { calculateTravelTime: calculateLocalTravelTime } = require('@/lib/brazilian-locations')
+            const startingCity = startLocationName === 'Santos' || startLocationName === 'W&A HQ Santos' ? 'Santos' : startLocationName
+            const firstCompanyCity = firstCompany.city || 'Unknown'
+            
+            if (firstCompanyCity !== 'Unknown') {
+              const travelHours = calculateLocalTravelTime(startingCity, firstCompanyCity)
+              driveDurationMinutes = Math.round(travelHours * 60)
+              
+              // Adjust start time based on drive duration (meetings start at 9:00 AM)
+              const driveStartMinutes = 9 * 60 - driveDurationMinutes // Work backwards from 9:00 AM
+              const startHour = Math.floor(driveStartMinutes / 60)
+              const startMinute = driveStartMinutes % 60
+              driveStartTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`
+              
+              console.log(`🚗 [Progressive Save] Initial drive ${startingCity} → ${firstCompanyCity}: ${travelHours.toFixed(2)}h (${driveDurationMinutes} min)`)
+              console.log(`🕐 [Progressive Save] Adjusted start time to ${driveStartTime} for 9:00 AM meeting`)
+            }
+          } catch (error) {
+            console.warn(`⚠️ [Progressive Save] Failed to calculate initial drive time, using 1h default:`, error.message)
+          }
+          
+          const driveEndTime = addMinutesToTime(driveStartTime, driveDurationMinutes)
+          
+          // Schedule drive on trip start date at calculated time
           activities.push({
             trip_id: finalTripId,
             title: `Drive from ${startLocationName} to ${destinationName}`,
-            description: `Travel from ${startLocationName} to first meeting location at ${destinationName}`,
-            activity_date: tripStartDate.toISOString().split('T')[0],
-            start_time: '08:00',
-            end_time: '09:00', // 1 hour drive time estimate
+            description: `Travel from ${startLocationName} to first meeting location at ${destinationName} (${Math.round(driveDurationMinutes/60*10)/10}h drive)`,
+            activity_date: activityStartDate.toISOString().split('T')[0],
+            start_time: driveStartTime,
+            end_time: driveEndTime,
             location: destinationLocation,
             activity_type: 'travel',
             priority: 'high',
-            notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}`,
+            notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}. Drive time: ${driveDurationMinutes} minutes`,
             visibility_level: 'all',
             is_confirmed: false,
             created_at: now,
@@ -845,7 +948,7 @@ export async function POST(request: NextRequest) {
 
         // 3. Create host company meeting activities (start from next day after arrival)
         if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
-          const meetingStartDate = new Date(tripStartDate)
+          const meetingStartDate = new Date(activityStartDate)
           
           // If we have GRU pickup, start meetings the day after arrival
           if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -883,8 +986,32 @@ export async function POST(request: NextRequest) {
             
             // Add travel time between companies on same day
             if ((index + 1) % 2 === 1 && index < stepData.companies.length - 1) {
-              // If not the last company of the day, add travel time
-              currentTime = addMinutesToTime(currentTime, 150) // 2.5 hours (meeting + travel)
+              // If not the last company of the day, calculate dynamic travel time
+              const currentCompany = company
+              const nextCompany = stepData.companies[index + 1]
+              
+              // Calculate travel time between companies using Brazilian fallback
+              let travelMinutes = 30 // Default fallback
+              
+              try {
+                const { calculateTravelTime: calculateLocalTravelTime } = require('@/lib/brazilian-locations')
+                const currentCity = currentCompany.city || 'Unknown'
+                const nextCity = nextCompany.city || 'Unknown'
+                
+                if (currentCity !== 'Unknown' && nextCity !== 'Unknown') {
+                  const travelHours = calculateLocalTravelTime(currentCity, nextCity)
+                  travelMinutes = Math.round(travelHours * 60)
+                  console.log(`🚗 [Progressive Save] Travel time ${currentCity} → ${nextCity}: ${travelHours.toFixed(2)}h (${travelMinutes} min)`)
+                }
+              } catch (error) {
+                console.warn(`⚠️ [Progressive Save] Failed to calculate travel time, using 30min default:`, error.message)
+              }
+              
+              // Add meeting duration (120 min) + calculated travel time  
+              const totalMinutes = 120 + travelMinutes
+              currentTime = addMinutesToTime(currentTime, totalMinutes)
+              
+              console.log(`📅 [Progressive Save] Added ${travelMinutes}min travel + 120min meeting = ${totalMinutes}min total`)
             }
           })
         }
@@ -953,7 +1080,7 @@ export async function POST(request: NextRequest) {
           }
           
           // Calculate the last meeting end time to schedule drive after
-          const lastMeetingDate = new Date(tripEndDate)
+          const lastMeetingDate = new Date(activityEndDate)
           
           // If we have company meetings, schedule drive after the last meeting
           let driveStartTime = '14:00' // Default 2 PM start
@@ -969,7 +1096,7 @@ export async function POST(request: NextRequest) {
               lastMeetingDate.setTime(arrivalDate.getTime() + (lastMeetingDayOffset + 1) * 24 * 60 * 60 * 1000)
             } else {
               // Meetings start on trip start date  
-              lastMeetingDate.setTime(tripStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
+              lastMeetingDate.setTime(activityStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
             }
             
             // Schedule drive after last meeting (which would end around 11:00 AM + 2 hours = 1:00 PM)
@@ -1241,6 +1368,89 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     
     // Clear existing trip participants to re-insert
     await supabase.from('trip_participants').delete().eq('trip_id', tripId)
+    
+    // Clear existing vehicle/driver assignments to re-insert
+    await supabase.from('trip_vehicles').delete().eq('trip_id', tripId)
+
+    // Get trip dates for vehicle assignments
+    const { data: tripData } = await supabase
+      .from('trips')
+      .select('start_date, end_date')
+      .eq('id', tripId)
+      .single()
+    
+    const tripStartDate = tripData?.start_date || new Date().toISOString().split('T')[0]
+    const tripEndDate = tripData?.end_date || new Date().toISOString().split('T')[0]
+    
+    // Re-insert vehicles and drivers
+    const vehicles = stepData.vehicles || []
+    const drivers = stepData.drivers || []
+    
+    if ((vehicles.length > 0 || drivers.length > 0)) {
+      console.log('🚗 Updating vehicle and driver assignments:', { vehicles: vehicles.length, drivers: drivers.length })
+      
+      const vehicleInserts = []
+      
+      // If we have both vehicles and drivers, pair them up
+      if (vehicles.length > 0 && drivers.length > 0) {
+        const maxLength = Math.max(vehicles.length, drivers.length)
+        for (let i = 0; i < maxLength; i++) {
+          const vehicle = vehicles[i % vehicles.length]
+          const driver = drivers[i % drivers.length]
+          
+          vehicleInserts.push({
+            id: crypto.randomUUID(),
+            trip_id: tripId,
+            vehicle_id: vehicle.id,
+            driver_id: driver.id,
+            assigned_from: tripStartDate,
+            assigned_to: tripEndDate,
+            created_at: now,
+            updated_at: now
+          })
+        }
+      } else if (vehicles.length > 0) {
+        // Only vehicles, no drivers
+        for (const vehicle of vehicles) {
+          vehicleInserts.push({
+            id: crypto.randomUUID(),
+            trip_id: tripId,
+            vehicle_id: vehicle.id,
+            driver_id: null,
+            assigned_from: tripStartDate,
+            assigned_to: tripEndDate,
+            created_at: now,
+            updated_at: now
+          })
+        }
+      } else if (drivers.length > 0) {
+        // Only drivers, no vehicles
+        for (const driver of drivers) {
+          vehicleInserts.push({
+            id: crypto.randomUUID(),
+            trip_id: tripId,
+            vehicle_id: null,
+            driver_id: driver.id,
+            assigned_from: tripStartDate,
+            assigned_to: tripEndDate,
+            created_at: now,
+            updated_at: now
+          })
+        }
+      }
+      
+      if (vehicleInserts.length > 0) {
+        const { error: vehicleError } = await supabase
+          .from('trip_vehicles')
+          .insert(vehicleInserts)
+        
+        if (vehicleError) {
+          console.error('⚠️ Failed to update vehicle/driver assignments:', vehicleError)
+        } else {
+          console.log('✅ Vehicle/driver assignments updated successfully')
+        }
+      }
+    }
 
     // Re-insert hotels
     if (stepData.hotels && Array.isArray(stepData.hotels) && stepData.hotels.length > 0) {
@@ -1357,9 +1567,9 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
     
     // Recreate activities using the same logic as new trip creation
     const activities = []
-    const tripData = extractTripData(stepData, 0)
-    const tripStartDate = new Date(tripData.start_date || new Date())
-    const tripEndDate = new Date(tripData.end_date || tripStartDate)
+    const extractedTripData = extractTripData(stepData, 0)
+    const activityStartDate = new Date(extractedTripData.start_date || new Date())
+    const activityEndDate = new Date(extractedTripData.end_date || activityStartDate)
     
     // 1. Create combined airport pickup and drive activity if GRU airport pickup is selected
     if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -1409,18 +1619,46 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       const destinationName = firstCompany.name
       const destinationLocation = firstCompany.address || `${firstCompany.city || ''}, ${firstCompany.state || 'Brazil'}`
       
-      // Schedule drive on trip start date at 8:00 AM (before 9:00 AM meetings)
+      // Calculate drive time from starting point to first company
+      let driveDurationMinutes = 60 // Default 1 hour fallback
+      let driveStartTime = '08:00'
+      
+      try {
+        const { calculateTravelTime: calculateLocalTravelTime } = require('@/lib/brazilian-locations')
+        const startingCity = startLocationName === 'Santos' || startLocationName === 'W&A HQ Santos' ? 'Santos' : startLocationName
+        const firstCompanyCity = firstCompany.city || 'Unknown'
+        
+        if (firstCompanyCity !== 'Unknown') {
+          const travelHours = calculateLocalTravelTime(startingCity, firstCompanyCity)
+          driveDurationMinutes = Math.round(travelHours * 60)
+          
+          // Adjust start time based on drive duration (meetings start at 9:00 AM)
+          const driveStartMinutes = 9 * 60 - driveDurationMinutes // Work backwards from 9:00 AM
+          const startHour = Math.floor(driveStartMinutes / 60)
+          const startMinute = driveStartMinutes % 60
+          driveStartTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`
+          
+          console.log(`🚗 [Progressive Save Update] Initial drive ${startingCity} → ${firstCompanyCity}: ${travelHours.toFixed(2)}h (${driveDurationMinutes} min)`)
+          console.log(`🕐 [Progressive Save Update] Adjusted start time to ${driveStartTime} for 9:00 AM meeting`)
+        }
+      } catch (error) {
+        console.warn(`⚠️ [Progressive Save Update] Failed to calculate initial drive time, using 1h default:`, error.message)
+      }
+      
+      const driveEndTime = addMinutesToTime(driveStartTime, driveDurationMinutes)
+      
+      // Schedule drive on trip start date at calculated time
       activities.push({
         trip_id: tripId,
         title: `Drive from ${startLocationName} to ${destinationName}`,
-        description: `Travel from ${startLocationName} to first meeting location at ${destinationName}`,
-        activity_date: tripStartDate.toISOString().split('T')[0],
-        start_time: '08:00',
-        end_time: '09:00', // 1 hour drive time estimate
+        description: `Travel from ${startLocationName} to first meeting location at ${destinationName} (${Math.round(driveDurationMinutes/60*10)/10}h drive)`,
+        activity_date: activityStartDate.toISOString().split('T')[0],
+        start_time: driveStartTime,
+        end_time: driveEndTime,
         location: destinationLocation,
         activity_type: 'travel',
         priority: 'high',
-        notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}`,
+        notes: `Starting drive from ${startLocationName}. First meeting at ${destinationName}. Drive time: ${driveDurationMinutes} minutes`,
         visibility_level: 'all',
         is_confirmed: false,
         created_at: now,
@@ -1430,7 +1668,7 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
 
     // 3. Create host company meeting activities (start from next day after arrival)
     if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
-      const meetingStartDate = new Date(tripStartDate)
+      const meetingStartDate = new Date(activityStartDate)
       
       // If we have GRU pickup, start meetings the day after arrival
       if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -1468,8 +1706,32 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
         
         // Add travel time between companies on same day
         if ((index + 1) % 2 === 1 && index < stepData.companies.length - 1) {
-          // If not the last company of the day, add travel time
-          currentTime = addMinutesToTime(currentTime, 150) // 2.5 hours (meeting + travel)
+          // If not the last company of the day, calculate dynamic travel time
+          const currentCompany = company
+          const nextCompany = stepData.companies[index + 1]
+          
+          // Calculate travel time between companies using Brazilian fallback
+          let travelMinutes = 30 // Default fallback
+          
+          try {
+            const { calculateTravelTime: calculateLocalTravelTime } = require('@/lib/brazilian-locations')
+            const currentCity = currentCompany.city || 'Unknown'
+            const nextCity = nextCompany.city || 'Unknown'
+            
+            if (currentCity !== 'Unknown' && nextCity !== 'Unknown') {
+              const travelHours = calculateLocalTravelTime(currentCity, nextCity)
+              travelMinutes = Math.round(travelHours * 60)
+              console.log(`🚗 [Progressive Save Update] Travel time ${currentCity} → ${nextCity}: ${travelHours.toFixed(2)}h (${travelMinutes} min)`)
+            }
+          } catch (error) {
+            console.warn(`⚠️ [Progressive Save Update] Failed to calculate travel time, using 30min default:`, error.message)
+          }
+          
+          // Add meeting duration (120 min) + calculated travel time  
+          const totalMinutes = 120 + travelMinutes
+          currentTime = addMinutesToTime(currentTime, totalMinutes)
+          
+          console.log(`📅 [Progressive Save Update] Added ${travelMinutes}min travel + 120min meeting = ${totalMinutes}min total`)
         }
       })
     }
@@ -1538,7 +1800,7 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       }
       
       // Calculate the last meeting end time to schedule drive after
-      const lastMeetingDate = new Date(tripEndDate)
+      const lastMeetingDate = new Date(activityEndDate)
       
       // If we have company meetings, schedule drive after the last meeting
       let driveStartTime = '14:00' // Default 2 PM start
@@ -1554,7 +1816,7 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
           lastMeetingDate.setTime(arrivalDate.getTime() + (lastMeetingDayOffset + 1) * 24 * 60 * 60 * 1000)
         } else {
           // Meetings start on trip start date  
-          lastMeetingDate.setTime(tripStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
+          lastMeetingDate.setTime(activityStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
         }
         
         // Schedule drive after last meeting (which would end around 11:00 AM + 2 hours = 1:00 PM)

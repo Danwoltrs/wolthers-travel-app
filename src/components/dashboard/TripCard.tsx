@@ -29,8 +29,16 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft || 
                   ((trip as any).status === 'planning' && (trip as any).is_draft !== false)
   
-  // Fetch location and weather data (only for non-draft trips)
-  const { locationStays, isLoading: weatherLoading, error: weatherError } = useTripWeather(trip)
+  // Use location data from trip directly for instant display
+  const tripLocations = trip.locations || []
+  const locationDetails = (trip as any).locationDetails || []
+  const hasLocationData = tripLocations.length > 0
+  
+  // Only fetch weather data for non-draft trips with locations
+  const shouldFetchWeather = !isDraft && hasLocationData
+  const { locationStays, isLoading: weatherLoading, error: weatherError } = useTripWeather(
+    shouldFetchWeather ? trip : { ...trip, id: '', activities: [] }
+  )
 
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
@@ -329,18 +337,39 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         ) : (
           // For regular trips, show location and weather data
           <div className="space-y-1 overflow-hidden">
-              {weatherLoading ? (
+              {!hasLocationData ? (
                 <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
-                  Loading location data...
+                  No meetings scheduled
                 </div>
-              ) : weatherError ? (
-                <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
-                  Location data unavailable
+              ) : locationDetails.length > 0 ? (
+                // Show location details with nights and weather
+                locationDetails.slice(0, 2).map((location: any, index: number) => (
+                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                    <span className="font-medium">{location.city}</span>
+                    <span className="mx-1">•</span>
+                    <span>{location.nights} night{location.nights !== 1 ? 's' : ''}</span>
+                    {location.weather && (
+                      <>
+                        <span className="mx-1">•</span>
+                        <span>{location.weather.temperature}°C</span>
+                        <span className="ml-1">{location.weather.icon}</span>
+                      </>
+                    )}
+                  </div>
+                ))
+              ) : weatherLoading && shouldFetchWeather ? (
+                <div className="text-xs text-pearl-600 dark:text-gray-400">
+                  {tripLocations.slice(0, 2).map((city, index) => (
+                    <div key={index} className="truncate">
+                      {city} • Loading weather...
+                    </div>
+                  ))}
                 </div>
               ) : locationStays.length > 0 ? (
                 locationStays.slice(0, 2).map((stay, index) => (
                   <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
-                    <span>{stay.city}:</span>{' '}
+                    <span className="font-medium">{stay.city}</span>
+                    <span className="mx-1">•</span>
                     <span>{stay.nights} night{stay.nights !== 1 ? 's' : ''}</span>
                     {stay.weather && (
                       <>
@@ -359,14 +388,21 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                     )}
                   </div>
                 ))
+              ) : hasLocationData ? (
+                // Show locations without weather if weather fetch failed
+                tripLocations.slice(0, 2).map((city, index) => (
+                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                    <span className="font-medium">{city}</span>
+                  </div>
+                ))
               ) : (
                 <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
-                  No locations scheduled
+                  No meetings scheduled
                 </div>
               )}
-              {locationStays.length > 2 && (
+              {(locationDetails.length > 2 || locationStays.length > 2 || (hasLocationData && tripLocations.length > 2)) && (
                 <div className="text-xs text-pearl-600 dark:text-gray-400">
-                  +{locationStays.length - 2} more locations
+                  +{locationDetails.length > 2 ? locationDetails.length - 2 : locationStays.length > 2 ? locationStays.length - 2 : tripLocations.length - 2} more locations
                 </div>
               )}
           </div>

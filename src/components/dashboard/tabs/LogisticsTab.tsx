@@ -156,14 +156,16 @@ export function LogisticsTab({
                             <span className="text-xs text-gray-500 dark:text-gray-400">Available</span>
                           </div>
                           
-                          <div className="flex items-center space-x-1">
-                            <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                              <Settings className="w-4 h-4" />
-                            </button>
-                            <button className="p-1 text-gray-400 hover:text-red-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {mode === 'edit' && (
+                            <div className="flex items-center space-x-1">
+                              <button 
+                                onClick={() => handleVehicleRemove(vehicle.id)}
+                                className="p-1 text-gray-400 hover:text-red-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -231,14 +233,16 @@ export function LogisticsTab({
                             <span className="text-xs text-gray-500 dark:text-gray-400">Available</span>
                           </div>
                           
-                          <div className="flex items-center space-x-1">
-                            <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                              <Settings className="w-4 h-4" />
-                            </button>
-                            <button className="p-1 text-gray-400 hover:text-red-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {mode === 'edit' && (
+                            <div className="flex items-center space-x-1">
+                              <button 
+                                onClick={() => handleDriverRemove(driver.id)}
+                                className="p-1 text-gray-400 hover:text-red-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

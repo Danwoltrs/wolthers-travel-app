@@ -91,6 +91,59 @@ function addMinutesToTime(timeStr: string, minutes: number): string {
 }
 
 /**
+ * Estimate travel time as fallback when Google Maps API fails
+ */
+function estimateTravelTimeFallback(fromCity: string, toCity: string): number {
+  const from = fromCity.toLowerCase()
+  const to = toCity.toLowerCase()
+  
+  // Same city or very close - walking distance
+  if (from === to || 
+      (from.includes('santos') && to.includes('santos')) ||
+      (from.includes('guarulhos') && to.includes('guarulhos')) ||
+      (from.includes('são paulo') && to.includes('são paulo'))) {
+    return 0.1 // 6 minutes walk
+  }
+  
+  // Known common routes with estimated driving times
+  const routes: Record<string, number> = {
+    // Santos to other cities
+    'santos_guarulhos': 1.5,     // ~1.5 hours
+    'guarulhos_santos': 1.5,
+    'santos_são paulo': 1.2,     // ~1.2 hours
+    'são paulo_santos': 1.2,
+    
+    // Guarulhos to other cities
+    'guarulhos_são paulo': 0.8,   // ~45 minutes
+    'são paulo_guarulhos': 0.8,
+    
+    // General estimates
+    'santos_varginha': 4.0,       // ~4 hours
+    'varginha_santos': 4.0,
+    'guarulhos_varginha': 3.5,    // ~3.5 hours  
+    'varginha_guarulhos': 3.5,
+  }
+  
+  // Try exact match first
+  const routeKey = `${from}_${to}`
+  if (routes[routeKey]) {
+    return routes[routeKey]
+  }
+  
+  // Try partial matches
+  for (const [route, hours] of Object.entries(routes)) {
+    const [routeFrom, routeTo] = route.split('_')
+    if (from.includes(routeFrom) && to.includes(routeTo)) {
+      return hours
+    }
+  }
+  
+  // Default fallback for unknown routes (1 hour)
+  console.log(`⚠️ [Travel Fallback] Unknown route ${from} → ${to}, using 1h default`)
+  return 1.0
+}
+
+/**
  * Create a travel activity between two locations
  */
 function createTravelActivity(
@@ -185,27 +238,62 @@ export async function recalculateTravelTimes(
     const currentCity = extractCityFromActivity(currentActivity)
     const nextCity = extractCityFromActivity(nextActivity)
     
-    // Calculate travel time using Google Distance Matrix API
-    const { duration } = await getDriveDuration(currentCity, nextCity)
-    const travelHours = duration / 3600
-    
-    // Only create travel activity if there's actual travel time (> 10 minutes)
-    if (travelHours > 0.15) {
-      const travelActivity = createTravelActivity(currentActivity, nextActivity, travelHours)
+    try {
+      console.log(`🔄 [Travel Recalc] Calculating travel between: ${currentCity} → ${nextCity}`)
       
-      updates.push({
-        activityId: `travel-${currentActivity.id}-${nextActivity.id}`,
-        newStartTime: travelActivity.start_time!,
-        newEndTime: travelActivity.end_time!,
-        shouldCreate: true,
-        shouldDelete: false,
-        travelDetails: {
-          fromLocation: currentCity,
-          toLocation: nextCity,
-          duration: travelHours,
-          type: travelHours <= 0.2 ? 'walk' : 'drive'
-        }
-      })
+      // Calculate travel time using Google Distance Matrix API via server endpoint
+      const { duration } = await getDriveDuration(currentCity, nextCity)
+      const travelHours = duration / 3600
+      
+      console.log(`📏 [Travel Recalc] Distance result: ${Math.round(travelHours * 60)}min`)
+      
+      // Only create travel activity if there's actual travel time (> 9 minutes)
+      if (travelHours > 0.15) {
+        const travelActivity = createTravelActivity(currentActivity, nextActivity, travelHours)
+        
+        updates.push({
+          activityId: `travel-${currentActivity.id}-${nextActivity.id}`,
+          newStartTime: travelActivity.start_time!,
+          newEndTime: travelActivity.end_time!,
+          shouldCreate: true,
+          shouldDelete: false,
+          travelDetails: {
+            fromLocation: currentCity,
+            toLocation: nextCity,
+            duration: travelHours,
+            type: travelHours <= 0.2 ? 'walk' : 'drive'
+          }
+        })
+        
+        console.log(`➕ [Travel Recalc] Adding travel activity: ${Math.round(travelHours * 60)}min ${travelHours <= 0.2 ? 'walk' : 'drive'}`)
+      } else {
+        console.log(`⏭️  [Travel Recalc] Skipping short travel time: ${Math.round(travelHours * 60)}min`)
+      }
+    } catch (error) {
+      console.error(`❌ [Travel Recalc] Error calculating travel time between ${currentCity} and ${nextCity}:`, error)
+      
+      // Add a fallback travel activity with estimated time based on city names
+      const fallbackHours = estimateTravelTimeFallback(currentCity, nextCity)
+      
+      if (fallbackHours > 0.15) {
+        console.log(`🔄 [Travel Recalc] Using fallback estimate: ${Math.round(fallbackHours * 60)}min`)
+        
+        const travelActivity = createTravelActivity(currentActivity, nextActivity, fallbackHours)
+        
+        updates.push({
+          activityId: `travel-${currentActivity.id}-${nextActivity.id}`,
+          newStartTime: travelActivity.start_time!,
+          newEndTime: travelActivity.end_time!,
+          shouldCreate: true,
+          shouldDelete: false,
+          travelDetails: {
+            fromLocation: currentCity,
+            toLocation: nextCity,
+            duration: fallbackHours,
+            type: fallbackHours <= 0.2 ? 'walk' : 'drive'
+          }
+        })
+      }
     }
   }
 

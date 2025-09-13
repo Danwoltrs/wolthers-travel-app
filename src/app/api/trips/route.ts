@@ -110,7 +110,12 @@ export async function GET(request: NextRequest) {
         activities (
           id,
           title,
-          activity_type
+          activity_type,
+          location,
+          company_name,
+          activity_date,
+          start_time,
+          end_time
         )
       `)
       .order('start_date', { ascending: false })

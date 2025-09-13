@@ -1000,21 +1000,47 @@ export function OutlookCalendar({
       ])
       
       // Recalculate travel times for both affected dates
-      console.log('📋 [Travel Recalc] Recalculating travel times after activity swap...')
-      const allActivities = Object.values(activitiesByDate).flat()
-      const updates1 = await recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
-      const updates2 = await recalculateTravelTimes(allActivities, targetSlotActivity.id, item.originalDate, item.originalTime)
-      
-      // Apply travel time updates
-      await Promise.all([...updates1, ...updates2].map(async (update) => {
-        if (update.shouldCreate && update.travelDetails) {
-          console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${update.travelDetails.duration}h ${update.travelDetails.type})`)
-          // Create new travel activity would go here
-        } else if (update.shouldDelete) {
-          console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
-          // Delete obsolete travel activity would go here
+      try {
+        console.log('📋 [Travel Recalc] Recalculating travel times after activity swap...')
+        const allActivities = Object.values(activitiesByDate).flat()
+        
+        const [updates1, updates2] = await Promise.allSettled([
+          recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime),
+          recalculateTravelTimes(allActivities, targetSlotActivity.id, item.originalDate, item.originalTime)
+        ])
+        
+        // Collect successful updates
+        const allUpdates = []
+        if (updates1.status === 'fulfilled') {
+          allUpdates.push(...updates1.value)
+        } else {
+          console.error('❌ [Travel Recalc] Failed to recalculate travel times for moved activity:', updates1.reason)
         }
-      }))
+        
+        if (updates2.status === 'fulfilled') {
+          allUpdates.push(...updates2.value)
+        } else {
+          console.error('❌ [Travel Recalc] Failed to recalculate travel times for swapped activity:', updates2.reason)
+        }
+        
+        // Apply travel time updates
+        await Promise.allSettled(allUpdates.map(async (update) => {
+          if (update.shouldCreate && update.travelDetails) {
+            console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${Math.round(update.travelDetails.duration * 60)}min ${update.travelDetails.type})`)
+            // Create new travel activity would go here
+          } else if (update.shouldDelete) {
+            console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
+            // Delete obsolete travel activity would go here
+          }
+        }))
+        
+        console.log(`✅ [Travel Recalc] Successfully processed ${allUpdates.length} travel time updates`)
+        
+      } catch (error) {
+        console.error('❌ [Travel Recalc] Unexpected error during travel time recalculation:', error)
+        // Activity swap was successful, just travel time calculation failed
+        console.log('📋 [Travel Recalc] Activity swap completed successfully despite travel calculation error')
+      }
     } else {
       // Move activity to new slot - preserve original duration
       await updateActivity(activity.id, {
@@ -1024,20 +1050,29 @@ export function OutlookCalendar({
       })
       
       // Recalculate travel times for the target date
-      console.log('📋 [Travel Recalc] Recalculating travel times after activity move...')
-      const allActivities = Object.values(activitiesByDate).flat()
-      const updates = await recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
-      
-      // Apply travel time updates
-      await Promise.all(updates.map(async (update) => {
-        if (update.shouldCreate && update.travelDetails) {
-          console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${update.travelDetails.duration}h ${update.travelDetails.type})`)
-          // Create new travel activity would go here
-        } else if (update.shouldDelete) {
-          console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
-          // Delete obsolete travel activity would go here
-        }
-      }))
+      try {
+        console.log('📋 [Travel Recalc] Recalculating travel times after activity move...')
+        const allActivities = Object.values(activitiesByDate).flat()
+        const updates = await recalculateTravelTimes(allActivities, activity.id, targetDate, targetTime)
+        
+        // Apply travel time updates
+        await Promise.allSettled(updates.map(async (update) => {
+          if (update.shouldCreate && update.travelDetails) {
+            console.log(`➕ [Travel Recalc] Creating travel activity: ${update.travelDetails.fromLocation} → ${update.travelDetails.toLocation} (${Math.round(update.travelDetails.duration * 60)}min ${update.travelDetails.type})`)
+            // Create new travel activity would go here
+          } else if (update.shouldDelete) {
+            console.log(`➖ [Travel Recalc] Removing obsolete travel activity: ${update.activityId}`)
+            // Delete obsolete travel activity would go here
+          }
+        }))
+        
+        console.log(`✅ [Travel Recalc] Successfully processed ${updates.length} travel time updates`)
+        
+      } catch (error) {
+        console.error('❌ [Travel Recalc] Error during travel time recalculation:', error)
+        // Activity move was successful, just travel time calculation failed
+        console.log('📋 [Travel Recalc] Activity move completed successfully despite travel calculation error')
+      }
     }
   }, [activitiesByDate, updateActivity])
 

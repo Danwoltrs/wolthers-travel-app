@@ -302,6 +302,20 @@ export interface TripCard {
   progress?: number
   notesCount?: number
   visitCount?: number
+  locations?: string[]  // Unique cities for instant display
+  locationDetails?: {
+    city: string
+    nights: number
+    meetings: number
+    companies: string[]
+    weather?: {
+      temperature: number
+      condition: string
+      icon: string
+    }
+  }[] // Detailed location data with nights and weather
+  activities?: any[]    // Full activities data for processing
+  allActivities?: any[] // All activities (including non-meetings)
   draftId?: string | null
   isDraft?: boolean
   accessCode?: string

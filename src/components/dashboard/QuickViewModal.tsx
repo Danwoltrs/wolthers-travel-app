@@ -176,7 +176,23 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         endDate: updates.trip.endDate || prev.endDate
       }))
     }
-  }, [updateFormData])
+    
+    // If logistics data is being updated, update local trip state
+    if (tab === 'logistics' && (updates.vehicles || updates.drivers)) {
+      setLocalTrip(prev => ({
+        ...prev,
+        vehicles: updates.vehicles || prev.vehicles,
+        drivers: updates.drivers || prev.drivers
+      }))
+      
+      // Trigger save for logistics updates
+      if (onSave) {
+        onSave(updates).catch(error => {
+          console.error('Error saving logistics:', error)
+        })
+      }
+    }
+  }, [updateFormData, onSave])
   
   // Keep localTrip in sync with prop changes
   useEffect(() => {
