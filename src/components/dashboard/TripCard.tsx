@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react'
-import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, CheckSquare, Trash2 } from 'lucide-react'
+import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, CheckSquare, Trash2, CloudSun } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { TripCard as TripCardType } from '@/types'
 import { formatDateRange, cn, getTripProgress, getTripStatus, getTripStatusLabel, getTripProgressColor, formatTripDates } from '@/lib/utils'
+import { useTripWeather } from '@/hooks/useTripWeather'
+import { formatLocationStays } from '@/lib/trip-locations'
 import ConfirmationModal from '@/components/ui/ConfirmationModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useTripActions } from '@/hooks/useSmartTrips'
@@ -26,6 +28,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   // Check if this is a draft trip (planning status with is_draft flag)
   const isDraft = (trip as any).isDraft || (trip as any).status === 'draft' || (trip as any).isTripDraft || 
                   ((trip as any).status === 'planning' && (trip as any).is_draft !== false)
+  
+  // Fetch location and weather data (only for non-draft trips)
+  const { locationStays, isLoading: weatherLoading, error: weatherError } = useTripWeather(trip)
 
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
@@ -298,23 +303,82 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
         </div>
       </div>
 
-      {/* Zone 4: Guest Information - White Background */}
-      <div className="bg-white dark:bg-[#1a1a1a] px-6 py-3 border-b border-pearl-100 dark:border-[#2a2a2a] h-24 flex flex-col justify-start">
-        <div className="space-y-1">
-          {trip.guests && trip.guests.length > 0 ? (
-            trip.guests.map((guestGroup, index) => {
-              const company = trip.client?.find(c => c.id === guestGroup.companyId);
-              return (
-                <div key={guestGroup.companyId} className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">{company?.fantasyName || company?.name}:</span>{' '}
-                  <span>{guestGroup.names.join(', ')}</span>
+      {/* Zone 4: Location & Weather Information - White Background */}
+      <div className={cn(
+        'px-6 py-3 border-b h-24 flex flex-col justify-start',
+        isDraft 
+          ? 'bg-amber-25 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30'
+          : 'bg-white dark:bg-[#1a1a1a] border-pearl-100 dark:border-[#2a2a2a]'
+      )}>
+        {isDraft ? (
+          // For draft trips, show trip type or placeholder
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <MapPin className={cn(
+                'w-4 h-4 mr-2 flex-shrink-0',
+                'text-amber-600 dark:text-amber-400'
+              )} />
+              <span className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                Locations & Weather
+              </span>
+            </div>
+            <div className="text-sm text-amber-700 dark:text-amber-400 italic">
+              Complete trip creation to see location details
+            </div>
+          </div>
+        ) : (
+          // For regular trips, show location and weather data
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <CloudSun className="w-4 h-4 mr-2 text-golden-500 dark:text-[#0E3D2F] flex-shrink-0" />
+              <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">
+                Locations & Weather
+              </span>
+            </div>
+            <div className="space-y-1 overflow-hidden">
+              {weatherLoading ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  Loading location data...
                 </div>
-              );
-            })
-          ) : (
-            <div className="text-sm text-gray-500 dark:text-gray-400 italic">No guests assigned</div>
-          )}
-        </div>
+              ) : weatherError ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  Location data unavailable
+                </div>
+              ) : locationStays.length > 0 ? (
+                locationStays.slice(0, 2).map((stay, index) => (
+                  <div key={index} className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    <span className="font-medium">{stay.city}:</span>{' '}
+                    <span>{stay.nights} night{stay.nights !== 1 ? 's' : ''}</span>
+                    {stay.weather && (
+                      <>
+                        <span className="mx-1 text-gray-400">•</span>
+                        <span className="text-blue-600 dark:text-blue-400">
+                          {stay.weather.temperature}°C
+                        </span>
+                        <span className="ml-1">{stay.weather.icon}</span>
+                      </>
+                    )}
+                    {stay.weatherError && (
+                      <>
+                        <span className="mx-1 text-gray-400">•</span>
+                        <span className="text-gray-400 text-xs">weather unavailable</span>
+                      </>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  No locations scheduled
+                </div>
+              )}
+              {locationStays.length > 2 && (
+                <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
+                  +{locationStays.length - 2} more locations
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Zone 5: Team & Logistics - Very Light Golden Background */}
