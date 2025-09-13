@@ -3,16 +3,17 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createServerSupabaseClient()
     
     // Fetch activities for the trip
     const { data: activities, error } = await supabase
       .from('activities')
       .select('activity_date, start_time, end_time, location, type, title')
-      .eq('trip_id', params.id)
+      .eq('trip_id', id)
       .order('activity_date', { ascending: true })
       .order('start_time', { ascending: true })
     

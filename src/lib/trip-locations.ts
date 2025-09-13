@@ -43,7 +43,13 @@ function extractCityFromLocation(location: string): string | null {
   // Handle hotel/venue with city (e.g., "Hyperion Hotel - Basel")
   if (location.includes(' - ')) {
     const parts = location.split(' - ')
-    return parts[parts.length - 1].trim()
+    const cityPart = parts[parts.length - 1].trim()
+    
+    // Additional validation for the extracted city
+    if (isValidCityName(cityPart)) {
+      return cityPart
+    }
+    return null
   }
   
   // Handle simple venue names that might be cities
@@ -54,8 +60,42 @@ function extractCityFromLocation(location: string): string | null {
     return null
   }
   
-  // Return as-is for processing
-  return cleanLocation
+  // Skip organization/venue codes (like SCTA, BWC, etc.)
+  if (/^[A-Z]{2,6}$/.test(cleanLocation)) {
+    return null
+  }
+  
+  // Skip if it contains typical venue keywords without city info
+  const venueKeywords = ['hotel', 'conference', 'center', 'office', 'building', 'hall']
+  const lowerLocation = cleanLocation.toLowerCase()
+  if (venueKeywords.some(keyword => lowerLocation.includes(keyword)) && cleanLocation.length < 15) {
+    return null
+  }
+  
+  // Return if it looks like a valid city name
+  if (isValidCityName(cleanLocation)) {
+    return cleanLocation
+  }
+  
+  return null
+}
+
+/**
+ * Validates if a string looks like a valid city name
+ */
+function isValidCityName(name: string): boolean {
+  if (!name || name.length < 2) return false
+  
+  // Check if it's not all uppercase (likely an acronym)
+  if (name === name.toUpperCase() && name.length < 8) return false
+  
+  // Check if it contains numbers (unlikely for city names)
+  if (/\d/.test(name)) return false
+  
+  // Check if it contains special characters (except spaces, hyphens, apostrophes)
+  if (!/^[a-zA-Z\s\-'\.]+$/.test(name)) return false
+  
+  return true
 }
 
 /**

@@ -31,24 +31,60 @@ interface OpenWeatherForecastResponse {
 
 async function getCoordinates(city: string): Promise<{ lat: number; lon: number } | null> {
   try {
-    const geocodeUrl = `${OPENWEATHER_BASE_URL}/geo/direct?q=${encodeURIComponent(city)}&limit=1&appid=${OPENWEATHER_API_KEY}`
-    const response = await fetch(geocodeUrl)
+    // Try with city name first
+    let geocodeUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(city)}&limit=5&appid=${OPENWEATHER_API_KEY}`
+    let response = await fetch(geocodeUrl)
     
     if (!response.ok) {
       console.error(`Geocoding failed for ${city}:`, response.status)
       return null
     }
     
-    const data = await response.json()
+    let data = await response.json()
+    
+    // If no results, try adding common country contexts
+    if (!data || data.length === 0) {
+      const cityWithCountries = [
+        `${city}, Switzerland`,
+        `${city}, Germany`, 
+        `${city}, Austria`,
+        `${city}, France`,
+        `${city}, Italy`
+      ]
+      
+      for (const cityQuery of cityWithCountries) {
+        try {
+          geocodeUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityQuery)}&limit=1&appid=${OPENWEATHER_API_KEY}`
+          response = await fetch(geocodeUrl)
+          
+          if (response.ok) {
+            data = await response.json()
+            if (data && data.length > 0) {
+              console.log(`Found coordinates for ${city} using query: ${cityQuery}`)
+              break
+            }
+          }
+        } catch (err) {
+          console.log(`Failed to geocode with ${cityQuery}:`, err)
+        }
+      }
+    }
     
     if (!data || data.length === 0) {
       console.error(`No coordinates found for city: ${city}`)
       return null
     }
     
+    // Prefer results with higher population or more specific matches
+    const bestMatch = data.length > 1 ? 
+      data.find((location: any) => location.country === 'CH') || // Prefer Switzerland for Basel
+      data.find((location: any) => location.state) || 
+      data[0] : 
+      data[0]
+    
     return {
-      lat: data[0].lat,
-      lon: data[0].lon
+      lat: bestMatch.lat,
+      lon: bestMatch.lon
     }
   } catch (error) {
     console.error(`Error geocoding ${city}:`, error)
@@ -126,6 +162,10 @@ export async function GET(request: NextRequest) {
     console.error('OpenWeatherMap API key not configured')
     return NextResponse.json({ error: 'Weather service not configured' }, { status: 500 })
   }
+  
+  // Debug logging for API key (first/last 4 characters only for security)
+  console.log(`Using OpenWeather API key: ${OPENWEATHER_API_KEY.slice(0, 4)}...${OPENWEATHER_API_KEY.slice(-4)}`)
+  console.log(`Fetching weather for city: ${city}, date: ${date}`)
   
   try {
     // Get coordinates for the city
