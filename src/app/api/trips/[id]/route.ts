@@ -440,7 +440,8 @@ export async function DELETE(
         access_code, 
         status, 
         title,
-        trip_access_permissions (user_id, permission_type, expires_at)
+        start_date,
+        end_date
       `)
       .eq('id', tripId)
       .single()
@@ -464,12 +465,7 @@ export async function DELETE(
     const hasPermission = 
       trip.creator_id === user.id ||
       user.is_global_admin ||
-      (user.companyId === '840783f4-866d-4bdb-9b5d-5d0facf62db0') || // Wolthers staff
-      trip.trip_access_permissions?.some((perm: any) => 
-        perm.user_id === user.id && 
-        perm.permission_type === 'admin' &&
-        (!perm.expires_at || new Date(perm.expires_at) > new Date())
-      )
+      (user.company_id === '840783f4-866d-4bdb-9b5d-5d0facf62db0') // Wolthers staff
 
     if (!hasPermission) {
       console.error('❌ [TripDelete] User lacks permission to delete trip')
@@ -487,9 +483,9 @@ export async function DELETE(
       .from('trips')
       .update({ 
         status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancelled_by: user.id,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        last_edited_by: user.id,
+        last_edited_at: new Date().toISOString()
       })
       .eq('id', tripId)
       .select()
@@ -553,11 +549,11 @@ export async function DELETE(
 
         if (stakeholders.length > 0) {
           const emailData: TripCancellationEmailData = {
-            tripTitle: cancelledTrip.title,
-            tripAccessCode: cancelledTrip.access_code,
-            tripStartDate: cancelledTrip.start_date,
-            tripEndDate: cancelledTrip.end_date,
-            cancelledBy: user.full_name || user.email,
+            tripTitle: trip.title,
+            tripAccessCode: trip.access_code || trip.id,
+            tripStartDate: trip.start_date,
+            tripEndDate: trip.end_date,
+            cancelledBy: user.full_name || user.name || user.email,
             cancellationReason: cancellationReason || undefined,
             stakeholders
           }
@@ -590,12 +586,12 @@ export async function DELETE(
       success: true,
       message: 'Trip cancelled successfully',
       trip: {
-        id: cancelledTrip.id,
-        access_code: cancelledTrip.access_code,
-        status: cancelledTrip.status,
-        title: cancelledTrip.title,
-        cancelled_at: cancelledTrip.cancelled_at,
-        cancelled_by: cancelledTrip.cancelled_by
+        id: trip.id,
+        access_code: trip.access_code || trip.id,
+        status: 'cancelled',
+        title: trip.title,
+        last_edited_at: new Date().toISOString(),
+        last_edited_by: user.id
       }
     })
 
