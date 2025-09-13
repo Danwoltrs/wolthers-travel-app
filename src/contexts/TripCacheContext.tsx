@@ -93,30 +93,6 @@ const activityCacheManager = new CacheManager<any>(getActivityCacheConfig())
 // Initialize sync manager
 let syncManager: SyncManager | null = null
 
-// Helper function to fetch weather data
-async function fetchWeatherForCity(city: string, date: string): Promise<{ temperature: number; condition: string; icon: string } | null> {
-  try {
-    // Extract just the city name (remove state/country parts)
-    const cityName = city.split(' - ')[0].trim()
-    
-    const response = await fetch(`/api/weather?city=${encodeURIComponent(cityName)}&date=${date}`)
-    
-    if (!response.ok) {
-      console.warn(`Weather fetch failed for ${cityName}:`, response.status)
-      return null
-    }
-    
-    const weatherData = await response.json()
-    return {
-      temperature: weatherData.temperature,
-      condition: weatherData.condition,
-      icon: weatherData.icon
-    }
-  } catch (error) {
-    console.warn(`Error fetching weather for ${city}:`, error)
-    return null
-  }
-}
 
 interface TripCacheProviderProps {
   children: React.ReactNode
@@ -470,35 +446,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         meetings: data.meetings.length,
         companies: Array.from(data.companies),
         activities: data.meetings,
-        weather: undefined // Will be populated asynchronously
+        weather: undefined // Will be populated by existing weather hook
       }))
-
-      // Fetch weather data for each location (only for current/future trips)
-      const tripEndDate = new Date(trip.end_date)
-      const today = new Date()
-      const isPastTrip = tripEndDate < today
-
-      if (!isPastTrip && locationDetails.length > 0) {
-        // Use trip start date as the reference date for weather
-        const weatherDate = trip.start_date
-        
-        // Fetch weather for each city in parallel
-        const weatherPromises = locationDetails.map(async (location) => {
-          const weather = await fetchWeatherForCity(location.city, weatherDate)
-          return {
-            ...location,
-            weather
-          }
-        })
-
-        try {
-          const locationsWithWeather = await Promise.all(weatherPromises)
-          locationDetails.splice(0, locationDetails.length, ...locationsWithWeather)
-        } catch (error) {
-          console.warn('Failed to fetch weather data for some locations:', error)
-          // Continue without weather data
-        }
-      }
 
       // Get unique cities for weather fetching
       const uniqueLocations = citiesWithMeetings
