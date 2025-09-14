@@ -322,7 +322,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
 
       {/* Zone 4: Location & Weather Information - White Background */}
       <div className={cn(
-        'px-6 py-3 border-b h-24 flex flex-col justify-start',
+        'px-6 py-3 border-b h-32 flex flex-col justify-start',
         isDraft 
           ? 'bg-amber-25 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30'
           : 'bg-white dark:bg-[#1a1a1a] border-pearl-100 dark:border-[#2a2a2a]'
@@ -351,9 +351,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                   No meetings scheduled
                 </div>
               ) : enrichedLocationDetails.length > 0 ? (
-                // Show location details in format: "City: X nights Y°C icon" (show up to 5 lines)
-                enrichedLocationDetails.slice(0, 5).map((location: any, index: number) => (
-                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                // Show location details in format: "City: X nights Y°C icon" (show up to 6 lines with better wrapping)
+                enrichedLocationDetails.slice(0, 6).map((location: any, index: number) => (
+                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 break-words">
                     <span className="font-medium">{location.city}</span>
                     <span>: {location.nights} night{location.nights !== 1 ? 's' : ''}</span>
                     {location.weather && (
@@ -404,9 +404,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                   No meetings scheduled
                 </div>
               )}
-              {enrichedLocationDetails.length > 5 && (
+              {enrichedLocationDetails.length > 6 && (
                 <div className="text-xs text-pearl-600 dark:text-gray-400">
-                  +{enrichedLocationDetails.length - 5} more locations
+                  +{enrichedLocationDetails.length - 6} more locations
                 </div>
               )}
           </div>
@@ -414,7 +414,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       </div>
 
       {/* Zone 5: Team & Logistics - Very Light Golden Background */}
-      <div className="bg-golden-50 dark:bg-[#111111] px-6 py-3 h-[140px] flex flex-col justify-between space-y-2">
+      <div className="bg-golden-50 dark:bg-[#111111] px-6 py-3 h-[132px] flex flex-col justify-between space-y-2">
         {/* Wolthers Team Section */}
         <div>
           <div className="flex items-center mb-1">
