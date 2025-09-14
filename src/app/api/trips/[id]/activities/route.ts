@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
+    const supabase = createServerSupabaseClient()
     
     // Fetch activities for the trip
     const { data: activities, error } = await supabase

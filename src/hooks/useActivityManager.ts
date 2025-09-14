@@ -554,31 +554,20 @@ export function useActivityManager(tripId: string) {
 
   // Calculate activity statistics based on business rules
   const getActivityStats = useCallback((): ActivityStats => {
-    // Meetings: Only meetings and meals count as meetings (NOT flights, drives, logistics)
+    // Meetings: Use same logic as TripCacheContext for consistency
     const meetingActivities = activities.filter(a => {
-      // Exclude flights, travel, accommodation, and logistics regardless of type
-      const title = (a.title || '').toLowerCase()
-      const description = (a.description || '').toLowerCase()
+      if (!a.location) return false
       
-      // Flight/travel indicators (exclude from meetings)
-      const travelKeywords = [
-        'flight', 'fly', 'plane', 'airplane', 'aircraft', 'airline', 
-        'departure', 'arrival', 'takeoff', 'landing', 'airport',
-        'drive', 'driving', 'car', 'taxi', 'uber', 'transfer',
-        'check-in', 'check-out', 'hotel', 'accommodation', 'lodging'
-      ]
+      const title = a.title?.toLowerCase() || ''
+      const travelKeywords = ['drive', 'return', 'flight', 'travel', 'transport', 'transfer', 'journey']
       
-      // Check if this is a travel/logistics activity
-      const isTravelActivity = travelKeywords.some(keyword => 
-        title.includes(keyword) || description.includes(keyword)
-      )
-      
-      if (isTravelActivity) {
+      if (travelKeywords.some(keyword => title.includes(keyword))) {
         return false
       }
       
-      // Only count meetings and meals as meetings
-      return a.type === 'meeting' || a.type === 'meal'
+      const validTypes = ['meeting', 'company_visit', 'visit', 'facility_tour']
+      const activityType = (a.activity_type || a.type || '').toLowerCase()
+      return validTypes.includes(activityType)
     })
     
     // Visits: Meetings at client/supplier locations (not hotel conferences)

@@ -251,17 +251,22 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       const activities = trip.activities || []
       
       // Filter only actual meetings and company visits (exclude drive/travel activities)
-      const meetingActivities = activities.filter((a: any) => 
-        a.location && (
-          a.activity_type === 'meeting' || 
-          a.activity_type === 'company_visit' ||
-          a.activity_type === 'visit' ||
-          a.activity_type === 'facility_tour'
-        ) && 
-        // Exclude activities that are clearly travel/transport
-        !a.title?.toLowerCase().includes('drive') &&
-        !a.title?.toLowerCase().includes('return') &&
-        !a.activity_type?.includes('transport')
+      const meetingActivities = activities.filter((a: any) => {
+        if (!a.location) return false
+        
+        const title = a.title?.toLowerCase() || ''
+        const activityType = a.activity_type?.toLowerCase() || ''
+        
+        // Exclude travel/transport activities by title keywords
+        const travelKeywords = ['drive', 'return', 'flight', 'travel', 'transport', 'transfer', 'journey']
+        if (travelKeywords.some(keyword => title.includes(keyword))) {
+          return false
+        }
+        
+        // Include only actual business meeting types
+        const validTypes = ['meeting', 'company_visit', 'visit', 'facility_tour']
+        return validTypes.includes(activityType)
+      }
       )
       
       console.log(`🎯 Trip ${trip.title}: Found ${meetingActivities.length} meeting activities out of ${activities.length} total:`, 
