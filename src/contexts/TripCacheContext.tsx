@@ -291,7 +291,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           const cityInfo = getLocationInfo(activity.location)
           if (!cityInfo) return null
           
-          const cityKey = cityInfo.state ? `${cityInfo.city} - ${cityInfo.state}` : cityInfo.city
+          // Use just the city name, no state codes for display
+          const cityKey = cityInfo.city
           return {
             ...activity,
             cityKey,
@@ -335,7 +336,9 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       if (citiesWithMeetings.length === 1) {
         // Single location: entire trip duration
         const singleCity = citiesWithMeetings[0]
-        cityNightsMap.set(singleCity, Math.max(1, totalDays - 1)) // nights = days - 1
+        const totalNights = Math.max(1, totalDays - 1) // nights = days - 1
+        cityNightsMap.set(singleCity, totalNights)
+        console.log(`🏙️ Single city trip: ${singleCity} gets all ${totalNights} nights (${totalDays} days)`)
       } else if (citiesWithMeetings.length > 1) {
         // Multiple cities: calculate based on sequence
         // Example: Santos (day 1) → Guaxupe (day 2) → Varginha (day 3) → Santos (day 4)
@@ -405,8 +408,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           const nights = cityNightsMap.get(cityKey) || 1
           console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
           
-          // Extract just the city name for weather API (remove state/country suffixes)
-          const cityForWeather = cityKey.split(' - ')[0].trim()
+          // Extract just the city name for weather API (already clean since we removed states)
+          const cityForWeather = cityKey.trim()
           
           // Fetch weather data
           let weather = null

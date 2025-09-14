@@ -64,7 +64,7 @@ function tokenizeLocation(location: string): string[] {
 }
 
 /**
- * Check if a token is a common business/venue term
+ * Check if a token is a common business/venue term or specific venue name
  */
 function isCommonBusinessTerm(term: string): boolean {
   const businessTerms = [
@@ -73,7 +73,20 @@ function isCommonBusinessTerm(term: string): boolean {
     'association', 'conference', 'summit', 'meeting', 'office', 'headquarters'
   ]
   
+  // Specific venue/event names that should be filtered out
+  const venueNames = [
+    'SCTA', 'BWC', 'COFCO', 'EISA', 'COMEXIM', 'BRASCOF', 'HYPERION',
+    'LOFBERGS', 'COOXUPE', 'BLASER', 'NORDQUIST', 'EXPOCACER'
+  ]
+  
   const upperTerm = term.toUpperCase()
+  
+  // Check if it's a known venue name
+  if (venueNames.some(venue => upperTerm === venue || upperTerm.includes(venue))) {
+    return true
+  }
+  
+  // Check if it's a business term
   return businessTerms.some(business => 
     upperTerm.includes(business.toUpperCase()) || 
     business.toUpperCase().includes(upperTerm)
@@ -331,9 +344,20 @@ export async function getCityWeather(cityName: string, countryCode?: string): Pr
   icon: string
 } | null> {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY || process.env.OPENWEATHER_API_KEY
+    // Check multiple possible environment variable names for Vercel compatibility
+    const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY || 
+                   process.env.OPENWEATHER_API_KEY ||
+                   process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY ||
+                   process.env.OPENWEATHERMAP_API_KEY
+    
+    console.log('🌤️ Weather API key check:', {
+      hasPublicKey: !!process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY,
+      hasPrivateKey: !!process.env.OPENWEATHER_API_KEY,
+      usingKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'none'
+    })
+    
     if (!apiKey) {
-      console.warn('🌤️ No OpenWeatherMap API key found')
+      console.warn('🌤️ No OpenWeatherMap API key found in any environment variable')
       return null
     }
     
