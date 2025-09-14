@@ -32,7 +32,7 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   // Use location data from trip directly for instant display
   const tripLocations = trip.locations || []
   const locationDetails = (trip as any).locationDetails || []
-  const hasLocationData = tripLocations.length > 0
+  const hasLocationData = locationDetails.length > 0 || tripLocations.length > 0
   
   // Only fetch weather data for non-draft trips with locations
   const shouldFetchWeather = !isDraft && hasLocationData

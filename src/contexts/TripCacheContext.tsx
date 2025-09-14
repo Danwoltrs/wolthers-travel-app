@@ -262,10 +262,16 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         !a.title?.toLowerCase().includes('return') &&
         !a.activity_type?.includes('transport')
       )
+      
+      console.log(`🎯 Trip ${trip.title}: Found ${meetingActivities.length} meeting activities out of ${activities.length} total:`, 
+        meetingActivities.map(a => ({ title: a.title, location: a.location, type: a.activity_type }))
+      )
 
       // Helper function to extract city and state from location
       const extractCityFromLocation = (location: string): { city: string, state?: string } | null => {
         if (!location) return null
+        
+        console.log('🗺️ Processing location:', location)
         
         // Skip event/venue names that aren't cities
         const eventVenueNames = [
@@ -282,46 +288,73 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         )
         
         if (isEventVenue && !location.includes(',')) {
-          // Skip pure event/venue names without address info
+          console.log('🗺️ Skipping event venue:', cleanLocation)
           return null
         }
         
-        // Handle address formats with city/state info
+        // Handle Brazilian address formats
         const parts = location.split(',').map(part => part.trim())
+        console.log('🗺️ Address parts:', parts)
         
-        if (parts.length >= 3) {
-          // Pattern: "Venue/Street, City, State" or "Company, City, State"
-          const city = parts[parts.length - 3]
-          const state = parts[parts.length - 2]
-          
-          // Skip if city part looks like a venue/street
-          if (eventVenueNames.some(name => city.toUpperCase().includes(name.toUpperCase()))) {
-            return null
-          }
-          
-          return { city, state }
-        } else if (parts.length === 2) {
-          // Pattern: "City, State" 
-          const city = parts[0]
-          const state = parts[1]
-          
-          // Skip if first part looks like a venue
-          if (eventVenueNames.some(name => city.toUpperCase().includes(name.toUpperCase()))) {
-            return null
-          }
-          
-          return { city, state }
-        }
+        // Brazilian addresses often look like: 
+        // "Rua do Comercio, 123, Santos, SP, 11010-091, Brazil"
+        // "COFCO International Brasil, Santos, SP"
+        // "Santos - SP"
         
-        // Single part - check if it's a valid city name
-        if (!eventVenueNames.some(name => cleanLocation.toUpperCase().includes(name.toUpperCase()))) {
-          // Only Brazilian cities for this context
-          const brazilianCities = ['SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'RIO DE JANEIRO', 'CAMPINAS']
-          if (brazilianCities.some(city => cleanLocation.toUpperCase().includes(city))) {
-            return { city: cleanLocation }
+        // Look for Brazilian state codes (2 letters)
+        const brazilianStates = ['SP', 'RJ', 'MG', 'PR', 'RS', 'SC', 'GO', 'MT', 'BA', 'PE', 'CE', 'PA', 'MA', 'PB', 'RN', 'AL', 'SE', 'PI', 'AC', 'AP', 'AM', 'RO', 'RR', 'TO', 'DF', 'ES', 'MS']
+        
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].toUpperCase()
+          if (brazilianStates.includes(part)) {
+            // Found state, city should be the previous part
+            if (i > 0) {
+              const city = parts[i - 1].trim()
+              const state = parts[i].trim()
+              
+              // Skip if city looks like a postal code
+              if (!/^\d{5}-?\d{3}$/.test(city)) {
+                console.log('🗺️ Found city from state:', { city, state })
+                return { city, state }
+              }
+            }
           }
         }
         
+        // Handle dash format like "Santos - SP"
+        if (location.includes(' - ')) {
+          const dashParts = location.split(' - ').map(part => part.trim())
+          if (dashParts.length === 2) {
+            const [city, state] = dashParts
+            if (brazilianStates.includes(state.toUpperCase())) {
+              console.log('🗺️ Found city from dash format:', { city, state })
+              return { city, state }
+            }
+          }
+        }
+        
+        // Look for known Brazilian cities
+        const brazilianCities = [
+          'SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'SÃO PAULO', 'RIO DE JANEIRO', 
+          'CAMPINAS', 'GUARUJA', 'CUBATAO', 'CUBATÃO', 'BERTIOGA', 'SAO VICENTE',
+          'PRAIA GRANDE', 'MONGAGUA', 'ITANHAEM', 'PERUIBE'
+        ]
+        
+        for (const part of parts) {
+          const upperPart = part.toUpperCase()
+          if (brazilianCities.some(city => upperPart.includes(city) || city.includes(upperPart))) {
+            // Find the matching city
+            const matchingCity = brazilianCities.find(city => 
+              upperPart.includes(city) || city.includes(upperPart)
+            )
+            if (matchingCity) {
+              console.log('🗺️ Found Brazilian city:', part)
+              return { city: part, state: 'SP' } // Default to SP for Santos region
+            }
+          }
+        }
+        
+        console.log('🗺️ No city found in location:', location)
         return null
       }
 
