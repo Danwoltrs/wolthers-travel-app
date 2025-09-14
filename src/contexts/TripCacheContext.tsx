@@ -333,23 +333,45 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           }
         }
         
-        // Look for known Brazilian cities
-        const brazilianCities = [
+        // Look for known cities (Brazilian and International)
+        const knownCities = [
+          // Brazilian cities
           'SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'SÃO PAULO', 'RIO DE JANEIRO', 
           'CAMPINAS', 'GUARUJA', 'CUBATAO', 'CUBATÃO', 'BERTIOGA', 'SAO VICENTE',
-          'PRAIA GRANDE', 'MONGAGUA', 'ITANHAEM', 'PERUIBE'
+          'PRAIA GRANDE', 'MONGAGUA', 'ITANHAEM', 'PERUIBE',
+          // International cities
+          'BASEL', 'ZURICH', 'GENEVA', 'BERN', 'LAUSANNE', 'LUCERNE',
+          'AMSTERDAM', 'ROTTERDAM', 'THE HAGUE', 'UTRECHT',
+          'HAMBURG', 'FRANKFURT', 'MUNICH', 'COLOGNE', 'BERLIN',
+          'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BIRMINGHAM',
+          'PARIS', 'LYON', 'MARSEILLE', 'TOULOUSE',
+          'ROME', 'MILAN', 'NAPLES', 'TURIN', 'FLORENCE',
+          'MADRID', 'BARCELONA', 'VALENCIA', 'SEVILLE',
+          'VIENNA', 'SALZBURG', 'GRAZ', 'LINZ'
         ]
         
         for (const part of parts) {
-          const upperPart = part.toUpperCase()
-          if (brazilianCities.some(city => upperPart.includes(city) || city.includes(upperPart))) {
+          const cleanPart = part.trim()
+          const upperPart = cleanPart.toUpperCase()
+          
+          if (knownCities.some(city => upperPart.includes(city) || city.includes(upperPart))) {
             // Find the matching city
-            const matchingCity = brazilianCities.find(city => 
+            const matchingCity = knownCities.find(city => 
               upperPart.includes(city) || city.includes(upperPart)
             )
             if (matchingCity) {
-              console.log('🗺️ Found Brazilian city:', part)
-              return { city: part, state: 'SP' } // Default to SP for Santos region
+              // Use the original case from the location, not the uppercase match
+              const cityName = cleanPart
+              console.log('🗺️ Found known city:', { original: cleanPart, matched: matchingCity })
+              
+              // Return with appropriate state/country context
+              if (['SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'SÃO PAULO'].includes(matchingCity)) {
+                return { city: cityName, state: 'SP' }
+              } else if (['RIO DE JANEIRO'].includes(matchingCity)) {
+                return { city: cityName, state: 'RJ' }
+              } else {
+                return { city: cityName, state: null } // International cities without state
+              }
             }
           }
         }

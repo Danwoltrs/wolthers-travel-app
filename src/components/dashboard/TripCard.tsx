@@ -346,14 +346,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                 locationDetails.slice(0, 2).map((location: any, index: number) => (
                   <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
                     <span className="font-medium">{location.city}</span>
-                    <span className="mx-1">•</span>
-                    <span>{location.nights} night{location.nights !== 1 ? 's' : ''}</span>
+                    <span>: {location.nights} night{location.nights !== 1 ? 's' : ''}</span>
                     {location.weather && (
-                      <>
-                        <span className="mx-1">•</span>
-                        <span>{location.weather.temperature}°C</span>
-                        <span className="ml-1">{location.weather.icon}</span>
-                      </>
+                      <span> {location.weather.temperature}°C {location.weather.icon}</span>
                     )}
                   </div>
                 ))
