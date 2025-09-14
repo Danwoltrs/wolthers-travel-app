@@ -319,6 +319,21 @@ function analyzeSpecialPatterns(originalLocation: string, tokens: string[]): Arr
     }
   }
   
+  // Brazilian address pattern: "Street - Neighborhood, City - State, ZIP, Country"
+  // Example: "Av. Urbâno García, 680 - Santa Margarida, Três Pontas - MG, 37190-000, Brazil"
+  const brazilianPattern = /,\s*([A-Za-z\s\u00C0-\u017F]+)\s*-\s*(MG|SP|RJ|RS|SC|PR|GO|MT|BA|PE|CE|PA|MA|PB|RN|AL|SE|PI|AC|AP|AM|RO|RR|TO|DF|ES|MS)\s*,/
+  const brazilMatch = originalLocation.match(brazilianPattern)
+  if (brazilMatch) {
+    const [, cityName, stateCode] = brazilMatch
+    results.push({
+      city: cityName.trim(),
+      state: stateCode,
+      country: 'BR',
+      confidence: 0.95, // High confidence for Brazilian address pattern
+      score: 0.95
+    })
+  }
+  
   // "City, State" pattern
   const commaPattern = /([A-Za-z\s-']+),\s*([A-Z]{2})\s*$/
   const match = originalLocation.match(commaPattern)
