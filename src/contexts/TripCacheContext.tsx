@@ -270,7 +270,9 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
 
       // Extract city information using intelligent geographical analysis
       const getLocationInfo = (location: string) => {
+        console.log('🚀 DEBUGGING: getLocationInfo called with:', location)
         const cityInfo = extractCityFromLocation(location)
+        console.log('🚀 DEBUGGING: extractCityFromLocation result:', cityInfo)
         if (!cityInfo) return null
         
         return {
