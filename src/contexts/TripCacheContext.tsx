@@ -447,40 +447,53 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           currentDate.setDate(currentDate.getDate() + 1)
         }
         
-        // Count nights per city (nights = consecutive days - 1)
-        let currentStay = null
-        let stayDays = 0
+        // Count nights per city based on consecutive day sequences
+        console.log('🗺️ City sequence for night calculation:', citySequence)
         
-        citySequence.forEach((city, index) => {
+        let currentStay = null
+        let stayStartIndex = 0
+        
+        for (let i = 0; i < citySequence.length; i++) {
+          const city = citySequence[i]
+          
           if (city !== currentStay) {
             // Switching cities - finalize previous stay
-            if (currentStay && stayDays > 0) {
-              const nights = Math.max(1, stayDays)
+            if (currentStay && i > stayStartIndex) {
+              const stayDuration = i - stayStartIndex
+              const nights = Math.max(1, stayDuration - 1) // nights = days - 1 (last day is departure)
+              console.log(`🏙️ ${currentStay}: ${stayDuration} days = ${nights} nights`)
               cityNightsMap.set(currentStay, (cityNightsMap.get(currentStay) || 0) + nights)
             }
             currentStay = city
-            stayDays = 1
-          } else {
-            stayDays++
+            stayStartIndex = i
           }
           
-          // Handle last city
-          if (index === citySequence.length - 1 && currentStay && stayDays > 0) {
-            const nights = Math.max(1, stayDays - 1) // Last day is departure, no night
+          // Handle the final city
+          if (i === citySequence.length - 1 && currentStay) {
+            const stayDuration = (i + 1) - stayStartIndex
+            const nights = Math.max(1, stayDuration - 1) // nights = days - 1 (last day is departure)
+            console.log(`🏙️ ${currentStay} (final): ${stayDuration} days = ${nights} nights`)
             cityNightsMap.set(currentStay, (cityNightsMap.get(currentStay) || 0) + nights)
           }
-        })
+        }
       }
 
-      // Create location details with accurate night counts
-      const locationDetails = Array.from(cityStaysMap.entries()).map(([cityKey, data]: [string, any]) => ({
-        city: cityKey,
-        nights: cityNightsMap.get(cityKey) || 1,
-        meetings: data.meetings.length,
-        companies: Array.from(data.companies),
-        activities: data.meetings,
-        weather: undefined // Will be populated by existing weather hook
-      }))
+      // Create location details with consolidated cities and accurate night counts
+      const locationDetails = Array.from(cityStaysMap.entries()).map(([cityKey, data]: [string, any]) => {
+        const nights = cityNightsMap.get(cityKey) || 1
+        console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
+        
+        return {
+          city: cityKey,
+          nights: nights,
+          meetings: data.meetings.length,
+          companies: Array.from(data.companies),
+          activities: data.meetings,
+          weather: undefined // Will be populated by existing weather hook
+        }
+      })
+
+      console.log(`🗺️ Final location details:`, locationDetails.map(l => `${l.city}: ${l.nights} nights, ${l.meetings} meetings`))
 
       // Get unique cities for weather fetching
       const uniqueLocations = citiesWithMeetings
