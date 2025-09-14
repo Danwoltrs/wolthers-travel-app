@@ -23,7 +23,7 @@ const getTripCacheConfig = () => {
     freshTTL: config.cache.freshTTL,
     staleTTL: config.cache.staleTTL,
     maxMemoryItems: config.cache.maxMemoryItems,
-    storageKey: config.cache.storageKeyPrefix + '-trips'
+    storageKey: config.cache.storageKeyPrefix + '-trips-v2' // Force cache invalidation
   }
 }
 

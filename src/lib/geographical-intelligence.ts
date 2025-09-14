@@ -20,7 +20,7 @@ export function extractCityFromLocation(location: string): CityInfo | null {
     return null
   }
   
-  console.log('🌍 Analyzing location:', location)
+  console.log('🌍 v2 Analyzing location:', location)
   
   // Step 1: Clean and tokenize the location string
   const tokens = tokenizeLocation(location)
@@ -322,9 +322,11 @@ function analyzeSpecialPatterns(originalLocation: string, tokens: string[]): Arr
   // Brazilian address pattern: "Street - Neighborhood, City - State, ZIP, Country"
   // Example: "Av. Urbâno García, 680 - Santa Margarida, Três Pontas - MG, 37190-000, Brazil"
   const brazilianPattern = /,\s*([A-Za-z\s\u00C0-\u017F]+)\s*-\s*(MG|SP|RJ|RS|SC|PR|GO|MT|BA|PE|CE|PA|MA|PB|RN|AL|SE|PI|AC|AP|AM|RO|RR|TO|DF|ES|MS)\s*,/
+  console.log('🇧🇷 Testing Brazilian pattern on:', originalLocation)
   const brazilMatch = originalLocation.match(brazilianPattern)
   if (brazilMatch) {
     const [, cityName, stateCode] = brazilMatch
+    console.log('🇧🇷 BRAZILIAN MATCH FOUND:', cityName, stateCode)
     results.push({
       city: cityName.trim(),
       state: stateCode,
@@ -332,6 +334,8 @@ function analyzeSpecialPatterns(originalLocation: string, tokens: string[]): Arr
       confidence: 0.95, // High confidence for Brazilian address pattern
       score: 0.95
     })
+  } else {
+    console.log('🇧🇷 No Brazilian pattern match')
   }
   
   // "City, State" pattern
