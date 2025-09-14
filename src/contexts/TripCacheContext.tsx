@@ -9,6 +9,7 @@ import type { TripCard } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase-client'
 import { cleanStorageOnBoot } from '@/lib/storage/safeStorage'
+import { extractCityFromLocation, getCityWeather } from '@/lib/geographical-intelligence'
 
 // Get environment-appropriate configuration
 const systemConfig = getCacheSystemConfig()
@@ -172,8 +173,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
     }
     const apiTrips = result.trips || []
 
-    // Transform API data to TripCard format
-    const transformedTrips: TripCard[] = apiTrips.map((trip: any) => {
+    // Transform API data to TripCard format with async weather fetching
+    const transformedTrips: TripCard[] = await Promise.all(apiTrips.map(async (trip: any) => {
       const tripParticipants = trip.trip_participants || []
       
       // Separate companies and Wolthers staff
@@ -267,117 +268,15 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         meetingActivities.map(a => ({ title: a.title, location: a.location, type: a.activity_type }))
       )
 
-      // Helper function to extract city and state from location
-      const extractCityFromLocation = (location: string): { city: string, state?: string } | null => {
-        if (!location) return null
+      // Extract city information using intelligent geographical analysis
+      const getLocationInfo = (location: string) => {
+        const cityInfo = extractCityFromLocation(location)
+        if (!cityInfo) return null
         
-        console.log('🗺️ Processing location:', location)
-        
-        // Skip event/venue names that aren't cities
-        const eventVenueNames = [
-          'SCTA', 'BWC', 'COFCO', 'EISA', 'COMEXIM', 'BRASCOF', 'Minasul', 
-          'COCATREL', 'Veloso Green Coffee', 'Hyperion Hotel', 'Hotel', 
-          'Conference', 'Center', 'Office', 'Building', 'Hall'
-        ]
-        
-        // Check if location is just an event/venue name
-        const cleanLocation = location.trim()
-        const isEventVenue = eventVenueNames.some(name => 
-          cleanLocation.toUpperCase() === name.toUpperCase() || 
-          cleanLocation.toUpperCase().includes(name.toUpperCase())
-        )
-        
-        if (isEventVenue && !location.includes(',')) {
-          console.log('🗺️ Skipping event venue:', cleanLocation)
-          return null
+        return {
+          city: cityInfo.city,
+          state: cityInfo.state || undefined
         }
-        
-        // Handle Brazilian address formats
-        const parts = location.split(',').map(part => part.trim())
-        console.log('🗺️ Address parts:', parts)
-        
-        // Brazilian addresses often look like: 
-        // "Rua do Comercio, 123, Santos, SP, 11010-091, Brazil"
-        // "COFCO International Brasil, Santos, SP"
-        // "Santos - SP"
-        
-        // Look for Brazilian state codes (2 letters)
-        const brazilianStates = ['SP', 'RJ', 'MG', 'PR', 'RS', 'SC', 'GO', 'MT', 'BA', 'PE', 'CE', 'PA', 'MA', 'PB', 'RN', 'AL', 'SE', 'PI', 'AC', 'AP', 'AM', 'RO', 'RR', 'TO', 'DF', 'ES', 'MS']
-        
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i].toUpperCase()
-          if (brazilianStates.includes(part)) {
-            // Found state, city should be the previous part
-            if (i > 0) {
-              const city = parts[i - 1].trim()
-              const state = parts[i].trim()
-              
-              // Skip if city looks like a postal code
-              if (!/^\d{5}-?\d{3}$/.test(city)) {
-                console.log('🗺️ Found city from state:', { city, state })
-                return { city, state }
-              }
-            }
-          }
-        }
-        
-        // Handle dash format like "Santos - SP"
-        if (location.includes(' - ')) {
-          const dashParts = location.split(' - ').map(part => part.trim())
-          if (dashParts.length === 2) {
-            const [city, state] = dashParts
-            if (brazilianStates.includes(state.toUpperCase())) {
-              console.log('🗺️ Found city from dash format:', { city, state })
-              return { city, state }
-            }
-          }
-        }
-        
-        // Look for known cities (Brazilian and International)
-        const knownCities = [
-          // Brazilian cities
-          'SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'SÃO PAULO', 'RIO DE JANEIRO', 
-          'CAMPINAS', 'GUARUJA', 'CUBATAO', 'CUBATÃO', 'BERTIOGA', 'SAO VICENTE',
-          'PRAIA GRANDE', 'MONGAGUA', 'ITANHAEM', 'PERUIBE',
-          // International cities
-          'BASEL', 'ZURICH', 'GENEVA', 'BERN', 'LAUSANNE', 'LUCERNE',
-          'AMSTERDAM', 'ROTTERDAM', 'THE HAGUE', 'UTRECHT',
-          'HAMBURG', 'FRANKFURT', 'MUNICH', 'COLOGNE', 'BERLIN',
-          'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BIRMINGHAM',
-          'PARIS', 'LYON', 'MARSEILLE', 'TOULOUSE',
-          'ROME', 'MILAN', 'NAPLES', 'TURIN', 'FLORENCE',
-          'MADRID', 'BARCELONA', 'VALENCIA', 'SEVILLE',
-          'VIENNA', 'SALZBURG', 'GRAZ', 'LINZ'
-        ]
-        
-        for (const part of parts) {
-          const cleanPart = part.trim()
-          const upperPart = cleanPart.toUpperCase()
-          
-          if (knownCities.some(city => upperPart.includes(city) || city.includes(upperPart))) {
-            // Find the matching city
-            const matchingCity = knownCities.find(city => 
-              upperPart.includes(city) || city.includes(upperPart)
-            )
-            if (matchingCity) {
-              // Use the original case from the location, not the uppercase match
-              const cityName = cleanPart
-              console.log('🗺️ Found known city:', { original: cleanPart, matched: matchingCity })
-              
-              // Return with appropriate state/country context
-              if (['SANTOS', 'GUAXUPE', 'VARGINHA', 'SAO PAULO', 'SÃO PAULO'].includes(matchingCity)) {
-                return { city: cityName, state: 'SP' }
-              } else if (['RIO DE JANEIRO'].includes(matchingCity)) {
-                return { city: cityName, state: 'RJ' }
-              } else {
-                return { city: cityName, state: null } // International cities without state
-              }
-            }
-          }
-        }
-        
-        console.log('🗺️ No city found in location:', location)
-        return null
       }
 
       // Group activities by city and calculate nights based on activity sequence
@@ -389,7 +288,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
       // First pass: collect all activities with valid cities
       const activitiesWithCities = meetingActivities
         .map((activity: any) => {
-          const cityInfo = extractCityFromLocation(activity.location)
+          const cityInfo = getLocationInfo(activity.location)
           if (!cityInfo) return null
           
           const cityKey = cityInfo.state ? `${cityInfo.city} - ${cityInfo.state}` : cityInfo.city
@@ -500,20 +399,36 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         }
       }
 
-      // Create location details with consolidated cities and accurate night counts
-      const locationDetails = Array.from(cityStaysMap.entries()).map(([cityKey, data]: [string, any]) => {
-        const nights = cityNightsMap.get(cityKey) || 1
-        console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
-        
-        return {
-          city: cityKey,
-          nights: nights,
-          meetings: data.meetings.length,
-          companies: Array.from(data.companies),
-          activities: data.meetings,
-          weather: undefined // Will be populated by existing weather hook
-        }
-      })
+      // Create location details with consolidated cities, accurate night counts, and weather data
+      const locationDetails = await Promise.all(
+        Array.from(cityStaysMap.entries()).map(async ([cityKey, data]: [string, any]) => {
+          const nights = cityNightsMap.get(cityKey) || 1
+          console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
+          
+          // Extract just the city name for weather API (remove state/country suffixes)
+          const cityForWeather = cityKey.split(' - ')[0].trim()
+          
+          // Fetch weather data
+          let weather = null
+          try {
+            weather = await getCityWeather(cityForWeather)
+            if (weather) {
+              console.log(`🌤️ Weather for ${cityForWeather}:`, weather)
+            }
+          } catch (error) {
+            console.warn(`🌤️ Failed to fetch weather for ${cityForWeather}:`, error)
+          }
+          
+          return {
+            city: cityKey,
+            nights: nights,
+            meetings: data.meetings.length,
+            companies: Array.from(data.companies),
+            activities: data.meetings,
+            weather: weather
+          }
+        })
+      )
 
       console.log(`🗺️ Final location details:`, locationDetails.map(l => `${l.city}: ${l.nights} nights, ${l.meetings} meetings`))
 
@@ -547,7 +462,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         draftId: trip.draftId || null,
         isDraft: trip.isDraft || false
       }
-    })
+    }))
 
     console.log(`TripCache: Transformed ${transformedTrips.length} trips from API`)
     return transformedTrips
