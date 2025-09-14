@@ -173,8 +173,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
     }
     const apiTrips = result.trips || []
 
-    // Transform API data to TripCard format with async weather fetching
-    const transformedTrips: TripCard[] = await Promise.all(apiTrips.map(async (trip: any) => {
+    // Transform API data to TripCard format 
+    const transformedTrips: TripCard[] = apiTrips.map((trip: any) => {
       const tripParticipants = trip.trip_participants || []
       
       // Separate companies and Wolthers staff
@@ -402,36 +402,20 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         }
       }
 
-      // Create location details with consolidated cities, accurate night counts, and weather data
-      const locationDetails = await Promise.all(
-        Array.from(cityStaysMap.entries()).map(async ([cityKey, data]: [string, any]) => {
-          const nights = cityNightsMap.get(cityKey) || 1
-          console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
-          
-          // Extract just the city name for weather API (already clean since we removed states)
-          const cityForWeather = cityKey.trim()
-          
-          // Fetch weather data
-          let weather = null
-          try {
-            weather = await getCityWeather(cityForWeather)
-            if (weather) {
-              console.log(`🌤️ Weather for ${cityForWeather}:`, weather)
-            }
-          } catch (error) {
-            console.warn(`🌤️ Failed to fetch weather for ${cityForWeather}:`, error)
-          }
-          
-          return {
-            city: cityKey,
-            nights: nights,
-            meetings: data.meetings.length,
-            companies: Array.from(data.companies),
-            activities: data.meetings,
-            weather: weather
-          }
-        })
-      )
+      // Create location details with consolidated cities and accurate night counts
+      const locationDetails = Array.from(cityStaysMap.entries()).map(([cityKey, data]: [string, any]) => {
+        const nights = cityNightsMap.get(cityKey) || 1
+        console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
+        
+        return {
+          city: cityKey,
+          nights: nights,
+          meetings: data.meetings.length,
+          companies: Array.from(data.companies),
+          activities: data.meetings,
+          weather: undefined // Will be populated by existing weather hook
+        }
+      })
 
       console.log(`🗺️ Final location details:`, locationDetails.map(l => `${l.city}: ${l.nights} nights, ${l.meetings} meetings`))
 
@@ -465,7 +449,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         draftId: trip.draftId || null,
         isDraft: trip.isDraft || false
       }
-    }))
+    })
 
     console.log(`TripCache: Transformed ${transformedTrips.length} trips from API`)
     return transformedTrips
