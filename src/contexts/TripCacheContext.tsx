@@ -275,9 +275,10 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         console.log('🚀 DEBUGGING: extractCityFromLocation result:', cityInfo)
         if (!cityInfo) return null
         
+        // Always use just the city name, never include state codes
         return {
           city: cityInfo.city,
-          state: cityInfo.state || undefined
+          state: undefined // Never display state codes in trip cards
         }
       }
 
@@ -415,7 +416,7 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
           meetings: data.meetings.length,
           companies: Array.from(data.companies),
           activities: data.meetings,
-          weather: undefined // Will be populated by existing weather hook
+          weather: undefined // Will be populated by useTripWeather hook
         }
       })
 

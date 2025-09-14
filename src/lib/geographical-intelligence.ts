@@ -76,7 +76,8 @@ function isCommonBusinessTerm(term: string): boolean {
   // Specific venue/event names that should be filtered out
   const venueNames = [
     'SCTA', 'BWC', 'COFCO', 'EISA', 'COMEXIM', 'BRASCOF', 'HYPERION',
-    'LOFBERGS', 'COOXUPE', 'BLASER', 'NORDQUIST', 'EXPOCACER'
+    'LOFBERGS', 'COOXUPE', 'BLASER', 'NORDQUIST', 'EXPOCACER', 
+    'MINASUL', 'COCATREL', 'VELOSO'
   ]
   
   const upperTerm = term.toUpperCase()

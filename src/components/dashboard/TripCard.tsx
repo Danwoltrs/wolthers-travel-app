@@ -39,6 +39,15 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
   const { locationStays, isLoading: weatherLoading, error: weatherError } = useTripWeather(
     shouldFetchWeather ? trip : { ...trip, id: '', activities: [] }
   )
+  
+  // Merge weather data into locationDetails from context
+  const enrichedLocationDetails = locationDetails.map(location => {
+    const weatherData = locationStays.find(stay => stay.city === location.city)
+    return {
+      ...location,
+      weather: weatherData?.weather
+    }
+  })
 
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
@@ -341,9 +350,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                 <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
                   No meetings scheduled
                 </div>
-              ) : locationDetails.length > 0 ? (
+              ) : enrichedLocationDetails.length > 0 ? (
                 // Show location details in format: "City: X nights Y°C icon" (show up to 5 lines)
-                locationDetails.slice(0, 5).map((location: any, index: number) => (
+                enrichedLocationDetails.slice(0, 5).map((location: any, index: number) => (
                   <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
                     <span className="font-medium">{location.city}</span>
                     <span>: {location.nights} night{location.nights !== 1 ? 's' : ''}</span>
@@ -395,9 +404,9 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                   No meetings scheduled
                 </div>
               )}
-              {(locationDetails.length > 5 || locationStays.length > 5 || (hasLocationData && tripLocations.length > 5)) && (
+              {enrichedLocationDetails.length > 5 && (
                 <div className="text-xs text-pearl-600 dark:text-gray-400">
-                  +{locationDetails.length > 5 ? locationDetails.length - 5 : locationStays.length > 5 ? locationStays.length - 5 : tripLocations.length - 5} more locations
+                  +{enrichedLocationDetails.length - 5} more locations
                 </div>
               )}
           </div>
