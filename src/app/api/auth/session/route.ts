@@ -4,10 +4,14 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔐 Session API: Starting session check...')
+    
     // Get the auth token from httpOnly cookie
     const authToken = request.cookies.get('auth-token')?.value
+    console.log('🔐 Session API: Auth token exists:', !!authToken)
     
     if (!authToken) {
+      console.log('🔐 Session API: No auth token found, returning unauthenticated')
       return NextResponse.json({ authenticated: false }, { status: 200 })
     }
 
@@ -30,7 +34,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user from database with company information
+    console.log('🔐 Session API: Creating Supabase client...')
     const supabase = createServerSupabaseClient()
+    console.log('🔐 Session API: Querying user data for ID:', decoded.userId)
+    
     const { data: user, error } = await supabase
       .from('users')
       .select(`
@@ -45,6 +52,9 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !user) {
+      console.error('🔐 Session API: User query failed:', error)
+      console.log('🔐 Session API: User data:', user)
+      
       // User not found, clear the cookie
       const response = NextResponse.json({ authenticated: false }, { status: 200 })
       response.cookies.set('auth-token', '', {
@@ -55,6 +65,8 @@ export async function GET(request: NextRequest) {
       })
       return response
     }
+
+    console.log('🔐 Session API: User found:', { email: user.email, id: user.id })
 
     // Return user data and session info
     return NextResponse.json({
@@ -86,7 +98,23 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Session check error:', error)
-    return NextResponse.json({ authenticated: false }, { status: 500 })
+    console.error('🔐 Session API: Unexpected error:', error)
+    console.error('🔐 Session API: Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    
+    // Ensure we always return valid JSON
+    const response = NextResponse.json({ 
+      authenticated: false, 
+      error: 'Internal server error during session check' 
+    }, { status: 500 })
+    
+    // Clear any invalid cookies
+    response.cookies.set('auth-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+    })
+    
+    return response
   }
 }

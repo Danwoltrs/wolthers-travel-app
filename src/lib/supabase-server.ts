@@ -5,8 +5,18 @@ export function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+  console.log('🔧 Supabase Server: Environment check:', {
+    hasUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+    nodeEnv: process.env.NODE_ENV
+  })
+
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables')
+    console.error('🔧 Supabase Server: Missing environment variables:', {
+      NEXT_PUBLIC_SUPABASE_URL: !!supabaseUrl,
+      SUPABASE_SERVICE_ROLE_KEY: !!supabaseServiceKey
+    })
+    throw new Error(`Missing Supabase environment variables: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : ''} ${!supabaseServiceKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''}`)
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
