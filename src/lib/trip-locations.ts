@@ -1,4 +1,5 @@
 import { differenceInDays, parseISO, isWithinInterval } from 'date-fns'
+import { extractCityFromLocation as intelligentCityExtraction } from '@/lib/geographical-intelligence'
 
 export interface TripActivity {
   activity_date: string
@@ -30,51 +31,13 @@ export interface LocationWithWeather extends LocationStay {
 }
 
 /**
- * Extracts city names from location strings, handling various formats
+ * Extracts city names using intelligent geographical analysis
  */
 function extractCityFromLocation(location: string): string | null {
-  if (!location || location.trim() === '') return null
-  
-  // Handle flight routes (GRU → FRA, NYC → LON, etc.)
-  if (location.includes('→') || location.includes('->')) {
-    return null // Skip flight routes
-  }
-  
-  // Handle hotel/venue with city (e.g., "Hyperion Hotel - Basel")
-  if (location.includes(' - ')) {
-    const parts = location.split(' - ')
-    const cityPart = parts[parts.length - 1].trim()
-    
-    // Additional validation for the extracted city
-    if (isValidCityName(cityPart)) {
-      return cityPart
-    }
-    return null
-  }
-  
-  // Handle simple venue names that might be cities
-  const cleanLocation = location.trim()
-  
-  // Skip if it looks like an airport code (3 letters)
-  if (/^[A-Z]{3}$/.test(cleanLocation)) {
-    return null
-  }
-  
-  // Skip organization/venue codes (like SCTA, BWC, etc.)
-  if (/^[A-Z]{2,6}$/.test(cleanLocation)) {
-    return null
-  }
-  
-  // Skip if it contains typical venue keywords without city info
-  const venueKeywords = ['hotel', 'conference', 'center', 'office', 'building', 'hall']
-  const lowerLocation = cleanLocation.toLowerCase()
-  if (venueKeywords.some(keyword => lowerLocation.includes(keyword)) && cleanLocation.length < 15) {
-    return null
-  }
-  
-  // Return if it looks like a valid city name
-  if (isValidCityName(cleanLocation)) {
-    return cleanLocation
+  // Use the intelligent geographical system
+  const cityInfo = intelligentCityExtraction(location)
+  if (cityInfo && cityInfo.confidence > 0.3) {
+    return cityInfo.city
   }
   
   return null
