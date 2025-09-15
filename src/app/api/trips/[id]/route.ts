@@ -513,6 +513,8 @@ export async function DELETE(
             user_id,
             company_id,
             role,
+            guest_name,
+            guest_email,
             users!trip_participants_user_id_fkey (id, full_name, email),
             companies (id, name, fantasy_name)
           `)
@@ -527,12 +529,26 @@ export async function DELETE(
 
         if (participantsData) {
           for (const participant of participantsData) {
+            let email = null
+            let name = null
+            let role = 'Team Member'
+
+            // Handle user accounts
             if (participant.users && participant.users.email) {
-              stakeholders.push({
-                name: participant.users.full_name || participant.users.email,
-                email: participant.users.email,
-                role: participant.role || (participant.companies ? 'Company Representative' : 'Team Member')
-              })
+              email = participant.users.email
+              name = participant.users.full_name || participant.users.email
+              role = participant.role || (participant.companies ? 'Company Representative' : 'Team Member')
+            }
+            // Handle selected host representatives (guest entries)
+            else if (participant.role === 'representative' && participant.guest_email) {
+              email = participant.guest_email
+              name = participant.guest_name || 'Host Representative'
+              role = 'Host Representative'
+            }
+
+            if (email) {
+              stakeholders.push({ name, email, role })
+              console.log(`📧 [TripDelete] Added stakeholder: ${name} (${email}) - ${role}`)
             }
           }
         }

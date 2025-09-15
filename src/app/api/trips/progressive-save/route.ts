@@ -680,7 +680,7 @@ export async function POST(request: NextRequest) {
               
               const representativeInserts = hostCompany.representatives.map((rep: any) => ({
                 trip_id: finalTripId,
-                user_id: null, // Representatives might not have user accounts
+                user_id: crypto.randomUUID(), // Generate a temporary UUID since user_id is required
                 company_id: hostCompany.id, // Company ID
                 role: 'representative',
                 guest_name: rep.name,
@@ -932,7 +932,7 @@ export async function POST(request: NextRequest) {
             trip_id: finalTripId,
             title: `Drive from ${startLocationName} to ${destinationName}`,
             description: `Travel from ${startLocationName} to first meeting location at ${destinationName} (${Math.round(driveDurationMinutes/60*10)/10}h drive)`,
-            activity_date: activityStartDate.toISOString().split('T')[0],
+            activity_date: tripStartDate.toISOString().split('T')[0],
             start_time: driveStartTime,
             end_time: driveEndTime,
             location: destinationLocation,
@@ -948,7 +948,7 @@ export async function POST(request: NextRequest) {
 
         // 3. Create host company meeting activities (start from next day after arrival)
         if (stepData.companies && Array.isArray(stepData.companies) && stepData.companies.length > 0) {
-          const meetingStartDate = new Date(activityStartDate)
+          const meetingStartDate = new Date(tripStartDate)
           
           // If we have GRU pickup, start meetings the day after arrival
           if (stepData.startingPoint === 'gru_airport' && stepData.flightInfo) {
@@ -1096,7 +1096,7 @@ export async function POST(request: NextRequest) {
               lastMeetingDate.setTime(arrivalDate.getTime() + (lastMeetingDayOffset + 1) * 24 * 60 * 60 * 1000)
             } else {
               // Meetings start on trip start date  
-              lastMeetingDate.setTime(activityStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
+              lastMeetingDate.setTime(tripStartDate.getTime() + lastMeetingDayOffset * 24 * 60 * 60 * 1000)
             }
             
             // Schedule drive after last meeting (which would end around 11:00 AM + 2 hours = 1:00 PM)
@@ -1929,10 +1929,12 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
       for (const hostCompany of stepData.hostCompanies) {
         if (hostCompany.representatives && Array.isArray(hostCompany.representatives) && hostCompany.representatives.length > 0) {
           console.log(`👤 Re-inserting representatives for ${hostCompany.name}:`, hostCompany.representatives.length)
+          console.log(`🔍 Host company data:`, { id: hostCompany.id, name: hostCompany.name })
+          console.log(`🔍 Representatives data:`, hostCompany.representatives)
           
           const representativeInserts = hostCompany.representatives.map((rep: any) => ({
             trip_id: tripId,
-            user_id: null, // Representatives might not have user accounts
+            user_id: crypto.randomUUID(), // Generate a temporary UUID since user_id is required
             company_id: hostCompany.id, // Company ID
             role: 'representative',
             guest_name: rep.name,
@@ -1943,13 +1945,15 @@ async function updateTripExtendedData(supabase: any, tripId: string, stepData: a
             created_at: now,
             updated_at: now
           }))
+          
+          console.log(`📝 About to insert representatives:`, representativeInserts)
 
           const { error: repError } = await supabase
             .from('trip_participants')
             .insert(representativeInserts)
 
           if (repError) {
-            console.error(`⚠️ Failed to re-insert representatives for ${hostCompany.name}:`, repError)
+            console.error(`⚠️ Failed to re-insert representatives for ${hostCompany.name}:`, repError.message || repError)
           } else {
             console.log(`✅ Representatives re-inserted successfully for ${hostCompany.name}`)
           }

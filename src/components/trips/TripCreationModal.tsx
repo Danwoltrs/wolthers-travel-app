@@ -329,6 +329,14 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [resumeData?.tripId])
 
+  // Update currentStep when resumeData changes (for draft resumption)
+  useEffect(() => {
+    if (resumeData?.currentStep) {
+      console.log('🔄 [TripCreation] Updating currentStep from resumeData:', resumeData.currentStep)
+      setCurrentStep(resumeData.currentStep)
+    }
+  }, [resumeData?.currentStep])
+
   // Progressive save function with improved state management
   const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
     if (!formData.tripType) {
@@ -542,7 +550,50 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     
     // Send Wolthers staff invitations
     if (tripData.participants && tripData.participants.length > 0) {
-      console.log('📧 [TripCreation] Sending Wolthers staff invitations...')
+      console.log('📧 [TripCreation] Sending Wolthers staff itinerary emails...')
+      
+      // Prepare itinerary data from generated activities
+      const itinerary = []
+      if (tripData.generatedActivities && tripData.generatedActivities.length > 0) {
+        // Group activities by date
+        const activitiesByDate = tripData.generatedActivities.reduce((acc: any, activity: any) => {
+          const date = activity.activity_date
+          if (!acc[date]) {
+            acc[date] = []
+          }
+          acc[date].push({
+            time: activity.start_time || '09:00',
+            title: activity.title || 'Activity',
+            location: activity.location,
+            duration: activity.end_time ? `${activity.start_time} - ${activity.end_time}` : undefined
+          })
+          return acc
+        }, {})
+        
+        // Convert to array format
+        Object.keys(activitiesByDate)
+          .sort()
+          .forEach(date => {
+            itinerary.push({
+              date,
+              activities: activitiesByDate[date].sort((a: any, b: any) => a.time.localeCompare(b.time))
+            })
+          })
+      }
+      
+      // Get vehicle and driver info
+      const vehicleAssignment = tripData.vehicleAssignments?.[0]
+      const vehicle = vehicleAssignment?.vehicle ? {
+        make: vehicleAssignment.vehicle.make || 'Unknown',
+        model: vehicleAssignment.vehicle.model || 'Unknown',
+        licensePlate: vehicleAssignment.vehicle.licensePlate || 'N/A'
+      } : undefined
+      
+      const driver = vehicleAssignment?.driver ? {
+        name: vehicleAssignment.driver.fullName || vehicleAssignment.driver.full_name || 'Unknown Driver',
+        email: vehicleAssignment.driver.email,
+        phone: vehicleAssignment.driver.phone
+      } : undefined
       
       const emailData = {
         tripTitle: tripData.title || 'New Trip',
@@ -550,15 +601,22 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         tripStartDate: tripData.startDate?.toISOString() || formData.startDate?.toISOString(),
         tripEndDate: tripData.endDate?.toISOString() || formData.endDate?.toISOString(),
         createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+        itinerary: itinerary,
         participants: (tripData.participants || []).map((p: any) => ({
           name: p.fullName || p.full_name || 'Team Member',
           email: p.email,
           role: p.role || 'Staff'
         })),
         companies: (tripData.companies || []).map((c: any) => ({
-          name: c.name,
-          representatives: []
-        }))
+          name: c.fantasyName || c.name,
+          representatives: c.selectedContacts?.map((contact: any) => ({
+            name: contact.name,
+            email: contact.email,
+            role: contact.role || 'Guest'
+          })) || []
+        })),
+        vehicle: vehicle,
+        driver: driver
       }
 
       const staffPromise = fetch('/api/emails/trip-invitation', {

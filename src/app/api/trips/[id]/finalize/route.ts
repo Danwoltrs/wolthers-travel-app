@@ -665,6 +665,117 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
       console.error('⚠️ Error sending trip creation emails:', emailError)
       // Don't fail the finalization process if emails fail
     }
+
+    // Send host confirmation emails to selected host representatives
+    try {
+      console.log('📧 Sending host confirmation emails...')
+      const { TripNotificationService } = await import('@/lib/trip-notification-service')
+      
+      // Get selected host representatives from trip participants
+      const { data: hostRepresentatives, error: repError } = await supabase
+        .from('trip_participants')
+        .select(`
+          guest_name,
+          guest_email,
+          guest_company,
+          company_id,
+          companies (
+            id,
+            name,
+            fantasy_name
+          )
+        `)
+        .eq('trip_id', tripId)
+        .eq('role', 'representative')
+        .not('guest_email', 'is', null)
+
+      if (repError) {
+        console.error('⚠️ Error fetching host representatives:', repError)
+      } else if (hostRepresentatives && hostRepresentatives.length > 0) {
+        console.log(`📧 Found ${hostRepresentatives.length} host representatives to notify`)
+        
+        // Get trip data for context
+        const tripData = await TripNotificationService.fetchTripDataForNotification(tripId)
+        
+        if (tripData) {
+          const wolthersTeam = tripData.participants
+            .filter(p => p.role === 'Wolthers Staff')
+            .map(p => p.name.split(' ')[0])
+          
+          const totalGuestCount = tripData.participants.length
+
+          // Get all unique client company names from trip participants
+          const clientCompanies = [...new Set(
+            tripData.participants
+              .filter(p => p.role !== 'Wolthers Staff' && p.company)
+              .map(p => p.company)
+          )]
+          
+          // Format client company names for subject line
+          let clientCompanyName: string
+          if (clientCompanies.length === 0) {
+            clientCompanyName = 'our client'
+          } else if (clientCompanies.length === 1) {
+            clientCompanyName = clientCompanies[0]
+          } else if (clientCompanies.length === 2) {
+            clientCompanyName = `${clientCompanies[0]} and ${clientCompanies[1]}`
+          } else if (clientCompanies.length === 3) {
+            clientCompanyName = `${clientCompanies[0]}, ${clientCompanies[1]} and ${clientCompanies[2]}`
+          } else {
+            clientCompanyName = `${clientCompanies[0]}, ${clientCompanies[1]} and ${clientCompanies.length - 2} other companies`
+          }
+
+          // Get activities for this trip to find visit dates
+          const { data: activities } = await supabase
+            .from('activities')
+            .select('id, title, activity_date, start_time, company_id')
+            .eq('trip_id', tripId)
+            .not('company_id', 'is', null)
+
+          // Send confirmation email to each selected host representative
+          for (const representative of hostRepresentatives) {
+            const company = representative.companies as any
+            
+            // Find the activity for this company
+            const activity = activities?.find(a => a.company_id === representative.company_id)
+            
+            if (activity && representative.guest_email) {
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trips.wolthers.com'
+              const confirmUrl = `${baseUrl}/api/visits/confirm?tripCode=${tripData.tripCode}&hostEmail=${encodeURIComponent(representative.guest_email)}&activityId=${activity.id}`
+              const rescheduleUrl = `${baseUrl}/host/reschedule/${tripData.tripCode}?activityId=${activity.id}`
+
+              const hostData = {
+                hostName: representative.guest_name,
+                hostEmail: representative.guest_email,
+                companyName: company?.fantasy_name || company?.name || representative.guest_company,
+                clientCompanyName,
+                tripCode: tripData.tripCode,
+                visitDate: activity.activity_date,
+                visitTime: activity.start_time,
+                wolthersTeam,
+                guestCount: totalGuestCount,
+                confirmUrl,
+                rescheduleUrl
+              }
+
+              console.log(`📧 Sending host email to selected representative: ${representative.guest_name} (${representative.guest_email}) at ${hostData.companyName}`)
+              
+              const hostEmailResult = await TripNotificationService.sendHostConfirmationNotification(hostData)
+              if (hostEmailResult.success) {
+                console.log(`✅ Host confirmation email sent to selected representative ${representative.guest_name} at ${hostData.companyName}`)
+              } else {
+                console.warn(`⚠️ Failed to send host confirmation email to ${representative.guest_email}:`, hostEmailResult.error)
+              }
+            }
+          }
+        }
+      } else {
+        console.log('📧 No host representatives selected for this trip, skipping host confirmation emails')
+      }
+    } catch (hostEmailError) {
+      console.error('⚠️ Error sending host confirmation emails:', hostEmailError)
+      // Don't fail the finalization process if emails fail
+    }
     
   } catch (error) {
     console.error('⚠️ Failed to finalize extended trip data:', error)

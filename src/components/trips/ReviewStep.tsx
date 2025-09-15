@@ -46,21 +46,23 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
             })()}
           </div>
 
-          {/* Guest */}
+          {/* Buyer Companies & Guests */}
           <div>
-            <h3 className="font-medium text-gray-900 dark:text-white mb-2">Guest</h3>
+            <h3 className="font-medium text-gray-900 dark:text-white mb-2">Buyer Companies & Guests</h3>
             {(() => {
-              // Get all guests from buyer companies
-              const allGuests: { name: string; company: string }[] = []
+              // Get all buyer companies and their guests
+              const companiesInfo: { company: string; guests: string[] }[] = []
               
               if (formData.companies && formData.companies.length > 0) {
                 formData.companies.forEach(company => {
                   const participants = (company as any).participants || []
-                  participants.forEach((participant: any) => {
-                    allGuests.push({
-                      name: participant.full_name || participant.name || 'Unnamed Guest',
-                      company: company.fantasyName || company.name
-                    })
+                  const guests = participants.map((p: any) => 
+                    p.full_name || p.name || 'Unnamed Guest'
+                  )
+                  
+                  companiesInfo.push({
+                    company: company.fantasyName || company.name,
+                    guests: guests
                   })
                 })
               }
@@ -70,23 +72,36 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
                 const companyName = formData.companies && formData.companies.length > 0 
                   ? (formData.companies[0].fantasyName || formData.companies[0].name)
                   : 'Unknown Company'
-                allGuests.push({
-                  name: formData.flightInfo.passengerName,
-                  company: companyName
-                })
+                
+                // Add to existing company or create new entry
+                const existingCompany = companiesInfo.find(c => c.company === companyName)
+                if (existingCompany) {
+                  existingCompany.guests.push(formData.flightInfo.passengerName)
+                } else {
+                  companiesInfo.push({
+                    company: companyName,
+                    guests: [formData.flightInfo.passengerName]
+                  })
+                }
               }
               
-              return allGuests.length > 0 ? (
-                <div className="space-y-1">
-                  {allGuests.map((guest, idx) => (
+              return companiesInfo.length > 0 ? (
+                <div className="space-y-2">
+                  {companiesInfo.map((companyInfo, idx) => (
                     <div key={idx}>
-                      <p className="text-gray-700 dark:text-gray-300">{guest.name}</p>
-                      <p className="text-gray-500 dark:text-gray-400 text-xs">{guest.company}</p>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium">{companyInfo.company}</p>
+                      {companyInfo.guests.length > 0 ? (
+                        companyInfo.guests.map((guest, guestIdx) => (
+                          <p key={guestIdx} className="text-gray-600 dark:text-gray-400 text-sm ml-2">• {guest}</p>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 text-sm ml-2 italic">• No specific guests assigned</p>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 italic">No guest</p>
+                <p className="text-gray-500 dark:text-gray-400 italic">No buyer companies</p>
               )
             })()}
           </div>

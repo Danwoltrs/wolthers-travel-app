@@ -44,6 +44,44 @@ export interface TripCreationEmailData {
   }>
 }
 
+export interface TripItineraryEmailData {
+  tripTitle: string
+  tripAccessCode: string
+  tripStartDate: string
+  tripEndDate: string
+  createdBy: string
+  itinerary: Array<{
+    date: string
+    activities: Array<{
+      time: string
+      title: string
+      location?: string
+      duration?: string
+    }>
+  }>
+  participants: Array<{
+    name: string
+    email: string
+    role?: string
+  }>
+  companies: Array<{
+    name: string
+    representatives?: Array<{
+      name: string
+      email: string
+    }>
+  }>
+  vehicle?: {
+    make: string
+    model: string
+    licensePlate?: string
+  }
+  driver?: {
+    name: string
+    phone?: string
+  }
+}
+
 export interface StaffInvitationEmailData {
   inviterName: string
   inviterEmail: string
@@ -93,80 +131,85 @@ export function createTripCancellationTemplate(data: TripCancellationEmailData):
         <title>Trip Cancellation Notice</title>
         <style>
           body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            line-height: 1.6; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.4; 
             color: #333; 
-            max-width: 600px; 
+            max-width: 500px; 
             margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f9f9f9; 
+            padding: 16px; 
+            background-color: #fff; 
+            font-size: 13px;
           }
-          .container { 
-            background: white; 
-            padding: 30px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+          .logo { 
+            text-align: center; 
+            margin-bottom: 20px; 
+          }
+          .logo svg {
+            width: 32px;
+            height: 32px;
           }
           .header { 
-            background: #dc3545; 
-            color: white; 
-            padding: 20px; 
             text-align: center; 
-            border-radius: 8px 8px 0 0; 
-            margin: -30px -30px 30px -30px; 
+            margin-bottom: 24px; 
+            border-bottom: 1px solid #e5e5e5;
+            padding-bottom: 16px;
+          }
+          .header h1 { 
+            margin: 0; 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #d32f2f;
           }
           .trip-details { 
             background: #f8f9fa; 
-            padding: 20px; 
-            border-radius: 6px; 
-            margin: 20px 0; 
+            padding: 12px; 
+            border-radius: 4px; 
+            margin: 16px 0; 
+            font-size: 12px;
+          }
+          .trip-details p { 
+            margin: 4px 0; 
           }
           .footer { 
             text-align: center; 
             color: #666; 
-            font-size: 14px; 
-            margin-top: 30px; 
-            padding-top: 20px; 
-            border-top: 1px solid #eee; 
+            font-size: 11px; 
+            margin-top: 24px; 
+            padding-top: 16px; 
+            border-top: 1px solid #e5e5e5; 
           }
-          .important-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
+          p { 
+            margin: 12px 0; 
+            font-size: 13px; 
           }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>🚫 Trip Cancellation Notice</h1>
-          </div>
-          
-          <div class="important-notice">
-            <p><strong>Important:</strong> This trip has been cancelled by ${cancelledBy}.</p>
-          </div>
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="#2D5347">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        </div>
+        
+        <div class="header">
+          <h1>Trip Cancellation Notice</h1>
+        </div>
 
-          <p>We regret to inform you that the following trip has been cancelled:</p>
-          
-          <div class="trip-details">
-            <h3>${tripTitle}</h3>
-            <p><strong>Trip Code:</strong> ${tripAccessCode}</p>
-            <p><strong>Original Dates:</strong> ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}</p>
-            <p><strong>Cancelled By:</strong> ${cancelledBy}</p>
-            ${cancellationReason ? `<p><strong>Reason:</strong> ${cancellationReason}</p>` : ''}
-          </div>
+        <p>This trip has been cancelled by ${cancelledBy}.</p>
+        
+        <div class="trip-details">
+          <p><strong>${tripTitle}</strong></p>
+          <p>Trip Code: ${tripAccessCode}</p>
+          <p>Original Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}</p>
+          <p>Cancelled By: ${cancelledBy}</p>
+          ${cancellationReason ? `<p>Reason: ${cancellationReason}</p>` : ''}
+        </div>
 
-          <p>Please take note of this cancellation and adjust your schedule accordingly. If you have any questions or need to discuss alternative arrangements, please contact the Wolthers & Associates team.</p>
-          
-          <div class="footer">
-            <p>Best regards,<br/>
-            <strong>Wolthers & Associates Travel Team</strong></p>
-            <p style="font-size: 12px; color: #999;">
-              This is an automated notification from the Wolthers Travel Management System.
-            </p>
-          </div>
+        <p>Please adjust your schedule accordingly. Contact the Wolthers & Associates team with any questions.</p>
+        
+        <div class="footer">
+          <p>Wolthers & Associates Travel Team</p>
+          <p>Automated notification from Wolthers Travel Management System</p>
         </div>
       </body>
     </html>
@@ -175,7 +218,7 @@ export function createTripCancellationTemplate(data: TripCancellationEmailData):
   const text = `
 TRIP CANCELLATION NOTICE
 
-The following trip has been cancelled:
+This trip has been cancelled by ${cancelledBy}.
 
 ${tripTitle}
 Trip Code: ${tripAccessCode}
@@ -183,9 +226,8 @@ Original Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tri
 Cancelled By: ${cancelledBy}
 ${cancellationReason ? `Reason: ${cancellationReason}` : ''}
 
-Please adjust your schedule accordingly and contact Wolthers & Associates if you have any questions.
+Please adjust your schedule accordingly. Contact the Wolthers & Associates team with any questions.
 
-Best regards,
 Wolthers & Associates Travel Team
   `
 
@@ -323,6 +365,334 @@ ${companies.map(c => `- ${c.name}`).join('\n')}
 You will receive further details as they are finalized.
 
 Best regards,
+Wolthers & Associates Travel Team
+  `
+
+  return { subject, html, text }
+}
+
+/**
+ * Generate trip itinerary email template (NEW - replaces the ugly trip creation template)
+ */
+export function createTripItineraryTemplate(data: TripItineraryEmailData): EmailTemplate {
+  const { tripTitle, tripAccessCode, tripStartDate, tripEndDate, createdBy, itinerary, participants, companies, vehicle, driver } = data
+
+  const subject = `🛫 Your Trip Itinerary: ${tripTitle} (${tripAccessCode})`
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Trip Itinerary</title>
+        <style>
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.5; 
+            color: #333; 
+            max-width: 700px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f9f9f9; 
+          }
+          .container { 
+            background: white; 
+            padding: 0; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+            overflow: hidden;
+          }
+          .header { 
+            background: linear-gradient(135deg, #2D5347, #1a4c42); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+          }
+          .header .trip-code {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            letter-spacing: 1px;
+          }
+          .content {
+            padding: 30px;
+          }
+          .trip-overview {
+            background: linear-gradient(135deg, #FEF3C7, #F3E8A6);
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2D5347;
+          }
+          .itinerary-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+          }
+          .day-section {
+            margin: 20px 0;
+            border-left: 3px solid #2D5347;
+            padding-left: 20px;
+          }
+          .day-header {
+            background: #2D5347;
+            color: white;
+            padding: 12px 20px;
+            margin-left: -23px;
+            margin-bottom: 15px;
+            border-radius: 0 6px 6px 0;
+            font-weight: 600;
+            font-size: 16px;
+          }
+          .activity {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 3px solid #FEF3C7;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+          }
+          .activity-time {
+            background: #2D5347;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 70px;
+            text-align: center;
+            flex-shrink: 0;
+          }
+          .activity-details {
+            flex: 1;
+          }
+          .activity-title {
+            font-weight: 600;
+            color: #2D5347;
+            margin: 0 0 5px 0;
+            font-size: 15px;
+          }
+          .activity-location {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+          }
+          .logistics-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 25px 0;
+          }
+          .logistics-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #f0f0f0;
+          }
+          .logistics-card h4 {
+            margin: 0 0 15px 0;
+            color: #2D5347;
+            font-size: 16px;
+            font-weight: 600;
+          }
+          .participants-section {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+          }
+          .participants-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+          }
+          .participant-group h5 {
+            color: #2D5347;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .participant-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          .participant-list li {
+            padding: 5px 0;
+            font-size: 14px;
+            color: #555;
+          }
+          .footer { 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+            margin-top: 30px; 
+            padding: 25px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0; 
+          }
+          .contact-info {
+            background: #2D5347;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+          }
+          @media (max-width: 600px) {
+            .logistics-section,
+            .participants-grid {
+              grid-template-columns: 1fr;
+            }
+            .activity {
+              flex-direction: column;
+              align-items: flex-start;
+            }
+            .activity-time {
+              align-self: flex-start;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🛫 Your Trip Itinerary</h1>
+            <div class="trip-code">${tripAccessCode}</div>
+          </div>
+          
+          <div class="content">
+            <div class="trip-overview">
+              <h2 style="margin: 0 0 15px 0; color: #2D5347;">${tripTitle}</h2>
+              <p style="margin: 0; font-size: 16px;"><strong>📅 ${new Date(tripStartDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} - ${new Date(tripEndDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+              <p style="margin: 10px 0 0 0; color: #666;">Organized by ${createdBy}</p>
+            </div>
+
+            <div class="itinerary-section">
+              <h3 style="margin: 0 0 20px 0; color: #2D5347; font-size: 20px;">📋 Daily Itinerary</h3>
+              
+              ${itinerary.map(day => `
+                <div class="day-section">
+                  <div class="day-header">
+                    ${new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </div>
+                  ${day.activities.map(activity => `
+                    <div class="activity">
+                      <div class="activity-time">${activity.time}</div>
+                      <div class="activity-details">
+                        <h4 class="activity-title">${activity.title}</h4>
+                        ${activity.location ? `<p class="activity-location">📍 ${activity.location}</p>` : ''}
+                        ${activity.duration ? `<p class="activity-location">⏱️ Duration: ${activity.duration}</p>` : ''}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="logistics-section">
+              ${vehicle ? `
+              <div class="logistics-card">
+                <h4>🚗 Transportation</h4>
+                <p style="margin: 5px 0;"><strong>${vehicle.make} ${vehicle.model}</strong></p>
+                ${vehicle.licensePlate ? `<p style="margin: 5px 0; color: #666; font-family: monospace;">${vehicle.licensePlate}</p>` : ''}
+                ${driver ? `<p style="margin: 10px 0 5px 0; color: #2D5347; font-weight: 600;">Driver: ${driver.name}</p>` : ''}
+                ${driver?.phone ? `<p style="margin: 5px 0; color: #666;">${driver.phone}</p>` : ''}
+              </div>
+              ` : ''}
+              
+              <div class="logistics-card">
+                <h4>📞 Emergency Contact</h4>
+                <p style="margin: 5px 0;"><strong>${createdBy}</strong></p>
+                <p style="margin: 5px 0; color: #666;">Wolthers & Associates</p>
+                <p style="margin: 10px 0 5px 0; color: #2D5347;">trips@trips.wolthers.com</p>
+              </div>
+            </div>
+
+            <div class="participants-section">
+              <h3 style="margin: 0 0 15px 0; color: #2D5347;">👥 Trip Participants</h3>
+              <div class="participants-grid">
+                ${participants.length > 0 ? `
+                <div class="participant-group">
+                  <h5>Wolthers Team</h5>
+                  <ul class="participant-list">
+                    ${participants.map(p => `<li>• ${p.name}${p.role ? ` (${p.role})` : ''}</li>`).join('')}
+                  </ul>
+                </div>
+                ` : ''}
+                
+                ${companies.length > 0 ? `
+                <div class="participant-group">
+                  <h5>Traveling Companies</h5>
+                  <ul class="participant-list">
+                    ${companies.map(c => `<li>• ${c.name}</li>`).join('')}
+                  </ul>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <div class="contact-info">
+              <h4 style="margin: 0 0 10px 0;">📱 Need Help During Your Trip?</h4>
+              <p style="margin: 0;">Contact ${createdBy} or email <strong>trips@trips.wolthers.com</strong></p>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p><strong>Safe travels!</strong><br/>
+            <strong>Wolthers & Associates Travel Team</strong></p>
+            <p style="font-size: 12px; color: #999; margin-top: 15px;">
+              This itinerary was generated automatically. For changes or questions, contact your trip organizer.
+            </p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+🛫 YOUR TRIP ITINERARY
+
+${tripTitle}
+Trip Code: ${tripAccessCode}
+Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}
+Organized by: ${createdBy}
+
+DAILY ITINERARY:
+${itinerary.map(day => `
+${new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+${day.activities.map(activity => `  ${activity.time} - ${activity.title}${activity.location ? ` at ${activity.location}` : ''}${activity.duration ? ` (${activity.duration})` : ''}`).join('\n')}
+`).join('\n')}
+
+TRANSPORTATION:
+${vehicle ? `Vehicle: ${vehicle.make} ${vehicle.model}${vehicle.licensePlate ? ` (${vehicle.licensePlate})` : ''}` : 'TBD'}
+${driver ? `Driver: ${driver.name}${driver.phone ? ` - ${driver.phone}` : ''}` : ''}
+
+PARTICIPANTS:
+${participants.length > 0 ? `Wolthers Team:\n${participants.map(p => `- ${p.name}${p.role ? ` (${p.role})` : ''}`).join('\n')}` : ''}
+${companies.length > 0 ? `\nTraveling Companies:\n${companies.map(c => `- ${c.name}`).join('\n')}` : ''}
+
+EMERGENCY CONTACT:
+${createdBy} - trips@trips.wolthers.com
+
+Safe travels!
 Wolthers & Associates Travel Team
   `
 
@@ -976,6 +1346,53 @@ export async function sendHostInvitationEmails(hosts: Array<{ email: string; dat
   }
 
   console.log(`📧 [Resend] Host invitation summary: ${successCount}/${hosts.length} sent successfully`)
+
+  return {
+    success: errors.length === 0,
+    errors
+  }
+}
+
+/**
+ * Send trip itinerary emails to guests and Wolthers staff (NEW - replaces ugly trip creation emails)
+ */
+export async function sendTripItineraryEmails(data: TripItineraryEmailData): Promise<{ success: boolean; errors: string[] }> {
+  const template = createTripItineraryTemplate(data)
+  const errors: string[] = []
+  let successCount = 0
+
+  // Collect all recipient emails (participants + company representatives)
+  const recipients: Array<{ name: string; email: string }> = [
+    ...data.participants,
+    ...data.companies.flatMap(c => c.representatives || [])
+  ]
+
+  console.log(`📧 [Resend] Sending itinerary emails to ${recipients.length} recipients`)
+
+  for (const recipient of recipients) {
+    try {
+      const result = await resend.emails.send({
+        from: 'Wolthers Travel <trips@trips.wolthers.com>',
+        to: [recipient.email],
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+      })
+
+      if (result.error) {
+        console.error(`❌ [Resend] Failed to send itinerary to ${recipient.email}:`, result.error)
+        errors.push(`${recipient.name} (${recipient.email}): ${result.error.message}`)
+      } else {
+        console.log(`✅ [Resend] Sent itinerary email to ${recipient.name} (${recipient.email})`)
+        successCount++
+      }
+    } catch (error) {
+      console.error(`❌ [Resend] Exception sending itinerary to ${recipient.email}:`, error)
+      errors.push(`${recipient.name} (${recipient.email}): ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  console.log(`📧 [Resend] Itinerary email summary: ${successCount}/${recipients.length} sent successfully`)
 
   return {
     success: errors.length === 0,

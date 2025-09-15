@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendTripCreationEmails, type TripCreationEmailData } from '@/lib/resend'
+import { sendTripItineraryEmails, type TripItineraryEmailData } from '@/lib/resend'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
       tripEndDate, 
       createdBy, 
       participants, 
-      companies 
+      companies,
+      itinerary,
+      vehicle,
+      driver
     } = await request.json()
 
     // Validate required fields
@@ -21,26 +24,29 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const emailData: TripCreationEmailData = {
+    const emailData: TripItineraryEmailData = {
       tripTitle,
       tripAccessCode,
       tripStartDate,
       tripEndDate,
       createdBy,
+      itinerary: itinerary || [],
       participants: participants || [],
-      companies: companies || []
+      companies: companies || [],
+      vehicle: vehicle || undefined,
+      driver: driver || undefined
     }
 
-    const result = await sendTripCreationEmails(emailData)
+    const result = await sendTripItineraryEmails(emailData)
 
     if (result.success) {
-      console.log(`✅ Trip invitation emails sent successfully for trip ${tripAccessCode}`)
+      console.log(`✅ Trip itinerary emails sent successfully for trip ${tripAccessCode}`)
       return NextResponse.json({ 
         success: true,
-        message: 'Trip invitation emails sent successfully'
+        message: 'Trip itinerary emails sent successfully'
       })
     } else {
-      console.error(`❌ Some trip invitation emails failed for trip ${tripAccessCode}:`, result.errors)
+      console.error(`❌ Some trip itinerary emails failed for trip ${tripAccessCode}:`, result.errors)
       return NextResponse.json({ 
         success: false, 
         error: 'Some emails failed to send',
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error sending trip invitation emails:', error)
+    console.error('Error sending trip itinerary emails:', error)
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

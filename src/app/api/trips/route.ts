@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Add draft IDs and visit counts to trips
+    // Add draft IDs, visit counts, and transform vehicle/driver data for trips
     const tripsWithDrafts = trips?.map(trip => {
       // Calculate visit count from activities (meetings, company visits, etc.)
       const visitCount = trip.activities?.filter(activity => 
@@ -209,11 +209,76 @@ export async function GET(request: NextRequest) {
         activity.activity_type === 'facility_tour'
       ).length || 0
       
+      // Transform trip_vehicles data into separate vehicles and drivers arrays
+      const vehicles = []
+      const drivers = []
+      const seenVehicles = new Set()
+      const seenDrivers = new Set()
+      
+      if (trip.trip_vehicles && Array.isArray(trip.trip_vehicles)) {
+        trip.trip_vehicles.forEach(assignment => {
+          // Add vehicle if it exists and hasn't been added yet
+          if (assignment.vehicles && !seenVehicles.has(assignment.vehicles.id)) {
+            vehicles.push({
+              id: assignment.vehicles.id,
+              make: assignment.vehicles.model?.split(' ')[0] || 'Unknown',
+              model: assignment.vehicles.model || 'Unknown Model',
+              licensePlate: assignment.vehicles.license_plate
+            })
+            seenVehicles.add(assignment.vehicles.id)
+          }
+          
+          // Add driver if it exists and hasn't been added yet  
+          if (assignment.users && !seenDrivers.has(assignment.users.id)) {
+            drivers.push({
+              id: assignment.users.id,
+              fullName: assignment.users.full_name,
+              email: assignment.users.email
+            })
+            seenDrivers.add(assignment.users.id)
+          }
+        })
+      }
+      
+      // Transform trip_participants data into client companies and wolthers staff arrays
+      const client = []
+      const wolthersStaff = []
+      const seenClients = new Set()
+      const seenStaff = new Set()
+      
+      if (trip.trip_participants && Array.isArray(trip.trip_participants)) {
+        trip.trip_participants.forEach(participant => {
+          // Include external participants (guests/buyers) as client companies
+          if (participant.role === 'guest' && participant.companies && !seenClients.has(participant.companies.id)) {
+            client.push({
+              id: participant.companies.id,
+              name: participant.companies.name,
+              fantasyName: participant.companies.fantasy_name
+            })
+            seenClients.add(participant.companies.id)
+          }
+          
+          // Include Wolthers staff participants
+          if (participant.role === 'staff' && participant.users && !seenStaff.has(participant.users.id)) {
+            wolthersStaff.push({
+              id: participant.users.id,
+              fullName: participant.users.full_name,
+              email: participant.users.email
+            })
+            seenStaff.add(participant.users.id)
+          }
+        })
+      }
+      
       return {
         ...trip,
         draftId: draftsMap[trip.id] || null,
         isDraft: trip.status === 'planning',
-        visitCount: visitCount
+        visitCount: visitCount,
+        vehicles: vehicles,
+        drivers: drivers,
+        client: client,
+        wolthersStaff: wolthersStaff
       }
     }) || []
     const uniqueTrips = Array.from(new Map(tripsWithDrafts.map(t => [t.id, t])).values())
