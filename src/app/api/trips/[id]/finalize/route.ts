@@ -645,24 +645,160 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
     // to reduce storage size, but keeping it for now for safety
     console.log('✅ Extended trip data finalized successfully')
     
-    // Send trip creation email notifications to all participants
+    // Send trip itinerary email notifications using the new beautiful template
     try {
-      console.log('📧 Sending trip creation email notifications...')
-      const { TripNotificationService } = await import('@/lib/trip-notification-service')
+      console.log('📧 Sending trip itinerary email notifications...')
       
-      const tripData = await TripNotificationService.fetchTripDataForNotification(tripId)
-      if (tripData && tripData.participants.length > 0) {
-        const emailResult = await TripNotificationService.sendTripCreationNotification(tripData)
-        if (emailResult.success) {
-          console.log('✅ Trip creation emails sent successfully:', emailResult.messageId)
+      // Get trip data with complete details for the new email template
+      const { data: tripData, error: tripError } = await supabase
+        .from('trips')
+        .select(`
+          id,
+          title,
+          access_code,
+          start_date,
+          end_date,
+          trip_participants (
+            role,
+            guest_name,
+            guest_email,
+            users (
+              id,
+              full_name,
+              email
+            )
+          ),
+          activities (
+            id,
+            title,
+            activity_date,
+            start_time,
+            end_time,
+            location,
+            activity_type
+          ),
+          trip_vehicles (
+            vehicles (
+              id,
+              model,
+              license_plate
+            ),
+            users (
+              id,
+              full_name,
+              email,
+              phone
+            )
+          )
+        `)
+        .eq('id', tripId)
+        .single()
+
+      if (tripError || !tripData) {
+        console.error('⚠️ Error fetching trip data for emails:', tripError)
+        throw new Error('Failed to fetch trip data')
+      }
+
+      // Prepare itinerary from activities
+      const itinerary = []
+      if (tripData.activities && tripData.activities.length > 0) {
+        const activitiesByDate = tripData.activities.reduce((acc: any, activity: any) => {
+          const date = activity.activity_date
+          if (!acc[date]) {
+            acc[date] = []
+          }
+          acc[date].push({
+            time: activity.start_time || '09:00',
+            title: activity.title || 'Activity',
+            location: activity.location,
+            duration: activity.end_time ? `${activity.start_time} - ${activity.end_time}` : undefined
+          })
+          return acc
+        }, {})
+        
+        Object.keys(activitiesByDate)
+          .sort()
+          .forEach(date => {
+            itinerary.push({
+              date,
+              activities: activitiesByDate[date].sort((a: any, b: any) => a.time.localeCompare(b.time))
+            })
+          })
+      }
+
+      // Get participants (Wolthers staff and guests)
+      const participants = []
+      const companies = []
+
+      if (tripData.trip_participants && tripData.trip_participants.length > 0) {
+        tripData.trip_participants.forEach((participant: any) => {
+          if (participant.users && participant.users.email) {
+            // Wolthers staff
+            participants.push({
+              name: participant.users.full_name || 'Team Member',
+              email: participant.users.email,
+              role: participant.role || 'Staff'
+            })
+          } else if (participant.guest_email) {
+            // External guests
+            participants.push({
+              name: participant.guest_name || 'Guest',
+              email: participant.guest_email,
+              role: 'Guest'
+            })
+          }
+        })
+      }
+
+      // Get vehicle and driver info
+      const vehicleAssignment = tripData.trip_vehicles?.[0]
+      const vehicle = vehicleAssignment?.vehicles ? {
+        make: vehicleAssignment.vehicles.model?.split(' ')[0] || 'Unknown',
+        model: vehicleAssignment.vehicles.model || 'Unknown Model',
+        licensePlate: vehicleAssignment.vehicles.license_plate || 'N/A'
+      } : undefined
+      
+      const driver = vehicleAssignment?.users ? {
+        name: vehicleAssignment.users.full_name || 'Unknown Driver',
+        email: vehicleAssignment.users.email,
+        phone: vehicleAssignment.users.phone
+      } : undefined
+
+      if (participants.length > 0) {
+        console.log(`📧 Sending itinerary emails to ${participants.length} participants`)
+
+        const emailData = {
+          tripTitle: tripData.title || 'New Trip',
+          tripAccessCode: tripData.access_code,
+          tripStartDate: tripData.start_date,
+          tripEndDate: tripData.end_date,
+          createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+          itinerary: itinerary,
+          participants: participants,
+          companies: companies,
+          vehicle: vehicle,
+          driver: driver
+        }
+
+        // Call our new email API endpoint
+        const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/emails/trip-invitation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailData)
+        })
+
+        if (emailResponse.ok) {
+          const emailResult = await emailResponse.json()
+          console.log('✅ Trip itinerary emails sent successfully:', emailResult)
         } else {
-          console.warn('⚠️ Failed to send trip creation emails:', emailResult.error)
+          const emailError = await emailResponse.json()
+          console.error('❌ Failed to send trip itinerary emails:', emailError)
         }
       } else {
         console.log('📧 No participants with valid emails found, skipping email notifications')
       }
     } catch (emailError) {
-      console.error('⚠️ Error sending trip creation emails:', emailError)
+      console.error('⚠️ Error sending trip itinerary emails:', emailError)
       // Don't fail the finalization process if emails fail
     }
 

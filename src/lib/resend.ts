@@ -377,7 +377,31 @@ Wolthers & Associates Travel Team
 export function createTripItineraryTemplate(data: TripItineraryEmailData): EmailTemplate {
   const { tripTitle, tripAccessCode, tripStartDate, tripEndDate, createdBy, itinerary, participants, companies, vehicle, driver } = data
 
-  const subject = `🛫 Your Trip Itinerary: ${tripTitle} (${tripAccessCode})`
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const formatDateRange = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    const startFormatted = startDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+    const endFormatted = endDate.toLocaleDateString('en-US', {
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    })
+    return `${startFormatted} - ${endFormatted}`
+  }
+
+  const subject = `${tripTitle} - ${formatDateRange(tripStartDate, tripEndDate)}`
   
   const html = `
     <!DOCTYPE html>
@@ -389,12 +413,13 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
         <style>
           body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            line-height: 1.5; 
+            line-height: 1.4; 
             color: #333; 
-            max-width: 700px; 
+            max-width: 600px; 
             margin: 0 auto; 
-            padding: 20px; 
+            padding: 16px; 
             background-color: #f9f9f9; 
+            font-size: 13px;
           }
           .container { 
             background: white; 
@@ -411,7 +436,7 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
           }
           .header h1 {
             margin: 0;
-            font-size: 26px;
+            font-size: 20px;
             font-weight: 600;
           }
           .header .trip-code {
@@ -425,55 +450,55 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             letter-spacing: 1px;
           }
           .content {
-            padding: 30px;
+            padding: 20px;
           }
           .trip-overview {
             background: linear-gradient(135deg, #FEF3C7, #F3E8A6);
-            padding: 25px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid #2D5347;
+            padding: 16px;
+            border-radius: 6px;
+            margin: 16px 0;
+            border-left: 3px solid #2D5347;
           }
           .itinerary-section {
             background: #f8fafc;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
           }
           .day-section {
-            margin: 20px 0;
-            border-left: 3px solid #2D5347;
-            padding-left: 20px;
+            margin: 12px 0;
+            border-left: 2px solid #2D5347;
+            padding-left: 12px;
           }
           .day-header {
             background: #2D5347;
             color: white;
-            padding: 12px 20px;
-            margin-left: -23px;
-            margin-bottom: 15px;
-            border-radius: 0 6px 6px 0;
+            padding: 8px 12px;
+            margin-left: -14px;
+            margin-bottom: 8px;
+            border-radius: 0 4px 4px 0;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 14px;
           }
           .activity {
             background: white;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 6px;
-            border-left: 3px solid #FEF3C7;
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 4px;
+            border-left: 2px solid #FEF3C7;
             display: flex;
             align-items: flex-start;
-            gap: 15px;
+            gap: 10px;
           }
           .activity-time {
             background: #2D5347;
             color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
+            padding: 6px 8px;
+            border-radius: 3px;
             font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 600;
-            min-width: 70px;
+            min-width: 60px;
             text-align: center;
             flex-shrink: 0;
           }
@@ -483,48 +508,48 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
           .activity-title {
             font-weight: 600;
             color: #2D5347;
-            margin: 0 0 5px 0;
-            font-size: 15px;
+            margin: 0 0 3px 0;
+            font-size: 13px;
           }
           .activity-location {
             color: #666;
-            font-size: 14px;
+            font-size: 11px;
             margin: 0;
           }
           .logistics-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 25px 0;
+            gap: 12px;
+            margin: 16px 0;
           }
           .logistics-card {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 2px solid #f0f0f0;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #f0f0f0;
           }
           .logistics-card h4 {
-            margin: 0 0 15px 0;
+            margin: 0 0 8px 0;
             color: #2D5347;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 600;
           }
           .participants-section {
             background: #f0f9ff;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
           }
           .participants-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 15px;
+            gap: 12px;
+            margin-top: 8px;
           }
           .participant-group h5 {
             color: #2D5347;
-            margin: 0 0 10px 0;
-            font-size: 14px;
+            margin: 0 0 6px 0;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -535,25 +560,25 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             margin: 0;
           }
           .participant-list li {
-            padding: 5px 0;
-            font-size: 14px;
+            padding: 2px 0;
+            font-size: 11px;
             color: #555;
           }
           .footer { 
             text-align: center; 
             color: #666; 
-            font-size: 14px; 
-            margin-top: 30px; 
-            padding: 25px;
+            font-size: 12px; 
+            margin-top: 20px; 
+            padding: 16px;
             background: #f8fafc;
             border-top: 1px solid #e2e8f0; 
           }
           .contact-info {
             background: #2D5347;
             color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
             text-align: center;
           }
           @media (max-width: 600px) {
@@ -574,19 +599,19 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
       <body>
         <div class="container">
           <div class="header">
-            <h1>🛫 Your Trip Itinerary</h1>
+            <h1>Trip Itinerary</h1>
             <div class="trip-code">${tripAccessCode}</div>
           </div>
           
           <div class="content">
             <div class="trip-overview">
               <h2 style="margin: 0 0 15px 0; color: #2D5347;">${tripTitle}</h2>
-              <p style="margin: 0; font-size: 16px;"><strong>📅 ${new Date(tripStartDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} - ${new Date(tripEndDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
-              <p style="margin: 10px 0 0 0; color: #666;">Organized by ${createdBy}</p>
+              <p style="margin: 0; font-size: 14px;"><strong>${new Date(tripStartDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} - ${new Date(tripEndDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+              <p style="margin: 8px 0 0 0; color: #666; font-size: 13px;">Organized by ${createdBy}</p>
             </div>
 
             <div class="itinerary-section">
-              <h3 style="margin: 0 0 20px 0; color: #2D5347; font-size: 20px;">📋 Daily Itinerary</h3>
+              <h3 style="margin: 0 0 20px 0; color: #2D5347; font-size: 18px;">Daily Schedule</h3>
               
               ${itinerary.map(day => `
                 <div class="day-section">
@@ -598,8 +623,8 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
                       <div class="activity-time">${activity.time}</div>
                       <div class="activity-details">
                         <h4 class="activity-title">${activity.title}</h4>
-                        ${activity.location ? `<p class="activity-location">📍 ${activity.location}</p>` : ''}
-                        ${activity.duration ? `<p class="activity-location">⏱️ Duration: ${activity.duration}</p>` : ''}
+                        ${activity.location ? `<p class="activity-location">${activity.location}</p>` : ''}
+                        ${activity.duration ? `<p class="activity-location">Duration: ${activity.duration}</p>` : ''}
                       </div>
                     </div>
                   `).join('')}
@@ -610,7 +635,7 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             <div class="logistics-section">
               ${vehicle ? `
               <div class="logistics-card">
-                <h4>🚗 Transportation</h4>
+                <h4>Transportation</h4>
                 <p style="margin: 5px 0;"><strong>${vehicle.make} ${vehicle.model}</strong></p>
                 ${vehicle.licensePlate ? `<p style="margin: 5px 0; color: #666; font-family: monospace;">${vehicle.licensePlate}</p>` : ''}
                 ${driver ? `<p style="margin: 10px 0 5px 0; color: #2D5347; font-weight: 600;">Driver: ${driver.name}</p>` : ''}
@@ -619,7 +644,7 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
               ` : ''}
               
               <div class="logistics-card">
-                <h4>📞 Emergency Contact</h4>
+                <h4>Emergency Contact</h4>
                 <p style="margin: 5px 0;"><strong>${createdBy}</strong></p>
                 <p style="margin: 5px 0; color: #666;">Wolthers & Associates</p>
                 <p style="margin: 10px 0 5px 0; color: #2D5347;">trips@trips.wolthers.com</p>
@@ -627,7 +652,7 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             </div>
 
             <div class="participants-section">
-              <h3 style="margin: 0 0 15px 0; color: #2D5347;">👥 Trip Participants</h3>
+              <h3 style="margin: 0 0 15px 0; color: #2D5347; font-size: 16px;">Trip Participants</h3>
               <div class="participants-grid">
                 ${participants.length > 0 ? `
                 <div class="participant-group">
@@ -650,15 +675,15 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             </div>
 
             <div class="contact-info">
-              <h4 style="margin: 0 0 10px 0;">📱 Need Help During Your Trip?</h4>
-              <p style="margin: 0;">Contact ${createdBy} or email <strong>trips@trips.wolthers.com</strong></p>
+              <h4 style="margin: 0 0 10px 0; font-size: 15px;">Need Help During Your Trip?</h4>
+              <p style="margin: 0; font-size: 13px;">Contact ${createdBy} or email <strong>trips@trips.wolthers.com</strong></p>
             </div>
           </div>
           
           <div class="footer">
-            <p><strong>Safe travels!</strong><br/>
+            <p style="font-size: 14px;"><strong>Safe travels!</strong><br/>
             <strong>Wolthers & Associates Travel Team</strong></p>
-            <p style="font-size: 12px; color: #999; margin-top: 15px;">
+            <p style="font-size: 11px; color: #999; margin-top: 12px;">
               This itinerary was generated automatically. For changes or questions, contact your trip organizer.
             </p>
           </div>
@@ -668,14 +693,14 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
   `
 
   const text = `
-🛫 YOUR TRIP ITINERARY
+TRIP ITINERARY
 
 ${tripTitle}
 Trip Code: ${tripAccessCode}
 Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}
 Organized by: ${createdBy}
 
-DAILY ITINERARY:
+DAILY SCHEDULE:
 ${itinerary.map(day => `
 ${new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
 ${day.activities.map(activity => `  ${activity.time} - ${activity.title}${activity.location ? ` at ${activity.location}` : ''}${activity.duration ? ` (${activity.duration})` : ''}`).join('\n')}
