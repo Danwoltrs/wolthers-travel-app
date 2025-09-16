@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // Helper function to get authenticated user
 async function getAuthenticatedUser() {
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createServerSupabaseClient()
   const cookieStore = await cookies()
   
   const sessionCookie = cookieStore.get('sb-access-token')
@@ -32,7 +29,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createServerSupabaseClient()
     const resolvedParams = await params
     const companyId = resolvedParams.id
 
@@ -118,7 +115,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createServerSupabaseClient()
     const currentUser = await getAuthenticatedUser()
     
     if (!currentUser) {

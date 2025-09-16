@@ -645,9 +645,12 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
     // to reduce storage size, but keeping it for now for safety
     console.log('✅ Extended trip data finalized successfully')
     
-    // Send trip itinerary email notifications using the new beautiful template
+    // Send role-based email notifications using our new clean participant email system
     try {
-      console.log('📧 Sending trip itinerary email notifications...')
+      console.log('📧 Sending role-based email notifications...')
+      
+      // Import the participant email service
+      const { ParticipantEmailService } = await import('@/services/participant-email-service')
       
       // Get trip data with complete details for the new email template
       const { data: tripData, error: tripError } = await supabase
@@ -780,19 +783,30 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
           driver: driver
         }
 
-        // Call our new email API endpoint
-        const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/emails/trip-invitation`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(emailData)
-        })
+        // Send emails using our new participant email service
+        const emailContext = {
+          tripId: tripData.id,
+          tripTitle: tripData.title,
+          tripAccessCode: tripData.access_code,
+          tripStartDate: tripData.start_date,
+          tripEndDate: tripData.end_date,
+          createdBy: 'Wolthers Team',
+          createdByEmail: 'trips@trips.wolthers.com',
+          participants: participants
+        }
 
-        if (emailResponse.ok) {
-          const emailResult = await emailResponse.json()
-          console.log('✅ Trip itinerary emails sent successfully:', emailResult)
+        // Convert participants to the format needed by ParticipantEmailService
+        const participantEmails = participants.map(p => ({
+          participantId: p.email, // Use email as temporary ID for unregistered participants
+          role: p.role === 'Staff' ? 'staff' : (p.role === 'Guest' ? 'external_guest' : 'host')
+        }))
+
+        const emailResults = await ParticipantEmailService.sendParticipantEmails(participantEmails, emailContext)
+        
+        if (emailResults.success) {
+          console.log('✅ All participant emails sent successfully using clean templates')
         } else {
-          const emailError = await emailResponse.json()
-          console.error('❌ Failed to send trip itinerary emails:', emailError)
+          console.warn('⚠️ Some participant emails failed:', emailResults.errors)
         }
       } else {
         console.log('📧 No participants with valid emails found, skipping email notifications')

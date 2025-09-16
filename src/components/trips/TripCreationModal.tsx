@@ -289,15 +289,6 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     tripId: resumeData?.tripId,
     accessCode: resumeData?.formData?.accessCode || formData.accessCode
   }))
-  const [showSaveNotification, setShowSaveNotification] = useState(false)
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
-    // Get auto-save preference from localStorage, default to true
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('trip-creation-auto-save-enabled')
-      return saved ? JSON.parse(saved) : true
-    }
-    return true
-  })
   
   // Personal message modal state
   const [showPersonalMessageModal, setShowPersonalMessageModal] = useState(false)
@@ -306,28 +297,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const [hostMessages, setHostMessages] = useState<Record<string, string>>({})
   const [sendingEmails, setSendingEmails] = useState(false)
   
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSaveDataRef = useRef<string>('')
   const { alert } = useDialogs()
   
-  // Generate client temp ID for idempotent trip creation - use session storage to persist
-  const clientTempIdRef = useRef<string>('')
-  
-  useEffect(() => {
-    if (resumeData?.tripId) {
-      clientTempIdRef.current = ''
-    } else {
-      // Check if we already have a temp ID in session storage
-      const storedTempId = sessionStorage.getItem('trip-creation-temp-id')
-      if (storedTempId) {
-        clientTempIdRef.current = storedTempId
-      } else {
-        const newTempId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        clientTempIdRef.current = newTempId
-        sessionStorage.setItem('trip-creation-temp-id', newTempId)
-      }
-    }
-  }, [resumeData?.tripId])
 
   // Update currentStep when resumeData changes (for draft resumption)
   useEffect(() => {
@@ -337,160 +308,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
     }
   }, [resumeData?.currentStep])
 
-  // Progressive save function with improved state management
-  const saveProgress = async (stepData: TripFormData, step: number, showNotification = false) => {
-    if (!formData.tripType) {
-      console.log('⚠️ [TripCreation] No trip type set, skipping save')
-      return
-    }
-    
-    console.log('💾 [TripCreation] Starting progressive save:', {
-      step,
-      tripId: saveStatus.tripId,
-      hasActivities: stepData.activities?.length || 0,
-      showNotification
-    })
-    
-    // Don't save if data hasn't changed
-    const currentDataString = JSON.stringify({ stepData, step })
-    if (currentDataString === lastSaveDataRef.current && saveStatus.tripId) {
-      console.log('⏭️ [TripCreation] No changes detected, skipping save')
-      return
-    }
-    
-    setSaveStatus(prev => ({ ...prev, isSaving: true, error: null }))
-    
-    try {
-      // Use cookies for authentication instead of localStorage token
-      // The httpOnly auth-token cookie will be sent automatically
-      const response = await fetch('/api/trips/progressive-save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include', // Include cookies in the request
-        body: JSON.stringify({
-          tripId: saveStatus.tripId,
-          currentStep: step,
-          stepData: stepData,
-          completionPercentage: Math.round((step / steps.length) * 100),
-          tripType: formData.tripType,
-          accessCode: stepData.accessCode || formData.accessCode,
-          clientTempId: clientTempIdRef.current
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('📋 Progressive save error response:', errorText)
-        throw new Error(`Save failed: ${response.status} ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      
-      console.log('✅ [TripCreation] Progressive save successful:', {
-        tripId: result.tripId,
-        accessCode: result.accessCode,
-        savedActivities: result.activities?.length || 0,
-        isNewTrip: !saveStatus.tripId
-      })
-      
-      setSaveStatus(prev => ({
-        ...prev,
-        isSaving: false,
-        lastSaved: new Date(),
-        tripId: result.tripId,
-        accessCode: result.accessCode,
-        continueUrl: result.continueUrl,
-        error: null
-      }))
-      
-      // Update form data with any server-generated IDs for activities
-      if (result.activities && result.activities.length > 0) {
-        console.log('🔄 [TripCreation] Updating form data with server activity IDs')
-        setFormData(prev => ({
-          ...prev,
-          activities: result.activities
-        }))
-      }
-      
-      lastSaveDataRef.current = currentDataString
-      
-      if (showNotification || (step === 3 && !saveStatus.tripId)) {
-        setShowSaveNotification(true)
-        setTimeout(() => setShowSaveNotification(false), 3000)
-        
-        // Show continuation URL for new trips
-        if (step === 3 && result.continueUrl && !saveStatus.tripId) {
-          console.log('🔗 [TripCreation] Trip saved! Continue later at:', result.continueUrl)
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ [TripCreation] Progressive save error:', error)
-      setSaveStatus(prev => ({
-        ...prev,
-        isSaving: false,
-        error: error instanceof Error ? error.message : 'Failed to save progress'
-      }))
-      
-      // Show error notification for user feedback
-      if (showNotification) {
-        console.error('🚨 [TripCreation] Save failed with notification requested')
-      }
-    }
-  }
-
-  // Smart auto-save: Only update existing trips, never create new ones
-  useEffect(() => {
-    if (!autoSaveEnabled || !isOpen || !formData.tripType || currentStep < 3) {
-      return
-    }
-    
-    // Only auto-save if we already have a trip ID (from progressive save or resume)
-    const existingTripId = saveStatus.tripId || resumeData?.tripId
-    if (!existingTripId) {
-      return // Don't auto-save until after first manual save creates the trip
-    }
-    
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-    
-    // Set new timeout for auto-save (only for updates)
-    saveTimeoutRef.current = setTimeout(() => {
-      if (existingTripId && !saveStatus.isSaving) {
-        console.log('🔄 Auto-saving existing trip:', existingTripId)
-        saveProgress(formData, currentStep, false) // false = don't show notification
-      }
-    }, 3000) // Auto-save after 3 seconds of no changes
-    
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-    }
-  }, [formData, currentStep, isOpen, autoSaveEnabled, saveStatus.tripId, saveStatus.isSaving])
-
-  // Handle auto-save toggle change
-  const handleAutoSaveToggle = (enabled: boolean) => {
-    setAutoSaveEnabled(enabled)
-    localStorage.setItem('trip-creation-auto-save-enabled', JSON.stringify(enabled))
-    
-    if (!enabled && saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-  }
-  
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-    }
-  }, [])
+  // Simplified creation - no progressive save needed
 
   // Helper function to process host messages queue
   const processHostQueue = () => {
@@ -619,11 +437,15 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         driver: driver
       }
 
-      const staffPromise = fetch('/api/emails/trip-invitation', {
-        method: 'POST',
+      // Use finalize endpoint with new clean email templates instead of old busy template
+      console.log('📧 [TripCreation] Using finalize endpoint for clean email templates...')
+      const staffPromise = fetch(`/api/trips/${saveStatus.tripId}/finalize`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(emailData)
+        body: JSON.stringify({
+          sendEmails: true
+        })
       })
       promises.push(staffPromise)
     }
@@ -677,13 +499,9 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           }))
         }
 
-        const hostPromise = fetch('/api/emails/host-invitation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(hostEmailData)
-        })
-        promises.push(hostPromise)
+        // Host invitations are now handled by the finalize endpoint with clean templates
+        console.log('📧 [TripCreation] Host invitations will be sent via finalize endpoint (already handled above)')
+        // Remove this separate API call since finalize endpoint handles all participants
       } else {
         console.log('📧 [TripCreation] No host contacts selected, skipping host invitations')
       }
@@ -732,8 +550,6 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
 
   const handleNext = async () => {
     if (currentStep < steps.length) {
-      // Save progress before moving to next step
-      await saveProgress(formData, currentStep, currentStep === 2) // Show notification on step 3 (when trip is created)
       setCurrentStep(currentStep + 1)
     }
   }
@@ -747,137 +563,44 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      console.log('🚀 [TripCreation] Starting trip finalization process...')
-      console.log('📋 [TripCreation] Current saveStatus:', saveStatus)
-      console.log('📝 [TripCreation] Form data to finalize:', formData)
+      console.log('🚀 [TripCreation] Creating trip with simplified flow...')
+      console.log('📝 [TripCreation] Form data:', formData)
       
-      // First save the final step data
-      console.log('💾 [TripCreation] Saving final step data...')
-      await saveProgress(formData, currentStep, false)
-      console.log('✅ [TripCreation] Final step data saved successfully')
-      
-      // If we have a trip ID from progressive saves, finalize it
-      if (saveStatus.tripId) {
-        console.log('🎯 [TripCreation] Finalizing existing trip with ID:', saveStatus.tripId)
-        console.log('🔗 [TripCreation] Access code:', saveStatus.accessCode)
-        
-        const response = await fetch(`/api/trips/${saveStatus.tripId}/finalize`, {
-          method: 'PATCH',
-          credentials: 'include'
-        })
-        
-        console.log('🌐 [TripCreation] Finalize API response status:', response.status)
-        
-        if (!response.ok) {
-          const error = await response.json()
-          console.error('❌ [TripCreation] Finalize API failed:', error)
-          throw new Error(error.message || 'Failed to finalize trip')
-        }
-        
-        const result = await response.json()
-        console.log('✅ [TripCreation] Trip finalized successfully:', result)
-        
-        const tripData = { 
-          id: saveStatus.tripId, 
-          accessCode: saveStatus.accessCode,
-          ...formData 
-        }
-        
-        console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
-        onTripCreated?.(tripData)
-        
-        // Check if we have hosts and start personal message flow
-        const hosts = []
-        if (tripData.companies && tripData.companies.length > 0) {
-          for (const company of tripData.companies) {
-            if (company.selectedContacts && company.selectedContacts.length > 0) {
-              for (const contact of company.selectedContacts) {
-                hosts.push({
-                  name: contact.name,
-                  email: contact.email,
-                  companyName: company.fantasyName || company.name
-                })
-              }
-            }
-          }
-        }
+      // Single API call to create the complete trip with emails
+      const response = await fetch('/api/trips/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(formData)
+      })
 
-        if (hosts.length > 0) {
-          console.log(`📧 [TripCreation] Found ${hosts.length} hosts, starting personal message flow...`)
-          setHostQueue(hosts)
-          setIsSubmitting(false) // Allow modal interaction
-          processHostQueue() // Start the personal message flow
-          return // Don't close modal yet
-        } else {
-          // No hosts, send emails directly
-          try {
-            console.log('📧 [TripCreation] No hosts found, sending staff emails directly...')
-            await sendTripInvitationEmails(tripData)
-            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
-          } catch (emailError) {
-            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
-            // Don't fail the entire process if email fails
-          }
-        }
-        
-        // Clear temp ID after successful creation
-        sessionStorage.removeItem('trip-creation-temp-id')
-        console.log('🧹 [TripCreation] Cleared session storage temp ID')
-      } else {
-        // Create new trip directly if no progressive save occurred
-        console.log('⚠️ [TripCreation] No trip ID found, creating new trip directly')
-        console.log('📝 [TripCreation] Form data for direct creation:', formData)
-        
-        const newTrip = {
-          id: `trip-${Date.now()}`,
-          ...formData,
-          createdAt: new Date()
-        }
-        
-        console.log('📤 [TripCreation] Calling onTripCreated for direct creation with:', newTrip)
-        onTripCreated?.(newTrip)
-        
-        // Check if we have hosts and start personal message flow for direct creation
-        const hosts = []
-        if (newTrip.companies && newTrip.companies.length > 0) {
-          for (const company of newTrip.companies) {
-            if (company.selectedContacts && company.selectedContacts.length > 0) {
-              for (const contact of company.selectedContacts) {
-                hosts.push({
-                  name: contact.name,
-                  email: contact.email,
-                  companyName: company.fantasyName || company.name
-                })
-              }
-            }
-          }
-        }
-
-        if (hosts.length > 0) {
-          console.log(`📧 [TripCreation] Found ${hosts.length} hosts for direct creation, starting personal message flow...`)
-          setHostQueue(hosts)
-          setIsSubmitting(false) // Allow modal interaction
-          processHostQueue() // Start the personal message flow
-          return // Don't close modal yet
-        } else {
-          // No hosts, send emails directly
-          try {
-            console.log('📧 [TripCreation] No hosts found, sending staff emails directly for direct creation...')
-            await sendTripInvitationEmails(newTrip)
-            console.log('✅ [TripCreation] Trip invitation emails sent successfully')
-          } catch (emailError) {
-            console.error('❌ [TripCreation] Failed to send invitation emails:', emailError)
-            // Don't fail the entire process if email fails
-          }
-        }
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('❌ [TripCreation] Create API failed:', error)
+        throw new Error(error.message || 'Failed to create trip')
       }
+
+      const result = await response.json()
+      console.log('✅ [TripCreation] Trip created successfully:', result)
+
+      const tripData = { 
+        id: result.trip.id, 
+        accessCode: result.trip.access_code,
+        ...formData 
+      }
+
+      console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
+      onTripCreated?.(tripData)
       
       console.log('🚪 [TripCreation] Closing modal...')
       handleClose()
-      console.log('🏁 [TripCreation] Trip finalization process completed successfully!')
+      console.log('🎉 [TripCreation] Trip creation completed successfully!')
+      
     } catch (error) {
-      console.error('💥 [TripCreation] Error during trip finalization:', error)
-      await alert(`Failed to finalize trip: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Finalization Failed', 'error')
+      console.error('💥 [TripCreation] Error during trip creation:', error)
+      await alert(`Failed to create trip: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Creation Failed', 'error')
     } finally {
       setIsSubmitting(false)
       console.log('🔄 [TripCreation] Reset submitting state')
@@ -885,17 +608,7 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   }
 
   const handleClose = async () => {
-    console.log('🚪 [TripCreation] Closing modal - checking if data should be saved')
-    
-    // Save progress before closing if we have meaningful data
-    if (formData.tripType && (currentStep > 2 || (currentStep === 2 && (formData.title || formData.companies.length > 0)))) {
-      console.log('💾 [TripCreation] Saving progress before close')
-      await saveProgress(formData, currentStep, false)
-    }
-    
-    // Clear temp ID from session storage when modal is closed
-    sessionStorage.removeItem('trip-creation-temp-id')
-    console.log('🧹 [TripCreation] Cleared session storage')
+    console.log('🚪 [TripCreation] Closing modal')
     
     // Reset form state
     setFormData(initialFormData)
@@ -1005,62 +718,6 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
                 )}
               </span>
             </h2>
-            {/* Save Status Indicator and Auto-save Toggle */}
-            <div className="flex items-center space-x-1 md:space-x-3">
-              {/* Save Status */}
-              <div className="flex items-center space-x-1 md:space-x-2">
-                {saveStatus.isSaving && (
-                  <div className="flex items-center space-x-1" style={{ color: '#333333' }}>
-                    <Save className="w-3 md:w-4 h-3 md:h-4 animate-pulse" />
-                    <span className="text-xs md:text-sm hidden xs:inline">Saving...</span>
-                  </div>
-                )}
-                {saveStatus.lastSaved && !saveStatus.isSaving && !saveStatus.error && (
-                  <div className="flex items-center space-x-1" style={{ color: '#333333' }}>
-                    <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
-                    <span className="text-xs md:text-sm hidden xs:inline">Saved {formatSaveTime(saveStatus.lastSaved)}</span>
-                  </div>
-                )}
-                {saveStatus.error && (
-                  <div className="flex items-center space-x-1 text-red-200">
-                    <AlertCircle className="w-3 md:w-4 h-3 md:h-4" />
-                    <span className="text-xs md:text-sm hidden xs:inline">Save failed</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Auto-save Toggle - only show after step 3 when we can have a trip ID */}
-              {currentStep >= 3 && (
-                <div className="flex items-center space-x-1 md:space-x-2">
-                  <label className="flex items-center space-x-1 md:space-x-2 cursor-pointer" style={{ color: '#333333' }}>
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        checked={autoSaveEnabled}
-                        onChange={(e) => handleAutoSaveToggle(e.target.checked)}
-                        className="sr-only"
-                      />
-                      <div className={`w-6 md:w-8 h-3 md:h-4 rounded-full transition-colors ${
-                        autoSaveEnabled 
-                          ? 'bg-green-500' 
-                          : 'bg-gray-400 dark:bg-gray-600'
-                      }`}>
-                        <div className={`w-2 md:w-3 h-2 md:h-3 bg-white rounded-full shadow-sm transition-transform transform ${
-                          autoSaveEnabled ? 'translate-x-3 md:translate-x-4' : 'translate-x-0.5'
-                        } mt-0.5`} />
-                      </div>
-                    </div>
-                    <span className="text-xs md:text-sm hidden sm:inline select-none">Auto-save</span>
-                  </label>
-                  {autoSaveEnabled && saveStatus.tripId && (
-                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" title="Auto-save active - Updates existing trip every 3 seconds"></div>
-                  )}
-                  {autoSaveEnabled && !saveStatus.tripId && (
-                    <div className="w-1 h-1 bg-orange-400 rounded-full" title="Auto-save ready - Will activate after first manual save"></div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
           <button
             onClick={handleClose}
@@ -1072,16 +729,6 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         </div>
 
 
-        {/* Save Notification */}
-        {showSaveNotification && (
-          <div className="absolute top-20 right-6 bg-green-500 dark:bg-green-600 text-white px-4 py-2 rounded-xl shadow-lg z-50 flex items-center space-x-2">
-            <CheckCircle className="w-4 h-4" />
-            <span>Progress saved successfully!</span>
-            {saveStatus.continueUrl && currentStep === 3 && (
-              <span className="text-xs opacity-90">You can continue later</span>
-            )}
-          </div>
-        )}
         
         {/* Form Content */}
         <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-4 md:py-8 lg:py-10 min-h-0 h-full bg-white dark:bg-[#0f1419]">
@@ -1224,22 +871,6 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-3">
-            {/* Manual Save Button - hide on very small screens */}
-            {currentStep > 1 && formData.tripType && (
-              <button
-                onClick={() => saveProgress(formData, currentStep, true)}
-                disabled={saveStatus.isSaving}
-                className="hidden xs:flex px-2 md:px-3 py-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-[#1a1a1a] border border-gray-300 dark:border-[#2a2a2a] rounded-xl hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors items-center"
-                title="Save progress"
-              >
-                {saveStatus.isSaving ? (
-                  <Save className="w-4 h-4 animate-pulse" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                <span className="ml-1 hidden md:inline">Save</span>
-              </button>
-            )}
             
             {currentStep < steps.length ? (
               <button
@@ -1290,13 +921,13 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
               >
                 {isSubmitting ? (
                   <>
-                    <span className="hidden sm:inline">{saveStatus.tripId ? 'Finalizing...' : 'Creating...'}</span>
-                    <span className="sm:hidden">{saveStatus.tripId ? 'Finalizing' : 'Creating'}</span>
+                    <span className="hidden sm:inline">Creating Trip...</span>
+                    <span className="sm:hidden">Creating...</span>
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">{saveStatus.tripId ? 'Finalize Trip' : 'Create Trip'}</span>
-                    <span className="sm:hidden">{saveStatus.tripId ? 'Finalize' : 'Create'}</span>
+                    <span className="hidden sm:inline">Create Trip</span>
+                    <span className="sm:hidden">Create</span>
                   </>
                 )}
               </button>

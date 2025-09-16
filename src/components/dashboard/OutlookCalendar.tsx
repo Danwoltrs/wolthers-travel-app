@@ -767,8 +767,12 @@ export function OutlookCalendar({
 
   // Generate calendar days - moved before usage
   const calendarDays: CalendarDay[] = useMemo(() => {
-    return Array.from({ length: calculateDuration(trip.startDate, trip.endDate) }, (_, index) => {
-      const date = new Date(trip.startDate.getTime() + index * 24 * 60 * 60 * 1000)
+    // Ensure dates are Date objects, not strings
+    const startDate = trip.startDate instanceof Date ? trip.startDate : new Date(trip.startDate)
+    const endDate = trip.endDate instanceof Date ? trip.endDate : new Date(trip.endDate)
+    
+    return Array.from({ length: calculateDuration(startDate, endDate) }, (_, index) => {
+      const date = new Date(startDate.getTime() + index * 24 * 60 * 60 * 1000)
       const dateString = date.toISOString().split('T')[0]
       
       return {

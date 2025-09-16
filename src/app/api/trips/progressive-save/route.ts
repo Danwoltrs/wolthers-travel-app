@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { makeTripSlug } from '@/lib/tripCodeGenerator'
+import { ParticipantEmailService, ParticipantEmailContext } from '@/services/participant-email-service'
 
 interface ProgressiveSaveRequest {
   tripId?: string
@@ -680,10 +681,10 @@ export async function POST(request: NextRequest) {
               
               const representativeInserts = hostCompany.representatives.map((rep: any) => ({
                 trip_id: finalTripId,
-                user_id: crypto.randomUUID(), // Generate a temporary UUID since user_id is required
+                user_id: rep.id, // Use actual user ID from representative data
                 company_id: hostCompany.id, // Company ID
-                role: 'representative',
-                guest_name: rep.name,
+                role: 'host', // Use 'host' role for email service recognition
+                guest_name: rep.full_name || rep.name,
                 guest_email: rep.email,
                 guest_phone: rep.phone,
                 guest_company: hostCompany.name,
@@ -1147,6 +1148,58 @@ export async function POST(request: NextRequest) {
     // Update or create trip draft entry
     if (finalTripId) {
       // Skip draft entry creation - using trips table with status='planning' for drafts
+    }
+
+    // Send participant emails for newly created trips
+    if (isNewTrip && finalTripId && accessCode) {
+      try {
+        console.log('📧 Sending participant emails for new trip:', tripData.title)
+        
+        // Get all trip participants for email sending
+        const { data: allParticipants, error: participantsError } = await supabase
+          .from('trip_participants')
+          .select(`
+            user_id,
+            role,
+            users!inner(
+              id,
+              full_name,
+              email,
+              role
+            )
+          `)
+          .eq('trip_id', finalTripId)
+
+        if (participantsError) {
+          console.error('❌ Failed to fetch participants for email:', participantsError)
+        } else if (allParticipants && allParticipants.length > 0) {
+          const emailContext: ParticipantEmailContext = {
+            tripId: finalTripId,
+            tripTitle: tripData.title,
+            tripAccessCode: accessCode,
+            tripStartDate: tripData.start_date,
+            tripEndDate: tripData.end_date,
+            createdBy: user.full_name || user.email,
+            createdByEmail: user.email,
+            participants: allParticipants.map(p => ({
+              id: p.users.id,
+              name: p.users.full_name,
+              email: p.users.email,
+              role: p.users.role || p.role
+            }))
+          }
+
+          const participantRoles = allParticipants.map(p => ({
+            participantId: p.user_id,
+            role: p.role
+          }))
+
+          await ParticipantEmailService.sendParticipantEmails(participantRoles, emailContext)
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send participant emails:', emailError)
+        // Don't fail the trip creation if emails fail
+      }
     }
 
     const response: ProgressiveSaveResponse = {

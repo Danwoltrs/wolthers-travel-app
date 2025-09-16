@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { ParticipantEmailService } from '@/services/participant-email-service'
 
 interface ParticipantUpdateRequest {
   staff?: Array<{
@@ -180,6 +181,16 @@ export async function PATCH(
             { status: 500 }
           )
         }
+
+        // Send emails to newly added staff members (only for 'add' and 'replace' actions)
+        if ((action === 'add' || action === 'replace')) {
+          try {
+            await sendParticipantEmails(tripId, staff.map(s => ({ participantId: s.id, role: s.role || 'staff' })))
+          } catch (emailError) {
+            console.error('Failed to send staff emails:', emailError)
+            // Don't fail the request - emails are not critical for participant addition
+          }
+        }
       } else if (action === 'remove') {
         // Remove specific staff participants
         const staffIds = staff.map(s => s.id)
@@ -192,8 +203,69 @@ export async function PATCH(
       }
     }
 
-    // Handle guest updates (stored in step_data for now)
+    // Handle guest and host updates (stored in trip_participants table for email functionality)
     if (guests && Array.isArray(guests)) {
+      if (action === 'replace') {
+        // Remove all existing guest participants
+        await supabase
+          .from('trip_participants')
+          .delete()
+          .eq('trip_id', tripId)
+          .in('role', ['client_representative', 'external_guest', 'host'])
+      }
+
+      if (action === 'add' || action === 'replace') {
+        // Add new guest participants
+        const guestInserts = guests.map(guest => ({
+          trip_id: tripId,
+          user_id: guest.id,
+          company_id: guest.company_id,
+          role: guest.role || (guest.company_id ? 'host' : 'external_guest'), // Determine role based on company
+          guest_email: guest.email,
+          guest_name: guest.name,
+          guest_company: guest.company_name,
+          is_partial: false,
+          created_at: now,
+          updated_at: now
+        }))
+
+        const { error: guestError } = await supabase
+          .from('trip_participants')
+          .insert(guestInserts)
+
+        if (guestError) {
+          console.error('Failed to add guest participants:', guestError)
+          return NextResponse.json(
+            { error: 'Failed to add guest participants', details: guestError.message },
+            { status: 500 }
+          )
+        }
+
+        // Send emails to newly added guests and hosts
+        if ((action === 'add' || action === 'replace')) {
+          try {
+            const participantEmails = guests.map(guest => ({
+              participantId: guest.id,
+              role: guest.role || (guest.company_id ? 'host' : 'external_guest')
+            }))
+            await sendParticipantEmails(tripId, participantEmails)
+          } catch (emailError) {
+            console.error('Failed to send guest/host emails:', emailError)
+            // Don't fail the request - emails are not critical for participant addition
+          }
+        }
+      } else if (action === 'remove') {
+        // Remove specific guest participants
+        const guestIds = guests.map(g => g.id)
+        await supabase
+          .from('trip_participants')
+          .delete()
+          .eq('trip_id', tripId)
+          .in('role', ['client_representative', 'external_guest', 'host'])
+          .in('user_id', guestIds)
+      }
+
+      // Also update step_data for backward compatibility
       const { data: currentTrip } = await supabase
         .from('trips')
         .select('step_data')
@@ -231,11 +303,8 @@ export async function PATCH(
         .eq('id', tripId)
 
       if (updateError) {
-        console.error('Failed to update trip guests:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to update guests', details: updateError.message },
-          { status: 500 }
-        )
+        console.error('Failed to update trip step_data:', updateError)
+        // Don't fail the request - step_data update is for backward compatibility
       }
     }
 
@@ -254,6 +323,71 @@ export async function PATCH(
       { status: 500 }
     )
   }
+}
+
+/**
+ * Helper function to send emails to participants
+ */
+async function sendParticipantEmails(tripId: string, participants: Array<{ participantId: string; role: string }>) {
+  const supabase = createServerSupabaseClient()
+  
+  // Get trip context for emails
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select(`
+      id,
+      title,
+      access_code,
+      start_date,
+      end_date,
+      creator_id,
+      users!trips_creator_id_fkey(
+        full_name,
+        email
+      )
+    `)
+    .eq('id', tripId)
+    .single()
+
+  if (tripError || !trip) {
+    console.error('Failed to fetch trip details for email:', tripError)
+    return
+  }
+
+  // Get current participants for email context
+  const { data: currentParticipants } = await supabase
+    .from('trip_participants')
+    .select(`
+      users!inner(
+        id,
+        full_name,
+        email,
+        role
+      )
+    `)
+    .eq('trip_id', tripId)
+    .eq('role', 'staff')
+
+  const participantList = currentParticipants?.map(tp => ({
+    id: tp.users.id,
+    name: tp.users.full_name,
+    email: tp.users.email,
+    role: tp.users.role || 'staff'
+  })) || []
+
+  const emailContext = {
+    tripId: trip.id,
+    tripTitle: trip.title,
+    tripAccessCode: trip.access_code,
+    tripStartDate: trip.start_date,
+    tripEndDate: trip.end_date,
+    createdBy: trip.users.full_name,
+    createdByEmail: trip.users.email,
+    participants: participantList
+  }
+
+  // Send emails for each participant
+  await ParticipantEmailService.sendParticipantEmails(participants, emailContext)
 }
 
 // POST endpoint to add a single participant
@@ -364,6 +498,14 @@ export async function POST(
         { error: 'Failed to add participant', details: insertError.message },
         { status: 500 }
       )
+    }
+
+    // Send email to newly added participant
+    try {
+      await sendParticipantEmails(tripId, [{ participantId: participant.personId, role: participant.role || 'staff' }])
+    } catch (emailError) {
+      console.error('Failed to send participant email:', emailError)
+      // Don't fail the request - emails are not critical for participant addition
     }
 
     return NextResponse.json({
