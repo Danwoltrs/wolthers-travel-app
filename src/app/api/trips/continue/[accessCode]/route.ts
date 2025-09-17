@@ -200,7 +200,7 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
           success: true,
           trip: planningTrip,
           draft: null,
-          currentStep: planningTrip.completion_step || 7, // Default to team assignment step for planning trips
+          currentStep: Math.max(planningTrip.completion_step || 1, 1), // Start from saved step or step 1
           canEdit: planningTrip.creator_id === user.id || user.is_global_admin,
           permissions: planningTrip.creator_id === user.id ? ['view', 'edit', 'admin'] : ['view'],
           message: 'Planning trip loaded successfully - you can continue editing'

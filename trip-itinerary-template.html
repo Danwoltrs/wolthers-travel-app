@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trip Itinerary</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f7;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f7;">
+    <tr>
+      <td align="center">
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+          <!-- Logo Header -->
+          <tr>
+            <td align="center" style="padding: 20px 0; border-bottom: 1px solid #e9e9e9;">
+              <img src="https://trips.wolthers.com/images/logos/wolthers-logo-green.png" alt="Wolthers & Associates Logo" style="max-width: 160px;">
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 30px;">
+              <!-- Header Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <h1 style="font-size: 24px; color: #1a202c; margin: 0 0 10px 0;">Trip {{trip_title}} created - here's the itinerary.</h1>
+                    <p style="font-size: 16px; color: #718096; margin: 0 0 20px 0;">{{duration_countdown}} to go</p>
+                    <a href="https://trips.wolthers.com/trips/{{trip_access_code}}" style="display: inline-block; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: 600; background-color: #004d40; color: white;">View Details</a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr><td style="border-bottom: 1px solid #e9e9e9;"></td></tr>
+              </table>
+
+              <!-- Overview Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr>
+                  <td>
+                    <h2 style="font-size: 20px; color: #1a202c; margin: 0 0 20px 0;">Overview</h2>
+                    <p style="font-size: 16px; color: #4a5568; margin: 0;"><strong>{{trip_title}}</strong> - {{trip_access_code}}</p>
+                    <p style="font-size: 14px; color: #718096; margin: 5px 0;">{{start_date}} - {{end_date}}</p>
+                    <p style="font-size: 14px; color: #4a5568; margin: 5px 0;"><strong>Status:</strong> <span style="color: #28a745;">{{status}}</span></p>
+                    <p style="font-size: 14px; color: #718096; margin: 5px 0 20px 0;"><strong>Duration:</strong> {{duration_days}} days</p>
+                  </td>
+                </tr>
+                <!-- Key Metrics -->
+                <tr>
+                  <td style="border-top: 1px solid #e9e9e9; padding-top: 15px;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center">
+                          <p style="font-size: 12px; color: #718096; margin: 0;">Days</p>
+                          <p style="font-size: 18px; color: #1a202c; margin: 5px 0 0 0; font-weight: 600;">{{metric_days}}</p>
+                        </td>
+                        <td align="center">
+                          <p style="font-size: 12px; color: #718096; margin: 0;">Staff</p>
+                          <p style="font-size: 18px; color: #1a202c; margin: 5px 0 0 0; font-weight: 600;">{{metric_staff}}</p>
+                        </td>
+                        <td align="center">
+                          <p style="font-size: 12px; color: #718096; margin: 0;">Activities</p>
+                          <p style="font-size: 18px; color: #1a202c; margin: 5px 0 0 0; font-weight: 600;">{{metric_activities}}</p>
+                        </td>
+                        <td align="center">
+                          <p style="font-size: 12px; color: #718096; margin: 0;">Vehicles</p>
+                          <p style="font-size: 18px; color: #1a202c; margin: 5px 0 0 0; font-weight: 600;">{{metric_vehicles}}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr><td style="border-bottom: 1px solid #e9e9e9;"></td></tr>
+              </table>
+
+              <!-- Participants Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr>
+                  <td>
+                    <h2 style="font-size: 20px; color: #1a202c; margin: 0 0 20px 0;">Participants</h2>
+                    <p style="font-size: 14px; color: #4a5568; margin: 0 0 5px 0;"><strong>Wolthers Staff:</strong> {{wolthers_staff_list}}</p>
+                    <p style="font-size: 14px; color: #4a5568; margin: 0 0 5px 0;"><strong>Guests:</strong> {{guests_list}}</p>
+                    <p style="font-size: 14px; color: #4a5568; margin: 0 0 5px 0;"><strong>Fleet:</strong> {{fleet_info}}</p>
+                    <p style="font-size: 14px; color: #4a5568; margin: 0;"><strong>Driver:</strong> {{driver_info}}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr><td style="border-bottom: 1px solid #e9e9e9;"></td></tr>
+              </table>
+
+              <!-- Itinerary Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr>
+                  <td>
+                    <h2 style="font-size: 20px; color: #1a202c; margin: 0 0 20px 0;">Itinerary</h2>
+                    <!-- Itinerary Day - Repeat this block for each day -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                      <tr>
+                        <td style="padding-bottom: 10px; border-bottom: 1px solid #e9e9e9;">
+                          <p style="font-size: 16px; color: #1a202c; margin: 0; font-weight: bold;">Day 1 - Mon, Oct 13</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-top: 10px;">
+                          <p style="font-size: 14px; color: #4a5568; margin: 0;">09:00-13:00 - Visit Veloso Green Coffee</p>
+                          <p style="font-size: 14px; color: #4a5568; margin: 5px 0 0 0;">13:00-14:00 - Lunch</p>
+                        </td>
+                      </tr>
+                    </table>
+                    <!-- End Itinerary Day Block -->
+                    <!-- Itinerary Day 2 -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                        <tr>
+                          <td style="padding-bottom: 10px; border-bottom: 1px solid #e9e9e9;">
+                            <p style="font-size: 16px; color: #1a202c; margin: 0; font-weight: bold;">Day 2 - Tue, Oct 14</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding-top: 10px;">
+                            <p style="font-size: 14px; color: #4a5568; margin: 0;">10:00-12:00 - Cupping Session at Cocarive</p>
+                          </td>
+                        </tr>
+                      </table>
+                    <!-- End Itinerary Day 2 Block -->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr><td style="border-bottom: 1px solid #e9e9e9;"></td></tr>
+              </table>
+
+              <!-- Weather Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                <tr>
+                  <td>
+                    <h2 style="font-size: 20px; color: #1a202c; margin: 0 0 20px 0;">Weather Forecast</h2>
+                    <!-- Weather City - Repeat this block for each city -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 10px;">
+                      <tr>
+                        <td width="40">
+                          <img src="https://weather.com/icons/{{icon_code}}.png" alt="Weather icon" width="32" height="32">
+                        </td>
+                        <td>
+                          <p style="font-size: 14px; color: #4a5568; margin: 0;"><strong>{{city_name}}:</strong> {{temp_c}}&deg;C</p>
+                        </td>
+                      </tr>
+                    </table>
+                    <!-- End Weather City Block -->
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 20px 30px; font-size: 12px; color: #718096;">
+              <p style="margin: 0;">This is an automated message from the Wolthers Travel Platform.</p>
+              <p style="margin: 5px 0 0 0;">Wolthers & Associates | Copenhagen, Denmark</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

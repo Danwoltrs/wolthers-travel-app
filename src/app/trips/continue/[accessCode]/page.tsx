@@ -74,31 +74,70 @@ export default function ContinueTripPage() {
   
   // Convert trip data back to TripFormData format
   const convertToFormData = (tripOrDraft: any): TripFormData => {
-    const data = tripOrDraft.trip || tripOrDraft
+    const trip = tripOrDraft.trip || tripOrDraft
+    const stepData = trip?.step_data || {}
+
     console.log('🔄 [Continue Trip] Converting trip data to form data:', {
-      hasTrip: !!data,
-      title: data?.title,
-      type: data?.type,
-      startDate: data?.start_date,
-      endDate: data?.end_date
+      hasTrip: !!trip,
+      title: trip?.title,
+      type: trip?.trip_type,
+      startDate: trip?.start_date,
+      endDate: trip?.end_date,
+      hasStepData: !!stepData,
+      stepDataKeys: Object.keys(stepData)
     })
-    
+
+    // Combine trip data with stepData (stepData takes precedence for form fields)
     return {
-      tripType: data?.type || data?.trip_type || 'in_land',
-      title: data?.title || '',
-      description: data?.description || '',
-      subject: data?.subject || '',
-      startDate: data?.start_date ? new Date(data.start_date) : new Date(),
-      endDate: data?.end_date ? new Date(data.end_date) : new Date(),
-      accessCode: data?.access_code || accessCode,
-      companies: data?.companies || [],
-      hostCompanies: data?.host_companies || [],
-      participants: data?.participants || [],
-      wolthersStaff: data?.wolthers_staff || [],
-      participantsWithDates: data?.participants_with_dates || [],
-      startingPoint: data?.starting_point || 'santos',
-      generatedActivities: data?.generated_activities || [],
-      vehicleAssignments: data?.vehicle_assignments || []
+      tripType: trip?.trip_type || stepData?.tripType || 'in_land',
+      title: stepData?.title || trip?.title || '',
+      description: stepData?.description || trip?.description || '',
+      subject: stepData?.subject || trip?.subject || '',
+      startDate: stepData?.startDate ? new Date(stepData.startDate) :
+                 (trip?.start_date ? new Date(trip.start_date) : new Date()),
+      endDate: stepData?.endDate ? new Date(stepData.endDate) :
+               (trip?.end_date ? new Date(trip.end_date) : new Date()),
+      accessCode: stepData?.accessCode || trip?.access_code || accessCode,
+
+      // Form-specific data from stepData
+      companies: stepData?.companies || [],
+      hostCompanies: stepData?.hostCompanies || [],
+      participants: stepData?.participants || stepData?.wolthersStaff || [],
+      wolthersStaff: stepData?.wolthersStaff || stepData?.participants || [],
+      participantsWithDates: stepData?.participantsWithDates || [],
+      drivers: stepData?.drivers || [],
+      vehicles: stepData?.vehicles || [],
+
+      // Location and itinerary data
+      startingPoint: stepData?.startingPoint || 'santos',
+      endingPoint: stepData?.endingPoint || '',
+      customStartingPoint: stepData?.customStartingPoint || '',
+      customEndingPoint: stepData?.customEndingPoint || '',
+
+      // Flight and destination data
+      flightInfo: stepData?.flightInfo || null,
+      destinationAddress: stepData?.destinationAddress || '',
+      nextDestination: stepData?.nextDestination || 'hotel',
+
+      // Generated activities and itinerary
+      generatedActivities: stepData?.generatedActivities || [],
+      itineraryDays: stepData?.itineraryDays || [],
+
+      // Meeting and booking data
+      meetings: stepData?.meetings || [],
+      hotels: stepData?.hotels || [],
+      flights: stepData?.flights || [],
+
+      // Additional metadata
+      estimatedBudget: stepData?.estimatedBudget || trip?.estimated_budget,
+      notes: stepData?.notes || '',
+
+      // Convention-specific data
+      selectedConvention: stepData?.selectedConvention || null,
+      eventCode: stepData?.eventCode || '',
+
+      // Vehicle assignments (legacy support)
+      vehicleAssignments: stepData?.vehicleAssignments || []
     }
   }
 
