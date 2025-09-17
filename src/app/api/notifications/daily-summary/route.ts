@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendTripChangeNotificationEmail, TripChangeNotificationData } from '@/lib/resend'
 
 export async function POST(request: NextRequest) {
@@ -7,16 +7,7 @@ export async function POST(request: NextRequest) {
     console.log('🔄 [Daily Summary] Starting end-of-day notification processing...')
 
     // Create Supabase client with service role for background processing
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll: () => [],
-          setAll: () => {},
-        },
-      }
-    )
+    const supabase = createServerSupabaseClient()
 
     const today = new Date()
     const yesterday = new Date(today)

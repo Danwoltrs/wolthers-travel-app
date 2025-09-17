@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export interface TripChange {
   tripId: string
@@ -15,16 +15,7 @@ export interface TripChange {
 export async function trackTripChange(change: TripChange): Promise<{ success: boolean; error?: string }> {
   try {
     // Create Supabase client with service role for background operations
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll: () => [],
-          setAll: () => {},
-        },
-      }
-    )
+    const supabase = createServerSupabaseClient()
 
     // If no specific affected participants provided, get all trip participants
     let affectedParticipants = change.affectedParticipants
@@ -248,16 +239,7 @@ function generateChangeDescription(newActivity: any, oldActivity: any): string {
  * Get pending changes for a trip (useful for testing)
  */
 export async function getPendingChanges(tripId: string): Promise<any[]> {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
-    }
-  )
+  const supabase = createServerSupabaseClient()
 
   const { data, error } = await supabase
     .from('trip_changes')
