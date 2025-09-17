@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { X, Clock, Building2, Mail, Calendar, MessageSquare } from 'lucide-react'
 
@@ -26,7 +26,7 @@ interface MeetingDeclineResponse {
   expired?: boolean
 }
 
-export default function MeetingDeclinePage() {
+function MeetingDeclineContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   
@@ -311,5 +311,21 @@ export default function MeetingDeclinePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MeetingDeclinePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm border p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading</h2>
+          <p className="text-gray-600">Preparing meeting response...</p>
+        </div>
+      </div>
+    }>
+      <MeetingDeclineContent />
+    </Suspense>
   )
 }
