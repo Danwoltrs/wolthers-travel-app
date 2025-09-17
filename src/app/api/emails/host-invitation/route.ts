@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendHostInvitationEmail, sendHostInvitationEmails, type HostInvitationEmailData } from '@/lib/resend'
+import { sendHostInvitationEmail, type HostInvitationEmailData } from '@/lib/resend'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
@@ -135,7 +135,24 @@ async function handleBulkInvitations(data: any) {
     }
   })
 
-  const result = await sendHostInvitationEmails(hostInvitations)
+  // Send emails individually since sendHostInvitationEmails doesn't exist
+  const results = []
+  for (const invitation of hostInvitations) {
+    try {
+      const result = await sendHostInvitationEmail(invitation.email, invitation.data)
+      results.push({ email: invitation.email, success: result.success, error: result.error })
+      // Add delay between emails to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    } catch (error) {
+      results.push({ email: invitation.email, success: false, error: error instanceof Error ? error.message : 'Unknown error' })
+    }
+  }
+  
+  const failures = results.filter(r => !r.success)
+  const result = { 
+    success: failures.length === 0, 
+    errors: failures.map(f => `${f.email}: ${f.error}`) 
+  }
 
   if (result.success) {
     console.log(`✅ All ${hosts.length} host invitation emails sent successfully`)
