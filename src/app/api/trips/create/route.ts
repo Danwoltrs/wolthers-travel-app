@@ -191,6 +191,32 @@ export async function POST(request: NextRequest) {
       console.log('✅ [Create Trip API] Created calendar activities')
     }
 
+    // Create vehicle assignments if vehicle and driver are specified
+    if (tripData.vehicle || tripData.driver) {
+      console.log('🚗 [Create Trip API] Creating vehicle assignment...')
+      
+      const vehicleAssignment = {
+        trip_id: trip.id,
+        vehicle_id: tripData.vehicle?.id || null,
+        driver_id: tripData.driver?.id || null,
+        assignment_type: 'company_vehicle',
+        start_date: tripData.startDate,
+        end_date: tripData.endDate,
+        status: 'assigned',
+        notes: `Vehicle: ${tripData.vehicle?.name || 'Not specified'}, Driver: ${tripData.driver?.name || 'Not specified'}`
+      }
+
+      const { error: vehicleError } = await supabase
+        .from('trip_vehicles')
+        .insert(vehicleAssignment)
+
+      if (vehicleError) {
+        console.error('⚠️ [Create Trip API] Failed to create vehicle assignment:', vehicleError)
+      } else {
+        console.log('✅ [Create Trip API] Vehicle assignment created successfully')
+      }
+    }
+
     // Send trip creation notification emails
     try {
       console.log('📧 [Create Trip API] Sending trip creation notification emails...')
