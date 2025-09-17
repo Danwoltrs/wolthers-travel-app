@@ -645,24 +645,285 @@ async function finalizeExtendedTripData(supabase: any, tripId: string, stepData:
     // to reduce storage size, but keeping it for now for safety
     console.log('✅ Extended trip data finalized successfully')
     
-    // Send trip creation email notifications to all participants
+    // Send role-based email notifications using our new clean participant email system
     try {
-      console.log('📧 Sending trip creation email notifications...')
-      const { TripNotificationService } = await import('@/lib/trip-notification-service')
+      console.log('📧 Sending role-based email notifications...')
       
-      const tripData = await TripNotificationService.fetchTripDataForNotification(tripId)
-      if (tripData && tripData.participants.length > 0) {
-        const emailResult = await TripNotificationService.sendTripCreationNotification(tripData)
-        if (emailResult.success) {
-          console.log('✅ Trip creation emails sent successfully:', emailResult.messageId)
+      // Import the participant email service
+      const { ParticipantEmailService } = await import('@/services/participant-email-service')
+      
+      // Get trip data with complete details for the new email template
+      const { data: tripData, error: tripError } = await supabase
+        .from('trips')
+        .select(`
+          id,
+          title,
+          access_code,
+          start_date,
+          end_date,
+          trip_participants (
+            role,
+            guest_name,
+            guest_email,
+            users (
+              id,
+              full_name,
+              email
+            )
+          ),
+          activities (
+            id,
+            title,
+            activity_date,
+            start_time,
+            end_time,
+            location,
+            activity_type
+          ),
+          trip_vehicles (
+            vehicles (
+              id,
+              model,
+              license_plate
+            ),
+            users (
+              id,
+              full_name,
+              email,
+              phone
+            )
+          )
+        `)
+        .eq('id', tripId)
+        .single()
+
+      if (tripError || !tripData) {
+        console.error('⚠️ Error fetching trip data for emails:', tripError)
+        throw new Error('Failed to fetch trip data')
+      }
+
+      // Prepare itinerary from activities
+      const itinerary = []
+      if (tripData.activities && tripData.activities.length > 0) {
+        const activitiesByDate = tripData.activities.reduce((acc: any, activity: any) => {
+          const date = activity.activity_date
+          if (!acc[date]) {
+            acc[date] = []
+          }
+          acc[date].push({
+            time: activity.start_time || '09:00',
+            title: activity.title || 'Activity',
+            location: activity.location,
+            duration: activity.end_time ? `${activity.start_time} - ${activity.end_time}` : undefined
+          })
+          return acc
+        }, {})
+        
+        Object.keys(activitiesByDate)
+          .sort()
+          .forEach(date => {
+            itinerary.push({
+              date,
+              activities: activitiesByDate[date].sort((a: any, b: any) => a.time.localeCompare(b.time))
+            })
+          })
+      }
+
+      // Get participants (Wolthers staff and guests)
+      const participants = []
+      const companies = []
+
+      if (tripData.trip_participants && tripData.trip_participants.length > 0) {
+        tripData.trip_participants.forEach((participant: any) => {
+          if (participant.users && participant.users.email) {
+            // Wolthers staff
+            participants.push({
+              name: participant.users.full_name || 'Team Member',
+              email: participant.users.email,
+              role: participant.role || 'Staff'
+            })
+          } else if (participant.guest_email) {
+            // External guests
+            participants.push({
+              name: participant.guest_name || 'Guest',
+              email: participant.guest_email,
+              role: 'Guest'
+            })
+          }
+        })
+      }
+
+      // Get vehicle and driver info
+      const vehicleAssignment = tripData.trip_vehicles?.[0]
+      const vehicle = vehicleAssignment?.vehicles ? {
+        make: vehicleAssignment.vehicles.model?.split(' ')[0] || 'Unknown',
+        model: vehicleAssignment.vehicles.model || 'Unknown Model',
+        licensePlate: vehicleAssignment.vehicles.license_plate || 'N/A'
+      } : undefined
+      
+      const driver = vehicleAssignment?.users ? {
+        name: vehicleAssignment.users.full_name || 'Unknown Driver',
+        email: vehicleAssignment.users.email,
+        phone: vehicleAssignment.users.phone
+      } : undefined
+
+      if (participants.length > 0) {
+        console.log(`📧 Sending itinerary emails to ${participants.length} participants`)
+
+        const emailData = {
+          tripTitle: tripData.title || 'New Trip',
+          tripAccessCode: tripData.access_code,
+          tripStartDate: tripData.start_date,
+          tripEndDate: tripData.end_date,
+          createdBy: 'Daniel Wolthers', // TODO: Get from current user context
+          itinerary: itinerary,
+          participants: participants,
+          companies: companies,
+          vehicle: vehicle,
+          driver: driver
+        }
+
+        // Send emails using our new participant email service
+        const emailContext = {
+          tripId: tripData.id,
+          tripTitle: tripData.title,
+          tripAccessCode: tripData.access_code,
+          tripStartDate: tripData.start_date,
+          tripEndDate: tripData.end_date,
+          createdBy: 'Wolthers Team',
+          createdByEmail: 'trips@trips.wolthers.com',
+          participants: participants
+        }
+
+        // Convert participants to the format needed by ParticipantEmailService
+        const participantEmails = participants.map(p => ({
+          participantId: p.email, // Use email as temporary ID for unregistered participants
+          role: p.role === 'Staff' ? 'staff' : (p.role === 'Guest' ? 'external_guest' : 'host')
+        }))
+
+        const emailResults = await ParticipantEmailService.sendParticipantEmails(participantEmails, emailContext)
+        
+        if (emailResults.success) {
+          console.log('✅ All participant emails sent successfully using clean templates')
         } else {
-          console.warn('⚠️ Failed to send trip creation emails:', emailResult.error)
+          console.warn('⚠️ Some participant emails failed:', emailResults.errors)
         }
       } else {
         console.log('📧 No participants with valid emails found, skipping email notifications')
       }
     } catch (emailError) {
-      console.error('⚠️ Error sending trip creation emails:', emailError)
+      console.error('⚠️ Error sending trip itinerary emails:', emailError)
+      // Don't fail the finalization process if emails fail
+    }
+
+    // Send host confirmation emails to selected host representatives
+    try {
+      console.log('📧 Sending host confirmation emails...')
+      const { TripNotificationService } = await import('@/lib/trip-notification-service')
+      
+      // Get selected host representatives from trip participants
+      const { data: hostRepresentatives, error: repError } = await supabase
+        .from('trip_participants')
+        .select(`
+          guest_name,
+          guest_email,
+          guest_company,
+          company_id,
+          companies (
+            id,
+            name,
+            fantasy_name
+          )
+        `)
+        .eq('trip_id', tripId)
+        .eq('role', 'representative')
+        .not('guest_email', 'is', null)
+
+      if (repError) {
+        console.error('⚠️ Error fetching host representatives:', repError)
+      } else if (hostRepresentatives && hostRepresentatives.length > 0) {
+        console.log(`📧 Found ${hostRepresentatives.length} host representatives to notify`)
+        
+        // Get trip data for context
+        const tripData = await TripNotificationService.fetchTripDataForNotification(tripId)
+        
+        if (tripData) {
+          const wolthersTeam = tripData.participants
+            .filter(p => p.role === 'Wolthers Staff')
+            .map(p => p.name.split(' ')[0])
+          
+          const totalGuestCount = tripData.participants.length
+
+          // Get all unique client company names from trip participants
+          const clientCompanies = [...new Set(
+            tripData.participants
+              .filter(p => p.role !== 'Wolthers Staff' && p.company)
+              .map(p => p.company)
+          )]
+          
+          // Format client company names for subject line
+          let clientCompanyName: string
+          if (clientCompanies.length === 0) {
+            clientCompanyName = 'our client'
+          } else if (clientCompanies.length === 1) {
+            clientCompanyName = clientCompanies[0]
+          } else if (clientCompanies.length === 2) {
+            clientCompanyName = `${clientCompanies[0]} and ${clientCompanies[1]}`
+          } else if (clientCompanies.length === 3) {
+            clientCompanyName = `${clientCompanies[0]}, ${clientCompanies[1]} and ${clientCompanies[2]}`
+          } else {
+            clientCompanyName = `${clientCompanies[0]}, ${clientCompanies[1]} and ${clientCompanies.length - 2} other companies`
+          }
+
+          // Get activities for this trip to find visit dates
+          const { data: activities } = await supabase
+            .from('activities')
+            .select('id, title, activity_date, start_time, company_id')
+            .eq('trip_id', tripId)
+            .not('company_id', 'is', null)
+
+          // Send confirmation email to each selected host representative
+          for (const representative of hostRepresentatives) {
+            const company = representative.companies as any
+            
+            // Find the activity for this company
+            const activity = activities?.find(a => a.company_id === representative.company_id)
+            
+            if (activity && representative.guest_email) {
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trips.wolthers.com'
+              const confirmUrl = `${baseUrl}/api/visits/confirm?tripCode=${tripData.tripCode}&hostEmail=${encodeURIComponent(representative.guest_email)}&activityId=${activity.id}`
+              const rescheduleUrl = `${baseUrl}/host/reschedule/${tripData.tripCode}?activityId=${activity.id}`
+
+              const hostData = {
+                hostName: representative.guest_name,
+                hostEmail: representative.guest_email,
+                companyName: company?.fantasy_name || company?.name || representative.guest_company,
+                clientCompanyName,
+                tripCode: tripData.tripCode,
+                visitDate: activity.activity_date,
+                visitTime: activity.start_time,
+                wolthersTeam,
+                guestCount: totalGuestCount,
+                confirmUrl,
+                rescheduleUrl
+              }
+
+              console.log(`📧 Sending host email to selected representative: ${representative.guest_name} (${representative.guest_email}) at ${hostData.companyName}`)
+              
+              const hostEmailResult = await TripNotificationService.sendHostConfirmationNotification(hostData)
+              if (hostEmailResult.success) {
+                console.log(`✅ Host confirmation email sent to selected representative ${representative.guest_name} at ${hostData.companyName}`)
+              } else {
+                console.warn(`⚠️ Failed to send host confirmation email to ${representative.guest_email}:`, hostEmailResult.error)
+              }
+            }
+          }
+        }
+      } else {
+        console.log('📧 No host representatives selected for this trip, skipping host confirmation emails')
+      }
+    } catch (hostEmailError) {
+      console.error('⚠️ Error sending host confirmation emails:', hostEmailError)
       // Don't fail the finalization process if emails fail
     }
     

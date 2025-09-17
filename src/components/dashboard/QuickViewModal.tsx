@@ -408,10 +408,10 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
           </p>
         </div>
 
-        {/* Content Area - Scrollable */}
-        <div className="flex-1 overflow-hidden">
+        {/* Content Area - Flexible Height */}
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Tabbed Interface - Always shown */}
-          <div className="h-full flex flex-col">
+          <div className="flex-1 flex flex-col">
             {/* Auto-save Status Bar - Only in edit mode */}
             {isEditing && (hasUnsavedChanges || isAutoSaving) && (
               <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">

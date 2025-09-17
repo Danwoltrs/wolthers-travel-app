@@ -92,6 +92,20 @@ export interface StaffAssignmentEmailData {
   assignedBy: string
 }
 
+export interface HostConfirmationEmailData {
+  hostName: string
+  hostEmail: string
+  companyName: string
+  clientCompanyName: string
+  tripCode: string
+  visitDate: string
+  visitTime: string
+  wolthersTeam: string[]
+  guestCount: number
+  confirmUrl: string
+  rescheduleUrl: string
+}
+
 export class TripNotificationService {
   private static async sendEmail(to: string | string[], subject: string, html: string) {
     try {
@@ -155,11 +169,6 @@ export class TripNotificationService {
             
             <!-- Header with Gradient Background -->
             <div style="padding: 40px 30px 30px; text-align: center; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white;">
-              <div style="margin-bottom: 20px;">
-                <div style="background: rgba(255,255,255,0.1); display: inline-block; padding: 12px 20px; border-radius: 50px; backdrop-filter: blur(10px);">
-                  <span style="font-size: 24px;">☕</span>
-                </div>
-              </div>
               <h1 style="color: #ffffff; margin: 0 0 10px; font-size: 28px; font-weight: 700; line-height: 1.2; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 New Trip Created
               </h1>
@@ -178,61 +187,86 @@ export class TripNotificationService {
               <h2 style="margin: 0 0 20px; font-size: 22px; font-weight: 600; color: #065f46; text-align: center;">
                 ${data.tripCode}
               </h2>
-              <h3 style="margin: 0 0 20px; font-size: 18px; font-weight: 500; color: #047857; text-align: center;">
+              <h3 style="margin: 0 0 30px; font-size: 18px; font-weight: 500; color: #047857; text-align: center;">
                 ${data.tripTitle}
               </h3>
               
-              <div style="margin-bottom: 20px;">
-                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Trip Code:</div>
-                <div style="color: #374151; font-size: 16px; line-height: 1.4;">${data.tripCode}</div>
-              </div>
-              
-              <div style="margin-bottom: 20px;">
-                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Dates:</div>
-                <div style="color: #374151; font-size: 16px; line-height: 1.4;">
+              <div style="margin-bottom: 30px;">
+                <div style="color: #374151; font-size: 16px; line-height: 1.4; text-align: center;">
                   ${this.formatDate(data.startDate)} - ${this.formatDate(data.endDate)}
                   <span style="color: #6b7280; font-size: 14px;">(${data.duration} days)</span>
                 </div>
               </div>
               
-              <div style="margin-bottom: 0;">
-                <div style="font-weight: 600; margin-bottom: 8px; color: #047857; font-size: 14px;">Created By:</div>
-                <div style="color: #374151; font-size: 16px; line-height: 1.4;">${data.createdBy}</div>
+              ${data.participants.filter(p => p.role === 'Wolthers Staff').length > 0 ? `
+              <div style="margin-bottom: 20px;">
+                <span style="color: #1f2937; font-size: 16px; font-weight: 600;">Wolthers Team: </span>
+                <span style="color: #374151; font-size: 16px;">
+                  ${data.participants.filter(p => p.role === 'Wolthers Staff').map(participant => participant.name.split(' ')[0]).join(', ')}
+                </span>
               </div>
-            </div>
-            
-            <!-- Team Section -->
-            <div style="margin: 30px;">
-              <h3 style="color: #1f2937; margin: 0 0 15px; font-size: 18px; font-weight: 600;">
-                Wolthers Team Members:
-              </h3>
-              ${data.participants.filter(p => p.role === 'Wolthers Staff').map(participant => `
-                <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
-                  <div>
-                    <span style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</span>
-                    <div style="color: #6b7280; font-size: 14px; margin-top: 2px;">${participant.role}</div>
-                  </div>
-                  <div style="color: #059669; font-size: 14px; font-weight: 500;">✓ Assigned</div>
-                </div>
-              `).join('')}
+              ` : ''}
               
               ${data.participants.filter(p => p.role !== 'Wolthers Staff').length > 0 ? `
-              <h3 style="color: #1f2937; margin: 30px 0 15px; font-size: 18px; font-weight: 600;">
-                Trip Participants:
-              </h3>
-              ${data.participants.filter(p => p.role !== 'Wolthers Staff').map(participant => `
-                <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
-                  <div>
-                    <div style="color: #1f2937; font-size: 16px; font-weight: 500;">${participant.name}</div>
-                    <div style="color: #6b7280; font-size: 14px; margin-top: 2px;">
-                      ${participant.role}${participant.company ? ` • ${participant.company}` : ''}
-                    </div>
-                  </div>
-                  <div style="color: #3b82f6; font-size: 14px; font-weight: 500;">👤 Invited</div>
-                </div>
-              `).join('')}
+              <div style="margin-bottom: 0;">
+                <span style="color: #1f2937; font-size: 16px; font-weight: 600;">Participants: </span>
+                <span style="color: #374151; font-size: 16px;">
+                  ${data.participants.filter(p => p.role !== 'Wolthers Staff').map(participant => participant.name.split(' ')[0]).join(', ')}
+                </span>
+              </div>
               ` : ''}
             </div>
+            
+            <!-- Trip Itinerary -->
+            ${data.activities && data.activities.length > 0 ? `
+            <div style="margin: 30px;">
+              <h3 style="color: #1f2937; margin: 0 0 20px; font-size: 18px; font-weight: 600;">
+                Trip Itinerary
+              </h3>
+              <div style="background-color: #f8fffe; border: 1px solid #d1fae5; border-radius: 12px; padding: 20px;">
+                ${(() => {
+                  // Group activities by date
+                  const activitiesByDate = data.activities.reduce((acc, activity) => {
+                    const date = activity.date;
+                    if (!acc[date]) acc[date] = [];
+                    acc[date].push(activity);
+                    return acc;
+                  }, {});
+                  
+                  // Sort dates and create daily itinerary
+                  return Object.keys(activitiesByDate)
+                    .sort()
+                    .map(date => {
+                      const dayActivities = activitiesByDate[date].sort((a, b) => a.time.localeCompare(b.time));
+                      return `
+                        <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb;">
+                          <div style="color: #047857; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
+                            ${this.formatDate(date)}
+                          </div>
+                          ${dayActivities.map(activity => `
+                            <div style="display: flex; align-items: flex-start; margin-bottom: 8px; padding-left: 15px;">
+                              <div style="color: #6b7280; font-size: 14px; font-weight: 500; min-width: 60px; margin-right: 15px;">
+                                ${activity.time}
+                              </div>
+                              <div style="flex: 1;">
+                                <div style="color: #1f2937; font-size: 15px; font-weight: 500; margin-bottom: 2px;">
+                                  ${activity.title}
+                                </div>
+                                ${activity.description ? `
+                                <div style="color: #6b7280; font-size: 14px; line-height: 1.4;">
+                                  ${activity.description}
+                                </div>
+                                ` : ''}
+                              </div>
+                            </div>
+                          `).join('')}
+                        </div>
+                      `;
+                    }).join('');
+                })()}
+              </div>
+            </div>
+            ` : ''}
             
             <!-- Call to Action -->
             <div style="text-align: center; margin: 40px 30px; padding: 30px 0; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; border: 1px solid #bbf7d0;">
@@ -240,18 +274,17 @@ export class TripNotificationService {
                 Ready to get started?
               </h3>
               <a href="https://trips.wolthers.com/trips/${data.tripCode}" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; padding: 18px 36px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); transition: all 0.2s ease; margin: 0 10px 10px 0;">
-                📋 View Trip Details
+                View Trip Details
               </a>
               <a href="https://trips.wolthers.com/calendar/export/${data.tripCode}" style="display: inline-block; background: #ffffff; color: #059669; padding: 18px 36px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; border: 2px solid #059669; margin: 0 10px 10px 0;">
-                📅 Export Calendar
+                Export Calendar
               </a>
             </div>
             
             <!-- Footer -->
             <div style="background: linear-gradient(135deg, #1f2937 0%, #111827 100%); padding: 35px; text-align: center;">
               <div style="margin-bottom: 15px;">
-                <span style="color: #10b981; font-size: 20px;">☕</span>
-                <span style="color: #ffffff; font-size: 16px; font-weight: 600; margin-left: 8px; letter-spacing: 0.5px;">WOLTHERS & ASSOCIATES</span>
+                <span style="color: #ffffff; font-size: 16px; font-weight: 600; letter-spacing: 0.5px;">WOLTHERS & ASSOCIATES</span>
               </div>
               <p style="color: rgba(255,255,255,0.8); font-size: 14px; margin: 0 0 10px; line-height: 1.6;">
                 Coffee Origin Travel Specialists<br>
@@ -548,6 +581,101 @@ export class TripNotificationService {
     } catch (error) {
       console.error('[TRIP NOTIFICATIONS] Error sending staff assignment email:', error)
       return { success: false, error: 'Failed to send staff assignment email' }
+    }
+  }
+
+  static async sendHostConfirmationNotification(data: HostConfirmationEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const subject = `Visit request from ${data.clientCompanyName} - ${this.formatDateShort(data.visitDate)}`
+      
+      const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Meeting Confirmation Required</title>
+        </head>
+        <body style="margin: 0; padding: 40px 20px; background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08); overflow: hidden; border: 1px solid #e9ecef;">
+            
+            <!-- Header with Logo -->
+            <div style="padding: 30px 30px 20px; text-align: center; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white;">
+              <div style="color: #ffffff; font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">
+                WOLTHERS & ASSOCIATES
+              </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div style="padding: 30px;">
+              <h2 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600; text-align: center;">
+                Meeting Confirmation Required
+              </h2>
+              
+              <p style="color: #374151; font-size: 16px; line-height: 1.5; margin: 0 0 25px;">
+                Hello ${data.hostName},
+              </p>
+              
+              <div style="background-color: #f8fffe; border: 1px solid #d1fae5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="color: #047857; font-size: 16px; font-weight: 500; margin: 0 0 15px;">
+                  Can you receive our team and ${data.clientCompanyName} on:
+                </p>
+                <div style="color: #1f2937; font-size: 18px; font-weight: 600; text-align: center; margin: 15px 0;">
+                  ${this.formatDate(data.visitDate)}
+                </div>
+                <div style="color: #1f2937; font-size: 18px; font-weight: 600; text-align: center; margin: 15px 0;">
+                  ${data.visitTime}
+                </div>
+                
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                  <p style="color: #6b7280; font-size: 14px; margin: 5px 0;">
+                    <strong>Company:</strong> ${data.companyName}
+                  </p>
+                  <p style="color: #6b7280; font-size: 14px; margin: 5px 0;">
+                    <strong>Wolthers Team:</strong> ${data.wolthersTeam.join(', ')}
+                  </p>
+                  <p style="color: #6b7280; font-size: 14px; margin: 5px 0;">
+                    <strong>Total Guests:</strong> ${data.guestCount} people
+                  </p>
+                  <p style="color: #6b7280; font-size: 14px; margin: 5px 0;">
+                    <strong>Trip Code:</strong> ${data.tripCode}
+                  </p>
+                </div>
+              </div>
+              
+              <!-- Action Buttons -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.confirmUrl}" style="display: inline-block; background: #10b981; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 10px 10px 0;">
+                  Confirm Meeting
+                </a>
+                <a href="${data.rescheduleUrl}" style="display: inline-block; background: #ffffff; color: #6b7280; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; border: 2px solid #d1d5db; margin: 0 10px 10px 0;">
+                  Request Different Time
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px; line-height: 1.5; text-align: center; margin: 25px 0 0;">
+                If you cannot accommodate this meeting, please click "Request Different Time" to see alternative options.
+              </p>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 12px; margin: 0; line-height: 1.6;">
+                © ${new Date().getFullYear()} Wolthers & Associates<br>
+                <a href="mailto:trips@trips.wolthers.com" style="color: #10b981; text-decoration: none;">trips@trips.wolthers.com</a>
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+
+      const result = await this.sendEmail(data.hostEmail, subject, html)
+      return result
+
+    } catch (error) {
+      console.error('[TRIP NOTIFICATIONS] Error sending host confirmation email:', error)
+      return { success: false, error: 'Failed to send host confirmation email' }
     }
   }
 

@@ -5,7 +5,7 @@
  * with real-time validation and progressive save functionality.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Calendar, MapPin, Users, Clock, AlertCircle } from 'lucide-react'
 import { calculateDuration } from '@/lib/utils'
 import type { TripCard } from '@/types'
@@ -61,6 +61,35 @@ export function OverviewTab({
     currency: 'BRL',
     notes: ''
   })
+
+  // Update form data when trip changes or mode changes to edit
+  useEffect(() => {
+    const formatDate = (date: string | Date): string => {
+      if (date instanceof Date) {
+        return date.toISOString().split('T')[0]
+      }
+      // Handle case where date is already in YYYY-MM-DD format
+      if (typeof date === 'string') {
+        const parsedDate = new Date(date)
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toISOString().split('T')[0]
+        }
+      }
+      return date as string
+    }
+
+    setFormData({
+      title: trip.title,
+      description: trip.subject || '',
+      startDate: formatDate(trip.startDate),
+      endDate: formatDate(trip.endDate),
+      status: trip.status,
+      priority: 'medium',
+      budget: '',
+      currency: 'BRL',
+      notes: ''
+    })
+  }, [trip, mode])
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)

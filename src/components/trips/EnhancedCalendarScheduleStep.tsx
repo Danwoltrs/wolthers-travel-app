@@ -744,95 +744,206 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         }
       }
 
-      // Add return drive - prioritize starting point as default ending point for round trips
+      // Enhanced return journey logic - check if there's a company to visit in Santos instead of just driving
       const actualEndingPoint = formData.endingPoint || formData.startingPoint || 'santos'
+      const lastLocation = optimizedLocations[optimizedLocations.length - 1]
+      const lastCompany = lastLocation?.company
       
-      console.log('🏁 [AI Itinerary] Return drive logic:', {
+      console.log('🏁 [AI Itinerary] Return journey logic:', {
         formDataEndingPoint: formData.endingPoint,
         formDataStartingPoint: formData.startingPoint,
-        calculatedEndingPoint: actualEndingPoint
+        calculatedEndingPoint: actualEndingPoint,
+        lastLocationCity: lastCompany?.city,
+        lastLocationName: lastLocation?.name
       })
       
-      const shouldAddReturnDrive = actualEndingPoint && 
+      const shouldAddReturnActivity = actualEndingPoint && 
         actualEndingPoint !== 'gru_airport' && 
         optimizedLocations.length > 0
       
-      if (shouldAddReturnDrive) {
-        console.log('🏁 [AI Itinerary] Adding return drive to ending point:', actualEndingPoint)
-        
-        const lastLocation = optimizedLocations[optimizedLocations.length - 1]
-        
-        // Determine return destination name and location
-        let returnDestination = 'Destination'
-        let returnLocationForAPI = ''
-        
-        if (actualEndingPoint === 'santos') {
-          returnDestination = 'Santos'
-          returnLocationForAPI = 'Santos, São Paulo, Brazil'
-        } else if (actualEndingPoint === 'w&a_hq_santos') {
-          returnDestination = 'W&A HQ Santos'
-          returnLocationForAPI = 'Santos, São Paulo, Brazil'
-        } else if (actualEndingPoint === 'guarulhos') {
-          returnDestination = 'Guarulhos Area'
-          returnLocationForAPI = 'Guarulhos, São Paulo, Brazil'
-        } else if (formData.customEndingPoint) {
-          returnDestination = formData.customEndingPoint
-          returnLocationForAPI = formData.customEndingPoint
-        } else {
-          returnDestination = actualEndingPoint
-          returnLocationForAPI = actualEndingPoint
-        }
-        
-        // Calculate actual return travel time using Google Maps API
-        let returnTravelMinutes = 120 // Default 2 hours fallback
-        
-        try {
-          const returnTravelInfo = await calculateTravelTime(lastLocation, {
-            name: returnDestination,
-            address: returnLocationForAPI,
-            lat: 0, // Will be geocoded by calculateTravelTime
-            lng: 0
-          })
+      if (shouldAddReturnActivity && lastCompany) {
+        // Check if there's another company to visit in the return location (e.g., Santos)
+        const returnCompaniesToVisit = hostCompanies.filter(company => {
+          const companyCity = company.city || ''
+          const returnCity = actualEndingPoint === 'santos' || actualEndingPoint === 'w&a_hq_santos' ? 'santos' : actualEndingPoint.toLowerCase()
           
-          if (returnTravelInfo) {
-            returnTravelMinutes = Math.ceil(returnTravelInfo.duration.value / 60)
-            console.log(`🗺️ [AI Itinerary] Return travel time calculated: ${formatDuration(returnTravelInfo.duration.value)} (${returnTravelMinutes} minutes)`)
+          // Check if this company is in the return city and hasn't been visited yet
+          const isInReturnCity = companyCity.toLowerCase().includes(returnCity) || 
+                                 (returnCity === 'santos' && isSantosArea(companyCity))
+          
+          const alreadyVisited = optimizedLocations.some(loc => loc.company.id === company.id)
+          
+          return isInReturnCity && !alreadyVisited
+        })
+        
+        console.log('🏢 [AI Itinerary] Companies to visit in return location:', {
+          returnLocation: actualEndingPoint,
+          companiesFound: returnCompaniesToVisit.length,
+          companies: returnCompaniesToVisit.map(c => ({ name: c.name, city: c.city }))
+        })
+        
+        if (returnCompaniesToVisit.length > 0) {
+          // Visit the company instead of just driving back
+          const companyToVisit = returnCompaniesToVisit[0] // Visit the first one
+          const visitDuration = getOptimalMeetingDuration(companyToVisit.city || 'santos') * 60 // Convert hours to minutes
+          
+          // Add travel activity to the company location
+          const lastLocationCity = lastCompany.city || 'Unknown'
+          const returnCompanyCity = companyToVisit.city || 'Santos'
+          
+          if (!areCompaniesInSameCity(lastCompany, companyToVisit)) {
+            // Different cities - need travel activity
+            let travelTimeHours = 0
+            let travelMethod = 'estimated'
+            
+            try {
+              const travelInfo = await calculateTravelTime(lastLocation, {
+                name: companyToVisit.name,
+                address: companyToVisit.address || `${companyToVisit.city}, ${companyToVisit.state}, Brazil`,
+                lat: 0,
+                lng: 0
+              })
+              
+              if (travelInfo) {
+                travelTimeHours = travelInfo.duration.value / 3600
+                travelMethod = 'google_maps'
+              } else {
+                travelTimeHours = calculateLocalTravelTime(lastLocationCity, returnCompanyCity)
+              }
+            } catch (error) {
+              travelTimeHours = calculateLocalTravelTime(lastLocationCity, returnCompanyCity)
+            }
+            
+            const travelMinutes = Math.ceil(travelTimeHours * 60)
+            
+            if (travelTimeHours > 0.1) { // Only add travel if > 6 minutes
+              let travelStartTime = currentTime + 60 // 1 hour after last meeting
+              let travelDate = currentDate.toISOString().split('T')[0]
+              
+              if (currentTime >= 1200) { // After 8 PM
+                const nextDay = new Date(currentDate)
+                nextDay.setDate(nextDay.getDate() + 1)
+                travelDate = nextDay.toISOString().split('T')[0]
+                travelStartTime = 480 // 8:00 AM next day
+                currentDate = nextDay
+                currentTime = 480
+              }
+              
+              const travelStartTimeStr = `${Math.floor(travelStartTime / 60).toString().padStart(2, '0')}:${(travelStartTime % 60).toString().padStart(2, '0')}`
+              const travelEndTime = travelStartTime + travelMinutes
+              const travelEndTimeStr = `${Math.floor(travelEndTime / 60).toString().padStart(2, '0')}:${(travelEndTime % 60).toString().padStart(2, '0')}`
+              
+              const travelActivity: ActivityFormData = {
+                title: `Drive from ${lastLocationCity} to ${returnCompanyCity} (${formatDuration(travelMinutes * 60)})`,
+                description: `Travel from ${lastLocation.name} to ${companyToVisit.name} in ${returnCompanyCity}`,
+                activity_date: travelDate,
+                start_time: travelStartTimeStr,
+                end_time: travelEndTimeStr,
+                location: `${lastLocationCity} → ${returnCompanyCity}`,
+                type: 'travel',
+                notes: `🚗 Travel time: ${formatDuration(travelMinutes * 60)} (${travelMethod})\n📍 Route: ${lastLocation.name} to ${companyToVisit.name}\n🏁 Final destination visit`,
+                is_confirmed: false
+              }
+              
+              generatedActivities.push(travelActivity)
+              currentTime = travelEndTime
+              console.log(`🚗 [AI Itinerary] ✅ Added travel to final destination: ${lastLocationCity} → ${returnCompanyCity}`)
+            }
           }
-        } catch (error) {
-          console.log('⚠️ [AI Itinerary] Could not calculate return travel time, using default 2 hours')
+          
+          // Add the company visit activity
+          const visitStartTime = currentTime
+          const visitStartTimeStr = `${Math.floor(visitStartTime / 60).toString().padStart(2, '0')}:${(visitStartTime % 60).toString().padStart(2, '0')}`
+          const visitEndTime = visitStartTime + visitDuration
+          const visitEndTimeStr = `${Math.floor(visitEndTime / 60).toString().padStart(2, '0')}:${(visitEndTime % 60).toString().padStart(2, '0')}`
+          
+          const visitActivity: ActivityFormData = {
+            title: `Visit ${companyToVisit.fantasy_name || companyToVisit.name}`,
+            description: `Business meeting at ${companyToVisit.name} in ${returnCompanyCity} (${visitDuration/60}h visit)`,
+            activity_date: currentDate.toISOString().split('T')[0],
+            start_time: visitStartTimeStr,
+            end_time: visitEndTimeStr,
+            location: companyToVisit.address || `${companyToVisit.city}, ${companyToVisit.state}, Brazil`,
+            type: 'meeting',
+            notes: `🏢 Business meeting\n📍 ${returnCompanyCity}\n⏱️ Duration: ${visitDuration/60}h\n🏁 Final destination company visit`,
+            is_confirmed: false
+          }
+          
+          generatedActivities.push(visitActivity)
+          console.log(`🏢 [AI Itinerary] ✅ Added company visit in return location: ${companyToVisit.name} (${visitDuration/60}h)`)
+          
+        } else {
+          // No companies to visit - just add return drive as before but only if different city
+          if (!areCompaniesInSameCity(lastCompany, { city: actualEndingPoint === 'santos' ? 'Santos' : actualEndingPoint })) {
+            let returnDestination = 'Destination'
+            let returnLocationForAPI = ''
+            
+            if (actualEndingPoint === 'santos') {
+              returnDestination = 'Santos'
+              returnLocationForAPI = 'Santos, São Paulo, Brazil'
+            } else if (actualEndingPoint === 'w&a_hq_santos') {
+              returnDestination = 'W&A HQ Santos'
+              returnLocationForAPI = 'Santos, São Paulo, Brazil'
+            } else if (actualEndingPoint === 'guarulhos') {
+              returnDestination = 'Guarulhos Area'
+              returnLocationForAPI = 'Guarulhos, São Paulo, Brazil'
+            } else if (formData.customEndingPoint) {
+              returnDestination = formData.customEndingPoint
+              returnLocationForAPI = formData.customEndingPoint
+            } else {
+              returnDestination = actualEndingPoint
+              returnLocationForAPI = actualEndingPoint
+            }
+            
+            // Calculate return travel time
+            let returnTravelMinutes = 120 // Default 2 hours fallback
+            
+            try {
+              const returnTravelInfo = await calculateTravelTime(lastLocation, {
+                name: returnDestination,
+                address: returnLocationForAPI,
+                lat: 0,
+                lng: 0
+              })
+              
+              if (returnTravelInfo) {
+                returnTravelMinutes = Math.ceil(returnTravelInfo.duration.value / 60)
+              }
+            } catch (error) {
+              console.log('⚠️ [AI Itinerary] Could not calculate return travel time, using default 2 hours')
+            }
+            
+            // Schedule return drive
+            let returnStartTime = currentTime + 60 // 1 hour after last meeting
+            let returnDate = currentDate
+            if (returnStartTime >= 1200) { // After 8 PM
+              returnDate = new Date(currentDate)
+              returnDate.setDate(returnDate.getDate() + 1)
+              returnStartTime = 480 // 8:00 AM next day
+            }
+            
+            const returnStartTimeStr = `${Math.floor(returnStartTime / 60).toString().padStart(2, '0')}:${(returnStartTime % 60).toString().padStart(2, '0')}`
+            const returnEndTime = returnStartTime + returnTravelMinutes
+            const returnEndTimeStr = `${Math.floor(returnEndTime / 60).toString().padStart(2, '0')}:${(returnEndTime % 60).toString().padStart(2, '0')}`
+            
+            const returnActivity: ActivityFormData = {
+              title: `Return Drive to ${returnDestination}`,
+              description: `Drive back to ${returnDestination} from ${lastLocation.name} (${formatDuration(returnTravelMinutes * 60)})`,
+              activity_date: returnDate.toISOString().split('T')[0],
+              start_time: returnStartTimeStr,
+              end_time: returnEndTimeStr,
+              location: `${lastLocation.name} → ${returnDestination}`,
+              type: 'travel',
+              notes: `🏁 Return journey to trip starting point\n📍 Route: ${lastLocation.name} to ${returnDestination}\n⏱️ Duration: ${returnTravelMinutes} minutes\n🎯 Completing round trip`,
+              is_confirmed: false
+            }
+            
+            generatedActivities.push(returnActivity)
+            console.log(`🏁 [AI Itinerary] ✅ Added return drive: ${lastLocation.name} → ${returnDestination}`)
+          } else {
+            console.log(`🏙️ [AI Itinerary] Last company already in return city (${lastCompany.city}), no return travel needed`)
+          }
         }
-        
-        // Schedule return drive after last meeting (add 1 hour buffer)
-        let returnStartTime = currentTime + 60 // 1 hour after last meeting
-        
-        // If return drive would start late, schedule for next day
-        let returnDate = currentDate
-        if (returnStartTime >= 1200) { // After 8 PM
-          returnDate = new Date(currentDate)
-          returnDate.setDate(returnDate.getDate() + 1)
-          returnStartTime = 480 // 8:00 AM next day
-        }
-        
-        const returnStartTimeStr = `${Math.floor(returnStartTime / 60).toString().padStart(2, '0')}:${(returnStartTime % 60).toString().padStart(2, '0')}`
-        const returnEndTime = returnStartTime + returnTravelMinutes
-        const returnEndTimeStr = `${Math.floor(returnEndTime / 60).toString().padStart(2, '0')}:${(returnEndTime % 60).toString().padStart(2, '0')}`
-        
-        const returnDuration = formatDuration(returnTravelMinutes * 60)
-        
-        const returnActivity: ActivityFormData = {
-          title: `Return Drive to ${returnDestination}`,
-          description: `Drive back to ${returnDestination} from ${lastLocation.name} (${returnDuration})`,
-          activity_date: returnDate.toISOString().split('T')[0],
-          start_time: returnStartTimeStr,
-          end_time: returnEndTimeStr,
-          location: `${lastLocation.name} → ${returnDestination}`,
-          type: 'travel',
-          notes: `🏁 Return journey to trip starting point\n📍 Route: ${lastLocation.name} to ${returnDestination}\n⏱️ Duration: ${returnTravelMinutes} minutes\n🎯 Completing round trip`,
-          is_confirmed: false
-        }
-        
-        generatedActivities.push(returnActivity)
-        console.log(`🏁 [AI Itinerary] ✅ Added return drive: ${lastLocation.name} → ${returnDestination} (${returnDuration})`)
       }
 
       console.log(`✅ [AI Itinerary] Generated ${generatedActivities.length} optimized activities`)
@@ -1100,13 +1211,13 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
         />
       )}
 
-      {/* Activity Editor Modal */}
+      {/* Comprehensive Activity Editor Modal - Based on QuickView ScheduleTab */}
       {selectedActivity && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-6 w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] mx-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-lg p-6 w-full h-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] mx-0 sm:mx-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-golden-400">
-                {selectedActivity.id.startsWith('temp-') ? 'Create New Activity' : 'Edit Activity'}
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
+                {selectedActivity.id.startsWith('temp-') ? 'Add Activity' : 'Edit Activity'}
               </h3>
               <button
                 onClick={() => {
@@ -1118,12 +1229,11 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            <form className="space-y-4">
-              {/* Title */}
+            
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Title
+                  Activity Title *
                 </label>
                 <input
                   type="text"
@@ -1131,68 +1241,12 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                   onChange={(e) => {
                     setSelectedActivity(prev => prev ? { ...prev, title: e.target.value } : null)
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                  placeholder="Activity title"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Enter activity title..."
+                  required
                 />
               </div>
 
-              {/* Date and Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={selectedActivity.activity_date}
-                    onChange={(e) => {
-                      setSelectedActivity(prev => prev ? { ...prev, activity_date: e.target.value } : null)
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Time
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="time"
-                      value={selectedActivity.start_time}
-                      onChange={(e) => {
-                        setSelectedActivity(prev => prev ? { ...prev, start_time: e.target.value } : null)
-                      }}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                    />
-                    <input
-                      type="time"
-                      value={selectedActivity.end_time}
-                      onChange={(e) => {
-                        setSelectedActivity(prev => prev ? { ...prev, end_time: e.target.value } : null)
-                      }}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={selectedActivity.location || ''}
-                  onChange={(e) => {
-                    setSelectedActivity(prev => prev ? { ...prev, location: e.target.value } : null)
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                  placeholder="Activity location"
-                />
-              </div>
-
-              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Description
@@ -1202,59 +1256,254 @@ export default function CalendarScheduleStep({ formData, updateFormData }: Calen
                   onChange={(e) => {
                     setSelectedActivity(prev => prev ? { ...prev, description: e.target.value } : null)
                   }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Enter activity description..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
-                  placeholder="Activity description"
                 />
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('🚫 [Trip Creation] Cancelling activity creation')
-                    setSelectedActivity(null)
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-200 dark:hover:bg-[#333333] transition-colors"
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedActivity.activity_date || ''}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value
+                      setSelectedActivity(prev => prev ? { 
+                        ...prev, 
+                        activity_date: newStartDate,
+                        // If end_date is before new start_date, update it
+                        end_date: (prev.end_date && prev.end_date < newStartDate) ? newStartDate : prev.end_date
+                      } : null)
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    End Date <span className="text-xs text-gray-500">(for multi-day events)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedActivity.end_date || selectedActivity.activity_date || ''}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, end_date: e.target.value } : null)}
+                    min={selectedActivity.activity_date}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={selectedActivity.start_time || ''}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, start_time: e.target.value } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={selectedActivity.end_time || ''}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, end_time: e.target.value } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Activity Type
+                </label>
+                <select 
+                  value={selectedActivity.type || 'meeting'}
+                  onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, type: e.target.value as any } : null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('💾 [Trip Creation] Saving activity:', selectedActivity)
-                    
-                    if (selectedActivity.id.startsWith('temp-')) {
-                      // New activity - add to formData.generatedActivities
-                      const newActivity: ActivityFormData = {
-                        title: selectedActivity.title || 'Untitled Activity',
-                        description: selectedActivity.description || '',
-                        date: selectedActivity.activity_date,
-                        startTime: selectedActivity.start_time,
-                        endTime: selectedActivity.end_time,
-                        location: selectedActivity.location || '',
-                        activityType: selectedActivity.activity_type || 'meeting',
-                        priority: selectedActivity.priority || 'medium',
-                        notes: selectedActivity.notes || '',
-                        visibility_level: selectedActivity.visibility_level || 'all'
-                      }
-                      
-                      const currentActivities = formData.generatedActivities || []
-                      const updatedActivities = [...currentActivities, newActivity]
-                      
-                      console.log('✅ [Trip Creation] Adding new activity to form data')
-                      updateFormData({ generatedActivities: updatedActivities })
+                  <option value="meeting">Meeting</option>
+                  <option value="meal">Meal</option>
+                  <option value="travel">Ground Transportation</option>
+                  <option value="flight">Flight</option>
+                  <option value="accommodation">Hotel / Accommodation</option>
+                  <option value="event">Event / Conference</option>
+                  <option value="break">Break / Free Time</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={selectedActivity.location || ''}
+                  onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, location: e.target.value } : null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Enter location or address..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Host / Organizer
+                </label>
+                <input
+                  type="text"
+                  value={selectedActivity.host || ''}
+                  onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, host: e.target.value } : null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Enter host or organizer..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Cost
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={selectedActivity.cost || 0}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, cost: parseFloat(e.target.value) || 0 } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Currency
+                  </label>
+                  <select 
+                    value={selectedActivity.currency || 'BRL'}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, currency: e.target.value as any } : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="BRL">BRL (R$)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="DKK">DKK (kr)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedActivity.is_confirmed || false}
+                    onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, is_confirmed: e.target.checked } : null)}
+                    className="rounded border-gray-300 dark:border-gray-600 text-emerald-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Confirmed Activity
+                  </span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={selectedActivity.notes || ''}
+                  onChange={(e) => setSelectedActivity(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                  placeholder="Additional notes..."
+                  rows={2}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  console.log('🚫 [Trip Creation] Cancelling activity creation/edit')
+                  setSelectedActivity(null)
+                }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  console.log('💾 [Trip Creation] Saving comprehensive activity:', selectedActivity)
+                  
+                  if (selectedActivity.id.startsWith('temp-')) {
+                    // New activity - convert to proper format and add to formData.generatedActivities
+                    const tempActivity = {
+                      id: `temp-activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      title: selectedActivity.title || 'Untitled Activity',
+                      description: selectedActivity.description || '',
+                      activity_date: selectedActivity.activity_date || '',
+                      start_time: selectedActivity.start_time || '',
+                      end_time: selectedActivity.end_time || '',
+                      type: selectedActivity.type as any,
+                      location: selectedActivity.location || '',
+                      host: selectedActivity.host || '',
+                      cost: selectedActivity.cost || 0,
+                      currency: selectedActivity.currency || 'BRL',
+                      is_confirmed: selectedActivity.is_confirmed || false,
+                      notes: selectedActivity.notes || '',
+                      trip_id: mockTrip.id,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      end_date: selectedActivity.end_date || selectedActivity.activity_date
                     }
                     
-                    setSelectedActivity(null)
-                  }}
-                  className="px-4 py-2 bg-emerald-700 text-golden-400 rounded-lg hover:bg-emerald-800 transition-colors"
-                >
-                  Save Activity
-                </button>
-              </div>
-            </form>
+                    const currentActivities = formData.generatedActivities || []
+                    const updatedActivities = [...currentActivities, tempActivity]
+                    
+                    console.log('✅ [Trip Creation] Adding comprehensive activity to form data')
+                    updateFormData({ generatedActivities: updatedActivities })
+                  } else {
+                    // Edit existing activity - update in formData.generatedActivities
+                    const currentActivities = formData.generatedActivities || []
+                    const updatedActivities = currentActivities.map(activity => 
+                      activity.id === selectedActivity.id ? {
+                        ...activity,
+                        title: selectedActivity.title || activity.title,
+                        description: selectedActivity.description || activity.description,
+                        activity_date: selectedActivity.activity_date || activity.activity_date,
+                        start_time: selectedActivity.start_time || activity.start_time,
+                        end_time: selectedActivity.end_time || activity.end_time,
+                        type: selectedActivity.type || activity.type,
+                        location: selectedActivity.location || activity.location,
+                        host: selectedActivity.host || activity.host || '',
+                        cost: selectedActivity.cost || activity.cost || 0,
+                        currency: selectedActivity.currency || activity.currency || 'BRL',
+                        is_confirmed: selectedActivity.is_confirmed !== undefined ? selectedActivity.is_confirmed : activity.is_confirmed,
+                        notes: selectedActivity.notes || activity.notes,
+                        end_date: selectedActivity.end_date || selectedActivity.activity_date || activity.activity_date,
+                        updated_at: new Date().toISOString()
+                      } : activity
+                    )
+                    
+                    console.log('✅ [Trip Creation] Updating existing activity in form data')
+                    updateFormData({ generatedActivities: updatedActivities })
+                  }
+                  
+                  setSelectedActivity(null)
+                }}
+                disabled={!selectedActivity.title?.trim() || !selectedActivity.activity_date}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {selectedActivity.id.startsWith('temp-') ? 'Add Activity' : 'Update Activity'}
+              </button>
+            </div>
           </div>
         </div>
       )}

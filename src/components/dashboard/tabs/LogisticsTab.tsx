@@ -28,15 +28,27 @@ interface LogisticsTabProps {
   tripDetails?: any
   onUpdate: (tab: 'logistics', updates: any) => void
   validationState: TabValidationState
+  mode?: 'view' | 'edit'
 }
 
 export function LogisticsTab({ 
   trip, 
   tripDetails, 
   onUpdate, 
-  validationState 
+  validationState,
+  mode = 'view'
 }: LogisticsTabProps) {
   const [activeSection, setActiveSection] = useState<'vehicles' | 'equipment' | 'accommodation' | 'transportation'>('vehicles')
+
+  const handleVehicleRemove = useCallback((vehicleId: string) => {
+    // TODO: Implement vehicle removal logic
+    console.log('Remove vehicle:', vehicleId)
+  }, [])
+
+  const handleDriverRemove = useCallback((driverId: string) => {
+    // TODO: Implement driver removal logic
+    console.log('Remove driver:', driverId)
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
