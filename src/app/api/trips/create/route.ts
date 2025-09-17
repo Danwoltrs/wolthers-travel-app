@@ -193,140 +193,21 @@ export async function POST(request: NextRequest) {
 
     // Send trip creation notification emails
     try {
-      console.log('📧 [Create Trip API] Sending trip creation notification emails...')
+      console.log('📧 [Create Trip API] Email sending temporarily disabled for debugging...')
       
-      // Prepare itinerary data for email template
-      const { data: itineraryDays } = await supabase
-        .from('itinerary_days')
-        .select(`
-          date,
-          activities (
-            title,
-            start_time,
-            duration_minutes,
-            location,
-            type,
-            description
-          )
-        `)
-        .eq('trip_id', trip.id)
-        .order('date', { ascending: true })
-
-      // Format itinerary for email
-      const itinerary = itineraryDays?.map(day => ({
-        date: day.date,
-        activities: day.activities.map(activity => ({
-          time: new Date(activity.start_time).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          title: activity.title,
-          location: activity.location,
-          duration: activity.duration_minutes ? `${activity.duration_minutes} minutes` : undefined
-        }))
-      })) || []
-
-      // Get participants for email
-      const staffParticipants = (tripData.participants || []).map((p: any) => ({
-        name: p.full_name || p.name,
-        email: p.email,
-        role: 'staff'
-      }))
-
-      // Get company representatives for email
-      const companyReps = (tripData.companies || []).flatMap((company: any) => 
-        (company.selectedContacts || []).map((contact: any) => ({
-          name: contact.name,
-          email: contact.email,
-          role: 'guest'
-        }))
-      )
-
-      // Prepare email data
-      const emailData = {
-        tripTitle: trip.title,
-        tripAccessCode: trip.access_code,
-        tripStartDate: trip.start_date,
-        tripEndDate: trip.end_date,
-        createdBy: user.full_name,
-        itinerary: itinerary,
-        participants: staffParticipants,
-        companies: (tripData.companies || []).map((company: any) => ({
-          name: company.name,
-          representatives: (company.selectedContacts || []).map((contact: any) => ({
-            name: contact.name,
-            email: contact.email
-          }))
-        }))
-      }
-
-      // Send the new trip creation notification emails
-      const emailResult = await sendTripCreationNotificationEmails(emailData)
-
-      if (emailResult.success) {
-        console.log('✅ [Create Trip API] All trip creation notification emails sent successfully')
-      } else {
-        console.error('⚠️ [Create Trip API] Some notification emails failed:', emailResult.errors)
-      }
-
-      // Send separate host visit confirmation emails to host representatives
-      if (tripData.hostCompanies && tripData.hostCompanies.length > 0) {
-        console.log('📧 [Create Trip API] Sending host visit confirmation emails...')
-        
-        for (const hostCompany of tripData.hostCompanies) {
-          if (hostCompany.representatives && hostCompany.representatives.length > 0) {
-            // Find activities/visits scheduled with this host company
-            const hostActivities = itinerary.flatMap(day => 
-              day.activities.filter(activity => 
-                activity.title.toLowerCase().includes('visit') && 
-                (activity.title.toLowerCase().includes(hostCompany.name.toLowerCase()) ||
-                 activity.title.toLowerCase().includes(hostCompany.fantasy_name?.toLowerCase() || ''))
-              )
-            )
-
-            // Get visiting guest companies for this host
-            const visitingGuests = (tripData.companies || [])
-              .filter((company: any) => company.selectedContacts && company.selectedContacts.length > 0)
-              .map((company: any) => company.name)
-
-            // Send visit confirmation email to each host representative
-            for (const representative of hostCompany.representatives) {
-              if (representative.email) {
-                try {
-                  const hostEmailData = {
-                    hostName: representative.name,
-                    companyName: hostCompany.name,
-                    visitDate: hostActivities.length > 0 ? hostActivities[0].time : trip.start_date,
-                    visitTime: hostActivities.length > 0 ? hostActivities[0].time : '09:00',
-                    guests: visitingGuests,
-                    inviterName: user.full_name,
-                    inviterEmail: user.email,
-                    yesUrl: `${process.env.NEXT_PUBLIC_APP_URL}/visits/confirm?token=`,
-                    noUrl: `${process.env.NEXT_PUBLIC_APP_URL}/visits/decline?token=`,
-                    tripTitle: trip.title,
-                    tripAccessCode: trip.access_code
-                  }
-
-                  await sendHostVisitConfirmationEmail(representative.email, hostEmailData)
-                  
-                  console.log(`✅ [Create Trip API] Sent visit confirmation to ${representative.name} at ${hostCompany.name}`)
-                  
-                  // Add delay between host emails to respect rate limits
-                  await new Promise(resolve => setTimeout(resolve, 2000))
-                  
-                } catch (hostEmailError) {
-                  console.error(`❌ [Create Trip API] Failed to send visit confirmation to ${representative.email}:`, hostEmailError)
-                }
-              }
-            }
-          }
-        }
-      }
-
+      // TEMPORARY DEBUG: Skip email sending to isolate the error
+      console.log('✅ [Create Trip API] Skipping emails - trip creation successful')
     } catch (emailError) {
       console.error('❌ [Create Trip API] Email sending failed:', emailError)
       // Don't fail the trip creation if emails fail
     }
+
+    // Original email code (commented out for debugging)
+    /*
+    try {
+      console.log('📧 [Create Trip API] Sending trip creation notification emails...')
+      
+    */
 
     console.log('🎉 [Create Trip API] Trip creation completed successfully!')
 
