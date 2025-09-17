@@ -4,7 +4,7 @@ import { ParticipantEmailService } from '@/services/participant-email-service'
 import { sendTripCreationNotificationEmails, sendHostVisitConfirmationEmail } from '@/lib/resend'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!
 
 export async function POST(request: NextRequest) {
   try {

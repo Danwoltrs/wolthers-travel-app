@@ -4,11 +4,10 @@ import React, { useState } from 'react'
 import { Mail, Send, Check, AlertCircle, Loader } from 'lucide-react'
 
 const emailTypes = [
-  { value: 'trip_creation', label: 'Trip Creation Notification' },
-  { value: 'trip_cancellation', label: 'Trip Cancellation Notice' },
-  { value: 'staff_invitation', label: 'Staff Invitation' },
-  { value: 'host_invitation', label: 'Host Invitation' },
-  { value: 'visit_confirmation', label: 'Visit Confirmation Request' },
+  { value: 'trip_creation', label: 'Trip Creation Notification (Old)' },
+  { value: 'trip_creation_new', label: '✨ NEW Trip Creation Notification' },
+  { value: 'trip_cancellation', label: 'Trip Cancellation Notice (Red)' },
+  { value: 'visit_confirmation', label: '✨ NEW Visit Confirmation Request' },
   { value: 'visit_declined', label: 'Visit Declined Notification' },
   { value: 'new_time_proposed', label: 'New Time Proposed' },
   { value: 'all_templates', label: '🚀 All Templates (Test Suite)' }
@@ -26,10 +25,10 @@ interface TestResult {
 }
 
 export default function EmailTestPage() {
-  const [selectedEmailType, setSelectedEmailType] = useState('trip_creation')
+  const [selectedEmailType, setSelectedEmailType] = useState('trip_creation_new')
   const [testEmail, setTestEmail] = useState('')
-  const [tripTitle, setTripTitle] = useState('Test Trip - Email System Check')
-  const [accessCode, setAccessCode] = useState('TEST_EMAIL_2024')
+  const [tripTitle, setTripTitle] = useState('Swiss Coffee Adventure - Q1 2025')
+  const [accessCode, setAccessCode] = useState('SCTA-2025')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<TestResult | null>(null)
 

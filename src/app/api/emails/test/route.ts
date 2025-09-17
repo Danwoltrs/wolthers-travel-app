@@ -3,6 +3,7 @@ import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import {
   sendTripCreationEmails,
+  sendTripCreationNotificationEmails,
   sendTripCancellationEmails,
   sendStaffInvitationEmail,
   sendHostInvitationEmail,
@@ -10,6 +11,7 @@ import {
   sendVisitDeclinedNotification,
   sendNewTimeProposedNotification,
   type TripCreationEmailData,
+  type TripItineraryEmailData,
   type TripCancellationEmailData,
   type StaffInvitationEmailData,
   type HostInvitationEmailData,
@@ -120,6 +122,56 @@ export async function POST(request: NextRequest) {
           result = await sendTripCreationEmails(tripCreationData)
           break
 
+        case 'trip_creation_new':
+          const newTripCreationData: TripItineraryEmailData = {
+            tripTitle: defaultTripData.title,
+            tripAccessCode: defaultTripData.accessCode,
+            tripStartDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Next week
+            tripEndDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), // 3 days later
+            createdBy: user.full_name || user.email,
+            itinerary: [
+              {
+                date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                activities: [
+                  {
+                    time: '09:00',
+                    title: 'Morning Meeting',
+                    location: 'Coffee Farm HQ'
+                  },
+                  {
+                    time: '14:00',
+                    title: 'Farm Tour',
+                    location: 'Main Processing Facility'
+                  }
+                ]
+              },
+              {
+                date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                activities: [
+                  {
+                    time: '10:00',
+                    title: 'Cupping Session',
+                    location: 'Quality Lab'
+                  }
+                ]
+              }
+            ],
+            participants: [
+              { name: user.full_name || 'Daniel', email: user.email, role: 'staff' },
+              { name: 'Tom', email: 'tom@wolthers.com', role: 'staff' }
+            ],
+            companies: [
+              {
+                name: 'Test Coffee Company',
+                representatives: [
+                  { name: 'Test Contact', email: testEmail }
+                ]
+              }
+            ]
+          }
+          result = await sendTripCreationNotificationEmails(newTripCreationData)
+          break
+
         case 'trip_cancellation':
           const tripCancellationData: TripCancellationEmailData = {
             tripTitle: defaultTripData.title,
@@ -205,8 +257,7 @@ export async function POST(request: NextRequest) {
           // Send each template with delays to prevent rate limiting
           const templates = [
             'trip_creation',
-            'staff_invitation',
-            'host_invitation',
+            'trip_creation_new',
             'visit_confirmation',
             'visit_declined',
             'new_time_proposed',
@@ -259,7 +310,7 @@ export async function POST(request: NextRequest) {
 
         default:
           return NextResponse.json(
-            { error: `Unknown email type: ${emailType}. Available types: trip_creation, trip_cancellation, staff_invitation, host_invitation, visit_confirmation, visit_declined, new_time_proposed, all_templates` },
+            { error: `Unknown email type: ${emailType}. Available types: trip_creation, trip_creation_new, trip_cancellation, visit_confirmation, visit_declined, new_time_proposed, all_templates` },
             { status: 400 }
           )
       }
@@ -303,9 +354,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     availableEmailTypes: [
       'trip_creation',
+      'trip_creation_new',
       'trip_cancellation',
-      'staff_invitation',
-      'host_invitation',
       'visit_confirmation',
       'visit_declined',
       'new_time_proposed',

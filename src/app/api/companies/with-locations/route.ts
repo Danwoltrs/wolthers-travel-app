@@ -84,9 +84,28 @@ export async function GET(request: NextRequest) {
     // Use service role client to call the function
     const supabase = createServerSupabaseClient()
     
-    // Call the database function to get companies with locations
+    // Get companies with their location information using direct query
     const { data: companiesData, error: companiesError } = await supabase
-      .rpc('get_companies_with_locations')
+      .from('companies')
+      .select(`
+        id,
+        name,
+        email,
+        phone,
+        company_locations!inner (
+          id,
+          name,
+          address_line1,
+          address_line2,
+          city,
+          state_province,
+          country,
+          is_headquarters,
+          is_active,
+          created_at
+        )
+      `)
+      .eq('company_locations.is_active', true)
 
     if (companiesError) {
       console.error('❌ Failed to fetch companies with locations:', companiesError)
@@ -96,11 +115,39 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`✅ Found ${companiesData?.length || 0} companies with location data`)
+    // Transform the data to match the expected format
+    const transformedData: CompanyWithLocations[] = companiesData?.map(company => {
+      const locations = company.company_locations || []
+      const locationCount = locations.length
+      
+      // Find primary location (headquarters or first location)
+      const primaryLocation = locations.find((loc: any) => loc.is_headquarters) || locations[0]
+      
+      const primaryLocationAddress = primaryLocation ? [
+        primaryLocation.address_line1,
+        primaryLocation.address_line2,
+        primaryLocation.city,
+        primaryLocation.state_province,
+        primaryLocation.country
+      ].filter(Boolean).join(', ') : null
+
+      return {
+        company_id: company.id,
+        company_name: company.name,
+        company_email: company.email,
+        company_phone: company.phone,
+        location_count: locationCount,
+        primary_location_id: primaryLocation?.id || null,
+        primary_location_name: primaryLocation?.name || null,
+        primary_location_address: primaryLocationAddress
+      }
+    }) || []
+
+    console.log(`✅ Found ${transformedData.length} companies with location data`)
 
     const response = {
-      companies: companiesData as CompanyWithLocations[],
-      total: companiesData?.length || 0
+      companies: transformedData,
+      total: transformedData.length
     }
 
     return NextResponse.json(response)
