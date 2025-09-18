@@ -629,16 +629,18 @@ export function createTripCreationNotificationTemplate(data: TripItineraryEmailD
  * Generate trip itinerary email template (NEW - replaces the ugly trip creation template)
  */
 export function createTripItineraryTemplate(data: TripItineraryEmailData): EmailTemplate {
-  const { tripTitle, tripAccessCode, tripStartDate, tripEndDate, createdBy, itinerary, participants, companies, vehicle, driver } = data
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
+  const {
+    tripTitle,
+    tripAccessCode,
+    tripStartDate,
+    tripEndDate,
+    createdBy,
+    itinerary,
+    participants,
+    companies,
+    vehicle,
+    driver
+  } = data
 
   const formatDateRange = (start: string, end: string) => {
     const startDate = new Date(start)
@@ -655,7 +657,70 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     return `${startFormatted} - ${endFormatted}`
   }
 
+  const formatLongDateRange = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    const startFormatted = startDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    })
+    const endFormatted = endDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    })
+    return `${startFormatted} - ${endFormatted}`
+  }
+
+  const formatDayLabel = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const renderActivityLine = (activity: { time: string; title: string; location?: string; duration?: string }) => {
+    const detailParts: string[] = []
+
+    if (activity.location) {
+      detailParts.push(activity.location)
+    }
+
+    if (activity.duration) {
+      detailParts.push(activity.duration)
+    }
+
+    const detailText = detailParts.length ? ` (${detailParts.join(' • ')})` : ''
+
+    return `<p class="activity-line"><span class="activity-time">${activity.time}</span> - ${activity.title}${detailText}</p>`
+  }
+
   const subject = `${tripTitle} - ${formatDateRange(tripStartDate, tripEndDate)}`
+  const tripUrl = `${baseUrl}/trips/${tripAccessCode}`
+
+  const participantLines = (() => {
+    if (companies.length > 0) {
+      return companies
+        .filter(company => (company.representatives?.length ?? 0) > 0)
+        .map(company => {
+          const names = (company.representatives || [])
+            .map(rep => rep.name.split(' ')[0])
+            .join(', ')
+          return names ? `${company.name}: ${names}` : ''
+        })
+        .filter(Boolean)
+    }
+
+    if (participants.length > 0) {
+      return [participants.map(participant => participant.name.split(' ')[0]).join(', ')]
+    }
+
+    return []
+  })()
 
   const html = `
     <!DOCTYPE html>
@@ -667,313 +732,207 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
         <style>
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.4;
-            color: #333;
-            max-width: 600px;
+            line-height: 1.5;
+            color: #1f2933;
+            max-width: 640px;
             margin: 0 auto;
-            padding: 16px;
-            background-color: #f9f9f9;
-            font-size: 13px;
+            padding: 32px 24px;
+            background-color: #ffffff;
+            font-size: 14px;
           }
-          .container {
-            background: white;
-            padding: 0;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            overflow: hidden;
+          h1, h2, h3 {
+            font-weight: 600;
+            color: #193b2f;
+            margin: 0;
+          }
+          a {
+            color: #1a7a5a;
           }
           .header {
-            background: linear-gradient(135deg, #2D5347, #1a4c42);
-            color: white;
-            padding: 30px;
             text-align: center;
+            margin-bottom: 24px;
           }
-          .header h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
+          .header img {
+            max-width: 160px;
+            margin-bottom: 16px;
           }
-          .header .trip-code {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-top: 10px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 14px;
-            letter-spacing: 1px;
+          .title {
+            font-size: 22px;
+            margin-bottom: 6px;
           }
-          .content {
-            padding: 20px;
+          .meta {
+            text-align: center;
+            margin-bottom: 24px;
           }
-          .trip-overview {
-            background: linear-gradient(135deg, #FEF3C7, #F3E8A6);
-            padding: 16px;
-            border-radius: 6px;
-            margin: 16px 0;
-            border-left: 3px solid #2D5347;
+          .meta p {
+            margin: 4px 0;
           }
-          .itinerary-section {
-            background: #f8fafc;
-            border-radius: 6px;
-            padding: 16px;
-            margin: 16px 0;
+          .participants {
+            text-align: center;
+            margin-bottom: 24px;
           }
-          .day-section {
-            margin: 12px 0;
-            border-left: 2px solid #2D5347;
-            padding-left: 12px;
+          .participants p {
+            margin: 4px 0;
           }
-          .day-header {
-            background: #2D5347;
-            color: white;
-            padding: 8px 12px;
-            margin-left: -14px;
+          .section-title {
+            font-size: 16px;
+            margin-bottom: 12px;
+          }
+          .itinerary {
+            margin-bottom: 28px;
+          }
+          .day-block {
+            margin-bottom: 18px;
+          }
+          .day-block:last-child {
+            margin-bottom: 0;
+          }
+          .day-heading {
+            font-size: 15px;
             margin-bottom: 8px;
-            border-radius: 0 4px 4px 0;
-            font-weight: 600;
-            font-size: 14px;
           }
-          .activity {
-            background: white;
-            padding: 10px;
-            margin: 6px 0;
-            border-radius: 4px;
-            border-left: 2px solid #FEF3C7;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
+          .activity-line {
+            margin: 4px 0 0 18px;
           }
           .activity-time {
-            background: #2D5347;
-            color: white;
-            padding: 6px 8px;
-            border-radius: 3px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 11px;
             font-weight: 600;
-            min-width: 60px;
-            text-align: center;
-            flex-shrink: 0;
+            color: #193b2f;
           }
-          .activity-details {
+          .transportation {
+            margin-bottom: 28px;
+          }
+          .transportation-grid {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+          }
+          .transportation-card {
             flex: 1;
+            min-width: 220px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
           }
-          .activity-title {
-            font-weight: 600;
-            color: #2D5347;
-            margin: 0 0 3px 0;
-            font-size: 13px;
+          .transportation-card h3 {
+            font-size: 15px;
+            margin-bottom: 8px;
           }
-          .activity-location {
-            color: #666;
-            font-size: 11px;
-            margin: 0;
-          }
-          .logistics-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin: 16px 0;
-          }
-          .logistics-card {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #f0f0f0;
-          }
-          .logistics-card h4 {
-            margin: 0 0 8px 0;
-            color: #2D5347;
-            font-size: 13px;
-            font-weight: 600;
-          }
-          .participants-section {
-            background: #f0f9ff;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 16px 0;
-          }
-          .participants-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 8px;
-          }
-          .participant-group h5 {
-            color: #2D5347;
-            margin: 0 0 6px 0;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .participant-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-          }
-          .participant-list li {
-            padding: 2px 0;
-            font-size: 11px;
-            color: #555;
+          .transportation-card p {
+            margin: 4px 0;
           }
           .footer {
-            text-align: center;
-            color: #666;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 16px;
             font-size: 12px;
-            margin-top: 20px;
-            padding: 16px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-          }
-          .contact-info {
-            background: #2D5347;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 16px 0;
+            color: #52606d;
             text-align: center;
           }
-          @media (max-width: 600px) {
-            .logistics-section,
-            .participants-grid {
-              grid-template-columns: 1fr;
+          @media (max-width: 480px) {
+            body {
+              padding: 24px 16px;
             }
-            .activity {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-            .activity-time {
-              align-self: flex-start;
+            .activity-line {
+              margin-left: 12px;
             }
           }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>Trip Itinerary</h1>
-            <div class="trip-code">${tripAccessCode}</div>
+        <div class="header">
+          <img src="${logoUrl}" alt="Wolthers & Associates" />
+          <h1 class="title">${tripTitle} - Trip key code: ${tripAccessCode}</h1>
+          <p><a href="${tripUrl}" target="_blank" rel="noopener noreferrer">View trip</a></p>
+        </div>
+        <div class="meta">
+          <p>${formatLongDateRange(tripStartDate, tripEndDate)}</p>
+          <p>Organized by ${createdBy}</p>
+        </div>
+        ${participantLines.length > 0 ? `
+        <div class="participants">
+          ${participantLines.map(line => `<p>${line}</p>`).join('')}
+        </div>
+        ` : ''}
+        <div class="itinerary">
+          <h2 class="section-title">Itinerary</h2>
+          ${itinerary.map((day, index) => `
+            <div class="day-block">
+              <p class="day-heading">Day ${index + 1} - ${formatDayLabel(day.date)}</p>
+              ${day.activities.map(activity => renderActivityLine(activity)).join('')}
+            </div>
+          `).join('')}
+        </div>
+        ${(vehicle || driver) ? `
+        <div class="transportation">
+          <h2 class="section-title">Transportation</h2>
+          <div class="transportation-grid">
+            ${driver ? `
+            <div class="transportation-card">
+              <h3>Driver</h3>
+              <p>${driver.name}</p>
+              ${driver.phone ? `<p>${driver.phone}</p>` : ''}
+            </div>
+            ` : ''}
+            ${vehicle ? `
+            <div class="transportation-card">
+              <h3>Vehicle</h3>
+              <p>${vehicle.make} ${vehicle.model}</p>
+              ${vehicle.licensePlate ? `<p>License: ${vehicle.licensePlate}</p>` : ''}
+            </div>
+            ` : ''}
           </div>
-
-          <div class="content">
-            <div class="trip-overview">
-              <h2 style="margin: 0 0 15px 0; color: #2D5347;">${tripTitle}</h2>
-              <p style="margin: 0; font-size: 14px;"><strong>${new Date(tripStartDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} - ${new Date(tripEndDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
-              <p style="margin: 8px 0 0 0; color: #666; font-size: 13px;">Organized by ${createdBy}</p>
-            </div>
-
-            <div class="itinerary-section">
-              <h3 style="margin: 0 0 20px 0; color: #2D5347; font-size: 18px;">Daily Schedule</h3>
-
-              ${itinerary.map(day => `
-                <div class="day-section">
-                  <div class="day-header">
-                    ${new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  </div>
-                  ${day.activities.map(activity => `
-                    <div class="activity">
-                      <div class="activity-time">${activity.time}</div>
-                      <div class="activity-details">
-                        <h4 class="activity-title">${activity.title}</h4>
-                        ${activity.location ? `<p class="activity-location">${activity.location}</p>` : ''}
-                        ${activity.duration ? `<p class="activity-location">Duration: ${activity.duration}</p>` : ''}
-                      </div>
-                    </div>
-                  `).join('')}
-                </div>
-              `).join('')}
-            </div>
-
-            <div class="logistics-section">
-              ${vehicle ? `
-              <div class="logistics-card">
-                <h4>Transportation</h4>
-                <p style="margin: 5px 0;"><strong>${vehicle.make} ${vehicle.model}</strong></p>
-                ${vehicle.licensePlate ? `<p style="margin: 5px 0; color: #666; font-family: monospace;">${vehicle.licensePlate}</p>` : ''}
-                ${driver ? `<p style="margin: 10px 0 5px 0; color: #2D5347; font-weight: 600;">Driver: ${driver.name}</p>` : ''}
-                ${driver?.phone ? `<p style="margin: 5px 0; color: #666;">${driver.phone}</p>` : ''}
-              </div>
-              ` : ''}
-
-              <div class="logistics-card">
-                <h4>Emergency Contact</h4>
-                <p style="margin: 5px 0;"><strong>${createdBy}</strong></p>
-                <p style="margin: 5px 0; color: #666;">Wolthers & Associates</p>
-                <p style="margin: 10px 0 5px 0; color: #2D5347;">trips@trips.wolthers.com</p>
-              </div>
-            </div>
-
-            <div class="participants-section">
-              <h3 style="margin: 0 0 15px 0; color: #2D5347; font-size: 16px;">Trip Participants</h3>
-              <div class="participants-grid">
-                ${participants.length > 0 ? `
-                <div class="participant-group">
-                  <h5>Wolthers Team</h5>
-                  <ul class="participant-list">
-                    ${participants.map(p => `<li>• ${p.name}${p.role ? ` (${p.role})` : ''}</li>`).join('')}
-                  </ul>
-                </div>
-                ` : ''}
-
-                ${companies.length > 0 ? `
-                <div class="participant-group">
-                  <h5>Traveling Companies</h5>
-                  <ul class="participant-list">
-                    ${companies.map(c => `<li>• ${c.name}</li>`).join('')}
-                  </ul>
-                </div>
-                ` : ''}
-              </div>
-            </div>
-
-            <div class="contact-info">
-              <h4 style="margin: 0 0 10px 0; font-size: 15px;">Need Help During Your Trip?</h4>
-              <p style="margin: 0; font-size: 13px;">Contact ${createdBy} or email <strong>trips@trips.wolthers.com</strong></p>
-            </div>
-          </div>
-
-          <div class="footer">
-            <p style="font-size: 14px;"><strong>Safe travels!</strong><br/>
-            <strong>Wolthers & Associates Travel Team</strong></p>
-            <p style="font-size: 11px; color: #999; margin-top: 12px;">
-              This itinerary was generated automatically. For changes or questions, contact your trip organizer.
-            </p>
-          </div>
+        </div>
+        ` : ''}
+        <div class="footer">
+          <p>Safe travels from the Wolthers & Associates Travel Team.</p>
+          <p>This itinerary was generated automatically. Contact ${createdBy} for updates.</p>
         </div>
       </body>
     </html>
   `
 
-  const text = `
-TRIP ITINERARY
+  const textLines: string[] = [
+    `${tripTitle} - Trip key code: ${tripAccessCode}`,
+    `View trip: ${tripUrl}`,
+    formatLongDateRange(tripStartDate, tripEndDate),
+    `Organized by ${createdBy}`,
+    ...participantLines,
+    '',
+    'Itinerary:'
+  ]
 
-${tripTitle}
-Trip Code: ${tripAccessCode}
-Dates: ${new Date(tripStartDate).toLocaleDateString()} - ${new Date(tripEndDate).toLocaleDateString()}
-Organized by: ${createdBy}
+  itinerary.forEach((day, index) => {
+    textLines.push(`Day ${index + 1} - ${formatDayLabel(day.date)}`)
 
-DAILY SCHEDULE:
-${itinerary.map(day => `
-${new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-${day.activities.map(activity => `  ${activity.time} - ${activity.title}${activity.location ? ` at ${activity.location}` : ''}${activity.duration ? ` (${activity.duration})` : ''}`).join('\n')}
-`).join('\n')}
+    day.activities.forEach(activity => {
+      const detailParts: string[] = []
+      if (activity.location) {
+        detailParts.push(activity.location)
+      }
+      if (activity.duration) {
+        detailParts.push(activity.duration)
+      }
+      const detailText = detailParts.length ? ` (${detailParts.join(' • ')})` : ''
+      textLines.push(`  ${activity.time} - ${activity.title}${detailText}`)
+    })
+  })
 
-TRANSPORTATION:
-${vehicle ? `Vehicle: ${vehicle.make} ${vehicle.model}${vehicle.licensePlate ? ` (${vehicle.licensePlate})` : ''}` : 'TBD'}
-${driver ? `Driver: ${driver.name}${driver.phone ? ` - ${driver.phone}` : ''}` : ''}
+  if (driver || vehicle) {
+    textLines.push('', 'Transportation:')
 
-PARTICIPANTS:
-${participants.length > 0 ? `Wolthers Team:\n${participants.map(p => `- ${p.name}${p.role ? ` (${p.role})` : ''}`).join('\n')}` : ''}
-${companies.length > 0 ? `\nTraveling Companies:\n${companies.map(c => `- ${c.name}`).join('\n')}` : ''}
+    if (driver) {
+      textLines.push(`Driver: ${driver.name}${driver.phone ? ` (${driver.phone})` : ''}`)
+    }
 
-EMERGENCY CONTACT:
-${createdBy} - trips@trips.wolthers.com
+    if (vehicle) {
+      const vehicleDetails = `${vehicle.make} ${vehicle.model}`.trim()
+      const license = vehicle.licensePlate ? ` - License: ${vehicle.licensePlate}` : ''
+      textLines.push(`Vehicle: ${vehicleDetails}${license}`)
+    }
+  }
 
-Safe travels!
-Wolthers & Associates Travel Team
-  `
+  textLines.push('', 'Safe travels from the Wolthers & Associates Travel Team.', `For assistance, contact ${createdBy}.`)
+
+  const text = textLines.filter(line => line !== undefined && line !== null).join('\n')
 
   return { subject, html, text }
 }
