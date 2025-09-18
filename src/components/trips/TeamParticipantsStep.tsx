@@ -13,11 +13,79 @@ interface TeamParticipantsStepProps {
 
 interface BuyerCompany extends Company {
   participants: User[]
-  participationStartDate?: Date
-  participationEndDate?: Date
+  participationStartDate?: Date | null
+  participationEndDate?: Date | null
   isPartial?: boolean
   wolthersContact?: User // Primary Wolthers contact for this company
+  selectedContacts?: Array<{
+    id?: string
+    name?: string
+    full_name?: string
+    email?: string
+    phone?: string
+    role?: string
+  }>
 }
+
+const toDateOrNull = (value: any): Date | null => {
+  if (!value) return null
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value
+  }
+
+  const parsed = new Date(value)
+  return isNaN(parsed.getTime()) ? null : parsed
+}
+
+const normalizeParticipant = (participant: any, companyId: string, index: number): User => {
+  const fallbackId = participant?.id
+    || participant?.user_id
+    || participant?.email
+    || `${companyId || 'company'}-guest-${index}`
+
+  const fullName = participant?.full_name
+    || participant?.fullName
+    || participant?.name
+    || participant?.email
+    || 'Guest'
+
+  return {
+    id: fallbackId,
+    email: participant?.email || '',
+    full_name: fullName,
+    phone: participant?.phone || participant?.whatsapp,
+    role: participant?.role || participant?.title,
+    company_id: participant?.company_id || companyId,
+    user_type: participant?.user_type || 'contact',
+    created_at: participant?.created_at || new Date().toISOString(),
+    updated_at: participant?.updated_at || new Date().toISOString()
+  } as unknown as User
+}
+
+const normalizeContact = (contact: any, companyId: string, index: number) => {
+  const fallbackId = contact?.id
+    || contact?.user_id
+    || contact?.email
+    || `${companyId || 'company'}-contact-${index}`
+
+  const name = contact?.name
+    || contact?.full_name
+    || contact?.fullName
+    || contact?.email
+    || 'Guest'
+
+  return {
+    id: fallbackId,
+    name,
+    full_name: contact?.full_name || contact?.fullName || name,
+    email: contact?.email || '',
+    phone: contact?.phone || contact?.whatsapp,
+    role: contact?.role || contact?.title
+  }
+}
+
+const participantsToContacts = (participants: User[], companyId: string) =>
+  participants.map((participant, index) => normalizeContact(participant, companyId, index))
 
 export default function TeamParticipantsStep({ formData, updateFormData }: TeamParticipantsStepProps) {
   const { staff, isLoading, error } = useWolthersStaff()
@@ -29,17 +97,43 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
 
   // Initialize buyer companies from existing formData
   useEffect(() => {
-    if (formData.companies && formData.companies.length > 0) {
-      const initialBuyerCompanies = formData.companies.map(company => ({
-        ...company,
-        participants: [],
-        participationStartDate: formData.startDate,
-        participationEndDate: formData.endDate,
-        isPartial: false,
-        wolthersContact: undefined
-      }))
-      setBuyerCompanies(initialBuyerCompanies)
+    const companies = formData.companies || []
+
+    if (companies.length === 0) {
+      setBuyerCompanies([])
+      return
     }
+
+    const normalizedBuyerCompanies = companies.map((company, companyIndex) => {
+      const companyAny = company as BuyerCompany
+      const companyId = company.id || `company-${companyIndex}`
+
+      const rawParticipants = Array.isArray((companyAny as any).participants) && (companyAny as any).participants!.length > 0
+        ? (companyAny as any).participants!
+        : ((companyAny as any).selectedContacts || [])
+
+      const normalizedParticipants = rawParticipants.map((participant: any, index: number) =>
+        normalizeParticipant(participant, companyId, index)
+      )
+
+      const normalizedContacts = ((companyAny as any).selectedContacts || []).length > 0
+        ? ((companyAny as any).selectedContacts as any[]).map((contact: any, index: number) =>
+            normalizeContact(contact, companyId, index)
+          )
+        : participantsToContacts(normalizedParticipants, companyId)
+
+      return {
+        ...company,
+        participants: normalizedParticipants,
+        selectedContacts: normalizedContacts,
+        participationStartDate: toDateOrNull((companyAny as any).participationStartDate) || formData.startDate || null,
+        participationEndDate: toDateOrNull((companyAny as any).participationEndDate) || formData.endDate || null,
+        isPartial: (companyAny as any).isPartial ?? false,
+        wolthersContact: (companyAny as any).wolthersContact
+      }
+    })
+
+    setBuyerCompanies(normalizedBuyerCompanies)
   }, [formData.companies, formData.startDate, formData.endDate])
 
   // Debug effect to track buyerCompanies state changes
@@ -50,6 +144,41 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       participants: bc.participants?.map(p => p.full_name || p.email)
     })))
   }, [buyerCompanies])
+
+  const syncBuyerCompaniesToFormData = (companies: BuyerCompany[]) => {
+    const sanitizedCompanies = companies.map((company, companyIndex) => {
+      const companyId = company.id || `company-${companyIndex}`
+
+      const participants = (company.participants || []).map((participant, index) => ({
+        ...participant,
+        id: participant.id || `${companyId}-guest-${index}`,
+        full_name: participant.full_name || (participant as any).fullName || participant.email || 'Guest',
+        email: participant.email || '',
+        phone: participant.phone || (participant as any).whatsapp,
+        role: participant.role,
+        company_id: participant.company_id || companyId,
+        user_type: (participant as any).user_type || 'contact'
+      }))
+
+      const contactsSource = (company.selectedContacts && company.selectedContacts.length > 0)
+        ? company.selectedContacts
+        : participantsToContacts(participants as unknown as User[], companyId)
+
+      const contacts = contactsSource.map((contact, index) => normalizeContact(contact, companyId, index))
+
+      return {
+        ...company,
+        participants,
+        selectedContacts: contacts,
+        participationStartDate: company.participationStartDate || formData.startDate || null,
+        participationEndDate: company.participationEndDate || formData.endDate || null,
+        isPartial: company.isPartial || false,
+        wolthersContact: company.wolthersContact
+      }
+    })
+
+    updateFormData({ companies: sanitizedCompanies as unknown as Company[] })
+  }
 
   const handleWolthersStaffSelection = (selectedStaff: User[]) => {
     updateFormData({ participants: selectedStaff })
@@ -62,23 +191,23 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       participationStartDate: formData.startDate,
       participationEndDate: formData.endDate,
       isPartial: false,
-      wolthersContact: undefined
+      wolthersContact: undefined,
+      selectedContacts: []
     }
-    setBuyerCompanies([...buyerCompanies, newBuyerCompany])
+    const updatedBuyerCompanies = [...buyerCompanies, newBuyerCompany]
+    setBuyerCompanies(updatedBuyerCompanies)
     setShowAddBuyerForm(false)
     setNewBuyerSearch('')
 
-    // Update formData companies
-    updateFormData({ companies: [...formData.companies, company] })
+    syncBuyerCompaniesToFormData(updatedBuyerCompanies)
   }
 
   const removeBuyerCompany = (companyId: string) => {
     const updatedBuyerCompanies = buyerCompanies.filter(bc => bc.id !== companyId)
     setBuyerCompanies(updatedBuyerCompanies)
-    
+
     // Update formData companies
-    const updatedCompanies = formData.companies.filter(c => c.id !== companyId)
-    updateFormData({ companies: updatedCompanies })
+    syncBuyerCompaniesToFormData(updatedBuyerCompanies)
   }
 
   const updateBuyerCompany = (companyId: string, updates: Partial<BuyerCompany>) => {
@@ -107,9 +236,11 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
       console.error('🔧 Available company IDs:', buyerCompanies.map(bc => bc.id))
       return
     }
-    
+
     console.log('🔧 ✅ Setting new buyerCompanies state with', updatedBuyerCompanies.length, 'companies')
     setBuyerCompanies(updatedBuyerCompanies)
+
+    syncBuyerCompaniesToFormData(updatedBuyerCompanies)
   }
 
   const openGuestModal = (company: Company) => {
@@ -123,20 +254,26 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
     console.log('🎯 Current buyerCompanies IDs:', buyerCompanies.map(bc => ({ id: bc.id, name: bc.name })))
     console.log('🎯 selectedCompanyForGuests:', selectedCompanyForGuests)
     
-    // Convert guests to User format for consistency
-    const guests: User[] = selectedGuests.map(guest => ({
-      id: guest.id || `guest_${Date.now()}_${Math.random()}`,
-      email: guest.email || '',
-      full_name: 'full_name' in guest ? guest.full_name : guest.name,
-      phone: guest.phone || undefined,
-      role: guest.role || undefined,
-      company_id: companyId,
-      user_type: 'full_name' in guest ? 'user' : 'contact',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }))
+    const companyKey = selectedCompanyForGuests?.id || companyId || 'company'
 
-    console.log('🎯 Converted guests:', guests.map(g => ({ name: g.full_name, email: g.email, id: g.id })))
+    // Normalize guests into participant + contact payloads for downstream steps
+    const guestParticipants: User[] = selectedGuests.map((guest, index) =>
+      normalizeParticipant(
+        {
+          ...guest,
+          company_id: companyKey,
+          user_type: (guest as any)?.user_type || ('full_name' in guest ? 'user' : 'contact')
+        },
+        companyKey,
+        index
+      )
+    )
+
+    const guestContacts = selectedGuests.map((guest, index) =>
+      normalizeContact(guest, companyKey, index)
+    )
+
+    console.log('🎯 Converted guests:', guestParticipants.map(g => ({ name: g.full_name, email: g.email, id: g.id })))
 
     // Find and update the buyer company with selected participants
     // Try exact ID match first
@@ -150,10 +287,21 @@ export default function TeamParticipantsStep({ formData, updateFormData }: TeamP
     }
     
     if (targetCompany) {
+      const resolvedCompanyId = targetCompany.id || companyKey
+      const participantsForUpdate = guestParticipants.map((participant, index) => ({
+        ...participant,
+        company_id: resolvedCompanyId,
+        id: participant.id || `${resolvedCompanyId}-guest-${index}`
+      }))
+      const contactsForUpdate = guestContacts.map((contact, index) => ({
+        ...contact,
+        id: contact.id || `${resolvedCompanyId}-contact-${index}`
+      }))
+
       console.log('🎯 Found target company:', targetCompany.name, 'ID:', targetCompany.id)
       console.log('🎯 Current participants count:', targetCompany.participants?.length || 0)
-      console.log('🎯 New participants count:', guests.length)
-      updateBuyerCompany(targetCompany.id, { participants: guests })
+      console.log('🎯 New participants count:', participantsForUpdate.length)
+      updateBuyerCompany(targetCompany.id, { participants: participantsForUpdate, selectedContacts: contactsForUpdate })
     } else {
       console.error('🚨 Could not find company to update. CompanyId:', companyId)
       console.error('🚨 Available companies:', buyerCompanies.map(bc => ({ id: bc.id, name: bc.name })))

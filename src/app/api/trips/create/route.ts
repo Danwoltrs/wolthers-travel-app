@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { ParticipantEmailService } from '@/services/participant-email-service'
-import { sendTripCreationNotificationEmails, sendHostVisitConfirmationEmail } from '@/lib/resend'
+import { sendTripItineraryEmails, sendHostVisitConfirmationEmail } from '@/lib/resend'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!
@@ -199,13 +198,19 @@ export async function POST(request: NextRequest) {
     // Create external company participants (hosts/guests)
     if (tripData.companies && tripData.companies.length > 0) {
       for (const company of tripData.companies) {
-        // Handle both selectedContacts (guests) and representatives (hosts) 
-        const contacts = company.selectedContacts || company.representatives || []
-        
+        // Handle selected contacts from multiple fields to support legacy data
+        const contacts = company.selectedContacts || company.participants || company.representatives || []
+        const isHostCompany = company.isHost || company.role === 'host'
+
         if (contacts && contacts.length > 0) {
           console.log(`👤 [Create Trip API] Creating participants for ${company.name || company.fantasy_name}:`, contacts.length)
-          
+
           for (const contact of contacts) {
+            if (!contact?.email && !isHostCompany) {
+              console.warn(`⚠️ [Create Trip API] Skipping guest without email for ${company.name || company.fantasy_name}`)
+              continue
+            }
+
             // Try to find existing user first
             const { data: existingUser } = await supabase
               .from('users')
@@ -217,22 +222,20 @@ export async function POST(request: NextRequest) {
 
             // If no existing user, create a guest entry with UUID
             if (!participantUserId) {
-              // Use crypto.randomUUID() for better uniqueness
               participantUserId = crypto.randomUUID()
             }
 
-            // Determine role based on company context or explicit role
-            const role = contact.role || (company.isHost || company.role === 'host' ? 'host' : 'guest')
+            const role = isHostCompany ? 'host' : 'guest'
 
             const participantData = {
               trip_id: trip.id,
               user_id: participantUserId,
-              role: role,
+              role,
               email_sent: false,
               participation_start_date: tripData.startDate,
               participation_end_date: tripData.endDate,
-              guest_name: existingUser ? null : (contact.name || contact.full_name),
-              guest_email: existingUser ? null : contact.email,
+              guest_name: existingUser ? null : (contact.name || contact.full_name || contact.fullName || contact.email || 'Guest'),
+              guest_email: existingUser ? null : contact.email || null,
               guest_company: existingUser ? null : (company.name || company.fantasy_name),
               company_id: company.id
             }
@@ -245,7 +248,7 @@ export async function POST(request: NextRequest) {
               console.error(`⚠️ [Create Trip API] Failed to add participant ${contact.name || contact.email}:`, participantError)
               // Don't fail the trip creation, just log the error
             } else {
-              console.log(`✅ [Create Trip API] Added participant ${contact.name || contact.email} for ${company.name || company.fantasy_name}`)
+              console.log(`✅ [Create Trip API] Added ${role} ${contact.name || contact.email || 'Representative'} for ${company.name || company.fantasy_name}`)
             }
           }
         }
@@ -367,133 +370,175 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send trip creation notification emails
+    // Send trip itinerary emails and host invitations
     try {
-      console.log('📧 [Create Trip API] Sending trip creation notification emails...')
-      
-      // Prepare itinerary data for email template
-      const { data: itineraryDays } = await supabase
-        .from('itinerary_days')
-        .select(`
+      console.log('📧 [Create Trip API] Preparing itinerary email data...')
+
+      const formatTime = (timeValue: string | undefined, fallbackDate: string | null = null) => {
+        if (!timeValue) return ''
+        try {
+          if (timeValue.includes('T')) {
+            const parsed = new Date(timeValue)
+            if (!isNaN(parsed.getTime())) {
+              return parsed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            }
+          }
+
+          const referenceDate = fallbackDate || tripData.startDate || new Date().toISOString().split('T')[0]
+          const parsed = new Date(`${referenceDate}T${timeValue}`)
+          if (!isNaN(parsed.getTime())) {
+            return parsed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          }
+        } catch (error) {
+          console.warn('⚠️ [Create Trip API] Failed to format time value:', timeValue, error)
+        }
+        return timeValue
+      }
+
+      const rawActivities = (activitiesToCreate.length > 0
+        ? activitiesToCreate
+        : (tripData.generatedActivities || tripData.activities || [])) as any[]
+
+      const itineraryMap = new Map<string, any[]>()
+      for (const activity of rawActivities) {
+        const activityDate = activity.activity_date || (activity.start_time ? new Date(activity.start_time).toISOString().split('T')[0] : null)
+        if (!activityDate) continue
+        if (!itineraryMap.has(activityDate)) {
+          itineraryMap.set(activityDate, [])
+        }
+        itineraryMap.get(activityDate)!.push(activity)
+      }
+
+      const itinerary = Array.from(itineraryMap.entries())
+        .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+        .map(([date, activities]) => ({
           date,
-          activities (
-            title,
-            start_time,
-            duration_minutes,
-            location,
-            type,
-            description
-          )
-        `)
-        .eq('trip_id', trip.id)
-        .order('date', { ascending: true })
-
-      // Format itinerary for email
-      const itinerary = itineraryDays?.map(day => ({
-        date: day.date,
-        activities: day.activities.map(activity => ({
-          time: new Date(activity.start_time).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          title: activity.title,
-          location: activity.location,
-          duration: activity.duration_minutes ? `${activity.duration_minutes} minutes` : undefined
+          activities: activities
+            .sort((a: any, b: any) => {
+              const aTime = new Date(a.start_time || `${a.activity_date}T00:00:00`).getTime()
+              const bTime = new Date(b.start_time || `${b.activity_date}T00:00:00`).getTime()
+              return aTime - bTime
+            })
+            .map((activity: any) => ({
+              time: formatTime(activity.start_time, activity.activity_date),
+              title: activity.title,
+              location: activity.location,
+              duration: activity.duration_minutes ? `${activity.duration_minutes} minutes` : undefined
+            }))
         }))
-      })) || []
 
-      // Get participants for email
       const staffParticipants = (tripData.participants || []).map((p: any) => ({
-        name: p.full_name || p.name,
+        name: p.full_name || p.name || p.fullName || 'Wolthers Staff',
         email: p.email,
         role: 'staff'
-      }))
+      })).filter((participant: any) => participant.email)
 
-      // Get company representatives for email
-      const companyReps = (tripData.companies || []).flatMap((company: any) => 
-        (company.selectedContacts || []).map((contact: any) => ({
-          name: contact.name,
-          email: contact.email,
-          role: 'guest'
-        }))
-      )
+      const guestCompanies = (tripData.companies || []).filter((company: any) => !(company.isHost || company.role === 'host'))
 
-      // Prepare email data
+      const primaryVehicle = vehicles[0]
+      const primaryDriver = drivers[0] || tripData.vehicleAssignments?.[0]?.driver
+
       const emailData = {
         tripTitle: trip.title,
         tripAccessCode: trip.access_code,
         tripStartDate: trip.start_date,
         tripEndDate: trip.end_date,
         createdBy: user.full_name,
-        itinerary: itinerary,
+        itinerary,
         participants: staffParticipants,
-        companies: (tripData.companies || []).map((company: any) => ({
-          name: company.name,
-          representatives: (company.selectedContacts || []).map((contact: any) => ({
-            name: contact.name,
+        companies: guestCompanies.map((company: any) => ({
+          name: company.name || company.fantasy_name,
+          representatives: (company.selectedContacts || company.participants || []).map((contact: any) => ({
+            name: contact.name || contact.full_name || contact.fullName || contact.email,
             email: contact.email
-          }))
-        }))
+          })).filter((rep: any) => rep.email)
+        })),
+        vehicle: primaryVehicle ? {
+          make: primaryVehicle.make || primaryVehicle.model?.split(' ')[0] || primaryVehicle.model || 'Vehicle',
+          model: primaryVehicle.model || primaryVehicle.name || primaryVehicle.make,
+          licensePlate: primaryVehicle.license_plate || primaryVehicle.licensePlate
+        } : undefined,
+        driver: primaryDriver ? {
+          name: primaryDriver.full_name || primaryDriver.fullName || primaryDriver.name,
+          phone: primaryDriver.phone || primaryDriver.whatsapp
+        } : undefined
       }
 
-      // Send the new trip creation notification emails
-      const emailResult = await sendTripCreationNotificationEmails(emailData)
+      const emailResult = await sendTripItineraryEmails(emailData)
 
       if (emailResult.success) {
-        console.log('✅ [Create Trip API] All trip creation notification emails sent successfully')
+        console.log('✅ [Create Trip API] Itinerary emails sent successfully to staff and guests')
       } else {
-        console.error('⚠️ [Create Trip API] Some notification emails failed:', emailResult.errors)
+        console.error('⚠️ [Create Trip API] Some itinerary emails failed:', emailResult.errors)
       }
 
-      // Send separate host visit confirmation emails to host representatives
-      if (tripData.hostCompanies && tripData.hostCompanies.length > 0) {
+      const hostCompanies = (tripData.hostCompanies && tripData.hostCompanies.length > 0)
+        ? tripData.hostCompanies
+        : (tripData.companies || []).filter((company: any) => company.isHost || company.role === 'host')
+
+      if (hostCompanies && hostCompanies.length > 0) {
         console.log('📧 [Create Trip API] Sending host visit confirmation emails...')
-        
-        for (const hostCompany of tripData.hostCompanies) {
-          if (hostCompany.representatives && hostCompany.representatives.length > 0) {
-            // Find activities/visits scheduled with this host company
-            const hostActivities = itinerary.flatMap(day => 
-              day.activities.filter(activity => 
-                activity.title.toLowerCase().includes('visit') && 
-                (activity.title.toLowerCase().includes(hostCompany.name.toLowerCase()) ||
-                 activity.title.toLowerCase().includes(hostCompany.fantasy_name?.toLowerCase() || ''))
+
+        const visitingGuests = guestCompanies
+          .map((company: any) => company.name || company.fantasy_name)
+          .filter(Boolean)
+
+        for (const hostCompany of hostCompanies) {
+          const representatives = (hostCompany.representatives || hostCompany.selectedContacts || [])
+            .filter((rep: any) => rep.email)
+
+          if (representatives.length === 0) continue
+
+          const hostNameNormalized = (hostCompany.fantasy_name || hostCompany.name || '').toLowerCase()
+
+          const hostActivities = rawActivities
+            .filter((activity: any) => {
+              const title = (activity.title || '').toLowerCase()
+              const companyName = (activity.company_name || '').toLowerCase()
+              const byId = activity.company_id && hostCompany.id && activity.company_id === hostCompany.id
+              const byName = hostNameNormalized && (
+                title.includes(hostNameNormalized) || companyName.includes(hostNameNormalized)
               )
-            )
+              return byId || byName
+            })
+            .sort((a: any, b: any) => new Date(a.start_time || `${a.activity_date}T00:00:00`).getTime() - new Date(b.start_time || `${b.activity_date}T00:00:00`).getTime())
 
-            // Get visiting guest companies for this host
-            const visitingGuests = (tripData.companies || [])
-              .filter((company: any) => company.selectedContacts && company.selectedContacts.length > 0)
-              .map((company: any) => company.name)
+          const primaryActivity = hostActivities[0]
+          const visitDateRaw = primaryActivity?.activity_date
+            || (primaryActivity?.start_time ? new Date(primaryActivity.start_time).toISOString().split('T')[0] : null)
+            || tripData.startDate
+          const visitDateIso = visitDateRaw ? new Date(visitDateRaw).toISOString() : new Date(trip.start_date).toISOString()
+          const visitTimeFormatted = primaryActivity?.start_time
+            ? formatTime(primaryActivity.start_time, primaryActivity.activity_date)
+            : '09:00'
 
-            // Send visit confirmation email to each host representative
-            for (const representative of hostCompany.representatives) {
-              if (representative.email) {
-                try {
-                  const hostEmailData = {
-                    hostName: representative.name,
-                    companyName: hostCompany.name,
-                    visitDate: hostActivities.length > 0 ? hostActivities[0].time : trip.start_date,
-                    visitTime: hostActivities.length > 0 ? hostActivities[0].time : '09:00',
-                    guests: visitingGuests,
-                    inviterName: user.full_name,
-                    inviterEmail: user.email,
-                    yesUrl: `${process.env.NEXT_PUBLIC_APP_URL}/visits/confirm?token=`,
-                    noUrl: `${process.env.NEXT_PUBLIC_APP_URL}/visits/decline?token=`,
-                    tripTitle: trip.title,
-                    tripAccessCode: trip.access_code
-                  }
+          for (const representative of representatives) {
+            try {
+              const confirmationToken = crypto.randomUUID()
+              const yesUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=accept&token=${confirmationToken}`
+              const noUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=decline&token=${confirmationToken}`
 
-                  await sendHostVisitConfirmationEmail(representative.email, hostEmailData)
-                  
-                  console.log(`✅ [Create Trip API] Sent visit confirmation to ${representative.name} at ${hostCompany.name}`)
-                  
-                  // Add delay between host emails to respect rate limits
-                  await new Promise(resolve => setTimeout(resolve, 2000))
-                  
-                } catch (hostEmailError) {
-                  console.error(`❌ [Create Trip API] Failed to send visit confirmation to ${representative.email}:`, hostEmailError)
-                }
+              const hostEmailData = {
+                hostName: representative.name || representative.full_name || representative.fullName || representative.email,
+                companyName: hostCompany.name || hostCompany.fantasy_name,
+                visitDate: visitDateIso,
+                visitTime: visitTimeFormatted,
+                guests: visitingGuests,
+                inviterName: user.full_name,
+                inviterEmail: user.email,
+                yesUrl,
+                noUrl,
+                tripTitle: trip.title,
+                tripAccessCode: trip.access_code
               }
+
+              await sendHostVisitConfirmationEmail(representative.email, hostEmailData)
+              console.log(`✅ [Create Trip API] Sent visit confirmation to ${representative.email} for ${hostCompany.name || hostCompany.fantasy_name}`)
+
+              // Rate limiting delay
+              await new Promise(resolve => setTimeout(resolve, 2000))
+            } catch (hostEmailError) {
+              console.error(`❌ [Create Trip API] Failed to send visit confirmation to ${representative.email}:`, hostEmailError)
             }
           }
         }

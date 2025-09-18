@@ -574,6 +574,35 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         accessCode: formData.accessCode
       })
       
+      // Helper to normalize contact data coming from different steps
+      const normalizeContacts = (contacts: any[] = []) =>
+        contacts.map(contact => ({
+          ...contact,
+          name: contact.name || contact.full_name || contact.fullName || contact.email || 'Guest',
+          full_name: contact.full_name || contact.name || contact.fullName || contact.email || 'Guest',
+          email: contact.email || contact.contact_email || '',
+          role: contact.role || contact.type || undefined,
+          phone: contact.phone || contact.whatsapp || undefined
+        }))
+
+      // Normalize buyer companies so the API receives a consistent selectedContacts array
+      const buyerCompanies = (formData.companies || []).map(company => ({
+        ...company,
+        selectedContacts: normalizeContacts((company as any).selectedContacts || (company as any).participants || []),
+        participants: (company as any).participants || [],
+        isHost: false,
+        role: 'guest'
+      }))
+
+      // Normalize host companies separately with representative data
+      const hostCompaniesWithContacts = (formData.hostCompanies || []).map(host => ({
+        ...host,
+        selectedContacts: normalizeContacts(host.representatives || host.selectedContacts || []),
+        representatives: normalizeContacts(host.representatives || host.selectedContacts || []),
+        isHost: true,
+        role: 'host'
+      }))
+
       // Transform formData to match create API expectations
       const transformedData = {
         ...formData,
@@ -583,16 +612,10 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         // Also provide single vehicle/driver for backward compatibility
         vehicle: formData.vehicleAssignments?.[0]?.vehicle || null,
         driver: formData.vehicleAssignments?.[0]?.driver || null,
-        // Combine companies and hostCompanies data for participants
-        companies: [
-          ...(formData.companies || []),
-          ...(formData.hostCompanies || []).map(host => ({
-            ...host,
-            selectedContacts: host.representatives || host.selectedContacts || []
-          }))
-        ],
-        // Also include hostCompanies separately for email templates
-        hostCompanies: formData.hostCompanies || [],
+        // Combine normalized buyer and host companies for the API payload
+        companies: [...buyerCompanies, ...hostCompaniesWithContacts],
+        // Also include hostCompanies separately for email templates with normalized contacts
+        hostCompanies: hostCompaniesWithContacts,
         // Ensure generatedActivities are included
         generatedActivities: formData.generatedActivities || formData.activities || []
       }
@@ -640,10 +663,15 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
       const result = await response.json()
       console.log('✅ [TripCreation] Trip created successfully:', result)
 
-      const tripData = { 
-        id: result.trip.id, 
+      const tripData = {
+        id: result.trip.id,
         accessCode: result.trip.access_code,
-        ...formData 
+        ...formData,
+        companies: buyerCompanies,
+        hostCompanies: hostCompaniesWithContacts,
+        vehicles: transformedData.vehicles,
+        drivers: transformedData.drivers,
+        generatedActivities: transformedData.generatedActivities
       }
 
       console.log('📤 [TripCreation] Calling onTripCreated with data:', tripData)
