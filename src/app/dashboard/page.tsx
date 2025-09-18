@@ -540,7 +540,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-beige-100 dark:bg-[#212121] pt-12 xl:pt-40 pb-8 transition-colors duration-300">
-      {/* Fixed Add Trip Button fine-tuned positioning - Only show for authorized users */}
+      {/* Desktop Add Trip Button fine-tuned positioning - Only show for authorized users */}
       {canCreateTrips && (
         <div className="fixed left-[calc(50%-400px-160px)] top-[260px] xl:top-[260px] z-30 hidden xl:block">
           <div
@@ -584,23 +584,79 @@ export default function Dashboard() {
           </div>
 
           {currentTrips.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-x-6 md:gap-y-6 lg:gap-x-6 lg:gap-y-6 xl:gap-8 justify-items-center xl:justify-items-stretch justify-center xl:justify-start place-items-center xl:place-items-stretch md:max-w-3xl lg:max-w-3xl xl:max-w-none md:mx-auto lg:mx-auto xl:mx-0 [&>*:nth-child(odd):last-child]:md:col-span-2 [&>*:nth-child(odd):last-child]:lg:col-span-2 [&>*:nth-child(odd):last-child]:xl:col-span-1 [&>*:nth-child(odd):last-child]:md:justify-self-center [&>*:nth-child(odd):last-child]:lg:justify-self-center [&>*:nth-child(odd):last-child]:xl:justify-self-stretch">
-              {currentTrips.map((trip) => (
-                <TripCard
-                  key={trip.id}
-                  trip={trip}
-                  onClick={() => handleTripClick(trip)}
-                />
-              ))}
+            <div className="xl:block">
+              {/* Mobile layout - button and cards on same line */}
+              <div className="flex xl:hidden justify-center items-start">
+                {/* Mobile Add Trip Button - positioned 20px left of centered trip cards */}
+                {canCreateTrips && (
+                  <div className="flex-shrink-0 mr-5">
+                    <div
+                      onClick={handleCreateTrip}
+                      className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[40px] h-[420px]"
+                    >
+                      <Plus className="w-6 h-6 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Trip cards container - centered */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 md:gap-x-6 md:gap-y-6 lg:gap-x-6 lg:gap-y-6 justify-items-center md:max-w-3xl lg:max-w-3xl">
+                  {currentTrips.map((trip) => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      onClick={() => handleTripClick(trip)}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Desktop layout - original grid */}
+              <div className="hidden xl:grid grid-cols-3 gap-8 justify-items-stretch">
+                {currentTrips.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    onClick={() => handleTripClick(trip)}
+                  />
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500 dark:text-green-400">
-              <p>No current or upcoming trips</p>
-              {canCreateTrips ? (
-                <p className="text-sm mt-1">Click the "+" button to create your first trip</p>
-              ) : (
-                <p className="text-sm mt-1">Your company administrator can request trips that will be reviewed by Wolthers staff</p>
-              )}
+            <div className="xl:flex xl:justify-center">
+              {/* Mobile layout - button and message on same line */}
+              <div className="flex xl:hidden justify-center items-start">
+                {/* Mobile Add Trip Button when no trips exist - positioned 20px left of centered message */}
+                {canCreateTrips && (
+                  <div className="flex-shrink-0 mr-5">
+                    <div
+                      onClick={handleCreateTrip}
+                      className="bg-white dark:bg-[#123d32] rounded-lg shadow-lg hover:shadow-xl border-2 border-dashed border-gray-300 dark:border-[#123d32] hover:border-golden-400 dark:hover:border-golden-400 hover:bg-golden-50 dark:hover:bg-[#0E3D2F] transition-all duration-300 cursor-pointer flex items-center justify-center group transform hover:-translate-y-1 hover:scale-105 w-[40px] h-[190px]"
+                    >
+                      <Plus className="w-6 h-6 text-gray-400 dark:text-golden-400 group-hover:text-golden-600 dark:group-hover:text-golden-300 transition-colors" />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-center py-12 text-gray-500 dark:text-green-400">
+                  <p>No current or upcoming trips</p>
+                  {canCreateTrips ? (
+                    <p className="text-sm mt-1">Click the "+" button to create your first trip</p>
+                  ) : (
+                    <p className="text-sm mt-1">Your company administrator can request trips that will be reviewed by Wolthers staff</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Desktop layout - centered message */}
+              <div className="hidden xl:block text-center py-12 text-gray-500 dark:text-green-400">
+                <p>No current or upcoming trips</p>
+                {canCreateTrips ? (
+                  <p className="text-sm mt-1">Click the "+" button to create your first trip</p>
+                ) : (
+                  <p className="text-sm mt-1">Your company administrator can request trips that will be reviewed by Wolthers staff</p>
+                )}
+              </div>
             </div>
           )}
         </div>

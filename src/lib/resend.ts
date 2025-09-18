@@ -429,10 +429,13 @@ export function createTripCreationNotificationTemplate(data: TripItineraryEmailD
   // Get guest companies and their representatives
   const guestInfo = companies.map(company => {
     const reps = company.representatives || []
-    const firstNames = reps.map(r => r.name.split(' ')[0]).join(', ')
+    const firstNames = reps
+      .filter(r => r && (r.name || r.full_name)) // Filter out invalid entries
+      .map(r => (r.name || r.full_name || 'Guest').split(' ')[0])
+      .join(', ')
     return {
       name: company.name,
-      firstNames: firstNames
+      firstNames: firstNames || 'Guests'
     }
   })
 

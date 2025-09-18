@@ -10,23 +10,47 @@ export async function GET(
   try {
     const { id: tripId } = await params
 
+    console.log(`🔍 [TripDetails] Starting request for tripId: ${tripId}`)
+    console.log(`🔍 [TripDetails] Request URL: ${request.url}`)
+    console.log(`🔍 [TripDetails] Request method: ${request.method}`)
+
     let user: any = null
     
     // Try JWT token authentication first (Microsoft OAuth and Email/Password)
     const authHeader = request.headers.get('authorization')
     const cookieToken = request.cookies.get('auth-token')?.value
     
+    console.log(`🔍 [TripDetails] Auth sources available:`, {
+      hasAuthHeader: !!authHeader,
+      authHeaderPrefix: authHeader?.substring(0, 20) + '...',
+      hasCookieToken: !!cookieToken,
+      cookieTokenPrefix: cookieToken?.substring(0, 20) + '...'
+    })
+    
     let token = null
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = extractBearerToken(authHeader)
+      console.log(`🔍 [TripDetails] Using Authorization header token`)
     } else if (cookieToken) {
       token = cookieToken
+      console.log(`🔍 [TripDetails] Using cookie token`)
+    } else {
+      console.log(`🔍 [TripDetails] No token found in either auth header or cookies`)
     }
     
     if (token) {
+      console.log(`🔍 [TripDetails] Attempting JWT verification...`)
       // Try custom JWT token first
       const decoded = verifySessionToken(token)
+      console.log(`🔍 [TripDetails] JWT verification result:`, { 
+        success: !!decoded, 
+        userId: decoded?.userId,
+        exp: decoded?.exp,
+        timeToExpiry: decoded?.exp ? (decoded.exp * 1000 - Date.now()) / 1000 : null
+      })
+      
       if (decoded) {
+        console.log(`🔍 [TripDetails] Fetching user from database for userId: ${decoded.userId}`)
         // Get user from database with service role (bypasses RLS)
         const supabase = createServerSupabaseClient()
         const { data: userData, error: userError } = await supabase
@@ -35,9 +59,17 @@ export async function GET(
           .eq('id', decoded.userId)
           .single()
 
+        console.log(`🔍 [TripDetails] Database user lookup:`, {
+          success: !userError,
+          error: userError?.message,
+          foundUser: userData?.email
+        })
+
         if (!userError && userData) {
           user = userData
           console.log('🔑 JWT Auth: Successfully authenticated user:', user.email)
+        } else {
+          console.log('🔑 JWT Auth: Failed to get user from database:', userError)
         }
       } else {
         // If JWT verification fails, try Supabase session token
@@ -45,6 +77,12 @@ export async function GET(
         try {
           const supabaseClient = createSupabaseServiceClient()
           const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          
+          console.log(`🔍 [TripDetails] Supabase auth result:`, {
+            success: !sessionError,
+            error: sessionError?.message,
+            userId: supabaseUser?.id
+          })
           
           if (!sessionError && supabaseUser) {
             // Get full user profile from database
@@ -57,12 +95,16 @@ export async function GET(
             if (!userError && userData) {
               user = userData
               console.log('🔑 Supabase Auth: Successfully authenticated user:', user.email)
+            } else {
+              console.log('🔑 Supabase Auth: Failed to get user profile:', userError)
             }
           }
         } catch (supabaseError) {
           console.log('🔑 Supabase authentication also failed:', supabaseError)
         }
       }
+    } else {
+      console.log(`🔍 [TripDetails] No token available for authentication`)
     }
     
     // If both methods failed, return unauthorized
@@ -307,16 +349,72 @@ export async function GET(
     tripData.itinerary_items = activitiesData && activitiesData.length > 0 ? activitiesData : (itineraryData || [])
     tripData.activities = activitiesData || []
 
+    // Transform the data to match frontend expectations
+    const transformedTrip = {
+      ...tripData,
+      // Transform trip_participants to separate Wolthers staff, clients, and guests
+      wolthersStaff: tripData.trip_participants
+        ?.filter((p: any) => p.users?.email?.includes('@wolthers.com') || p.role === 'staff')
+        .map((p: any) => ({
+          id: p.user_id,
+          fullName: p.users?.full_name || p.guest_name || 'Unknown',
+          email: p.users?.email || p.guest_email || '',
+          role: p.role
+        })) || [],
+      
+      // Transform external participants (guests/hosts)
+      clients: tripData.trip_participants
+        ?.filter((p: any) => p.role === 'guest' || p.role === 'host')
+        .map((p: any) => ({
+          id: p.user_id,
+          fullName: p.users?.full_name || p.guest_name || 'Unknown',
+          email: p.users?.email || p.guest_email || '',
+          role: p.role,
+          company: p.companies?.name || p.guest_company || ''
+        })) || [],
+      
+      guests: tripData.trip_participants
+        ?.filter((p: any) => p.role === 'guest')
+        .map((p: any) => ({
+          id: p.user_id,
+          fullName: p.users?.full_name || p.guest_name || 'Unknown',
+          email: p.users?.email || p.guest_email || '',
+          company: p.companies?.name || p.guest_company || ''
+        })) || [],
+
+      // Transform trip_vehicles to separate vehicles and drivers arrays
+      vehicles: tripData.trip_vehicles
+        ?.filter((tv: any) => tv.vehicles)
+        .map((tv: any) => ({
+          id: tv.vehicle_id,
+          model: tv.vehicles?.model || 'Unknown Vehicle',
+          licensePlate: tv.vehicles?.license_plate || '',
+          make: tv.vehicles?.make || 'Unknown Make'
+        })) || [],
+
+      drivers: tripData.trip_vehicles
+        ?.filter((tv: any) => tv.users)
+        .map((tv: any) => ({
+          id: tv.driver_id,
+          fullName: tv.users?.full_name || 'Unknown Driver',
+          email: tv.users?.email || ''
+        })) || []
+    }
+
     console.log(`✅ API: Returning trip details for ${user.email}:`, {
       tripId: tripData.id,
       title: tripData.title,
       activities: activitiesData?.length || 0,
       itineraryItems: itineraryData?.length || 0,
-      usingActivities: activitiesData && activitiesData.length > 0
+      usingActivities: activitiesData && activitiesData.length > 0,
+      wolthersStaff: transformedTrip.wolthersStaff?.length || 0,
+      guests: transformedTrip.guests?.length || 0,
+      vehicles: transformedTrip.vehicles?.length || 0,
+      drivers: transformedTrip.drivers?.length || 0
     })
 
     return NextResponse.json({
-      trip: tripData,
+      trip: transformedTrip,
       user: {
         id: user.id,
         email: user.email,

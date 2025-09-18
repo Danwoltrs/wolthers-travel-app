@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
       )
     }
 
-    const { accessCode } = params
+    const { accessCode } = await params
 
     if (!accessCode) {
       return NextResponse.json(
@@ -196,11 +196,22 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
           )
         }
         
+        // For planning trips, determine if they're actually complete but marked as planning
+        let planningCurrentStep = 1
+        
+        if (planningTrip.completion_step && planningTrip.completion_step > 0) {
+          planningCurrentStep = planningTrip.completion_step
+        } else if (planningTrip.status === 'planning' && planningTrip.creator_id) {
+          // Planning trip with no completion step - assume it needs to continue from step 1
+          planningCurrentStep = 1
+          console.log(`✅ [Continue Trip] Planning trip "${planningTrip.title}" will start from step 1`)
+        }
+        
         return NextResponse.json({
           success: true,
           trip: planningTrip,
           draft: null,
-          currentStep: Math.max(planningTrip.completion_step || 1, 1), // Start from saved step or step 1
+          currentStep: Math.max(planningCurrentStep, 1), // Ensure at least step 1
           canEdit: planningTrip.creator_id === user.id || user.is_global_admin,
           permissions: planningTrip.creator_id === user.id ? ['view', 'edit', 'admin'] : ['view'],
           message: 'Planning trip loaded successfully - you can continue editing'
@@ -291,11 +302,36 @@ export async function GET(request: NextRequest, { params }: { params: { accessCo
       .eq('trip_id', trip.id)
       .single()
 
+    // Determine current step with proper logic for completed trips
+    let currentStep = 1
+    
+    // If trip has activities and is fully created, it should be completed
+    const hasData = trip.status === 'confirmed' || trip.status === 'planning'
+    const isFullyCreated = hasData
+    
+    if (isFullyCreated && (trip.completion_step === null || trip.completion_step === 0)) {
+      // Trip was created via /api/trips/create and is complete, but completion_step not set
+      currentStep = 6 // Mark as completed (step 6 = final step)
+      console.log(`✅ [Continue Trip] Trip "${trip.title}" appears to be fully created, setting to step 6`)
+    } else if (trip.completion_step && trip.completion_step > 0) {
+      // Use the saved step if it's actually set
+      currentStep = trip.completion_step
+      console.log(`✅ [Continue Trip] Using saved completion step: ${currentStep}`)
+    } else if (draft?.current_step) {
+      // Fall back to draft step
+      currentStep = draft.current_step
+      console.log(`✅ [Continue Trip] Using draft step: ${currentStep}`)
+    } else {
+      // Default to step 1 for truly incomplete trips
+      currentStep = 1
+      console.log(`✅ [Continue Trip] Using default step 1 for incomplete trip`)
+    }
+    
     const response: ContinueResponse = {
       success: true,
       trip,
       draft,
-      currentStep: trip.completion_step || draft?.current_step || 1,
+      currentStep,
       canEdit,
       permissions,
       message: canEdit ? 
@@ -373,7 +409,7 @@ export async function POST(request: NextRequest, { params }: { params: { accessC
       )
     }
 
-    const { accessCode } = params
+    const { accessCode } = await params
     const body = await request.json()
     const { action } = body // 'request_access', 'extend_expiration'
 

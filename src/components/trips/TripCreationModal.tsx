@@ -563,18 +563,73 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      console.log('🚀 [TripCreation] Creating trip with simplified flow...')
-      console.log('📝 [TripCreation] Form data:', formData)
+      console.log('🚀 [TripCreation] NEW CODE: Creating trip with simplified flow...')
+      console.log('📝 [TripCreation] NEW CODE: Form data:', formData)
+      console.log('🔍 [TripCreation] CRITICAL DEBUG - Current formData state:', {
+        participants: formData.participants?.length || 0,
+        companies: formData.companies?.length || 0,
+        hostCompanies: formData.hostCompanies?.length || 0,
+        vehicleAssignments: formData.vehicleAssignments?.length || 0,
+        generatedActivities: formData.generatedActivities?.length || 0,
+        accessCode: formData.accessCode
+      })
+      
+      // Transform formData to match create API expectations
+      const transformedData = {
+        ...formData,
+        // Extract vehicles and drivers from vehicleAssignments
+        vehicles: formData.vehicleAssignments?.map(assignment => assignment.vehicle).filter(Boolean) || [],
+        drivers: formData.vehicleAssignments?.map(assignment => assignment.driver).filter(Boolean) || [],
+        // Also provide single vehicle/driver for backward compatibility
+        vehicle: formData.vehicleAssignments?.[0]?.vehicle || null,
+        driver: formData.vehicleAssignments?.[0]?.driver || null,
+        // Combine companies and hostCompanies data for participants
+        companies: [
+          ...(formData.companies || []),
+          ...(formData.hostCompanies || []).map(host => ({
+            ...host,
+            selectedContacts: host.representatives || host.selectedContacts || []
+          }))
+        ],
+        // Also include hostCompanies separately for email templates
+        hostCompanies: formData.hostCompanies || [],
+        // Ensure generatedActivities are included
+        generatedActivities: formData.generatedActivities || formData.activities || []
+      }
+      
+      console.log('🔄 [TripCreation] Transformed data:', {
+        vehicles: transformedData.vehicles?.length || 0,
+        drivers: transformedData.drivers?.length || 0,
+        participants: transformedData.participants?.length || 0,
+        companies: transformedData.companies?.length || 0,
+        hostCompanies: transformedData.hostCompanies?.length || 0,
+        generatedActivities: transformedData.generatedActivities?.length || 0
+      })
+      
+      console.log('📊 [TripCreation] Detailed data check:', {
+        participantNames: transformedData.participants?.map(p => p.fullName || p.full_name || p.email) || [],
+        companyNames: transformedData.companies?.map(c => c.name || c.fantasyName) || [],
+        companiesWithContacts: transformedData.companies?.map(c => ({
+          name: c.name || c.fantasyName,
+          contactCount: c.selectedContacts?.length || 0,
+          contacts: c.selectedContacts?.map(contact => contact.name) || []
+        })) || [],
+        vehicleData: transformedData.vehicles?.map(v => `${v.make} ${v.model}`) || [],
+        driverData: transformedData.drivers?.map(d => d.fullName || d.full_name) || []
+      })
       
       // Single API call to create the complete trip with emails
+      console.log('🎯 [TripCreation] ABOUT TO FETCH: /api/trips/create')
+      console.log('🎯 [TripCreation] SENDING DATA:', transformedData)
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(transformedData)
       })
+      console.log('🎯 [TripCreation] FETCH COMPLETED, response status:', response.status)
 
       if (!response.ok) {
         const error = await response.json()
