@@ -13,6 +13,7 @@ import type { TripCard as TripCardType } from '@/types'
 import { cn, getTripStatus } from '@/lib/utils'
 import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
+import { extractCityFromLocation } from '@/lib/geographical-intelligence'
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
@@ -417,32 +418,141 @@ export default function Dashboard() {
     setResumeData(null)
     console.log('✅ [Dashboard] Modal closed and resume data cleared')
     
-    // Convert trip data to proper TripCard format for cache
+    const toDate = (value: any) => {
+      if (!value) return new Date()
+      if (value instanceof Date) return value
+      const parsed = new Date(value)
+      return isNaN(parsed.getTime()) ? new Date() : parsed
+    }
+
+    const startDate = toDate(trip.startDate || (trip as any).start_date)
+    const endDate = toDate(trip.endDate || (trip as any).end_date)
+
+    const wolthersStaff = (trip.participants || []).map((participant: any) => ({
+      id: participant.id,
+      fullName: participant.full_name || participant.fullName || participant.name || participant.email,
+      email: participant.email
+    }))
+
+    const guestCompanies = (trip.companies || []).filter((company: any) => !(company.isHost || company.role === 'host'))
+
+    const clientCompanies = guestCompanies.map((company: any) => ({
+      id: String(company.id || company.company_id || company.name || crypto.randomUUID()),
+      name: company.name || company.fantasy_name || 'Guest Company',
+      fantasyName: company.fantasy_name || company.name
+    }))
+
+    const guestSummaries = guestCompanies.map((company: any) => ({
+      companyId: String(company.id || company.company_id || company.name || crypto.randomUUID()),
+      names: (company.selectedContacts || company.participants || []).map((contact: any) => (
+        contact.name || contact.full_name || contact.fullName || contact.email
+      )).filter(Boolean)
+    }))
+
+    const vehicleAssignments = (trip.vehicleAssignments || []).filter((assignment: any) => assignment?.vehicle || assignment?.driver)
+
+    const normalizedVehicles: Array<{ id: string; make: string; model: string; licensePlate?: string }> = []
+    const vehiclesFromAssignments = vehicleAssignments.map((assignment: any) => assignment.vehicle).filter(Boolean)
+    const vehiclesFromState = (trip.vehicles || []).filter(Boolean)
+    const vehicleCandidates = [...vehiclesFromAssignments, ...vehiclesFromState]
+
+    vehicleCandidates.forEach((vehicle: any) => {
+      if (!vehicle) return
+      const vehicleId = vehicle.id || vehicle.vehicle_id || vehicle.license_plate || vehicle.licensePlate || `vehicle-${crypto.randomUUID()}`
+      if (normalizedVehicles.some(v => v.id === vehicleId)) return
+      const modelText = vehicle.model || vehicle.name || ''
+      const makeText = vehicle.make || (modelText.includes(' ') ? modelText.split(' ')[0] : modelText) || 'Vehicle'
+
+      normalizedVehicles.push({
+        id: vehicleId,
+        make: makeText,
+        model: modelText || makeText,
+        licensePlate: vehicle.license_plate || vehicle.licensePlate || vehicle.plate || undefined
+      })
+    })
+
+    const normalizedDrivers: Array<{ id: string; fullName: string; email?: string }> = []
+    const driverCandidates = [
+      ...vehicleAssignments.map((assignment: any) => assignment.driver).filter(Boolean),
+      ...(trip.drivers || []).filter(Boolean)
+    ]
+
+    driverCandidates.forEach((driver: any) => {
+      if (!driver) return
+      const driverId = driver.id || driver.user_id || driver.email || `driver-${crypto.randomUUID()}`
+      if (normalizedDrivers.some(d => d.id === driverId)) return
+      normalizedDrivers.push({
+        id: driverId,
+        fullName: driver.full_name || driver.fullName || driver.name || driver.email || 'Driver',
+        email: driver.email || undefined
+      })
+    })
+
+    const rawActivities = (trip.generatedActivities || (trip as any).generated_activities || trip.activities || []) as any[]
+    const meetingActivities = rawActivities.filter((activity: any) => {
+      if (!activity) return false
+      const type = (activity.type || activity.activity_type || '').toLowerCase()
+      const title = (activity.title || '').toLowerCase()
+      if (!activity.location) return false
+
+      const travelKeywords = ['drive', 'return', 'flight', 'travel', 'transport', 'transfer', 'journey']
+      if (travelKeywords.some(keyword => title.includes(keyword))) {
+        return false
+      }
+
+      const validTypes = ['meeting', 'visit', 'company_visit', 'facility_tour', 'event']
+      return validTypes.includes(type) || title.includes('visit') || title.includes('meeting')
+    })
+
+    const visitCount = meetingActivities.length
+
+    const cityMap = new Map<string, { meetings: number; companies: Set<string> }>()
+    meetingActivities.forEach((activity: any) => {
+      const cityInfo = activity.location ? extractCityFromLocation(activity.location) : null
+      const cityKey = cityInfo?.city || activity.location
+      if (!cityKey) return
+      if (!cityMap.has(cityKey)) {
+        cityMap.set(cityKey, { meetings: 0, companies: new Set<string>() })
+      }
+      const entry = cityMap.get(cityKey)!
+      entry.meetings += 1
+      if (activity.company_name) {
+        entry.companies.add(activity.company_name)
+      }
+    })
+
+    const locations = Array.from(cityMap.keys())
+    const locationDetails = Array.from(cityMap.entries()).map(([city, data]) => ({
+      city,
+      nights: 1,
+      meetings: data.meetings,
+      companies: Array.from(data.companies)
+    }))
+
+    const duration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+
     const tripCard: TripCardType = {
       id: trip.id,
       title: trip.title || 'New Trip',
       subject: trip.subject || trip.description || '',
-      client: [], // Will be populated from trip data
-      guests: [],
-      wolthersStaff: trip.participants || [],
-      vehicles: [],
-      drivers: [],
-      startDate: trip.startDate || new Date(),
-      endDate: trip.endDate || new Date(),
-      duration: trip.endDate && trip.startDate 
-        ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
-        : 1,
-      status: 'confirmed' as any, // Finalized trips are confirmed
-      tripType: trip.tripType || 'convention',
-      accessCode: trip.accessCode,
+      client: clientCompanies as any,
+      guests: guestSummaries as any,
+      wolthersStaff: wolthersStaff as any,
+      vehicles: normalizedVehicles as any,
+      drivers: normalizedDrivers as any,
+      startDate,
+      endDate,
+      duration,
+      status: 'confirmed' as any,
+      accessCode: trip.accessCode || trip.access_code,
       isDraft: false,
-      createdAt: trip.createdAt || new Date(),
-      updatedAt: new Date(),
-      // Additional TripCard properties if needed
-      progress: 100, // Finalized trips are 100% complete
-      daysRemaining: trip.startDate 
-        ? Math.ceil((new Date(trip.startDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        : 0
+      progress: 100,
+      notesCount: 0,
+      visitCount,
+      locations,
+      locationDetails,
+      activities: meetingActivities,
+      allActivities: rawActivities
     }
 
     try {
