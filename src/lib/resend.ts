@@ -1,8 +1,20 @@
 import { Resend } from 'resend';
 
+const resolveBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+
+  return 'https://trips.wolthers.com';
+};
+
 const resend = new Resend(process.env.RESEND_API_KEY);
-const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/images/logos/wolthers-logo-green.png`;
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const baseUrl = resolveBaseUrl();
+const logoUrl = `${baseUrl}/images/logos/wolthers-logo-green.png`;
 
 // --- INTERFACES ---
 
@@ -40,6 +52,8 @@ export interface TripItineraryEmailData {
       title: string
       location?: string
       duration?: string
+      hostName?: string
+      type?: string
     }>
   }>
   participants: Array<{
@@ -683,20 +697,91 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     })
   }
 
-  const renderActivityLine = (activity: { time: string; title: string; location?: string; duration?: string }) => {
-    const detailParts: string[] = []
+  const getHostDisplay = (activity: any): string => {
+    const hostNames = new Set<string>()
 
-    if (activity.location) {
-      detailParts.push(activity.location)
+    const collect = (value: any) => {
+      if (!value) return
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (trimmed) {
+          hostNames.add(trimmed)
+        }
+        return
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach(item => collect(item))
+        return
+      }
+
+      if (typeof value === 'object') {
+        const possibleKeys = [
+          'name',
+          'full_name',
+          'fullName',
+          'companyName',
+          'company_name',
+          'fantasy_name',
+          'display_name',
+          'legal_name'
+        ]
+
+        possibleKeys.forEach(key => {
+          if (value[key]) {
+            collect(value[key])
+          }
+        })
+      }
     }
 
-    if (activity.duration) {
-      detailParts.push(activity.duration)
+    collect(activity.hostName)
+    collect(activity.host)
+    collect(activity.hosts)
+    collect(activity.selectedHosts)
+    collect(activity.selected_hosts)
+    collect(activity.companyName)
+    collect(activity.company_name)
+    collect(activity.company)
+    collect(activity.hostCompany)
+    collect(activity.host_company)
+
+    return Array.from(hostNames).join(', ')
+  }
+
+  const shouldShowHost = (activity: { type?: string; title: string }): boolean => {
+    const normalizedType = activity.type?.toLowerCase()
+    if (normalizedType) {
+      if (['meeting', 'visit', 'client_visit', 'host_visit', 'company_visit', 'site_visit'].some(type => normalizedType.includes(type))) {
+        return true
+      }
+
+      if (['travel', 'drive', 'transfer', 'transport', 'flight'].some(type => normalizedType.includes(type))) {
+        return false
+      }
     }
 
-    const detailText = detailParts.length ? ` (${detailParts.join(' • ')})` : ''
+    return /visit|meeting/i.test(activity.title)
+  }
 
-    return `<p class="activity-line"><span class="activity-time">${activity.time}</span> - ${activity.title}${detailText}</p>`
+  const renderActivityLine = (activity: { time: string; title: string; duration?: string; hostName?: string; type?: string }) => {
+    const showHost = shouldShowHost(activity)
+    const hostDisplay = getHostDisplay(activity) || ''
+    const hostText = showHost ? (hostDisplay || 'To be confirmed') : ''
+    const hostMarkup = showHost ? `<p class="activity-host"><span>Host:</span> ${hostText}</p>` : ''
+    const durationMarkup = activity.duration ? `<p class="activity-meta">Duration: ${activity.duration}</p>` : ''
+
+    return `
+      <div class="activity-card">
+        <div class="activity-time">${activity.time}</div>
+        <div class="activity-details">
+          <p class="activity-title">${activity.title}</p>
+          ${hostMarkup}
+          ${durationMarkup}
+        </div>
+      </div>
+    `
   }
 
   const subject = `${tripTitle} - ${formatDateRange(tripStartDate, tripEndDate)}`
@@ -734,31 +819,44 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.5;
             color: #1f2933;
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 32px 24px;
-            background-color: #ffffff;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 32px 16px;
             font-size: 14px;
           }
-          h1, h2, h3 {
-            font-weight: 600;
-            color: #193b2f;
-            margin: 0;
-          }
           a {
-            color: #1a7a5a;
+            color: #0f766e;
+            text-decoration: none;
+            font-weight: 600;
+          }
+          .email-card {
+            max-width: 640px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
           }
           .header {
             text-align: center;
-            margin-bottom: 24px;
+            padding: 36px 32px 28px;
+            background: linear-gradient(135deg, #163c2d, #2f6b53);
+            color: #fefce8;
           }
           .header img {
             max-width: 160px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+          }
+          .header a {
+            color: #fefce8;
           }
           .title {
-            font-size: 22px;
+            font-size: 24px;
             margin-bottom: 6px;
+            color: #fefce8;
+          }
+          .email-content {
+            padding: 28px 32px 32px;
           }
           .meta {
             text-align: center;
@@ -766,22 +864,34 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
           }
           .meta p {
             margin: 4px 0;
+            color: #334155;
           }
           .participants {
-            text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 18px 22px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
           }
           .participants p {
-            margin: 4px 0;
+            margin: 6px 0;
+            color: #1f2937;
           }
           .section-title {
-            font-size: 16px;
-            margin-bottom: 12px;
+            font-size: 17px;
+            margin-bottom: 14px;
+            color: #134e4a;
+            letter-spacing: 0.02em;
           }
           .itinerary {
-            margin-bottom: 28px;
+            margin-bottom: 32px;
           }
           .day-block {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+            padding: 20px 22px;
             margin-bottom: 18px;
           }
           .day-block:last-child {
@@ -789,17 +899,54 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
           }
           .day-heading {
             font-size: 15px;
-            margin-bottom: 8px;
+            margin: 0 0 12px;
+            color: #0f172a;
+            font-weight: 600;
           }
-          .activity-line {
-            margin: 4px 0 0 18px;
+          .activity-card {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.08);
+          }
+          .activity-card:last-child {
+            margin-bottom: 0;
           }
           .activity-time {
+            font-weight: 700;
+            color: #0f2f24;
+            font-size: 14px;
+            min-width: 72px;
+          }
+          .activity-details {
+            flex: 1;
+          }
+          .activity-title {
+            margin: 0 0 6px 0;
+            font-size: 15px;
+            color: #0f172a;
             font-weight: 600;
-            color: #193b2f;
+          }
+          .activity-host {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            color: #1f2937;
+          }
+          .activity-host span {
+            color: #0f2f24;
+            font-weight: 600;
+          }
+          .activity-meta {
+            margin: 0;
+            font-size: 12px;
+            color: #4b5563;
           }
           .transportation {
-            margin-bottom: 28px;
+            margin-bottom: 32px;
           }
           .transportation-grid {
             display: flex;
@@ -810,8 +957,9 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
             flex: 1;
             min-width: 220px;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: 12px;
+            padding: 18px;
+            background: #f9fafb;
           }
           .transportation-card h3 {
             font-size: 15px;
@@ -822,69 +970,80 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
           }
           .footer {
             border-top: 1px solid #e5e7eb;
-            padding-top: 16px;
+            padding-top: 18px;
             font-size: 12px;
             color: #52606d;
             text-align: center;
           }
-          @media (max-width: 480px) {
+          @media (max-width: 520px) {
             body {
-              padding: 24px 16px;
+              padding: 24px 12px;
             }
-            .activity-line {
-              margin-left: 12px;
+            .email-content {
+              padding: 24px 20px 28px;
+            }
+            .activity-card {
+              flex-direction: column;
+              gap: 8px;
+            }
+            .activity-time {
+              min-width: auto;
             }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <img src="${logoUrl}" alt="Wolthers & Associates" />
-          <h1 class="title">${tripTitle} - Trip key code: ${tripAccessCode}</h1>
-          <p><a href="${tripUrl}" target="_blank" rel="noopener noreferrer">View trip</a></p>
-        </div>
-        <div class="meta">
-          <p>${formatLongDateRange(tripStartDate, tripEndDate)}</p>
-          <p>Organized by ${createdBy}</p>
-        </div>
-        ${participantLines.length > 0 ? `
-        <div class="participants">
-          ${participantLines.map(line => `<p>${line}</p>`).join('')}
-        </div>
-        ` : ''}
-        <div class="itinerary">
-          <h2 class="section-title">Itinerary</h2>
-          ${itinerary.map((day, index) => `
-            <div class="day-block">
-              <p class="day-heading">Day ${index + 1} - ${formatDayLabel(day.date)}</p>
-              ${day.activities.map(activity => renderActivityLine(activity)).join('')}
-            </div>
-          `).join('')}
-        </div>
-        ${(vehicle || driver) ? `
-        <div class="transportation">
-          <h2 class="section-title">Transportation</h2>
-          <div class="transportation-grid">
-            ${driver ? `
-            <div class="transportation-card">
-              <h3>Driver</h3>
-              <p>${driver.name}</p>
-              ${driver.phone ? `<p>${driver.phone}</p>` : ''}
-            </div>
-            ` : ''}
-            ${vehicle ? `
-            <div class="transportation-card">
-              <h3>Vehicle</h3>
-              <p>${vehicle.make} ${vehicle.model}</p>
-              ${vehicle.licensePlate ? `<p>License: ${vehicle.licensePlate}</p>` : ''}
-            </div>
-            ` : ''}
+        <div class="email-card">
+          <div class="header">
+            <img src="${logoUrl}" alt="Wolthers & Associates" />
+            <h1 class="title">${tripTitle} - Trip key code: ${tripAccessCode}</h1>
+            <p><a href="${tripUrl}" target="_blank" rel="noopener noreferrer">View trip</a></p>
           </div>
-        </div>
-        ` : ''}
-        <div class="footer">
-          <p>Safe travels from the Wolthers & Associates Travel Team.</p>
-          <p>This itinerary was generated automatically. Contact ${createdBy} for updates.</p>
+          <div class="email-content">
+            <div class="meta">
+              <p>${formatLongDateRange(tripStartDate, tripEndDate)}</p>
+              <p>Organized by ${createdBy}</p>
+            </div>
+            ${participantLines.length > 0 ? `
+            <div class="participants">
+              ${participantLines.map(line => `<p>${line}</p>`).join('')}
+            </div>
+            ` : ''}
+            <div class="itinerary">
+              <h2 class="section-title">Itinerary</h2>
+              ${itinerary.map((day, index) => `
+                <div class="day-block">
+                  <p class="day-heading">Day ${index + 1} - ${formatDayLabel(day.date)}</p>
+                  ${day.activities.map(activity => renderActivityLine(activity)).join('')}
+                </div>
+              `).join('')}
+            </div>
+            ${(vehicle || driver) ? `
+            <div class="transportation">
+              <h2 class="section-title">Transportation</h2>
+              <div class="transportation-grid">
+                ${driver ? `
+                <div class="transportation-card">
+                  <h3>Driver</h3>
+                  <p>${driver.name}</p>
+                  ${driver.phone ? `<p>${driver.phone}</p>` : ''}
+                </div>
+                ` : ''}
+                ${vehicle ? `
+                <div class="transportation-card">
+                  <h3>Vehicle</h3>
+                  <p>${vehicle.make} ${vehicle.model}</p>
+                  ${vehicle.licensePlate ? `<p>License: ${vehicle.licensePlate}</p>` : ''}
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            ` : ''}
+            <div class="footer">
+              <p>Safe travels from the Wolthers & Associates Travel Team.</p>
+              <p>This itinerary was generated automatically. Contact ${createdBy} for updates.</p>
+            </div>
+          </div>
         </div>
       </body>
     </html>
@@ -904,15 +1063,14 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     textLines.push(`Day ${index + 1} - ${formatDayLabel(day.date)}`)
 
     day.activities.forEach(activity => {
-      const detailParts: string[] = []
-      if (activity.location) {
-        detailParts.push(activity.location)
-      }
+      textLines.push(`  ${activity.time} - ${activity.title}`)
       if (activity.duration) {
-        detailParts.push(activity.duration)
+        textLines.push(`    Duration: ${activity.duration}`)
       }
-      const detailText = detailParts.length ? ` (${detailParts.join(' • ')})` : ''
-      textLines.push(`  ${activity.time} - ${activity.title}${detailText}`)
+      if (shouldShowHost(activity)) {
+        const hostDisplay = getHostDisplay(activity) || 'To be confirmed'
+        textLines.push(`    Host: ${hostDisplay}`)
+      }
     })
   })
 

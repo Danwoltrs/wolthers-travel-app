@@ -399,6 +399,64 @@ export async function POST(request: NextRequest) {
         ? activitiesToCreate
         : (tripData.generatedActivities || tripData.activities || [])) as any[]
 
+      const extractHostName = (activity: any): string | undefined => {
+        const hostNames = new Set<string>()
+
+        const collect = (value: any) => {
+          if (!value) return
+
+          if (typeof value === 'string') {
+            const trimmed = value.trim()
+            if (trimmed) {
+              hostNames.add(trimmed)
+            }
+            return
+          }
+
+          if (Array.isArray(value)) {
+            value.forEach(item => collect(item))
+            return
+          }
+
+          if (typeof value === 'object') {
+            const possibleKeys = [
+              'name',
+              'full_name',
+              'fullName',
+              'companyName',
+              'company_name',
+              'fantasy_name',
+              'display_name',
+              'legal_name'
+            ]
+
+            possibleKeys.forEach(key => {
+              if (value[key]) {
+                collect(value[key])
+              }
+            })
+          }
+        }
+
+        collect(activity.hostName)
+        collect(activity.host_name)
+        collect(activity.host)
+        collect(activity.hosts)
+        collect(activity.selectedHosts)
+        collect(activity.selected_hosts)
+        collect(activity.company_name)
+        collect(activity.company)
+        collect(activity.company?.name)
+        collect(activity.company?.fantasy_name)
+        collect(activity.company?.display_name)
+        collect(activity.company?.legal_name)
+        collect(activity.hostCompany)
+        collect(activity.host_company)
+
+        const names = Array.from(hostNames)
+        return names.length > 0 ? names.join(', ') : undefined
+      }
+
       const itineraryMap = new Map<string, any[]>()
       for (const activity of rawActivities) {
         const activityDate = activity.activity_date || (activity.start_time ? new Date(activity.start_time).toISOString().split('T')[0] : null)
@@ -423,7 +481,9 @@ export async function POST(request: NextRequest) {
               time: formatTime(activity.start_time, activity.activity_date),
               title: activity.title,
               location: activity.location,
-              duration: activity.duration_minutes ? `${activity.duration_minutes} minutes` : undefined
+              duration: activity.duration_minutes ? `${activity.duration_minutes} minutes` : undefined,
+              hostName: extractHostName(activity),
+              type: activity.activity_type || activity.type
             }))
         }))
 
@@ -483,6 +543,11 @@ export async function POST(request: NextRequest) {
           .map((company: any) => company.name || company.fantasy_name)
           .filter(Boolean)
 
+        const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL
+          || (process.env.NODE_ENV === 'development'
+            ? 'http://localhost:3000'
+            : 'https://trips.wolthers.com')
+
         for (const hostCompany of hostCompanies) {
           const representatives = (hostCompany.representatives || hostCompany.selectedContacts || [])
             .filter((rep: any) => rep.email)
@@ -515,8 +580,8 @@ export async function POST(request: NextRequest) {
           for (const representative of representatives) {
             try {
               const confirmationToken = crypto.randomUUID()
-              const yesUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=accept&token=${confirmationToken}`
-              const noUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=decline&token=${confirmationToken}`
+              const yesUrl = `${appBaseUrl}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=accept&token=${confirmationToken}`
+              const noUrl = `${appBaseUrl}/api/visits/confirm?tripCode=${encodeURIComponent(trip.access_code)}&hostEmail=${encodeURIComponent(representative.email)}&response=decline&token=${confirmationToken}`
 
               const hostEmailData = {
                 hostName: representative.name || representative.full_name || representative.fullName || representative.email,
