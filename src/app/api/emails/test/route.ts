@@ -99,7 +99,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+      || (process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000'
+        : 'https://trips.wolthers.com')
     const defaultTripData = {
       title: tripData?.title || 'Test Trip - Email System Check',
       accessCode: tripData?.accessCode || 'TEST_EMAIL_2024'
@@ -136,12 +139,16 @@ export async function POST(request: NextRequest) {
                   {
                     time: '09:00',
                     title: 'Morning Meeting',
-                    location: 'Coffee Farm HQ'
+                    type: 'visit',
+                    hostName: 'Coffee Farm HQ Team',
+                    duration: '60 minutes'
                   },
                   {
                     time: '14:00',
                     title: 'Farm Tour',
-                    location: 'Main Processing Facility'
+                    type: 'visit',
+                    hostName: 'Farm Operations',
+                    duration: '90 minutes'
                   }
                 ]
               },
@@ -151,7 +158,9 @@ export async function POST(request: NextRequest) {
                   {
                     time: '10:00',
                     title: 'Cupping Session',
-                    location: 'Quality Lab'
+                    type: 'visit',
+                    hostName: 'Quality Lab Team',
+                    duration: '75 minutes'
                   }
                 ]
               }

@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createSupabaseServiceClient()
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000'
+      : 'https://trips.wolthers.com')
 
   try {
     // 2. Update the status of the corresponding meeting in the database.
