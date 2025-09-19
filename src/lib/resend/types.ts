@@ -43,12 +43,62 @@ export interface TripItineraryEmailData {
     role?: string
   }>
   companies: Array<{
-    name: string
+    name?: string
     fantasyName?: string
     fantasy_name?: string
+    displayName?: string
+    display_name?: string
+    legalName?: string
+    legal_name?: string
+    role?: string
+    companyRole?: string
+    type?: string
+    isHost?: boolean
+    hostName?: string
+    host_name?: string
+    primaryContactName?: string
+    primary_contact_name?: string
     representatives?: Array<{
-      name: string
-      email: string
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    selectedContacts?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    selected_contacts?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    participants?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    attendees?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    contacts?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
+    }>
+    hosts?: Array<{
+      name?: string
+      full_name?: string
+      fullName?: string
+      email?: string
     }>
   }>
   vehicle?: {

@@ -2,6 +2,198 @@ import { baseUrl, logoUrl } from './client'
 import { delay, sendEmail } from './sender'
 import { EmailTemplate, TripItineraryEmailData } from './types'
 
+const normalizeForMatch = (value?: string): string => {
+  if (!value) return ''
+
+  try {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  } catch (error) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  }
+}
+
+const getPossibleCompanyNames = (company: Record<string, any>): string[] => {
+  const keys = [
+    'fantasyName',
+    'fantasy_name',
+    'displayName',
+    'display_name',
+    'shortName',
+    'short_name',
+    'nickname',
+    'companyName',
+    'company_name',
+    'legalName',
+    'legal_name',
+    'name'
+  ]
+
+  const names = new Set<string>()
+
+  keys.forEach(key => {
+    const value = company?.[key]
+    if (typeof value === 'string' && value.trim()) {
+      names.add(value.trim())
+    }
+  })
+
+  return Array.from(names)
+}
+
+const stripLegalSuffixes = (name: string): string => {
+  const withoutSuffixes = name
+    .replace(/\b(LTDA\.?|Ltda\.?|Ltd\.?|S\.?A\.?|SA|A\/G|AG|LLC|INC\.?|Incorporated|Corp\.?|Corporation)\b/gi, '')
+    .replace(/\b(Exportacao|Exportação|Importacao|Importação|Comercio|Comércio|Industria|Indústria|Agroindustrial|Agroindustrial\.?|Cooperativa|Cooperative)\b/gi, '')
+    .replace(/[()]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  return withoutSuffixes || name.trim()
+}
+
+const getCompanyDisplayName = (company: Record<string, any>): string => {
+  const possibleNames = getPossibleCompanyNames(company)
+  if (possibleNames.length === 0) {
+    return 'Company'
+  }
+
+  const cleanedNames = possibleNames
+    .map(name => stripLegalSuffixes(name))
+    .filter(Boolean)
+
+  if (cleanedNames.length === 0) {
+    return stripLegalSuffixes(possibleNames[0]) || 'Company'
+  }
+
+  return cleanedNames.reduce((shortest, current) => {
+    if (!shortest) return current
+    return current.length < shortest.length ? current : shortest
+  }, cleanedNames[0])
+}
+
+const normalizeRole = (role?: string): string => (role || '').toLowerCase().trim()
+
+const isHostRole = (role?: string): boolean => normalizeRole(role).includes('host')
+
+const getCompanyContactNames = (company: Record<string, any>): string[] => {
+  const names = new Set<string>()
+
+  const arrayKeys = [
+    'representatives',
+    'selectedContacts',
+    'selected_contacts',
+    'participants',
+    'attendees',
+    'contacts',
+    'hosts'
+  ]
+
+  arrayKeys.forEach(key => {
+    const list = company?.[key]
+    if (Array.isArray(list)) {
+      list.forEach(entry => {
+        const value = entry?.name || entry?.full_name || entry?.fullName
+        if (typeof value === 'string' && value.trim()) {
+          names.add(value.trim())
+        }
+      })
+    }
+  })
+
+  const directKeys = [
+    'hostName',
+    'host_name',
+    'primaryContactName',
+    'primary_contact_name',
+    'contactName',
+    'contact_name'
+  ]
+
+  directKeys.forEach(key => {
+    const value = company?.[key]
+    if (typeof value === 'string' && value.trim()) {
+      names.add(value.trim())
+    }
+  })
+
+  return Array.from(names)
+}
+
+const isHostCompanyEntry = (company: Record<string, any>): boolean => {
+  if (!company) return false
+  if (company.isHost) return true
+  if (company.hostName || company.host_name) return true
+  if (Array.isArray(company.hosts) && company.hosts.length > 0) return true
+
+  const category = company.category || company.companyCategory || company.segment
+  if (typeof category === 'string' && category.toLowerCase().includes('host')) {
+    return true
+  }
+
+  const possibleRole = company.role || company.companyRole || company.type || ''
+  if (typeof possibleRole === 'string' && possibleRole.toLowerCase().includes('host')) {
+    return true
+  }
+
+  return false
+}
+
+const getCompanyContactRecipients = (company: Record<string, any>): Array<{ name: string; email: string }> => {
+  const recipients = new Map<string, { name: string; email: string }>()
+
+  const addRecipient = (name?: string, email?: string) => {
+    if (!email) return
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) return
+    const key = trimmedEmail.toLowerCase()
+    if (recipients.has(key)) return
+    const displayName = (name && name.trim()) || trimmedEmail
+    recipients.set(key, { name: displayName, email: trimmedEmail })
+  }
+
+  const candidateArrays = [
+    'representatives',
+    'selectedContacts',
+    'selected_contacts',
+    'participants',
+    'attendees',
+    'contacts',
+    'hosts'
+  ]
+
+  candidateArrays.forEach(key => {
+    const list = company?.[key]
+    if (Array.isArray(list)) {
+      list.forEach(entry => {
+        const name = entry?.name || entry?.full_name || entry?.fullName || entry?.email
+        addRecipient(name, entry?.email)
+      })
+    }
+  })
+
+  if (company.primaryContactEmail) {
+    addRecipient(company.primaryContactName, company.primaryContactEmail)
+  }
+
+  if (company.contactEmail) {
+    addRecipient(company.contactName || company.primaryContactName, company.contactEmail)
+  }
+
+  if (company.email) {
+    addRecipient(company.fantasy_name || company.name || company.email, company.email)
+  }
+
+  return Array.from(recipients.values())
+}
+
 export function createTripItineraryTemplate(data: TripItineraryEmailData): EmailTemplate {
   const {
     tripTitle,
@@ -57,7 +249,43 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     })
   }
 
-  const getHostDisplay = (activity: any): string => {
+  type HostContactRecord = {
+    normalizedNames: string[]
+    contacts: string
+    displayName: string
+  }
+
+  const buildHostContactRecords = (companiesList: Array<Record<string, any>>): HostContactRecord[] => {
+    return companiesList.reduce<HostContactRecord[]>((records, company) => {
+      const contactNames = getCompanyContactNames(company)
+      if (contactNames.length === 0) {
+        return records
+      }
+
+      const possibleNames = [
+        ...getPossibleCompanyNames(company),
+        getCompanyDisplayName(company)
+      ]
+
+      const normalizedNames = Array.from(new Set(possibleNames
+        .map(name => normalizeForMatch(name))
+        .filter(Boolean)))
+
+      if (normalizedNames.length === 0) {
+        return records
+      }
+
+      records.push({
+        normalizedNames,
+        contacts: contactNames.join(', '),
+        displayName: getCompanyDisplayName(company)
+      })
+
+      return records
+    }, [])
+  }
+
+  const getHostDisplay = (activity: any, hostCompanyContacts: HostContactRecord[]): string => {
     const hostNames = new Set<string>()
 
     const collect = (value: any) => {
@@ -113,7 +341,75 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     collect(activity.hostCompany)
     collect(activity.host_company)
 
-    return Array.from(hostNames).join(', ')
+    const directHosts = Array.from(hostNames).join(', ')
+    if (directHosts) {
+      return directHosts
+    }
+
+    if (!hostCompanyContacts.length) {
+      return ''
+    }
+
+    const candidateStrings = new Set<string>()
+    const candidateProps = [
+      'companyName',
+      'company_name',
+      'company',
+      'hostCompany',
+      'host_company'
+    ]
+
+    candidateProps.forEach(prop => {
+      const value = (activity as any)?.[prop]
+      if (!value) return
+
+      if (typeof value === 'string') {
+        if (value.trim()) {
+          candidateStrings.add(value.trim())
+        }
+        return
+      }
+
+      if (typeof value === 'object') {
+        getPossibleCompanyNames(value).forEach(name => candidateStrings.add(name))
+      }
+    })
+
+    if (activity.title) {
+      candidateStrings.add(activity.title)
+    }
+
+    if (activity.location) {
+      candidateStrings.add(activity.location)
+    }
+
+    if (activity.description) {
+      candidateStrings.add(activity.description)
+    }
+
+    const normalizedCandidates = Array.from(candidateStrings)
+      .map(value => normalizeForMatch(value))
+      .filter(Boolean)
+
+    const normalizedTitle = normalizeForMatch(activity.title)
+    const normalizedLocation = normalizeForMatch(activity.location)
+
+    for (const record of hostCompanyContacts) {
+      const { normalizedNames, contacts } = record
+      const hasMatch = normalizedNames.some(name => {
+        if (!name) return false
+        if (normalizedCandidates.includes(name)) return true
+        if (normalizedTitle && normalizedTitle.includes(name)) return true
+        if (normalizedLocation && normalizedLocation.includes(name)) return true
+        return false
+      })
+
+      if (hasMatch) {
+        return contacts
+      }
+    }
+
+    return ''
   }
 
   const shouldShowHost = (activity: { type?: string; title: string }): boolean => {
@@ -131,9 +427,12 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     return /visit|meeting/i.test(activity.title)
   }
 
-  const renderActivityLine = (activity: { time: string; title: string; duration?: string; hostName?: string; type?: string }) => {
+  const renderActivityLine = (
+    activity: { time: string; title: string; duration?: string; hostName?: string; type?: string },
+    hostCompanyContacts: HostContactRecord[]
+  ) => {
     const showHost = shouldShowHost(activity)
-    const hostDisplay = getHostDisplay(activity) || ''
+    const hostDisplay = getHostDisplay(activity, hostCompanyContacts) || ''
     const hostStatus = showHost ? (hostDisplay ? `Host ${hostDisplay}` : 'Host to be confirmed') : ''
     const durationText = activity.duration ? ` (${activity.duration})` : ''
     const hostSuffix = hostStatus ? ` - ${hostStatus}` : ''
@@ -144,8 +443,13 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
   const subject = `${tripTitle} - ${formatDateRange(tripStartDate, tripEndDate)}`
   const tripUrl = `${baseUrl}/trips/${tripAccessCode}`
 
+  const companiesList = Array.isArray(companies) ? companies : []
+  const hostCompanyEntries = companiesList.filter(company => isHostCompanyEntry(company as Record<string, any>))
+  const guestCompanyEntries = companiesList.filter(company => !isHostCompanyEntry(company as Record<string, any>))
+  const hostContactRecords = buildHostContactRecords(hostCompanyEntries)
+
   const isWolthersStaff = (participant: { role?: string }) => {
-    const role = participant.role?.toLowerCase() || ''
+    const role = normalizeRole(participant.role)
     return role === 'staff' || role === 'wolthers_staff' || role.includes('wolthers')
   }
 
@@ -155,28 +459,26 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     .join(', ')
 
   const independentGuests = participants
-    .filter(participant => !isWolthersStaff(participant))
+    .filter(participant => !isWolthersStaff(participant) && !isHostRole(participant.role))
     .map(participant => participant.name.split(' ')[0])
 
-  const guestCompanies = companies.map(company => {
-    const reps = company.representatives || []
-    const firstNames = reps
-      .filter(rep => rep?.name)
-      .map(rep => rep.name.split(' ')[0])
-      .join(', ')
-
-    const displayName = company.fantasyName || company.fantasy_name || company.name
+  const guestCompanies = guestCompanyEntries.map(company => {
+    const companyRecord = company as Record<string, any>
+    const attendeeNames = getCompanyContactNames(companyRecord)
+    const firstNames = Array.from(new Set(attendeeNames
+      .map(name => name.split(' ')[0])
+      .filter(Boolean)))
 
     return {
-      displayName,
-      attendees: firstNames
+      displayName: getCompanyDisplayName(companyRecord),
+      attendees: firstNames.length > 0 ? firstNames.join(', ') : 'Guests to be confirmed'
     }
   })
 
   const itineraryHtml = itinerary.map((day, index) => {
     const dayHeading = `Day ${index + 1} - ${formatDayLabel(day.date)}`
     const activitiesHtml = day.activities
-      .map(activity => `<p class="activity-line">&nbsp;&nbsp;&nbsp;&nbsp;${renderActivityLine(activity)}</p>`)
+      .map(activity => `<p class="activity-line">&nbsp;&nbsp;&nbsp;&nbsp;${renderActivityLine(activity, hostContactRecords)}</p>`)
       .join('')
 
     return `
@@ -307,8 +609,8 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
       </head>
       <body>
         <div class="email-container">
-          <img src="${logoUrl}" alt="Wolthers & Associates" class="logo" />
           <div class="card">
+            <img src="${logoUrl}" alt="Wolthers & Associates" class="logo" />
             <h1 class="email-title">${tripTitle} · Trip key: ${tripAccessCode}</h1>
             <p style="text-align: center; margin: 10px 0 0;">
               <a href="${tripUrl}" class="trip-link" target="_blank" rel="noopener noreferrer">View trip</a>
@@ -387,7 +689,7 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
     textLines.push(`Day ${index + 1} - ${formatDayLabel(day.date)}`)
 
     day.activities.forEach(activity => {
-      const baseLine = renderActivityLine(activity)
+      const baseLine = renderActivityLine(activity, hostContactRecords)
       textLines.push(`    ${baseLine}`)
     })
   })
@@ -401,10 +703,34 @@ export function createTripItineraryTemplate(data: TripItineraryEmailData): Email
 
 export async function sendTripItineraryEmails(data: TripItineraryEmailData): Promise<{ success: boolean; errors: string[] }> {
   const template = createTripItineraryTemplate(data)
-  const recipients: Array<{ name: string; email: string }> = [
-    ...data.participants,
-    ...data.companies.flatMap(company => company.representatives || [])
-  ]
+  const participantRecipients = (data.participants || [])
+    .filter(participant => participant?.email)
+    .filter(participant => !isHostRole(participant.role))
+    .map(participant => ({
+      name: participant.name,
+      email: participant.email
+    }))
+
+  const companyRecipients = (data.companies || [])
+    .filter(company => !isHostCompanyEntry(company as Record<string, any>))
+    .flatMap(company => getCompanyContactRecipients(company as Record<string, any>))
+
+  const recipientMap = new Map<string, { name: string; email: string }>()
+
+  const registerRecipient = (recipient: { name: string; email: string }) => {
+    if (!recipient?.email) return
+    const trimmedEmail = recipient.email.trim()
+    if (!trimmedEmail) return
+    const key = trimmedEmail.toLowerCase()
+    if (recipientMap.has(key)) return
+    const displayName = (recipient.name && recipient.name.trim()) || trimmedEmail
+    recipientMap.set(key, { name: displayName, email: trimmedEmail })
+  }
+
+  participantRecipients.forEach(registerRecipient)
+  companyRecipients.forEach(registerRecipient)
+
+  const recipients = Array.from(recipientMap.values())
 
   const errors: string[] = []
 

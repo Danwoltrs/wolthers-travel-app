@@ -19,16 +19,66 @@ const formatList = (names: string[]): string => {
   return `${head}, and ${filtered[filtered.length - 1]}`
 }
 
-const resolveCompanyLabel = (data: HostVisitConfirmationData): string | undefined => {
+const stripCompanySuffixes = (value?: string): string => {
+  if (!value) return ''
+  return value
+    .replace(/\b(LTDA\.?|Ltda\.?|Ltd\.?|S\.?A\.?|SA|A\/G|AG|LLC|INC\.?|Incorporated|Corp\.?|Corporation)\b/gi, '')
+    .replace(/\b(Exportacao|Exportação|Importacao|Importação|Comercio|Comércio|Industria|Indústria|Agroindustrial|Cooperativa|Holdings?)\b/gi, '')
+    .replace(/[()]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+const normalizeName = (value?: string): string => {
+  if (!value) return ''
+  try {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  } catch (error) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  }
+}
+
+const namesMatch = (a?: string, b?: string): boolean => {
+  const normA = normalizeName(a)
+  const normB = normalizeName(b)
+  if (!normA || !normB) return false
+  return normA === normB
+}
+
+const resolveHostLabel = (data: HostVisitConfirmationData): string | undefined => {
   return data.companyFantasyName || data.companyName
 }
 
+const resolveGuestLabels = (data: HostVisitConfirmationData, hostLabel?: string) => {
+  const filteredGuests = (data.guests || []).filter(guest => !namesMatch(guest, hostLabel))
+  const cleanedGuests = filteredGuests
+    .map(guest => stripCompanySuffixes(guest))
+    .filter(Boolean)
+
+  const guestFirstNames = cleanedGuests.map(splitFirstName).filter(Boolean)
+  const leadLabel = cleanedGuests.length > 0 ? splitFirstName(cleanedGuests[0]) || cleanedGuests[0] : undefined
+
+  return {
+    cleanedGuests,
+    guestFirstNames,
+    leadLabel
+  }
+}
+
 export function createHostVisitConfirmationTemplate(data: HostVisitConfirmationData): EmailTemplate {
-  const companyLabel = resolveCompanyLabel(data)
-  const guestFirstNames = data.guests.map(splitFirstName).filter(Boolean)
+  const hostLabel = resolveHostLabel(data)
+  const { cleanedGuests, guestFirstNames, leadLabel } = resolveGuestLabels(data, hostLabel)
   const wolthersFirstNames = (data.wolthersTeam || []).map(splitFirstName).filter(Boolean)
 
-  const subject = companyLabel ? `Visit Request by ${companyLabel}` : 'Visit Request from Wolthers & Associates'
+  const subject = leadLabel ? `Visit Request by ${leadLabel}` : 'Visit Request from Wolthers & Associates'
 
   const visitDateLong = new Date(data.visitDate).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -37,8 +87,8 @@ export function createHostVisitConfirmationTemplate(data: HostVisitConfirmationD
   })
 
   const invitationLine = guestFirstNames.length > 0
-    ? `We would like to inform you we are going to be traveling with ${formatList(guestFirstNames)}${companyLabel ? ` from ${companyLabel}` : ''}, and we would like to know if you are able to receive us on ${visitDateLong} at ${data.visitTime}.`
-    : `We would like to know if you are able to receive us on ${visitDateLong} at ${data.visitTime}.`
+    ? `We would like to inform you we are going to be traveling with ${formatList(guestFirstNames)}, and we would like to know if you are able to receive us${hostLabel ? ` at ${hostLabel}` : ''} on ${visitDateLong} at ${data.visitTime}.`
+    : `We would like to know if you are able to receive us${hostLabel ? ` at ${hostLabel}` : ''} on ${visitDateLong} at ${data.visitTime}.`
 
   const wolthersLine = wolthersFirstNames.length > 0
     ? `${formatList(wolthersFirstNames)} from Wolthers will be joining the trip.`
@@ -148,8 +198,8 @@ export function createHostVisitConfirmationTemplate(data: HostVisitConfirmationD
             <div class="info-box">
               <p><strong>Date:</strong> ${visitDateLong}</p>
               <p><strong>Time:</strong> ${data.visitTime}</p>
-              ${companyLabel ? `<p><strong>Travelers:</strong> ${companyLabel}</p>` : ''}
-              ${guestFirstNames.length > 0 ? `<p><strong>Guests:</strong> ${formatList(guestFirstNames)}</p>` : ''}
+              ${hostLabel ? `<p><strong>Host:</strong> ${hostLabel}</p>` : ''}
+              ${cleanedGuests.length > 0 ? `<p><strong>Guests:</strong> ${formatList(cleanedGuests)}</p>` : ''}
               <p><strong>Contact:</strong> ${data.inviterEmail}</p>
             </div>
             <div class="action-row">

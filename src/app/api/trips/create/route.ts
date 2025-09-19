@@ -5,6 +5,93 @@ import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!
 
+const normalizeText = (value?: string): string => {
+  if (!value) return ''
+  try {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  } catch (error) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  }
+}
+
+const stripCompanySuffixes = (value?: string): string => {
+  if (!value) return ''
+  return value
+    .replace(/\b(LTDA\.?|Ltda\.?|Ltd\.?|S\.?A\.?|SA|A\/G|AG|LLC|INC\.?|Incorporated|Corp\.?|Corporation)\b/gi, '')
+    .replace(/\b(Exportacao|Exportação|Importacao|Importação|Comercio|Comércio|Industria|Indústria|Agroindustrial|Cooperativa|Holdings?)\b/gi, '')
+    .replace(/[()]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+const getPossibleCompanyNames = (company: any): string[] => {
+  const keys = [
+    'fantasy_name',
+    'fantasyName',
+    'display_name',
+    'displayName',
+    'nickname',
+    'short_name',
+    'shortName',
+    'companyName',
+    'company_name',
+    'legal_name',
+    'legalName',
+    'name'
+  ]
+
+  const names = new Set<string>()
+  keys.forEach(key => {
+    const value = company?.[key]
+    if (typeof value === 'string' && value.trim()) {
+      names.add(value.trim())
+    }
+  })
+
+  return Array.from(names)
+}
+
+const getCompanyDisplayLabel = (company: any): string => {
+  const possibleNames = getPossibleCompanyNames(company)
+  if (possibleNames.length === 0) return 'Company'
+
+  const cleaned = possibleNames
+    .map(name => stripCompanySuffixes(name))
+    .filter(Boolean)
+
+  if (cleaned.length === 0) {
+    return stripCompanySuffixes(possibleNames[0]) || 'Company'
+  }
+
+  return cleaned.reduce((shortest, current) => {
+    if (!shortest) return current
+    return current.length < shortest.length ? current : shortest
+  }, cleaned[0])
+}
+
+const isLikelyHostCompany = (company: any): boolean => {
+  if (!company) return false
+  if (company.isHost || company.is_host) return true
+  if (company.hostName || company.host_name) return true
+  if (Array.isArray(company.hosts) && company.hosts.length > 0) return true
+
+  const role = normalizeText(company.role || company.companyRole || company.type)
+  if (role.includes('host')) return true
+
+  const category = normalizeText(company.category || company.companyCategory || company.segment)
+  if (category.includes('host')) return true
+
+  return false
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🚀 [Create Trip API] Starting trip creation...')
@@ -493,7 +580,7 @@ export async function POST(request: NextRequest) {
         role: 'staff'
       })).filter((participant: any) => participant.email)
 
-      const guestCompanies = (tripData.companies || []).filter((company: any) => !(company.isHost || company.role === 'host'))
+      const guestCompanies = (tripData.companies || []).filter((company: any) => !isLikelyHostCompany(company))
 
       const primaryVehicle = vehicles[0]
       const primaryDriver = drivers[0] || tripData.vehicleAssignments?.[0]?.driver
@@ -506,13 +593,37 @@ export async function POST(request: NextRequest) {
         createdBy: user.full_name,
         itinerary,
         participants: staffParticipants,
-        companies: guestCompanies.map((company: any) => ({
-          name: company.name || company.fantasy_name,
-          representatives: (company.selectedContacts || company.participants || []).map((contact: any) => ({
-            name: contact.name || contact.full_name || contact.fullName || contact.email,
-            email: contact.email
-          })).filter((rep: any) => rep.email)
-        })),
+        companies: guestCompanies.map((company: any) => {
+          const contactArrays = [
+            company.representatives,
+            company.selectedContacts,
+            company.selected_contacts,
+            company.participants,
+            company.attendees,
+            company.contacts
+          ].filter(Array.isArray)
+
+          const representatives = contactArrays
+            .flat() as any[]
+
+          const uniqueContacts = new Map<string, { name: string; email: string }>()
+
+          representatives.forEach(contact => {
+            if (!contact) return
+            const email = (contact.email || '').trim()
+            if (!email) return
+            const key = email.toLowerCase()
+            if (uniqueContacts.has(key)) return
+            const name = contact.name || contact.full_name || contact.fullName || email
+            uniqueContacts.set(key, { name, email })
+          })
+
+          return {
+            name: getCompanyDisplayLabel(company),
+            fantasyName: company.fantasy_name || company.fantasyName,
+            representatives: Array.from(uniqueContacts.values())
+          }
+        }),
         vehicle: primaryVehicle ? {
           make: primaryVehicle.make || primaryVehicle.model?.split(' ')[0] || primaryVehicle.model || 'Vehicle',
           model: primaryVehicle.model || primaryVehicle.name || primaryVehicle.make,
@@ -534,13 +645,13 @@ export async function POST(request: NextRequest) {
 
       const hostCompanies = (tripData.hostCompanies && tripData.hostCompanies.length > 0)
         ? tripData.hostCompanies
-        : (tripData.companies || []).filter((company: any) => company.isHost || company.role === 'host')
+        : (tripData.companies || []).filter((company: any) => isLikelyHostCompany(company))
 
       if (hostCompanies && hostCompanies.length > 0) {
         console.log('📧 [Create Trip API] Sending host visit confirmation emails...')
 
         const visitingGuests = guestCompanies
-          .map((company: any) => company.name || company.fantasy_name)
+          .map((company: any) => getCompanyDisplayLabel(company))
           .filter(Boolean)
 
         const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL
@@ -554,15 +665,17 @@ export async function POST(request: NextRequest) {
 
           if (representatives.length === 0) continue
 
-          const hostNameNormalized = (hostCompany.fantasy_name || hostCompany.name || '').toLowerCase()
+          const hostNameNormalized = normalizeText(hostCompany.fantasy_name || hostCompany.name)
+
+          const hostDisplayLabel = getCompanyDisplayLabel(hostCompany)
 
           const hostActivities = rawActivities
             .filter((activity: any) => {
-              const title = (activity.title || '').toLowerCase()
-              const companyName = (activity.company_name || '').toLowerCase()
+              const titleNormalized = normalizeText(activity.title || '')
+              const companyNameNormalized = normalizeText(activity.company_name || activity.company?.name)
               const byId = activity.company_id && hostCompany.id && activity.company_id === hostCompany.id
               const byName = hostNameNormalized && (
-                title.includes(hostNameNormalized) || companyName.includes(hostNameNormalized)
+                titleNormalized.includes(hostNameNormalized) || companyNameNormalized.includes(hostNameNormalized)
               )
               return byId || byName
             })
@@ -586,6 +699,7 @@ export async function POST(request: NextRequest) {
               const hostEmailData = {
                 hostName: representative.name || representative.full_name || representative.fullName || representative.email,
                 companyName: hostCompany.name || hostCompany.fantasy_name,
+                companyFantasyName: hostCompany.fantasy_name || hostDisplayLabel,
                 visitDate: visitDateIso,
                 visitTime: visitTimeFormatted,
                 guests: visitingGuests,
