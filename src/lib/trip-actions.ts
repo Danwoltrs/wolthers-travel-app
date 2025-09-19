@@ -114,7 +114,7 @@ export async function finalizeTripAndNotifyHosts(tripId: string, userId: string)
       id,
       meeting_date,
       start_time,
-      companies (id, name, email),
+      companies (id, name, email, fantasy_name),
       meeting_attendees(users(full_name))
     `)
     .eq('trip_id', tripId)
@@ -141,14 +141,19 @@ export async function finalizeTripAndNotifyHosts(tripId: string, userId: string)
         continue
       }
 
+      const guestNames = (meeting.meeting_attendees || [])
+        .map((att: any) => att?.users?.full_name)
+        .filter(Boolean)
+
       const emailData: HostVisitConfirmationData = {
         hostName,
         companyName: hostCompany.name,
+        companyFantasyName: hostCompany.fantasy_name || undefined,
         tripTitle: updatedTrip.title,
         tripAccessCode: updatedTrip.access_code,
         visitDate: new Date(meeting.meeting_date).toLocaleDateString(),
         visitTime: meeting.start_time,
-        guests: meeting.meeting_attendees.map((att: any) => att.users.full_name).filter(Boolean) || ['Wolthers Representatives'],
+        guests: guestNames.length > 0 ? guestNames : ['Wolthers Team'],
         inviterName: user.full_name || 'Wolthers Team',
         inviterEmail: user.email,
         yesUrl: `${baseUrl}/api/visit-response?meetingId=${meeting.id}&status=confirmed`,
