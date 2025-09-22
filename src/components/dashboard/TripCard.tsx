@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useMemo } from 'react'
 import { Calendar, Users, Car, Clock, MapPin, Mail, TrendingUp, Route, Key, Check, CheckSquare, Trash2, CloudSun } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { TripCard as TripCardType } from '@/types'
@@ -14,6 +14,95 @@ interface TripCardProps {
   trip: TripCardType
   onClick?: () => void
   isPast?: boolean
+}
+
+type VehiclePreview = {
+  id: string
+  label: string
+  licensePlate?: string
+}
+
+type DriverPreview = {
+  id: string
+  fullName: string
+  email?: string
+}
+
+function formatVehicleLabel(make?: string, model?: string, fallback?: string) {
+  const cleanedMake = (make || '').trim()
+  const cleanedModel = (model || '').trim()
+  if (!cleanedMake && !cleanedModel) {
+    return (fallback || '').trim()
+  }
+  if (!cleanedMake) {
+    return cleanedModel || (fallback || '').trim()
+  }
+  if (!cleanedModel) {
+    return cleanedMake
+  }
+  if (cleanedModel.toLowerCase().startsWith(cleanedMake.toLowerCase())) {
+    return cleanedModel
+  }
+  const combined = `${cleanedMake} ${cleanedModel}`.trim()
+  return combined || cleanedModel || cleanedMake
+}
+
+function normalizeVehicleRecord(input: any, fallbackId?: string): VehiclePreview | null {
+  if (!input) {
+    return null
+  }
+
+  const make = typeof input.make === 'string' ? input.make : undefined
+  const modelSource = typeof input.model === 'string' ? input.model : undefined
+  const fallbackName = typeof input.name === 'string' ? input.name : undefined
+  const label = formatVehicleLabel(make, modelSource, fallbackName)
+
+  if (!label) {
+    return null
+  }
+
+  const licensePlate = input.licensePlate || input.license_plate || input.plate || undefined
+  const rawId = input.id || input.vehicle_id || fallbackId || licensePlate || label
+
+  return {
+    id: String(rawId),
+    label,
+    licensePlate: licensePlate ? String(licensePlate) : undefined
+  }
+}
+
+function normalizeDriverRecord(input: any, fallbackId?: string): DriverPreview | null {
+  if (!input) {
+    return null
+  }
+
+  const fullName = input.fullName || input.full_name || input.name || input.displayName || input.driver_name || ''
+  if (!fullName) {
+    return null
+  }
+
+  const email = input.email || input.contact_email || input.driver_email || undefined
+  const rawId = input.id || input.driver_id || fallbackId || email || fullName
+
+  return {
+    id: String(rawId),
+    fullName,
+    email: email ? String(email) : undefined
+  }
+}
+
+function dedupeByKey<T>(items: T[], getKey: (item: T) => string) {
+  const seen = new Set<string>()
+  const result: T[] = []
+  items.forEach((item) => {
+    const key = getKey(item)
+    if (!key || seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    result.push(item)
+  })
+  return result
 }
 
 export default function TripCard({ trip, onClick, isPast = false }: TripCardProps) {
@@ -48,6 +137,100 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
       weather: weatherData?.weather
     }
   })
+
+  const vehicleAssignments = useMemo<any[]>(() => {
+    const sources = [
+      (trip as any).tripVehicles,
+      (trip as any).trip_vehicles,
+      (trip as any).vehicleAssignments,
+      (trip as any).logistics?.vehicleAssignments,
+      (trip as any).logistics?.vehicles
+    ]
+
+    return sources.reduce<any[]>((acc, source) => {
+      if (Array.isArray(source)) {
+        acc.push(...source)
+      }
+      return acc
+    }, [])
+  }, [trip])
+
+  const vehiclesToDisplay = useMemo<VehiclePreview[]>(() => {
+    const normalized: VehiclePreview[] = []
+
+    if (Array.isArray(trip.vehicles)) {
+      trip.vehicles.forEach((vehicle, index) => {
+        const preview = normalizeVehicleRecord(vehicle, vehicle.id || `vehicle-${index}`)
+        if (preview) {
+          normalized.push(preview)
+        }
+      })
+    }
+
+    vehicleAssignments.forEach((assignment, index) => {
+      const source = assignment?.vehicle || assignment?.vehicles || assignment
+      const preview = normalizeVehicleRecord(
+        source,
+        assignment?.vehicle_id ? String(assignment.vehicle_id) : `assignment-${index}`
+      )
+      if (preview) {
+        normalized.push(preview)
+      }
+    })
+
+    return dedupeByKey(normalized, (vehicle) => `${vehicle.id}|${vehicle.label}|${vehicle.licensePlate || ''}`)
+  }, [trip.vehicles, vehicleAssignments])
+
+  const driversToDisplay = useMemo<DriverPreview[]>(() => {
+    const normalized: DriverPreview[] = []
+
+    if (Array.isArray(trip.drivers)) {
+      trip.drivers.forEach((driver, index) => {
+        const preview = normalizeDriverRecord(driver, driver.id || `driver-${index}`)
+        if (preview) {
+          normalized.push(preview)
+        }
+      })
+    }
+
+    vehicleAssignments.forEach((assignment, index) => {
+      const candidateSources = [
+        assignment?.driver,
+        assignment?.users,
+        assignment?.assigned_driver,
+        assignment?.driverDetails,
+        assignment?.driver_info
+      ]
+
+      let preview: DriverPreview | null = null
+      for (const source of candidateSources) {
+        preview = normalizeDriverRecord(
+          source,
+          source?.id || assignment?.driver_id || `driver-${index}`
+        )
+        if (preview) {
+          break
+        }
+      }
+
+      if (!preview && (assignment?.driver_name || assignment?.driver_email)) {
+        preview = normalizeDriverRecord(
+          {
+            id: assignment?.driver_id,
+            fullName: assignment?.driver_name,
+            email: assignment?.driver_email
+          },
+          assignment?.driver_id || `driver-${index}`
+        )
+      }
+
+      if (preview) {
+        normalized.push(preview)
+      }
+    })
+
+    return dedupeByKey(normalized, (driver) => `${driver.id}|${driver.fullName}`)
+  }, [trip.drivers, vehicleAssignments])
 
   // Always calculate progress based on current date for real-time updates
   const progress = isDraft ? (trip as any).completionPercentage || 0 : getTripProgress(trip.startDate, trip.endDate)
@@ -451,16 +634,16 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Fleet</span>
             </div>
             <div className="space-y-1">
-              {trip.vehicles?.length > 0 ? (
+              {vehiclesToDisplay.length > 0 ? (
                 <>
-                  {trip.vehicles.slice(0, 3).map((vehicle) => (
+                  {vehiclesToDisplay.slice(0, 3).map((vehicle) => (
                     <div key={vehicle.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
-                      {vehicle.make} {vehicle.model}
+                      {vehicle.label}
                     </div>
                   ))}
-                  {trip.vehicles.length > 3 && (
+                  {vehiclesToDisplay.length > 3 && (
                     <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
-                      +{trip.vehicles.length - 3} more
+                      +{vehiclesToDisplay.length - 3} more
                     </div>
                   )}
                 </>
@@ -477,16 +660,16 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
               <span className="text-xs font-medium uppercase tracking-wide text-pearl-800 dark:text-gray-300">Driver</span>
             </div>
             <div className="space-y-1">
-              {trip.drivers?.length > 0 ? (
+              {driversToDisplay.length > 0 ? (
                 <>
-                  {trip.drivers.slice(0, 3).map((driver) => (
+                  {driversToDisplay.slice(0, 3).map((driver) => (
                     <div key={driver.id} className="text-xs text-pearl-700 dark:text-gray-400 truncate">
                       {driver.fullName}
                     </div>
                   ))}
-                  {trip.drivers.length > 3 && (
+                  {driversToDisplay.length > 3 && (
                     <div className="text-xs text-golden-600 dark:text-[#0E3D2F] font-medium">
-                      +{trip.drivers.length - 3} more
+                      +{driversToDisplay.length - 3} more
                     </div>
                   )}
                 </>

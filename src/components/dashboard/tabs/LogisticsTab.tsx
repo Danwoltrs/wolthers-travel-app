@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
+import { cn } from '@/lib/utils'
 
 interface LogisticsTabProps {
   trip: TripCard
@@ -29,6 +30,7 @@ interface LogisticsTabProps {
   onUpdate: (tab: 'logistics', updates: any) => void
   validationState: TabValidationState
   mode?: 'view' | 'edit'
+  className?: string
 }
 
 export function LogisticsTab({ 
@@ -36,7 +38,8 @@ export function LogisticsTab({
   tripDetails, 
   onUpdate, 
   validationState,
-  mode = 'view'
+  mode = 'view',
+  className = ''
 }: LogisticsTabProps) {
   const [activeSection, setActiveSection] = useState<'vehicles' | 'equipment' | 'accommodation' | 'transportation'>('vehicles')
 
@@ -66,7 +69,7 @@ export function LogisticsTab({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn('flex flex-col min-h-0 space-y-6', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
           Logistics Management
@@ -114,7 +117,7 @@ export function LogisticsTab({
       </div>
 
       {/* Content Area */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+      <div className="flex-1 overflow-hidden rounded-lg border border-pearl-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a]">
         {activeSection === 'vehicles' && (
           <div className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
             {/* Vehicles Section */}

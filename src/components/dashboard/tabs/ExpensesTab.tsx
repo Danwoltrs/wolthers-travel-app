@@ -24,19 +24,22 @@ import {
 } from 'lucide-react'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
+import { cn } from '@/lib/utils'
 
 interface ExpensesTabProps {
   trip: TripCard
   tripDetails?: any
   onUpdate: (tab: 'expenses', updates: any) => void
   validationState: TabValidationState
+  className?: string
 }
 
 export function ExpensesTab({ 
   trip, 
   tripDetails, 
   onUpdate, 
-  validationState 
+  validationState,
+  className = ''
 }: ExpensesTabProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'expenses' | 'receipts' | 'reports'>('overview')
   const [showAddExpense, setShowAddExpense] = useState(false)
@@ -106,7 +109,7 @@ export function ExpensesTab({
   const budgetUsedPercentage = (totalExpenses / totalBudget) * 100
 
   return (
-    <div className="space-y-6">
+    <div className={cn('flex flex-col min-h-0 space-y-6', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
           Expenses & Budget

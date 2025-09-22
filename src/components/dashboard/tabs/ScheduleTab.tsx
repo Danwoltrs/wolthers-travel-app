@@ -9,7 +9,7 @@
 import React, { useState, useCallback } from 'react'
 import { useActivityManager, type ActivityFormData, type Activity } from '@/hooks/useActivityManager'
 import { OutlookCalendar } from '@/components/dashboard/OutlookCalendar'
-import { calculateDuration } from '@/lib/utils'
+import { calculateDuration, cn } from '@/lib/utils'
 import type { TripCard } from '@/types'
 
 interface ScheduleTabProps {
@@ -18,6 +18,7 @@ interface ScheduleTabProps {
   onUpdate: (tab: 'schedule', updates: any) => void
   validationState?: any
   onSyncCalendar?: () => void
+  className?: string
 }
 
 export function ScheduleTab({ 
@@ -25,7 +26,8 @@ export function ScheduleTab({
   tripDetails, 
   onUpdate, 
   validationState,
-  onSyncCalendar 
+  onSyncCalendar,
+  className = ''
 }: ScheduleTabProps) {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [showActivityEditor, setShowActivityEditor] = useState(false)
@@ -395,7 +397,7 @@ export function ScheduleTab({
   const stats = getActivityStats()
 
   return (
-    <div className="space-y-4 relative">
+    <div className={cn('relative flex h-full min-h-0 flex-col space-y-4', className)}>
       {/* Loading Overlay */}
       {(refreshing || isExtending) && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
@@ -451,7 +453,7 @@ export function ScheduleTab({
 
 
       {/* Outlook-Style Calendar with Loading Overlay */}
-      <div className="relative">
+      <div className="relative flex-1 min-h-0">
         {(refreshing || isExtending) && (
           <div className="absolute inset-0 bg-white/70 dark:bg-[#1a1a1a]/70 rounded-lg flex items-center justify-center z-10">
             <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 shadow-lg border border-pearl-200 dark:border-[#2a2a2a]">
@@ -716,7 +718,7 @@ export function ScheduleTab({
       )}
 
       {/* Summary Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {stats.meetings}

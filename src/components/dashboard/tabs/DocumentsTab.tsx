@@ -10,7 +10,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import { useDocumentFinder, DocumentFinderContext } from '@/hooks/useDocumentFinder'
-import { isMobileDevice } from '@/lib/utils'
+import { isMobileDevice, cn } from '@/lib/utils'
 import CropDashboard from '@/components/documents/CropDashboard'
 import DocumentFinder from '@/components/documents/DocumentFinder'
 import MobileDocumentView from '@/components/documents/MobileDocumentView'
@@ -21,6 +21,7 @@ interface DocumentsTabProps {
   onUpdate: (tab: 'documents', updates: any) => void
   validationState: TabValidationState
   mode?: 'view' | 'edit'
+  className?: string
 }
 
 export function DocumentsTab({ 
@@ -28,7 +29,8 @@ export function DocumentsTab({
   tripDetails, 
   onUpdate, 
   validationState,
-  mode = 'edit'
+  mode = 'edit',
+  className = ''
 }: DocumentsTabProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -103,7 +105,7 @@ export function DocumentsTab({
   // Show loading state if initial data is loading
   if (state.loading && state.suppliers.length === 0 && state.cropInformation.length === 0) {
     return (
-      <div className="documents-tab h-full flex items-center justify-center py-12">
+      <div className={cn('documents-tab flex h-full items-center justify-center py-12', className)}>
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-sage-600 dark:text-emerald-400 mx-auto mb-4" />
           <p className="text-latte-600 dark:text-gray-400">Loading document management system...</p>
@@ -113,7 +115,7 @@ export function DocumentsTab({
   }
 
   return (
-    <div className="documents-tab h-full flex flex-col space-y-6">
+    <div className={cn('documents-tab flex h-full flex-col space-y-6', className)}>
       {/* Trip Context Indicator */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

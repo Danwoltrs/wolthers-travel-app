@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { Calendar, MapPin, Users, Clock, AlertCircle } from 'lucide-react'
-import { calculateDuration } from '@/lib/utils'
+import { calculateDuration, cn } from '@/lib/utils'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import TripCancellationModal from '@/components/trips/TripCancellationModal'
@@ -34,6 +34,7 @@ interface OverviewTabProps {
   tripError?: any
   sortedDates?: string[]
   onClose?: () => void
+  className?: string
 }
 
 export function OverviewTab({ 
@@ -48,7 +49,8 @@ export function OverviewTab({
   activitiesLoading = false,
   tripError = null,
   sortedDates = [],
-  onClose
+  onClose,
+  className = ''
 }: OverviewTabProps) {
   const [formData, setFormData] = useState({
     title: trip.title,
@@ -174,11 +176,8 @@ export function OverviewTab({
   // If in view mode, show the overview information
   if (mode === 'view') {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
-            Trip Overview
-          </h3>
+      <div className={cn('flex flex-col gap-6 min-h-0 h-full', className)}>
+        <div className="flex items-center justify-end">
           <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
             <Clock className="w-3 h-3" />
             <span>{calculateDuration(trip.startDate, trip.endDate)} days</span>
@@ -186,7 +185,7 @@ export function OverviewTab({
         </div>
 
         {/* Trip Information Display */}
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+        <div className="flex-shrink-0 bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column - Basic Info */}
@@ -281,7 +280,7 @@ export function OverviewTab({
           {/* Trip Statistics */}
           <div className="border-t border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
             <div className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
                     {calculateDuration(trip.startDate, trip.endDate)}
@@ -300,14 +299,6 @@ export function OverviewTab({
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                    {activityStats.visits}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Activities
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
                     {trip.vehicles.length}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -320,8 +311,7 @@ export function OverviewTab({
         </div>
 
         {/* Participants Overview */}
-        <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Participants</h4>
+        <div className="flex-shrink-0 space-y-4">
           
           {/* Mobile: Simple text layout */}
           <div className="md:hidden">
@@ -486,200 +476,131 @@ export function OverviewTab({
             <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-golden-400">Activities</h4>
+          <div className="flex flex-col min-h-0 flex-1">
             
-            {/* Small screens: Full width list layout */}
-            <div className="block sm:hidden space-y-3">
-              {sortedDates.map((date, dayIndex) => {
-                const dayActivities = groupedActivities[date]
-                const dayDate = new Date(date)
-                
-                return (
-                  <div key={date}>
-                    {/* Day Header - Full Width */}
-                    <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-3 py-3 -mx-3">
-                      <h3 className="font-medium text-sm">
-                        Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
-                          weekday: 'short',
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </h3>
-                    </div>
+            {/* Activities Container with Flexible Height */}
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col min-h-0 flex-1">
+              
+              {/* Scrollable Activities Content */}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Small screens: Full width list layout */}
+                <div className="block sm:hidden">
+                  {sortedDates.map((date, dayIndex) => {
+                    const dayActivities = groupedActivities[date]
+                    const dayDate = new Date(date)
                     
-                    {/* Activities - Full Width */}
-                    <div className="-mx-3">
-                      {dayActivities.map((item: any, itemIndex: number) => {
-                        const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
-                        const isEven = itemIndex % 2 === 0
+                    return (
+                      <div key={date}>
+                        {/* Day Header - Full Width */}
+                        <div className="bg-emerald-800 dark:bg-emerald-900 text-golden-400 px-3 py-3 sticky top-0 z-10">
+                          <h3 className="font-medium text-sm">
+                            Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
+                              weekday: 'short',
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </h3>
+                        </div>
                         
-                        return (
-                          <div 
-                            key={item.id} 
-                            className={`px-3 py-3 ${
-                              isEven 
-                                ? 'bg-gray-50 dark:bg-[#1a1a1a]' 
-                                : 'bg-gray-100 dark:bg-[#242424]'
-                            }`}
-                          >
-                            <div className="flex gap-3">
-                              <span className="text-gray-500 dark:text-gray-400 font-mono text-xs min-w-[2.5rem]">
-                                {startTime}
-                              </span>
-                              <span className="text-gray-400 text-xs">-</span>
-                              <div className="flex-1">
-                                <p className="text-gray-900 dark:text-gray-200 text-sm font-medium leading-tight">
-                                  {item.title}
-                                </p>
-                                {item.host && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Host: {item.host}
-                                  </p>
-                                )}
+                        {/* Activities - Full Width */}
+                        <div>
+                          {dayActivities.map((item: any, itemIndex: number) => {
+                            const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
+                            const isEven = itemIndex % 2 === 0
+                            
+                            return (
+                              <div 
+                                key={item.id} 
+                                className={`px-3 py-3 ${
+                                  isEven 
+                                    ? 'bg-gray-50 dark:bg-[#1a1a1a]' 
+                                    : 'bg-gray-100 dark:bg-[#242424]'
+                                }`}
+                              >
+                                <div className="flex gap-3">
+                                  <span className="text-gray-500 dark:text-gray-400 font-mono text-xs min-w-[2.5rem]">
+                                    {startTime}
+                                  </span>
+                                  <span className="text-gray-400 text-xs">-</span>
+                                  <div className="flex-1">
+                                    <p className="text-gray-900 dark:text-gray-200 text-sm font-medium leading-tight">
+                                      {item.title}
+                                    </p>
+                                    {item.host && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Host: {item.host}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Desktop: Table layout */}
-            <div className="hidden sm:block bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
-              <div className="space-y-0">
-                {sortedDates.map((date, dayIndex) => {
-                  const dayActivities = groupedActivities[date]
-                  const dayDate = new Date(date)
-                  
-                  return (
-                    <div key={date} className="border-b border-gray-200 dark:border-[#2a2a2a] last:border-b-0">
-                      {/* Day Header - Centered */}
-                      <div className="px-4 py-2 bg-emerald-800 dark:bg-emerald-900 text-center">
-                        <div className="text-sm font-medium text-golden-400">
-                          Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
-                            weekday: 'short',
-                            month: 'short', 
-                            day: 'numeric' 
+                            )
                           })}
                         </div>
                       </div>
-                      
-                      {/* Activities for the Day */}
-                      <div className="px-4 py-4 space-y-3">
-                        {dayActivities.map((item: any, itemIndex: number) => {
-                          const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
-                          const endTime = item.end_time ? item.end_time.slice(0, 5) : ''
-                          const timeRange = startTime && endTime ? `${startTime}-${endTime}` : startTime
-                          
-                          return (
-                            <div key={item.id} className="grid grid-cols-12 gap-4 items-start text-sm">
-                              {/* Time */}
-                              <div className="col-span-2 text-gray-500 dark:text-gray-400 font-mono text-xs">
-                                {timeRange}
-                              </div>
-                              
-                              {/* Activity */}
-                              <div className="col-span-10">
-                                <div className="flex items-center gap-2">
-                                  {item.is_confirmed && (
-                                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                                  )}
-                                  <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                    {item.title}
-                                  </span>
-                                </div>
-                                {item.host && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Host: {item.host}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              
-              {/* Summary Stats */}
-              <div className="grid grid-cols-4 gap-4 px-4 py-6 border-t border-gray-200 dark:border-[#2a2a2a]">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                    {activityStats.visits}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Activities
-                  </div>
+                    )
+                  })}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                    {activityStats.meetings}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Meetings
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                    {calculateDuration(trip.startDate, trip.endDate)}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Days
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-golden-400">
-                    {trip.notesCount || 0}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Notes
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Small screens: Summary Stats */}
-            <div className="block sm:hidden bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] mt-4 p-4">
-              <div className="grid grid-cols-4 gap-4 text-center">
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                    {activityStats.visits}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Activities
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                    {activityStats.meetings}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Meetings
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                    {calculateDuration(trip.startDate, trip.endDate)}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Days
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-golden-400">
-                    {trip.notesCount || 0}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Notes
-                  </div>
+                {/* Desktop: Table layout */}
+                <div className="hidden sm:block">
+                  {sortedDates.map((date, dayIndex) => {
+                    const dayActivities = groupedActivities[date]
+                    const dayDate = new Date(date)
+                    
+                    return (
+                      <div key={date} className="border-b border-gray-200 dark:border-[#2a2a2a] last:border-b-0">
+                        {/* Day Header - Centered */}
+                        <div className="px-4 py-2 bg-emerald-800 dark:bg-emerald-900 text-center sticky top-0 z-10">
+                          <div className="text-sm font-medium text-golden-400">
+                            Day {dayIndex + 1} - {dayDate.toLocaleDateString('en-US', { 
+                              weekday: 'short',
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </div>
+                        </div>
+                        
+                        {/* Activities for the Day */}
+                        <div className="px-4 py-4 space-y-3">
+                          {dayActivities.map((item: any, itemIndex: number) => {
+                            const startTime = item.start_time ? item.start_time.slice(0, 5) : ''
+                            const endTime = item.end_time ? item.end_time.slice(0, 5) : ''
+                            const timeRange = startTime && endTime ? `${startTime}-${endTime}` : startTime
+                            
+                            return (
+                              <div key={item.id} className="grid grid-cols-12 gap-4 items-start text-sm">
+                                {/* Time */}
+                                <div className="col-span-2 text-gray-500 dark:text-gray-400 font-mono text-xs">
+                                  {timeRange}
+                                </div>
+                                
+                                {/* Activity */}
+                                <div className="col-span-10">
+                                  <div className="flex items-center gap-2">
+                                    {item.is_confirmed && (
+                                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                                    )}
+                                    <span className="text-gray-900 dark:text-gray-200 font-medium">
+                                      {item.title}
+                                    </span>
+                                  </div>
+                                  {item.host && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Host: {item.host}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -689,7 +610,7 @@ export function OverviewTab({
 
   // Edit mode - show the existing form interface
   return (
-    <div className="space-y-6">
+    <div className={cn('flex flex-col gap-6 min-h-0', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
           Trip Overview
@@ -856,46 +777,6 @@ export function OverviewTab({
                   className="w-full px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none"
                   placeholder="Any special requirements, considerations, or notes..."
                 />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Trip Statistics */}
-        <div className="border-t border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
-          <div className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {calculateDuration(trip.startDate, trip.endDate)}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Days
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {liveParticipantStats?.staff ?? trip.wolthersStaff.length}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Staff
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {trip.visitCount || 0}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Visits
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                  {trip.vehicles.length}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Vehicles
-                </div>
               </div>
             </div>
           </div>
