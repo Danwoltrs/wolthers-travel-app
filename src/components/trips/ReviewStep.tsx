@@ -168,16 +168,19 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
         </div>
       </div>
 
-      {/* Itinerary */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="font-medium text-gray-900 dark:text-white mb-4">Itinerary</h3>
-        
-        {formData.generatedActivities && formData.generatedActivities.length > 0 ? (
+      {/* Convention Meetings & Events */}
+      {formData.meetings && formData.meetings.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+            Convention Schedule
+          </h3>
+          
           <div className="space-y-4">
-            {[...new Set(formData.generatedActivities.map(a => a.activity_date))]
+            {[...new Set(formData.meetings.map((m: any) => m.date))]
               .sort()
               .map(date => {
-                const dayActivities = formData.generatedActivities!.filter(a => a.activity_date === date)
+                const dayMeetings = formData.meetings!.filter((m: any) => m.date === date)
                 const formattedDate = new Date(date).toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   month: 'long', 
@@ -189,28 +192,151 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
                     <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                       {formattedDate}
                     </h4>
-                    <div className="space-y-1 ml-4">
-                      {dayActivities.map((activity, idx) => (
-                        <div key={idx} className="flex items-start gap-3">
-                          <span className="text-gray-500 dark:text-gray-400 text-sm font-mono min-w-[50px]">
-                            {activity.start_time}
-                          </span>
-                          <span className="text-gray-700 dark:text-gray-300 text-sm">
-                            {activity.title}
-                          </span>
+                    <div className="space-y-2 ml-4">
+                      {dayMeetings.map((meeting: any, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex-shrink-0">
+                            <span className="text-gray-500 dark:text-gray-400 text-sm font-mono">
+                              {meeting.startTime}
+                              {meeting.endTime && ` - ${meeting.endTime}`}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-gray-900 dark:text-white font-medium text-sm">
+                              {meeting.title}
+                            </p>
+                            {meeting.location && (
+                              <p className="text-gray-600 dark:text-gray-400 text-xs flex items-center mt-1">
+                                <MapPin className="w-3 h-3 mr-1" />
+                                {meeting.location}
+                              </p>
+                            )}
+                            {meeting.description && (
+                              <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+                                {meeting.description}
+                              </p>
+                            )}
+                            <span className={`inline-block px-2 py-1 text-xs rounded-full mt-2 ${
+                              meeting.type === 'conference_session' ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' :
+                              meeting.type === 'meeting' ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
+                              meeting.type === 'networking' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                              meeting.type === 'lunch' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+                              meeting.type === 'dinner' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
+                              'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200'
+                            }`}>
+                              {meeting.type?.replace('_', ' ') || 'Event'}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )
-              })
-            }
+              })}
           </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400 italic">
-            Itinerary will be created after trip setup
-          </p>
-        )}
+        </div>
+      )}
+
+      {/* Itinerary */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="font-medium text-gray-900 dark:text-white mb-4">Itinerary</h3>
+        
+        {(() => {
+          // Check if we have generated activities (for regular trips)
+          const hasGeneratedActivities = formData.generatedActivities && formData.generatedActivities.length > 0
+          
+          // Check if we have meetings (for convention trips) 
+          const hasMeetings = formData.meetings && formData.meetings.length > 0
+          
+          if (hasGeneratedActivities) {
+            // Display generated activities (regular trips)
+            return (
+              <div className="space-y-4">
+                {[...new Set(formData.generatedActivities!.map(a => a.activity_date))]
+                  .sort()
+                  .map(date => {
+                    const dayActivities = formData.generatedActivities!.filter(a => a.activity_date === date)
+                    const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })
+                    
+                    return (
+                      <div key={date}>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                          {formattedDate}
+                        </h4>
+                        <div className="space-y-1 ml-4">
+                          {dayActivities.map((activity, idx) => (
+                            <div key={idx} className="flex items-start gap-3">
+                              <span className="text-gray-500 dark:text-gray-400 text-sm font-mono min-w-[50px]">
+                                {activity.start_time}
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-300 text-sm">
+                                {activity.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                }
+              </div>
+            )
+          } else if (hasMeetings) {
+            // Display meetings as itinerary (convention trips)
+            return (
+              <div className="space-y-4">
+                {[...new Set(formData.meetings!.map((m: any) => m.date))]
+                  .sort()
+                  .map(date => {
+                    const dayMeetings = formData.meetings!.filter((m: any) => m.date === date)
+                    const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })
+                    
+                    return (
+                      <div key={date}>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                          {formattedDate}
+                        </h4>
+                        <div className="space-y-1 ml-4">
+                          {dayMeetings.map((meeting: any, idx) => (
+                            <div key={idx} className="flex items-start gap-3">
+                              <span className="text-gray-500 dark:text-gray-400 text-sm font-mono min-w-[50px]">
+                                {meeting.startTime}
+                                {meeting.endTime && ` - ${meeting.endTime}`}
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-300 text-sm">
+                                {meeting.title}
+                                {meeting.location && (
+                                  <span className="text-gray-500 dark:text-gray-400 ml-2">
+                                    @ {meeting.location}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                }
+              </div>
+            )
+          } else {
+            // No activities or meetings
+            return (
+              <p className="text-gray-500 dark:text-gray-400 italic">
+                Itinerary will be created after trip setup
+              </p>
+            )
+          }
+        })()}
       </div>
     </div>
   )

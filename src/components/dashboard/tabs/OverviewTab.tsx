@@ -487,7 +487,9 @@ export function OverviewTab({
                 <div className="block sm:hidden">
                   {sortedDates.map((date, dayIndex) => {
                     const dayActivities = groupedActivities[date]
-                    const dayDate = new Date(date)
+                    // Parse date properly to avoid timezone conversion issues
+                    const [year, month, day] = date.split('-').map(Number)
+                    const dayDate = new Date(year, month - 1, day)
                     
                     return (
                       <div key={date}>
@@ -546,7 +548,9 @@ export function OverviewTab({
                 <div className="hidden sm:block">
                   {sortedDates.map((date, dayIndex) => {
                     const dayActivities = groupedActivities[date]
-                    const dayDate = new Date(date)
+                    // Parse date properly to avoid timezone conversion issues
+                    const [year, month, day] = date.split('-').map(Number)
+                    const dayDate = new Date(year, month - 1, day)
                     
                     return (
                       <div key={date} className="border-b border-gray-200 dark:border-[#2a2a2a] last:border-b-0">

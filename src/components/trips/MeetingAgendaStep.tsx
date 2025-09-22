@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { TripFormData } from './TripCreationModal'
-import { Calendar, Plus, Trash2, Clock, MapPin, Users, FileText, X, Plane, Hotel, Coffee, Utensils, DollarSign, Building2 } from 'lucide-react'
+import { Calendar, Plus, Minus, Trash2, Clock, MapPin, Users, FileText, X, Plane, Hotel, Coffee, Utensils, DollarSign, Building2 } from 'lucide-react'
 import { CalendarEvent, MeetingAgendaStepProps, CompanyWithLocations, CompanyLocation, CostTracking } from '@/types'
 import { useCompaniesWithLocations } from '@/hooks/useCompaniesWithLocations'
 
@@ -92,6 +92,50 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
     
     const newEndDate = new Date(formData.endDate)
     newEndDate.setDate(newEndDate.getDate() + 1)
+    
+    updateFormData({
+      endDate: newEndDate
+    })
+  }
+
+  // Remove day from beginning
+  const removeDayBefore = () => {
+    if (!formData.startDate || !formData.endDate) return
+    
+    // Don't allow removing if only 1 day
+    const days = Math.ceil((formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24))
+    if (days <= 0) return
+    
+    const newStartDate = new Date(formData.startDate)
+    newStartDate.setDate(newStartDate.getDate() + 1)
+    
+    // Remove any events from the day being removed
+    const firstDate = formData.startDate.toISOString().split('T')[0]
+    const updatedEvents = events.filter(event => event.date !== firstDate)
+    setEvents(updatedEvents)
+    updateFormData({ meetings: updatedEvents })
+    
+    updateFormData({
+      startDate: newStartDate
+    })
+  }
+
+  // Remove day from end
+  const removeDayAfter = () => {
+    if (!formData.startDate || !formData.endDate) return
+    
+    // Don't allow removing if only 1 day
+    const days = Math.ceil((formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24))
+    if (days <= 0) return
+    
+    const newEndDate = new Date(formData.endDate)
+    newEndDate.setDate(newEndDate.getDate() - 1)
+    
+    // Remove any events from the day being removed
+    const lastDate = formData.endDate.toISOString().split('T')[0]
+    const updatedEvents = events.filter(event => event.date !== lastDate)
+    setEvents(updatedEvents)
+    updateFormData({ meetings: updatedEvents })
     
     updateFormData({
       endDate: newEndDate
@@ -198,45 +242,72 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
 
       {/* Calendar Grid */}
       {tripDates.length > 0 ? (
-        <div className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden flex flex-col">
-          {/* Header with dates and add buttons */}
-          <div className="grid grid-cols-1 lg:grid-cols-8 gap-0 border-b border-gray-200 dark:border-[#2a2a2a] flex-shrink-0">
-            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] font-medium text-sm text-gray-700 dark:text-gray-300">
+        <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden flex flex-col" style={{ width: 'fit-content', minWidth: '600px' }}>
+          {/* Header with dates and add/remove buttons */}
+          <div className="grid gap-0 border-b border-gray-200 dark:border-[#2a2a2a] flex-shrink-0" style={{ gridTemplateColumns: `120px 40px repeat(${Math.min(tripDates.length, 6)}, 180px) 40px` }}>
+            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] font-medium text-sm text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-[#2a2a2a]">
               Time
             </div>
             
             {/* Add day before button */}
-            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center border-r border-gray-200 dark:border-[#2a2a2a]">
+            <div className="p-1 bg-gray-50 dark:bg-[#2a2a2a] text-center border-r border-gray-200 dark:border-[#2a2a2a]">
               <button
                 onClick={addDayBefore}
-                className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                className="w-full h-8 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                 title="Add day before"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
               </button>
             </div>
             
-            {tripDates.slice(0, 5).map(date => {
+            {tripDates.slice(0, 6).map((date, index) => {
               const dateObj = new Date(date)
               const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
               const dayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              const isFirstDay = index === 0
+              const isLastDay = index === tripDates.length - 1
+              const canRemove = getTripDates().length > 1
               
               return (
-                <div key={date} className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
+                <div key={date} className="p-2 bg-gray-50 dark:bg-[#2a2a2a] text-center border-r border-gray-200 dark:border-[#2a2a2a] relative">
                   <div className="font-medium text-sm text-gray-900 dark:text-white">{dayName}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">{dayMonth}</div>
+                  
+                  {/* Minus button on first day - positioned on the left side */}
+                  {isFirstDay && (
+                    <button
+                      onClick={removeDayBefore}
+                      className="absolute top-1 left-1 w-4 h-4 flex items-center justify-center text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Remove first day"
+                      disabled={!canRemove}
+                    >
+                      <Minus className="w-2 h-2" />
+                    </button>
+                  )}
+                  
+                  {/* Minus button on last day - positioned on the right side */}
+                  {isLastDay && index > 0 && (
+                    <button
+                      onClick={removeDayAfter}
+                      className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Remove last day"
+                      disabled={!canRemove}
+                    >
+                      <Minus className="w-2 h-2" />
+                    </button>
+                  )}
                 </div>
               )
             })}
             
             {/* Add day after button */}
-            <div className="p-3 bg-gray-50 dark:bg-[#2a2a2a] text-center border-l border-gray-200 dark:border-[#2a2a2a]">
+            <div className="p-1 bg-gray-50 dark:bg-[#2a2a2a] text-center border-l border-gray-200 dark:border-[#2a2a2a]">
               <button
                 onClick={addDayAfter}
-                className="w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                className="w-full h-8 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                 title="Add day after"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -244,20 +315,21 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
           {/* Time slots grid - now takes full remaining height */}
           <div className="flex-1 overflow-y-auto">
             {timeSlots.map(timeSlot => (
-              <div key={timeSlot} className="grid grid-cols-1 lg:grid-cols-8 gap-0 border-b border-gray-100 dark:border-gray-700">
-                <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] text-sm font-medium text-gray-600 dark:text-gray-400 text-center min-h-[100px] flex items-center justify-center">
+              <div key={timeSlot} className="grid gap-0 border-b border-gray-100 dark:border-gray-700" style={{ gridTemplateColumns: `120px 40px repeat(${Math.min(tripDates.length, 6)}, 180px) 40px` }}>
+                <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] text-sm font-medium text-gray-600 dark:text-gray-400 text-center min-h-[100px] flex items-center justify-center border-r border-gray-200 dark:border-[#2a2a2a]">
                   {timeSlot}
                 </div>
                 {/* Empty cell for add day before button column */}
-                <div className="p-2 min-h-[100px] border-r border-gray-100 dark:border-gray-700"></div>
+                <div className="p-1 min-h-[100px] border-r border-gray-200 dark:border-[#2a2a2a]"></div>
                 
-                {tripDates.slice(0, 5).map(date => {
+                {tripDates.slice(0, 6).map((date, index) => {
                   const slotEvents = getEventsForSlot(date, timeSlot)
+                  const isLastColumn = index === Math.min(tripDates.length - 1, 5)
                   
                   return (
                     <div
                       key={`${date}-${timeSlot}`}
-                      className="p-2 min-h-[100px] border-r border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                      className={`p-2 min-h-[100px] hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors ${!isLastColumn ? 'border-r border-gray-200 dark:border-[#2a2a2a]' : ''}`}
                       onClick={() => handleTimeSlotClick(date, timeSlot)}
                     >
                       {slotEvents.map(event => {
@@ -293,7 +365,7 @@ export default function MeetingAgendaStep({ formData, updateFormData }: MeetingA
                 })}
                 
                 {/* Empty cell for add day after button column */}
-                <div className="p-2 min-h-[100px] border-l border-gray-100 dark:border-gray-700"></div>
+                <div className="p-1 min-h-[100px] border-l border-gray-200 dark:border-[#2a2a2a]"></div>
               </div>
             ))}
           </div>

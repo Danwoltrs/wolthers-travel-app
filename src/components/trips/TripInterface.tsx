@@ -45,23 +45,31 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           .limit(5) // Limit to avoid timeouts
         
         if (trips && !error) {
-          const convertedTrips = trips.map(dbTrip => ({
-            id: dbTrip.id,
-            title: dbTrip.title,
-            description: dbTrip.description || '',
-            subject: dbTrip.description || dbTrip.title,
-            startDate: new Date(dbTrip.start_date),
-            endDate: new Date(dbTrip.end_date),
-            status: dbTrip.status,
-            createdBy: dbTrip.creator_id,
-            estimatedBudget: parseFloat(dbTrip.total_cost) || 0,
-            actualCost: parseFloat(dbTrip.total_cost) || 0,
-            tripCode: `${dbTrip.trip_type || 'TRIP'}-${dbTrip.id?.slice(0, 8)}`,
-            isConvention: dbTrip.trip_type === 'convention',
-            metadata: {},
-            accessCode: dbTrip.access_code,
-            createdAt: new Date(dbTrip.created_at)
-          }))
+          const convertedTrips = trips.map(dbTrip => {
+            // Parse dates properly to avoid timezone conversion issues
+            const parseDate = (dateStr: string) => {
+              const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+              return new Date(year, month - 1, day)
+            }
+            
+            return {
+              id: dbTrip.id,
+              title: dbTrip.title,
+              description: dbTrip.description || '',
+              subject: dbTrip.description || dbTrip.title,
+              startDate: parseDate(dbTrip.start_date),
+              endDate: parseDate(dbTrip.end_date),
+              status: dbTrip.status,
+              createdBy: dbTrip.creator_id,
+              estimatedBudget: parseFloat(dbTrip.total_cost) || 0,
+              actualCost: parseFloat(dbTrip.total_cost) || 0,
+              tripCode: `${dbTrip.trip_type || 'TRIP'}-${dbTrip.id?.slice(0, 8)}`,
+              isConvention: dbTrip.trip_type === 'convention',
+              metadata: {},
+              accessCode: dbTrip.access_code,
+              createdAt: new Date(dbTrip.created_at)
+            }
+          })
           setUserTrips(convertedTrips)
         } else {
           setUserTrips([])
@@ -81,23 +89,31 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   }, [isAuthenticated, tripId])
 
   // Convert database trip to frontend Trip interface format
-  const trip: Trip | null = tripDetails ? {
-    id: tripDetails.id,
-    title: tripDetails.title,
-    description: tripDetails.description,
-    subject: tripDetails.description || tripDetails.title,
-    startDate: new Date(tripDetails.start_date),
-    endDate: new Date(tripDetails.end_date),
-    status: tripDetails.status,
-    createdBy: tripDetails.creator_id,
-    estimatedBudget: parseFloat(tripDetails.total_cost) || 0,
-    actualCost: parseFloat(tripDetails.total_cost) || 0,
-    tripCode: `${tripDetails.trip_type || 'TRIP'}-${tripDetails.id?.slice(0, 8)}`,
-    isConvention: tripDetails.trip_type === 'convention',
-    metadata: {},
-    accessCode: tripDetails.access_code,
-    createdAt: new Date(tripDetails.created_at)
-  } : null
+  const trip: Trip | null = tripDetails ? (() => {
+    // Parse dates properly to avoid timezone conversion issues
+    const parseDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    
+    return {
+      id: tripDetails.id,
+      title: tripDetails.title,
+      description: tripDetails.description,
+      subject: tripDetails.description || tripDetails.title,
+      startDate: parseDate(tripDetails.start_date),
+      endDate: parseDate(tripDetails.end_date),
+      status: tripDetails.status,
+      createdBy: tripDetails.creator_id,
+      estimatedBudget: parseFloat(tripDetails.total_cost) || 0,
+      actualCost: parseFloat(tripDetails.total_cost) || 0,
+      tripCode: `${tripDetails.trip_type || 'TRIP'}-${tripDetails.id?.slice(0, 8)}`,
+      isConvention: tripDetails.trip_type === 'convention',
+      metadata: {},
+      accessCode: tripDetails.access_code,
+      createdAt: new Date(tripDetails.created_at)
+    }
+  })() : null
 
   // Process itinerary items from the database
   const activities = tripDetails?.itinerary_items || []

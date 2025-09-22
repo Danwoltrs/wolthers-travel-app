@@ -415,8 +415,23 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         const nights = cityNightsMap.get(cityKey) || 1
         console.log(`🎯 City: ${cityKey}, Nights: ${nights}, Meetings: ${data.meetings.length}`)
         
+        // Get state and country info from the first meeting in this city
+        const firstMeeting = data.meetings[0]
+        let state: string | undefined
+        let country: string | undefined
+        
+        if (firstMeeting?.location) {
+          const geoData = extractCityFromLocation(firstMeeting.location)
+          if (geoData) {
+            state = geoData.state || undefined
+            country = geoData.country || undefined
+          }
+        }
+        
         return {
           city: cityKey,
+          state: state,
+          country: country,
           nights: nights,
           meetings: data.meetings.length,
           companies: Array.from(data.companies),
@@ -425,7 +440,8 @@ export function TripCacheProvider({ children }: TripCacheProviderProps) {
         }
       })
 
-      console.log(`🗺️ Final location details:`, locationDetails.map(l => `${l.city}: ${l.nights} nights, ${l.meetings} meetings`))
+      console.log(`🗺️ Final location details for ${trip.title}:`, locationDetails.map(l => `${l.city}: ${l.nights} nights, ${l.meetings} meetings`))
+      console.log(`🏙️ Trip locations array for ${trip.title}:`, citiesWithMeetings)
 
       // Get unique cities for weather fetching
       const uniqueLocations = citiesWithMeetings

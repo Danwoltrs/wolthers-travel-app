@@ -76,7 +76,16 @@ const BUSINESS_TERMS = [
   'summit',
   'meeting',
   'office',
-  'headquarters'
+  'headquarters',
+  'ballroom',
+  'foyer',
+  'rooftop',
+  'aquarium',
+  'westin',
+  'triton',
+  'mote',
+  'sea',
+  'prestancia'
 ]
 
 const VENUE_NAMES = [
@@ -797,6 +806,32 @@ function applyGeographicalKnowledge(token: string): number {
  */
 function analyzeSpecialPatterns(originalLocation: string, tokens: string[]): Array<CityInfo & { score: number }> {
   const results: Array<CityInfo & { score: number }> = []
+  
+  // Sarasota venue pattern recognition
+  const sarasotaVenues = [
+    'westin sarasota',
+    'triton ballroom',
+    'coral bay ballroom',
+    'westin sarasota rooftop',
+    'mote sea aquarium',
+    'prestancia'
+  ]
+  
+  const normalizedLocation = normalizeForComparison(originalLocation)
+  
+  for (const venue of sarasotaVenues) {
+    if (normalizedLocation.includes(normalizeForComparison(venue))) {
+      results.push({
+        city: 'Sarasota',
+        state: 'FL',
+        country: 'US',
+        confidence: 0.9,
+        score: 0.9
+      })
+      // Return early to prioritize this match
+      return results
+    }
+  }
   
   // "Venue Name - City" pattern (like "Hyperion Hotel - Basel")
   if (originalLocation.includes(' - ')) {

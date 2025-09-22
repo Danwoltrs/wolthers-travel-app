@@ -271,8 +271,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     )
   }
   
-  // Get activity data using the activity manager
-  const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = useActivityManager(localTrip.id || '')
+  // Get activity data using the activity manager - get full manager to share with ScheduleTab
+  const activityManager = useActivityManager(localTrip.id || '')
+  const { getActivityStats, getActivitiesByDate, loading: activitiesLoading } = activityManager
   
   // Get activity statistics for visits and meetings count
   const activityStats = getActivityStats()
@@ -331,7 +332,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
   // Calculate flexible width based on trip duration for schedule mode
   const getScheduleWidth = () => {
-    if (!isEditing || activeTab !== 'schedule') return 'w-full h-full sm:max-w-5xl sm:max-h-[90vh]'
+    if (!isEditing || activeTab !== 'schedule') return 'w-full h-full sm:max-w-5xl sm:max-h-[85vh]'
     
     const days = calculateDuration(localTrip.startDate, localTrip.endDate)
     
@@ -357,7 +358,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4 overflow-y-auto">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
         getScheduleWidth()
-      } max-h-[90vh] w-full`}>
+      } max-h-[85vh] w-full`}>
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-xl">
           <div className="flex items-center justify-between w-full">
@@ -490,6 +491,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onUpdate={handleTripUpdate}
                   validationState={modalState.validationState.schedule}
                   mode={editingMode}
+                  activityManager={activityManager}
                   className=""
                 />
               )}
@@ -544,7 +546,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         </div>
 
         {/* Enhanced Footer */}
-        <div className="flex-shrink-0 rounded-b-xl border-t border-pearl-200 bg-white p-3 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] md:p-6">
+        <div className="flex-shrink-0 rounded-b-xl border-t border-pearl-200 bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] md:p-6">
           <div className="grid grid-cols-3 gap-4 mb-4">
             {footerStats.map((stat) => (
               <div key={stat.label} className="text-center">

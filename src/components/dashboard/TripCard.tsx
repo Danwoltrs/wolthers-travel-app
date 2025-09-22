@@ -537,7 +537,10 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                 // Show location details in format: "City: X nights Y°C icon" (show up to 6 lines with better wrapping)
                 enrichedLocationDetails.slice(0, 6).map((location: any, index: number) => (
                   <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 break-words">
-                    <span className="font-medium">{location.city}</span>
+                    <span className="font-medium">
+                      {location.city}
+                      {location.state && location.country === 'US' && `/${location.state}`}
+                    </span>
                     <span>: {location.nights} night{location.nights !== 1 ? 's' : ''}</span>
                     {location.weather && (
                       <span> {location.weather.temperature}°C {location.weather.icon}</span>
@@ -576,12 +579,25 @@ export default function TripCard({ trip, onClick, isPast = false }: TripCardProp
                   </div>
                 ))
               ) : hasLocationData ? (
-                // Show locations without weather if weather fetch failed
-                tripLocations.slice(0, 2).map((city, index) => (
-                  <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
-                    <span className="font-medium">{city}</span>
-                  </div>
-                ))
+                // Show locations without weather if weather fetch failed, prioritize locationDetails
+                locationDetails.length > 0 ? (
+                  locationDetails.slice(0, 6).map((location, index) => (
+                    <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                      <span className="font-medium">
+                        {location.city}
+                        {location.state && location.country === 'US' && `/${location.state}`}
+                      </span>
+                      <span className="mx-1">:</span>
+                      <span>{location.nights} night{location.nights !== 1 ? 's' : ''}</span>
+                    </div>
+                  ))
+                ) : (
+                  tripLocations.slice(0, 2).map((city, index) => (
+                    <div key={index} className="text-xs text-pearl-600 dark:text-gray-400 truncate">
+                      <span className="font-medium">{city}</span>
+                    </div>
+                  ))
+                )
               ) : (
                 <div className="text-xs text-pearl-600 dark:text-gray-400 italic">
                   No meetings scheduled

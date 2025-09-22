@@ -18,6 +18,7 @@ interface ScheduleTabProps {
   onUpdate: (tab: 'schedule', updates: any) => void
   validationState?: any
   onSyncCalendar?: () => void
+  activityManager?: any
   className?: string
 }
 
@@ -27,6 +28,7 @@ export function ScheduleTab({
   onUpdate, 
   validationState,
   onSyncCalendar,
+  activityManager: providedActivityManager,
   className = ''
 }: ScheduleTabProps) {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
@@ -49,7 +51,10 @@ export function ScheduleTab({
     notes: ''
   })
 
-  // Use the activity manager hook with enhanced refresh capabilities
+  // Use the provided activity manager from QuickViewModal or create a new one as fallback
+  const activityManagerFallback = useActivityManager(trip.id || '')
+  const activityManager = providedActivityManager || activityManagerFallback
+  
   const {
     activities,
     loading,
@@ -64,7 +69,7 @@ export function ScheduleTab({
     getActivitiesByDate,
     forceRefreshActivities,
     validateState
-  } = useActivityManager(trip.id || '')
+  } = activityManager
 
   // **NEW**: State validation effect to catch race conditions
   React.useEffect(() => {
@@ -397,7 +402,7 @@ export function ScheduleTab({
   const stats = getActivityStats()
 
   return (
-    <div className={cn('relative flex h-full min-h-0 flex-col space-y-4', className)}>
+    <div className={cn('relative flex h-full min-h-0 flex-col', className)}>
       {/* Loading Overlay */}
       {(refreshing || isExtending) && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
@@ -416,7 +421,7 @@ export function ScheduleTab({
       )}
       
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-red-600 dark:text-red-400">
               {error}
@@ -432,7 +437,7 @@ export function ScheduleTab({
       )}
       
       {saving && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
@@ -451,9 +456,8 @@ export function ScheduleTab({
         </div>
       )}
 
-
-      {/* Outlook-Style Calendar with Loading Overlay */}
-      <div className="relative flex-1 min-h-0">
+      {/* Calendar Container with constrained height */}
+      <div className="relative flex-1 min-h-0 mb-4">
         {(refreshing || isExtending) && (
           <div className="absolute inset-0 bg-white/70 dark:bg-[#1a1a1a]/70 rounded-lg flex items-center justify-center z-10">
             <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 shadow-lg border border-pearl-200 dark:border-[#2a2a2a]">
@@ -716,45 +720,6 @@ export function ScheduleTab({
           </div>
         </div>
       )}
-
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {stats.meetings}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
-            Meetings
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {stats.visits}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
-            Activities
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {stats.confirmed}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
-            Confirmed
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4 text-center">
-          <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-            {calculateDuration(trip.startDate, trip.endDate)}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">
-            Days
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

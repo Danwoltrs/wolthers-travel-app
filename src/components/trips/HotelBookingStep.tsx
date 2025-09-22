@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TripFormData } from './TripCreationModal'
 import { Hotel, Plus, Trash2, MapPin, Calendar, DollarSign } from 'lucide-react'
 
@@ -19,17 +19,38 @@ interface HotelBookingStepProps {
 }
 
 export default function HotelBookingStep({ formData, updateFormData }: HotelBookingStepProps) {
-  const [hotels, setHotels] = useState<Hotel[]>(formData.hotels || [])
-
   // Calculate nights between check-in and check-out dates
   const calculateNights = (checkIn: string, checkOut: string): number => {
     if (!checkIn || !checkOut) return 1
-    const checkInDate = new Date(checkIn)
-    const checkOutDate = new Date(checkOut)
+    
+    const checkInDate = new Date(checkIn + 'T00:00:00')
+    const checkOutDate = new Date(checkOut + 'T00:00:00')
+    
+    // Calculate difference in days
     const timeDiff = checkOutDate.getTime() - checkInDate.getTime()
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24))
+    const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24))
+    
     return Math.max(1, daysDiff)
   }
+
+  const [hotels, setHotels] = useState<Hotel[]>(() => {
+    // Initialize hotels with correctly calculated nights
+    const initialHotels = formData.hotels || []
+    return initialHotels.map(hotel => ({
+      ...hotel,
+      nights: calculateNights(hotel.checkInDate, hotel.checkOutDate)
+    }))
+  })
+
+  // Sync hotels state with formData changes and recalculate nights
+  useEffect(() => {
+    const formHotels = formData.hotels || []
+    const updatedHotels = formHotels.map(hotel => ({
+      ...hotel,
+      nights: calculateNights(hotel.checkInDate, hotel.checkOutDate)
+    }))
+    setHotels(updatedHotels)
+  }, [formData.hotels])
 
   // Add a new hotel booking
   const addHotel = () => {

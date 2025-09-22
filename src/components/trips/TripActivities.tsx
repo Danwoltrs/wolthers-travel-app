@@ -24,7 +24,9 @@ const generateDayICSContent = (activities: any[], date: string, dayIndex: number
     return text.replace(/([\\;,\n])/g, '\\$1')
   }
 
-  const dayDate = new Date(date)
+  // Parse date properly to avoid timezone conversion issues
+  const [year, month, day] = date.split('-').map(Number)
+  const dayDate = new Date(year, month - 1, day)
   const formattedDate = dayDate.toLocaleDateString('en-US', { 
     weekday: 'long',
     month: 'long', 
@@ -117,7 +119,9 @@ export default function TripActivities({ activities, loading, error, canEditTrip
   // Helper functions to determine day and activity status
   const getDayStatus = (date: string) => {
     const today = new Date()
-    const dayDate = new Date(date)
+    // Parse date properly to avoid timezone conversion issues
+    const [year, month, day] = date.split('-').map(Number)
+    const dayDate = new Date(year, month - 1, day)
     
     today.setHours(0, 0, 0, 0)
     dayDate.setHours(0, 0, 0, 0)
@@ -129,7 +133,9 @@ export default function TripActivities({ activities, loading, error, canEditTrip
 
   const getActivityStatus = (activity: any) => {
     const now = new Date()
-    const activityDate = new Date(activity.activity_date)
+    // Parse activity date properly to avoid timezone conversion issues
+    const [year, month, day] = activity.activity_date.split('-').map(Number)
+    const activityDate = new Date(year, month - 1, day)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     activityDate.setHours(0, 0, 0, 0)
@@ -141,7 +147,9 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     // If activity is today, check the time
     if (activity.start_time) {
       const [hours, minutes] = activity.start_time.split(':').map(Number)
-      const activityDateTime = new Date(activity.activity_date)
+      // Parse activity date properly to avoid timezone conversion issues
+      const [year, month, day] = activity.activity_date.split('-').map(Number)
+      const activityDateTime = new Date(year, month - 1, day)
       activityDateTime.setHours(hours, minutes, 0, 0)
       
       if (activityDateTime < now) return 'past'
@@ -185,7 +193,9 @@ export default function TripActivities({ activities, loading, error, canEditTrip
 
   const handleExportDayToCalendar = (date: string, dayActivities: any[], dayIndex: number) => {
     const icsContent = generateDayICSContent(dayActivities, date, dayIndex)
-    const dayDate = new Date(date)
+    // Parse date properly to avoid timezone conversion issues
+    const [year, month, day] = date.split('-').map(Number)
+    const dayDate = new Date(year, month - 1, day)
     const formattedDate = dayDate.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric' 
@@ -255,7 +265,9 @@ export default function TripActivities({ activities, loading, error, canEditTrip
 
       {sortedDates.map((date, dayIndex) => {
         const dayActivities = groupedActivities[date]
-        const dayDate = new Date(date)
+        // Parse date properly to avoid timezone conversion issues
+        const [year, month, day] = date.split('-').map(Number)
+        const dayDate = new Date(year, month - 1, day)
         const isToday = dayDate.toDateString() === new Date().toDateString()
         const isDayCollapsed = collapsedDays.has(date)
         const dayStatus = getDayStatus(date)

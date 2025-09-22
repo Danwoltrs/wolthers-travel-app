@@ -10,6 +10,7 @@ import HotelBookingStep from './HotelBookingStep'
 import FlightBookingStep from './FlightBookingStep'
 // Import Enhanced Driver & Vehicle Step statically
 import EnhancedDriverVehicleStep from './EnhancedDriverVehicleStep'
+import ConventionAirportTransportStep from './ConventionAirportTransportStep'
 import ReviewStep from './ReviewStep'
 import SimpleTeamParticipantsStep from './SimpleTeamParticipantsStep'
 import CompanySelectionStep from './CompanySelectionStep'
@@ -184,11 +185,11 @@ const getStepsForTripType = (tripType: TripType | null) => {
     return [
       { id: 1, name: 'Trip Type', description: 'Choose trip type' },
       { id: 2, name: 'Event Search', description: 'Find your convention or event' },
-      { id: 3, name: 'Basic Information', description: 'Trip details and attendees' },
-      { id: 4, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
-      { id: 5, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
-      { id: 6, name: 'Flights & Travel', description: 'Arrange international flights and travel' },
-      { id: 7, name: 'Drivers & Vehicles', description: 'Assign staff, drivers and fleet vehicles' },
+      { id: 3, name: 'Basic Information', description: 'Trip details and dates' },
+      { id: 4, name: 'Team & Participants', description: 'Select Wolthers staff attending' },
+      { id: 5, name: 'Meetings & Agenda', description: 'Plan conference sessions and meetings' },
+      { id: 6, name: 'Hotels & Accommodation', description: 'Book hotels and lodging' },
+      { id: 7, name: 'Airport Transport', description: 'Configure transport to/from airport' },
       { id: 8, name: 'Review & Create', description: 'Review and finalize trip' }
     ]
   } else if (tripType === 'in_land') {
@@ -603,6 +604,25 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         role: 'host'
       }))
 
+      // Transform meetings to activities format for the API
+      const meetingsAsActivities = (formData.meetings || []).map((meeting: any) => ({
+        id: meeting.id,
+        title: meeting.title,
+        type: meeting.type,
+        activity_date: meeting.date, // Use activity_date instead of date
+        start_time: `${meeting.date}T${meeting.startTime}:00`,
+        end_time: meeting.endTime ? `${meeting.date}T${meeting.endTime}:00` : undefined,
+        location: meeting.location,
+        description: meeting.description,
+        priority: meeting.priority,
+        notes: meeting.notes,
+        attendees: meeting.attendees,
+        // Additional fields for compatibility
+        startTime: meeting.startTime,
+        endTime: meeting.endTime,
+        date: meeting.date // Keep for backwards compatibility
+      }))
+
       // Transform formData to match create API expectations
       const transformedData = {
         ...formData,
@@ -616,8 +636,12 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         companies: [...buyerCompanies, ...hostCompaniesWithContacts],
         // Also include hostCompanies separately for email templates with normalized contacts
         hostCompanies: hostCompaniesWithContacts,
-        // Ensure generatedActivities are included
-        generatedActivities: formData.generatedActivities || formData.activities || []
+        // Ensure generatedActivities are included, combining meetings and existing activities
+        generatedActivities: [
+          ...(formData.generatedActivities || []),
+          ...(formData.activities || []),
+          ...meetingsAsActivities
+        ]
       }
       
       console.log('🔄 [TripCreation] Transformed data:', {
@@ -626,6 +650,8 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         participants: transformedData.participants?.length || 0,
         companies: transformedData.companies?.length || 0,
         hostCompanies: transformedData.hostCompanies?.length || 0,
+        meetings: formData.meetings?.length || 0,
+        meetingsAsActivities: meetingsAsActivities?.length || 0,
         generatedActivities: transformedData.generatedActivities?.length || 0
       })
       
@@ -723,20 +749,17 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
         case 3:
           return formData.title && formData.startDate && formData.endDate
         case 4:
+          // Team & Participants step - require at least one Wolthers staff member
+          return formData.participants && formData.participants.length > 0
+        case 5:
           // Meetings & Agenda step - optional but allow proceeding
           return true
-        case 5:
+        case 6:
           // Hotels & Accommodation step - optional but allow proceeding
           return true
-        case 6:
-          // Flights & Travel step - optional but allow proceeding
-          return true
         case 7:
-          // Drivers & Vehicles step - require at least one driver and either assigned vehicle OR rental
-          const conventionHasDriver = formData.participants && formData.participants.some((p: any) => p.isDriver)
-          const conventionHasAssignedVehicle = formData.vehicleAssignments && Object.keys(formData.vehicleAssignments).length > 0
-          const conventionUseRental = (formData as any).useRental
-          return conventionHasDriver && (conventionHasAssignedVehicle || conventionUseRental)
+          // Airport Transport step - always allow proceeding (transport is optional for conventions)
+          return true
         case 8:
           return true
         default:
@@ -846,28 +869,28 @@ export default function TripCreationModal({ isOpen, onClose, onTripCreated, resu
           )}
           
           {formData.tripType === 'convention' && currentStep === 4 && (
-            <MeetingAgendaStep
+            <SimpleTeamParticipantsStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'convention' && currentStep === 5 && (
-            <HotelBookingStep
+            <MeetingAgendaStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'convention' && currentStep === 6 && (
-            <FlightBookingStep
+            <HotelBookingStep
               formData={formData}
               updateFormData={updateFormData}
             />
           )}
           
           {formData.tripType === 'convention' && currentStep === 7 && (
-            <EnhancedDriverVehicleStep
+            <ConventionAirportTransportStep
               formData={formData}
               updateFormData={updateFormData}
             />
