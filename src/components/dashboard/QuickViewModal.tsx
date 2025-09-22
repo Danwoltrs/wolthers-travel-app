@@ -350,14 +350,14 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
       widthClass = 'max-w-[92vw]' // Maximum for 8+ days + padding
     }
     
-    return `w-full h-full sm:h-[95vh] ${widthClass}`
+    return `${widthClass}`
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-start md:items-center justify-center z-50 p-0 sm:p-2 md:p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4 overflow-y-auto">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
         getScheduleWidth()
-      }`}>
+      } max-h-full my-auto`}>
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-xl">
           <div className="flex items-center justify-between w-full">
@@ -426,9 +426,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         </div>
 
         {/* Content Area - Flexible Height */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex flex-col flex-1 min-h-0">
           {/* Tabbed Interface - Always shown */}
-          <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Auto-save Status Bar - Only in edit mode */}
             {isEditing && (hasUnsavedChanges || isAutoSaving) && (
               <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
@@ -457,7 +457,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             
             {/* Tab Content Area */}
             <div
-              className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6 touch-pan-y"
+              className="p-3 md:p-6 touch-pan-y flex-1 min-h-0"
               ref={(el) => {
               // Auto-scroll to top when Schedule tab becomes active
               if (activeTab === 'schedule' && el) {
@@ -479,7 +479,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   tripError={tripError}
                   sortedDates={sortedDates}
                   onClose={onClose}
-                  className="flex h-full flex-col"
+                  className=""
                 />
               )}
               
@@ -490,7 +490,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onUpdate={handleTripUpdate}
                   validationState={modalState.validationState.schedule}
                   mode={editingMode}
-                  className="flex h-full flex-col"
+                  className=""
                 />
               )}
               
@@ -514,7 +514,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onUpdate={handleTripUpdate}
                   validationState={modalState.validationState.logistics}
                   mode={editingMode}
-                  className="flex h-full flex-col"
+                  className=""
                 />
               )}
               
@@ -525,7 +525,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onUpdate={handleTripUpdate}
                   validationState={modalState.validationState.documents}
                   mode={editingMode}
-                  className="flex h-full flex-col"
+                  className=""
                 />
               )}
               
@@ -536,7 +536,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   onUpdate={handleTripUpdate}
                   validationState={modalState.validationState.expenses}
                   mode={editingMode}
-                  className="flex h-full flex-col"
+                  className=""
                 />
               )}
             </div>
@@ -544,7 +544,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         </div>
 
         {/* Enhanced Footer */}
-        <div className="flex-shrink-0 rounded-b-xl border-t border-pearl-200 bg-gray-50 p-3 dark:border-[#2a2a2a] dark:bg-[#111111] md:p-6">
+        <div className="flex-shrink-0 rounded-b-xl border-t border-pearl-200 bg-white p-3 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] md:p-6">
           <div className="grid grid-cols-3 gap-4 mb-4">
             {footerStats.map((stat) => (
               <div key={stat.label} className="text-center">

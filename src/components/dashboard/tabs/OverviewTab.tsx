@@ -176,7 +176,7 @@ export function OverviewTab({
   // If in view mode, show the overview information
   if (mode === 'view') {
     return (
-      <div className={cn('flex flex-col gap-6 min-h-0 h-full', className)}>
+      <div className={cn('flex flex-col gap-6', className)}>
         <div className="flex items-center justify-end">
           <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
             <Clock className="w-3 h-3" />
@@ -476,13 +476,13 @@ export function OverviewTab({
             <div className="text-sm text-gray-500 dark:text-gray-400">No activities scheduled yet</div>
           </div>
         ) : (
-          <div className="flex flex-col min-h-0 flex-1">
+          <div className="flex flex-col">
             
             {/* Activities Container with Flexible Height */}
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col min-h-0 flex-1">
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col">
               
-              {/* Scrollable Activities Content */}
-              <div className="flex-1 overflow-y-auto min-h-0">
+              {/* Activities Content */}
+              <div>
                 {/* Small screens: Full width list layout */}
                 <div className="block sm:hidden">
                   {sortedDates.map((date, dayIndex) => {
