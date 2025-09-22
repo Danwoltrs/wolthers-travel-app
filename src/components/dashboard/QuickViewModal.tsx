@@ -357,7 +357,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 md:p-4 overflow-y-auto">
       <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] flex flex-col ${
         getScheduleWidth()
-      } max-h-full my-auto`}>
+      } max-h-[90vh] w-full`}>
         {/* Header with Title and Edit Toggle */}
         <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-xl">
           <div className="flex items-center justify-between w-full">
@@ -426,9 +426,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
         </div>
 
         {/* Content Area - Flexible Height */}
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1">
           {/* Tabbed Interface - Always shown */}
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1">
             {/* Auto-save Status Bar - Only in edit mode */}
             {isEditing && (hasUnsavedChanges || isAutoSaving) && (
               <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
@@ -457,7 +457,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             
             {/* Tab Content Area */}
             <div
-              className="p-3 md:p-6 touch-pan-y flex-1 min-h-0"
+              className="p-3 md:p-6 touch-pan-y flex-1 overflow-y-auto min-h-0"
               ref={(el) => {
               // Auto-scroll to top when Schedule tab becomes active
               if (activeTab === 'schedule' && el) {
