@@ -552,12 +552,20 @@ export function useTripDetails(tripId: string) {
   const { session, isAuthenticated, user } = useAuth()
 
   useEffect(() => {
-    if (!tripId) return
+    if (!tripId) {
+      setLoading(false)
+      return
+    }
     
-    // Don't fetch if not authenticated
+    // Don't fetch if not authenticated, but keep loading state until authentication is determined
     if (!isAuthenticated || !user) {
       console.log('useTripDetails: Skipping fetch - not authenticated')
-      setLoading(false)
+      // Only set loading to false if authentication has been checked and failed
+      // This prevents showing "trip not found" while authentication is still being determined
+      if (isAuthenticated === false) {
+        setLoading(false)
+        setError('Authentication required to view trip')
+      }
       return
     }
 

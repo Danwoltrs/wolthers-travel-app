@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar } from 'lucide-react'
+import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import MeetingNotesModal from './MeetingNotesModal'
 
 interface TripActivitiesProps {
   activities: any[]
@@ -98,6 +99,11 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     activities.forEach(activity => allActivityIds.add(activity.id))
     return allActivityIds
   })
+  
+  // Note modal state
+  const [selectedActivity, setSelectedActivity] = useState<any>(null)
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false)
+  const [activityNoteCounts, setActivityNoteCounts] = useState<Record<string, number>>({})
 
   // Refs for auto-scrolling to current day
   const currentDayRef = useRef<HTMLDivElement>(null)
@@ -202,6 +208,67 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     }).replace(' ', '_')
     const filename = `day_${dayIndex + 1}_${formattedDate}.ics`
     downloadICSFile(icsContent, filename)
+  }
+
+  // Load note counts for all activities
+  useEffect(() => {
+    const loadNoteCounts = async () => {
+      const counts: Record<string, number> = {}
+      
+      for (const activity of activities) {
+        try {
+          const response = await fetch(`/api/activities/${activity.id}/notes`, {
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            // Count public notes only for the indicator
+            counts[activity.id] = data.notes?.filter((note: any) => !note.is_private).length || 0
+          }
+        } catch (error) {
+          console.error(`Error loading note count for activity ${activity.id}:`, error)
+          counts[activity.id] = 0
+        }
+      }
+      
+      setActivityNoteCounts(counts)
+    }
+
+    if (activities.length > 0) {
+      loadNoteCounts()
+    }
+  }, [activities])
+
+  const openNotesModal = (activity: any) => {
+    setSelectedActivity(activity)
+    setIsNotesModalOpen(true)
+  }
+
+  const closeNotesModal = () => {
+    setSelectedActivity(null)
+    setIsNotesModalOpen(false)
+    
+    // Refresh note counts when modal closes
+    if (selectedActivity) {
+      const refreshNoteCounts = async () => {
+        try {
+          const response = await fetch(`/api/activities/${selectedActivity.id}/notes`, {
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            const count = data.notes?.filter((note: any) => !note.is_private).length || 0
+            setActivityNoteCounts(prev => ({ ...prev, [selectedActivity.id]: count }))
+          }
+        } catch (error) {
+          console.error('Error refreshing note count:', error)
+        }
+      }
+      
+      refreshNoteCounts()
+    }
   }
 
   if (loading) {
@@ -349,6 +416,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                   const hasNotes = activity.meeting_notes && activity.meeting_notes.length > 0
                   const areNotesCollapsed = collapsedNotes.has(activity.id)
                   const activityStatus = getActivityStatus(activity)
+                  const noteCount = activityNoteCounts[activity.id] || 0
                   
                   return (
                     <div 
@@ -359,61 +427,90 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                       )}
                     >
                       {/* Activity Header */}
-                      <button
-                        onClick={() => toggleActivity(activity.id)}
-                        className="w-full p-4 hover:bg-gray-50 dark:hover:bg-[#111111] transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-4">
-                          {/* Time */}
-                          <div className="flex-shrink-0 w-16">
-                            <div className={cn(
-                              "text-sm font-mono",
-                              activityStatus === 'past' && "text-gray-600 dark:text-gray-400",
-                              activityStatus === 'current' && "text-amber-600 dark:text-amber-400 font-semibold",
-                              activityStatus === 'future' && "text-emerald-600 dark:text-emerald-400"
-                            )}>
-                              {startTime}
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => toggleActivity(activity.id)}
+                          className="flex-1 p-4 hover:bg-gray-50 dark:hover:bg-[#111111] transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-4">
+                            {/* Time */}
+                            <div className="flex-shrink-0 w-16">
+                              <div className={cn(
+                                "text-sm font-mono",
+                                activityStatus === 'past' && "text-gray-600 dark:text-gray-400",
+                                activityStatus === 'current' && "text-amber-600 dark:text-amber-400 font-semibold",
+                                activityStatus === 'future' && "text-emerald-600 dark:text-emerald-400"
+                              )}>
+                                {startTime}
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Activity Summary */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-1 flex-1 min-w-0">
-                                <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                                  {activity.title}
-                                </h4>
-                                {hasNotes && (
-                                  <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                                    ({activity.meeting_notes.length} {activity.meeting_notes.length === 1 ? 'note' : 'notes'})
-                                  </span>
+                            {/* Activity Summary */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-1 flex-1 min-w-0">
+                                  <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                                    {activity.title}
+                                  </h4>
+                                  {hasNotes && (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                                      ({activity.meeting_notes.length} {activity.meeting_notes.length === 1 ? 'note' : 'notes'})
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Confirmation Status - Only show to trip creators/admins and not for past events */}
+                                {(canEditTrip || isAdmin) && activityStatus !== 'past' && (
+                                  <div className="flex items-center gap-1 ml-2">
+                                    {getConfirmationIcon(activity.is_confirmed)}
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {activity.is_confirmed ? 'Confirmed' : 'Pending'}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
-                              {/* Confirmation Status - Only show to trip creators/admins and not for past events */}
-                              {(canEditTrip || isAdmin) && activityStatus !== 'past' && (
-                                <div className="flex items-center gap-1 ml-2">
-                                  {getConfirmationIcon(activity.is_confirmed)}
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {activity.is_confirmed ? 'Confirmed' : 'Pending'}
-                                  </span>
-                                </div>
+                              {activity.description && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {activity.description}
+                                </p>
                               )}
                             </div>
-                            {activity.description && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {activity.description}
-                              </p>
+
+                            {/* Collapse Icon */}
+                            {isActivityCollapsed ? (
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400" />
                             )}
                           </div>
-
-                          {/* Collapse Icon */}
-                          {isActivityCollapsed ? (
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                        
+                        {/* Notes Button - Outside the main button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openNotesModal(activity)
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors mr-4",
+                            noteCount > 0
+                              ? "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/40"
+                              : "bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#333333]"
                           )}
-                        </div>
-                      </button>
+                          title={noteCount > 0 ? `View ${noteCount} notes` : "Add note"}
+                        >
+                          {noteCount > 0 ? (
+                            <>
+                              <FileText className="w-3 h-3" />
+                              <span>{noteCount}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3 h-3" />
+                              <span>Note</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
                       {/* Activity Details */}
                       {!isActivityCollapsed && hasNotes && (
@@ -460,6 +557,16 @@ export default function TripActivities({ activities, loading, error, canEditTrip
           End of Coffee Trip
         </p>
       </div>
+
+      {/* Meeting Notes Modal */}
+      {selectedActivity && (
+        <MeetingNotesModal
+          activity={selectedActivity}
+          tripType="in_land" // TODO: Get this from trip data
+          isOpen={isNotesModalOpen}
+          onClose={closeNotesModal}
+        />
+      )}
     </div>
   )
 }

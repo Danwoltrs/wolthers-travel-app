@@ -84,11 +84,16 @@ export default function TripHeader({ trip, tripData }: TripHeaderProps) {
   const allVehicles = vehicleInfo.map(v => v.display)
   const allDrivers = vehicleInfo.map(v => v.driver)
   
-  // Fallback to mock data if no real data available
-  const displayGuestNames = allGuestNames.length > 0 ? allGuestNames : ['No guests assigned']
-  const displayWolthersStaff = wolthersStaffNames.length > 0 ? wolthersStaffNames : ['No staff assigned']
-  const displayVehicles = allVehicles.length > 0 ? allVehicles : ['No vehicles assigned']
-  const displayDrivers = allDrivers.length > 0 ? allDrivers : ['No drivers assigned']
+  // Only show assigned items (no fallback messages)
+  const hasGuests = allGuestNames.length > 0
+  const hasWolthersStaff = wolthersStaffNames.length > 0
+  const hasVehicles = allVehicles.length > 0
+  const hasDrivers = allDrivers.length > 0
+  
+  // Determine if we have people section and logistics section
+  const hasPeopleSection = hasGuests || hasWolthersStaff
+  const hasLogisticsSection = hasVehicles || hasDrivers
+  const showSeparator = hasPeopleSection && hasLogisticsSection
 
   const handleStartEdit = () => {
     setNewAccessCode(trip.accessCode || '')
@@ -201,49 +206,65 @@ export default function TripHeader({ trip, tripData }: TripHeaderProps) {
         </>
       )}
 
-      {/* Two Column Layout with Separator */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-sm relative">
-        {/* Left Side - People */}
-        <div className="space-y-2">
-          {/* Guests Row */}
-          <div className="flex items-start lg:items-center">
-            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Guests:</span>
-            <span className="text-gray-700 dark:text-gray-300">
-              {displayGuestNames.join(', ')}
-            </span>
-          </div>
+      {/* Dynamic Layout - Only show assigned sections */}
+      {(hasPeopleSection || hasLogisticsSection) && (
+        <div className={`text-sm relative ${showSeparator ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : ''}`}>
+          {/* People Section */}
+          {hasPeopleSection && (
+            <div className="space-y-2">
+              {/* Guests Row */}
+              {hasGuests && (
+                <div className="flex items-start lg:items-center">
+                  <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Guests:</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {allGuestNames.join(', ')}
+                  </span>
+                </div>
+              )}
 
-          {/* Wolthers Staff Row */}
-          <div className="flex items-start lg:items-center">
-            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Wolthers Staff:</span>
-            <span className="text-gray-700 dark:text-gray-300">
-              {displayWolthersStaff.join(', ')}
-            </span>
-          </div>
+              {/* Wolthers Staff Row */}
+              {hasWolthersStaff && (
+                <div className="flex items-start lg:items-center">
+                  <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Wolthers Staff:</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {wolthersStaffNames.join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vertical Separator Line - Only show when both sections are present */}
+          {showSeparator && (
+            <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-[#D4C5B0] dark:bg-gray-600 transform -translate-x-1/2"></div>
+          )}
+
+          {/* Logistics Section */}
+          {hasLogisticsSection && (
+            <div className={`space-y-2 ${!showSeparator ? 'mt-4' : ''}`}>
+              {/* Vehicles Row */}
+              {hasVehicles && (
+                <div className="flex items-start lg:items-center">
+                  <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Vehicles:</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {allVehicles.join(', ')}
+                  </span>
+                </div>
+              )}
+
+              {/* Drivers Row */}
+              {hasDrivers && (
+                <div className="flex items-start lg:items-center">
+                  <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Drivers:</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {allDrivers.join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Vertical Separator Line - Hidden on mobile */}
-        <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-[#D4C5B0] dark:bg-gray-600 transform -translate-x-1/2"></div>
-
-        {/* Right Side - Vehicles & Drivers */}
-        <div className="space-y-2">
-          {/* Vehicles Row */}
-          <div className="flex items-start lg:items-center">
-            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Vehicles:</span>
-            <span className="text-gray-700 dark:text-gray-300">
-              {displayVehicles.join(', ')}
-            </span>
-          </div>
-
-          {/* Drivers Row */}
-          <div className="flex items-start lg:items-center">
-            <span className="text-gray-500 dark:text-gray-400 mr-2 mt-0">Drivers:</span>
-            <span className="text-gray-700 dark:text-gray-300">
-              {displayDrivers.join(', ')}
-            </span>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

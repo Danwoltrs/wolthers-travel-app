@@ -136,26 +136,54 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     }
   }
 
+  // Show loading screen while fetching trip details
   if (tripLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
-        <div className="text-lg font-medium text-gray-600 dark:text-gray-300">Loading trip...</div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
+          <div className="text-lg font-medium text-gray-600 dark:text-gray-300">Looking for trip...</div>
+        </div>
       </div>
     )
   }
 
+  // Show error screen if there was an error fetching the trip
   if (tripError) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
-        <div className="text-lg font-medium text-red-600 dark:text-red-400">Error loading trip: {tripError}</div>
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="text-6xl">❌</div>
+          <div className="text-lg font-medium text-red-600 dark:text-red-400">Error loading trip</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md">{tripError}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     )
   }
 
-  if (!trip) {
+  // Show trip not found only after loading is complete and no error occurred
+  if (!trip && !tripLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
-        <div className="text-lg font-medium text-red-600 dark:text-red-400">Trip not found</div>
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="text-6xl">🔍</div>
+          <div className="text-lg font-medium text-red-600 dark:text-red-400">Trip not found</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md">
+            The trip you're looking for might have been moved or doesn't exist.
+          </div>
+          <button 
+            onClick={() => window.location.href = '/dashboard'} 
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            Go to Dashboard
+          </button>
+        </div>
       </div>
     )
   }
