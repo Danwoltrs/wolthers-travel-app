@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase-service'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getServerSession } from 'next-auth'
 
 export async function POST(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServiceRoleClient()
+    const supabase = createServerSupabaseClient()
 
     // Get user ID from email
     const { data: userData, error: userError } = await supabase
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'trip_id parameter required' }, { status: 400 })
     }
 
-    const supabase = createServiceRoleClient()
+    const supabase = createServerSupabaseClient()
 
     // Get user ID from email
     const { data: userData, error: userError } = await supabase
