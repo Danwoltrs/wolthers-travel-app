@@ -900,13 +900,41 @@ export const useDocumentFinder = (context?: DocumentFinderContext): UseDocumentF
   const uploadFiles = useCallback(async (files: File[], supplierId?: string) => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      
-      const uploadResult = await api.uploadFiles(files, {
-        supplierId,
-        category: 'general',
-        autoOrganize: true,
-        tags: []
-      });
+
+      let uploadResult;
+
+      // Use trip-specific upload endpoint if tripId is available in context
+      if (context?.tripId) {
+        const formData = new FormData();
+        files.forEach(file => {
+          formData.append('files', file);
+        });
+        formData.append('category', 'general');
+        formData.append('description', '');
+        formData.append('tags', '');
+
+        const response = await fetch(`/api/trips/${context.tripId}/documents/upload`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: response.statusText }));
+          throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
+        }
+
+        uploadResult = await response.json();
+        uploadResult = uploadResult.success ? uploadResult.data : uploadResult;
+      } else {
+        // Fallback to coffee supply chain upload for general documents
+        uploadResult = await api.uploadFiles(files, {
+          supplierId,
+          category: 'general',
+          autoOrganize: true,
+          tags: []
+        });
+      }
 
       // Refresh suppliers data after upload
       const suppliersData = await api.fetchSuppliers({
@@ -917,8 +945,8 @@ export const useDocumentFinder = (context?: DocumentFinderContext): UseDocumentF
         context
       });
 
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         loading: false,
         suppliers: suppliersData.suppliers || prev.suppliers,
         error: uploadResult.errors?.length ? `${uploadResult.errors.length} files failed to upload` : null
@@ -935,7 +963,7 @@ export const useDocumentFinder = (context?: DocumentFinderContext): UseDocumentF
       }));
       throw error;
     }
-  }, [state.viewState.sortBy, state.viewState.sortDirection]);
+  }, [state.viewState.sortBy, state.viewState.sortDirection, context]);
 
   // Refresh data
   const refresh = useCallback(async () => {

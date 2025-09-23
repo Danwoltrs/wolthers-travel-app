@@ -212,13 +212,16 @@ const DocumentFinder: React.FC<DocumentFinderProps> = ({
           <div className="flex items-center gap-4">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/70" />
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <Search className="w-4 h-4 text-white/70" />
+              </div>
               <input
                 type="text"
                 placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-white/70 focus:bg-white/20 focus:border-white/40 transition-all w-64"
+                style={{ paddingLeft: '36px' }}
+                className="bg-white/10 border border-white/20 rounded-lg pr-4 py-2 text-sm text-white placeholder-white/70 focus:bg-white/20 focus:border-white/40 transition-all w-64"
               />
             </div>
             
