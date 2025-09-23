@@ -198,17 +198,17 @@ export default function TripHeader({ trip, tripData }: TripHeaderProps) {
         </div>
       </div>
 
-      {/* Enhanced Description */}
+      {/* Enhanced Description - Hidden on mobile */}
       {trip.description && (
         <>
-          <p className="text-gray-800 dark:text-gray-200 text-base font-medium leading-relaxed mb-4">{trip.description}</p>
-          <hr className="border-[#D4C5B0] dark:border-gray-600 mb-4" />
+          <p className="hidden md:block text-gray-800 dark:text-gray-200 text-base font-medium leading-relaxed mb-4">{trip.description}</p>
+          <hr className="hidden md:block border-[#D4C5B0] dark:border-gray-600 mb-4" />
         </>
       )}
 
-      {/* Dynamic Layout - Only show assigned sections */}
+      {/* Dynamic Layout - Only show assigned sections (Hidden on mobile) */}
       {(hasPeopleSection || hasLogisticsSection) && (
-        <div className={`text-sm relative ${showSeparator ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : ''}`}>
+        <div className={`hidden md:block text-sm relative ${showSeparator ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : ''}`}>
           {/* People Section */}
           {hasPeopleSection && (
             <div className="space-y-2">

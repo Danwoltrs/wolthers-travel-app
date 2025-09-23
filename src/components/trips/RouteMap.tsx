@@ -432,10 +432,11 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
   return (
     <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
-      <div className="flex items-center justify-between p-6 pb-4 bg-[#2D5347] text-white">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
-          <div className="flex items-center space-x-4 text-sm text-white/80">
+      <div className="flex items-center justify-between p-3 md:p-6 pb-4 bg-[#2D5347] text-white">
+        <div className="flex items-center gap-2 md:gap-4">
+          <h2 className="text-base md:text-lg font-semibold text-white">{tripTitle}</h2>
+          {/* Hide legend on mobile */}
+          <div className="hidden md:flex items-center space-x-4 text-sm text-white/80">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
               Start
@@ -452,13 +453,24 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
         </div>
         
         {activities.length > 0 && (
-          <button
-            onClick={handleExportAllToCalendar}
-            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
-          >
-            <Calendar className="w-4 h-4" />
-            Export All to Calendar
-          </button>
+          <>
+            {/* Mobile: Just calendar icon with + */}
+            <button
+              onClick={handleExportAllToCalendar}
+              className="md:hidden p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="Add all to calendar"
+            >
+              <Calendar className="w-5 h-5" />
+            </button>
+            {/* Desktop: Full button with text */}
+            <button
+              onClick={handleExportAllToCalendar}
+              className="hidden md:flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
+            >
+              <Calendar className="w-4 h-4" />
+              Export All to Calendar
+            </button>
+          </>
         )}
       </div>
       

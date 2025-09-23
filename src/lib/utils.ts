@@ -86,8 +86,12 @@ export function getTripStatus(startDate: Date | string, endDate: Date | string, 
   const start = new Date(startDate)
   const end = new Date(endDate)
   
+  // Set end date to end of day (23:59:59.999) to ensure trip is ongoing until day ends
+  const endOfDay = new Date(end)
+  endOfDay.setHours(23, 59, 59, 999)
+  
   if (now < start) return 'upcoming'
-  if (now > end) return 'completed'
+  if (now > endOfDay) return 'completed'
   return 'ongoing'
 }
 
@@ -96,14 +100,18 @@ export function getTripProgress(startDate: Date | string, endDate: Date | string
   const start = new Date(startDate)
   const end = new Date(endDate)
   
+  // Set end date to end of day (23:59:59.999) to ensure consistent calculation
+  const endOfDay = new Date(end)
+  endOfDay.setHours(23, 59, 59, 999)
+  
   // For upcoming trips, show 0%
   if (now < start) return 0
   
   // For completed trips, show 100%
-  if (now > end) return 100
+  if (now > endOfDay) return 100
   
   // For ongoing trips, calculate actual progress
-  const total = end.getTime() - start.getTime()
+  const total = endOfDay.getTime() - start.getTime()
   const elapsed = now.getTime() - start.getTime()
   const progress = Math.round((elapsed / total) * 100)
   

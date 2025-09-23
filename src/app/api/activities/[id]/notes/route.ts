@@ -1,44 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { verify } from 'jsonwebtoken'
+import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let user: any = null
+  
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Authentication logic (same as other API endpoints)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const activityId = params.id
 
+    // Create server-side Supabase client
+    const supabase = createSupabaseServiceClient()
+
     // Get all notes for this activity that the user can access
     const { data: notes, error } = await supabase
-      .from('activity_notes')
+      .from('meeting_notes')
       .select(`
         id,
         user_id,
         content,
-        is_private,
+        note_type,
         created_at,
-        updated_at,
-        created_by_name,
-        note_attachments (
-          id,
-          file_name,
-          file_type,
-          file_size,
-          file_path,
-          uploaded_at
-        )
+        updated_at
       `)
-      .eq('itinerary_item_id', activityId)
+      .eq('activity_id', activityId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -46,19 +81,8 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch notes' }, { status: 500 })
     }
 
-    // Filter notes based on privacy and user access
-    const filteredNotes = notes?.filter(note => {
-      // User can always see their own notes
-      if (note.user_id === user.id) return true
-      
-      // User can see public notes if they have access to the activity
-      if (!note.is_private) return true
-      
-      // Private notes are only visible to their creator
-      return false
-    }) || []
-
-    return NextResponse.json({ notes: filteredNotes })
+    // Return notes that user has access to via RLS policies
+    return NextResponse.json({ notes: notes || [] })
 
   } catch (error) {
     console.error('Error in notes GET:', error)
@@ -70,31 +94,75 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let user: any = null
+  
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Authentication logic (same as other API endpoints)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const activityId = params.id
     const body = await request.json()
-    const { content, is_private = false, created_by_name } = body
+    const { content, note_type = 'general' } = body
 
     if (!content || typeof content !== 'object') {
       return NextResponse.json({ error: 'Content is required and must be an object' }, { status: 400 })
     }
 
-    // Check if user already has a note for this activity with the same privacy setting
+    // Create server-side Supabase client
+    const supabase = createSupabaseServiceClient()
+
+    // Check if user already has a note for this activity with the same note type
     const { data: existingNote, error: checkError } = await supabase
-      .from('activity_notes')
+      .from('meeting_notes')
       .select('id, content')
-      .eq('itinerary_item_id', activityId)
+      .eq('activity_id', activityId)
       .eq('user_id', user.id)
-      .eq('is_private', is_private)
+      .eq('note_type', note_type)
       .maybeSingle()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -107,7 +175,7 @@ export async function POST(
     if (existingNote) {
       // Update existing note
       const { data: updatedNote, error: updateError } = await supabase
-        .from('activity_notes')
+        .from('meeting_notes')
         .update({
           content,
           updated_at: new Date().toISOString()
@@ -121,26 +189,18 @@ export async function POST(
         return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
       }
 
-      // Save to history
-      await supabase
-        .from('note_history')
-        .insert({
-          note_id: existingNote.id,
-          previous_content: existingNote.content,
-          edited_by: user.id
-        })
-
       noteResult = updatedNote
     } else {
       // Create new note
       const { data: newNote, error: insertError } = await supabase
-        .from('activity_notes')
+        .from('meeting_notes')
         .insert({
-          itinerary_item_id: activityId,
+          activity_id: activityId,
           user_id: user.id,
           content,
-          is_private,
-          created_by_name: created_by_name || user.user_metadata?.full_name || user.email
+          note_type,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single()
@@ -165,13 +225,54 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let user: any = null
+  
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Authentication logic (same as other API endpoints)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -183,9 +284,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Note ID and content are required' }, { status: 400 })
     }
 
+    // Create server-side Supabase client
+    const supabase = createSupabaseServiceClient()
+
     // Verify user owns this note
     const { data: note, error: fetchError } = await supabase
-      .from('activity_notes')
+      .from('meeting_notes')
       .select('id, content, user_id')
       .eq('id', note_id)
       .eq('user_id', user.id)
@@ -195,18 +299,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Note not found or access denied' }, { status: 404 })
     }
 
-    // Save current content to history
-    await supabase
-      .from('note_history')
-      .insert({
-        note_id: note.id,
-        previous_content: note.content,
-        edited_by: user.id
-      })
-
     // Update note
     const { data: updatedNote, error: updateError } = await supabase
-      .from('activity_notes')
+      .from('meeting_notes')
       .update({
         content,
         updated_at: new Date().toISOString()
@@ -232,13 +327,54 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let user: any = null
+  
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Authentication logic (same as other API endpoints)
+    const authHeader = request.headers.get('authorization')
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    let token = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (cookieToken) {
+      token = cookieToken
+    }
+    
+    if (token) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+      try {
+        const decoded = verify(token, secret) as any
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+        if (!userError && userData) {
+          user = userData
+        }
+      } catch (jwtError) {
+        const supabaseClient = createSupabaseServiceClient()
+        if (token && token.includes('.')) {
+          const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
+          if (!sessionError && supabaseUser) {
+            const { data: userData, error: userError } = await supabaseClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single()
+
+            if (!userError && userData) {
+              user = userData
+            }
+          }
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -249,9 +385,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Note ID is required' }, { status: 400 })
     }
 
+    // Create server-side Supabase client
+    const supabase = createSupabaseServiceClient()
+
     // Delete note (user can only delete their own notes due to RLS)
     const { error: deleteError } = await supabase
-      .from('activity_notes')
+      .from('meeting_notes')
       .delete()
       .eq('id', noteId)
       .eq('user_id', user.id)

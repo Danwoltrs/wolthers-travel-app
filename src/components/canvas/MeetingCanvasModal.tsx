@@ -5,6 +5,7 @@ import { X, Maximize, Minimize, Save, Users, Clock } from 'lucide-react'
 import { fabric } from 'fabric'
 import { useAuth } from '@/contexts/AuthContext'
 import CanvasToolbar from './CanvasToolbar'
+import TextFormattingToolbar from './TextFormattingToolbar'
 import { formatDistanceToNow } from 'date-fns'
 
 interface MeetingCanvasModalProps {
@@ -35,20 +36,24 @@ export default function MeetingCanvasModal({
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
   
   // State management
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
   const [collaborators, setCollaborators] = useState<string[]>([])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  
+  // Text formatting state
+  const [activeTextObject, setActiveTextObject] = useState<fabric.IText | null>(null)
+  const [showTextToolbar, setShowTextToolbar] = useState(false)
+  const [textToolbarPosition, setTextToolbarPosition] = useState({ x: 0, y: 0 })
 
   // Initialize Fabric.js canvas
   useEffect(() => {
     if (!isOpen || !canvasRef.current) return
 
     const canvas = new fabric.Canvas(canvasRef.current, {
-      width: isFullscreen ? window.innerWidth : 1200,
-      height: isFullscreen ? window.innerHeight - 160 : 600,
+      width: Math.min(window.innerWidth - 100, 1200), // Limit canvas width
+      height: Math.min(window.innerHeight - 200, 800), // Limit canvas height
       backgroundColor: '#ffffff',
       selection: true,
       preserveObjectStacking: true,
@@ -57,54 +62,74 @@ export default function MeetingCanvasModal({
       defaultCursor: 'default'
     })
 
-    // Add grid background
-    const gridSize = 20
-    const grid = []
-    const canvasWidth = canvas.width!
-    const canvasHeight = canvas.height!
-    
-    for (let i = 0; i < Math.ceil(canvasWidth / gridSize); i++) {
-      grid.push(
-        new fabric.Line([i * gridSize, 0, i * gridSize, canvasHeight], {
-          stroke: '#e5e7eb',
-          strokeWidth: 1,
-          selectable: false,
-          evented: false
-        })
-      )
-    }
-    
-    for (let i = 0; i < Math.ceil(canvasHeight / gridSize); i++) {
-      grid.push(
-        new fabric.Line([0, i * gridSize, canvasWidth, i * gridSize], {
-          stroke: '#e5e7eb', 
-          strokeWidth: 1,
-          selectable: false,
-          evented: false
-        })
-      )
-    }
+    // Temporarily disable grid to debug visibility issues
+    // TODO: Re-enable grid once elements are visible
+    console.log('🚧 Grid temporarily disabled for debugging')
 
-    canvas.add(...grid)
-    
-    // Send grid to back
-    grid.forEach(line => canvas.sendToBack(line))
-
-    // Enable snap to grid
-    canvas.on('object:moving', (e) => {
-      const obj = e.target!
-      const snap = gridSize
-      
-      obj.set({
-        left: Math.round(obj.left! / snap) * snap,
-        top: Math.round(obj.top! / snap) * snap
-      })
-    })
+    // Snap to grid temporarily disabled for debugging
+    // canvas.on('object:moving', (e) => {
+    //   const obj = e.target!
+    //   const snap = 20
+    //   obj.set({
+    //     left: Math.round(obj.left! / snap) * snap,
+    //     top: Math.round(obj.top! / snap) * snap
+    //   })
+    // })
 
     // Track changes for auto-save
     canvas.on('object:added', () => setHasUnsavedChanges(true))
     canvas.on('object:removed', () => setHasUnsavedChanges(true))
     canvas.on('object:modified', () => setHasUnsavedChanges(true))
+
+    // Fix drawing mode clearing issue
+    canvas.on('path:created', () => {
+      setHasUnsavedChanges(true)
+    })
+
+    // Text selection and editing handlers
+    canvas.on('selection:created', (e) => {
+      const selectedObject = e.selected?.[0]
+      if (selectedObject && (selectedObject instanceof fabric.IText || selectedObject instanceof fabric.Text)) {
+        setActiveTextObject(selectedObject as fabric.IText)
+        updateTextToolbarPosition(selectedObject as fabric.IText)
+        setShowTextToolbar(true)
+      } else {
+        setActiveTextObject(null)
+        setShowTextToolbar(false)
+      }
+    })
+
+    canvas.on('selection:updated', (e) => {
+      const selectedObject = e.selected?.[0]
+      if (selectedObject && (selectedObject instanceof fabric.IText || selectedObject instanceof fabric.Text)) {
+        setActiveTextObject(selectedObject as fabric.IText)
+        updateTextToolbarPosition(selectedObject as fabric.IText)
+        setShowTextToolbar(true)
+      } else {
+        setActiveTextObject(null)
+        setShowTextToolbar(false)
+      }
+    })
+
+    canvas.on('selection:cleared', () => {
+      setActiveTextObject(null)
+      setShowTextToolbar(false)
+    })
+
+    // Handle text editing mode
+    canvas.on('text:editing:entered', (e) => {
+      const textObject = e.target as fabric.IText
+      setActiveTextObject(textObject)
+      setShowTextToolbar(true) // Keep toolbar visible during editing
+    })
+
+    canvas.on('text:editing:exited', (e) => {
+      const textObject = e.target as fabric.IText
+      setActiveTextObject(textObject)
+      updateTextToolbarPosition(textObject)
+      setShowTextToolbar(true)
+      setHasUnsavedChanges(true)
+    })
 
     fabricCanvasRef.current = canvas
 
@@ -115,7 +140,7 @@ export default function MeetingCanvasModal({
       canvas.dispose()
       fabricCanvasRef.current = null
     }
-  }, [isOpen, isFullscreen])
+  }, [isOpen])
 
   // Auto-save every 5 seconds
   useEffect(() => {
@@ -130,51 +155,61 @@ export default function MeetingCanvasModal({
     return () => clearInterval(autoSaveInterval)
   }, [hasUnsavedChanges])
 
-  // Handle window resize for fullscreen
+  // Handle window resize
   useEffect(() => {
-    if (!isFullscreen || !fabricCanvasRef.current) return
+    if (!fabricCanvasRef.current) return
 
     const handleResize = () => {
       const canvas = fabricCanvasRef.current!
       canvas.setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight - 160
+        width: Math.min(window.innerWidth - 100, 1200),
+        height: Math.min(window.innerHeight - 200, 800)
       })
       canvas.renderAll()
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [isFullscreen])
+  }, [])
 
   const loadCanvasData = async () => {
     try {
-      const { supabase } = await import('@/lib/supabase-client')
-      
-      const { data, error } = await supabase
-        .from('meeting_notes')
-        .select('id, canvas_data, updated_at, user_id, content')
-        .eq('meeting_id', activityId)
-        .eq('user_id', user?.id)
-        .single()
+      const response = await fetch(`/api/activities/${activityId}/notes`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading canvas data:', error)
+      if (response.status === 401) {
+        console.error('Unauthorized access to canvas data')
         return
       }
 
-      if (data && data.canvas_data && fabricCanvasRef.current) {
-        // Load canvas from JSON
-        fabricCanvasRef.current.loadFromJSON(data.canvas_data, () => {
+      if (!response.ok) {
+        console.error('Failed to load canvas data:', response.status, response.statusText)
+        return
+      }
+
+      const result = await response.json()
+      const notes = result.notes || []
+      
+      // Find chart recreation note
+      const canvasNote = notes.find((note: any) => note.note_type === 'chart_recreation')
+
+      if (canvasNote && canvasNote.content && typeof canvasNote.content === 'object' && canvasNote.content.canvas_data && fabricCanvasRef.current) {
+        // Load canvas from JSON stored in content.canvas_data
+        fabricCanvasRef.current.loadFromJSON(canvasNote.content.canvas_data, () => {
           fabricCanvasRef.current!.renderAll()
           setCanvasData({
-            id: data.id,
-            canvas_data: data.canvas_data,
-            last_updated: data.updated_at,
-            updated_by: data.user_id,
+            id: canvasNote.id,
+            canvas_data: canvasNote.content.canvas_data,
+            last_updated: canvasNote.updated_at,
+            updated_by: canvasNote.user_id,
             collaborators: []
           })
-          setLastSaved(new Date(data.updated_at))
+          setLastSaved(new Date(canvasNote.updated_at))
           setHasUnsavedChanges(false)
         })
       } else {
@@ -198,51 +233,87 @@ export default function MeetingCanvasModal({
   }
 
   const saveCanvas = async (silent = false) => {
-    if (!fabricCanvasRef.current || !user) return
+    console.log('SaveCanvas called with:', {
+      activityId: activityId,
+      activityIdType: typeof activityId,
+      user: user,
+      userId: user?.id,
+      silent: silent
+    })
+    
+    if (!fabricCanvasRef.current || !user) {
+      console.log('Early return:', {
+        fabricCanvasExists: !!fabricCanvasRef.current,
+        userExists: !!user
+      })
+      return
+    }
 
     if (!silent) setIsSaving(true)
 
     try {
-      const { supabase } = await import('@/lib/supabase-client')
       const canvasJSON = fabricCanvasRef.current.toJSON()
 
-      const canvasRecord = {
-        meeting_id: activityId,
-        user_id: user.id,
+      const content = {
         canvas_data: canvasJSON,
-        updated_at: new Date().toISOString(),
-        content: {
-          type: 'canvas',
-          elements: fabricCanvasRef.current.getObjects().length,
-          last_edited: new Date().toISOString()
-        }
+        type: 'canvas',
+        elements: fabricCanvasRef.current.getObjects().length,
+        last_edited: new Date().toISOString()
       }
 
       if (canvasData?.id) {
-        // Update existing
-        const { error } = await supabase
-          .from('meeting_notes')
-          .update(canvasRecord)
-          .eq('id', canvasData.id)
-
-        if (error) throw error
-      } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('meeting_notes')
-          .insert({
-            ...canvasRecord,
-            created_at: new Date().toISOString()
+        // Update existing note
+        const response = await fetch(`/api/activities/${activityId}/notes`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            note_id: canvasData.id,
+            content: content
           })
-          .select('id')
-          .single()
+        })
 
-        if (error) throw error
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(`Failed to update canvas: ${errorData.error || response.statusText}`)
+        }
+
+        const updatedNote = await response.json()
         
         setCanvasData({
-          id: data.id,
+          id: updatedNote.id,
           canvas_data: canvasJSON,
-          last_updated: new Date().toISOString(),
+          last_updated: updatedNote.updated_at,
+          updated_by: user.id,
+          collaborators: []
+        })
+      } else {
+        // Create new note
+        const response = await fetch(`/api/activities/${activityId}/notes`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: content,
+            note_type: 'chart_recreation'
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(`Failed to create canvas: ${errorData.error || response.statusText}`)
+        }
+
+        const newNote = await response.json()
+        
+        setCanvasData({
+          id: newNote.id,
+          canvas_data: canvasJSON,
+          last_updated: newNote.updated_at,
           updated_by: user.id,
           collaborators: []
         })
@@ -257,6 +328,20 @@ export default function MeetingCanvasModal({
       }
     } catch (error) {
       console.error('Failed to save canvas:', error)
+      console.error('Canvas save error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      })
+      console.error('Canvas save context:', {
+        activityId: activityId,
+        activityIdType: typeof activityId,
+        userId: user?.id || 'NO_USER_ID',
+        userEmail: user?.email || 'NO_USER_EMAIL',
+        fabricCanvasExists: !!fabricCanvasRef.current,
+        canvasElementsCount: fabricCanvasRef.current?.getObjects().length,
+        canvasDataId: canvasData?.id || 'NO_CANVAS_DATA_ID'
+      })
       if (!silent) {
         setIsSaving(false)
         alert('Failed to save canvas. Please try again.')
@@ -264,24 +349,158 @@ export default function MeetingCanvasModal({
     }
   }
 
-  const addTextElement = () => {
+  const updateTextToolbarPosition = (textObject: fabric.IText) => {
     if (!fabricCanvasRef.current) return
+    
+    const objectBounds = textObject.getBoundingRect()
+    const canvasElement = fabricCanvasRef.current.upperCanvasEl
+    const canvasRect = canvasElement.getBoundingClientRect()
+    
+    setTextToolbarPosition({
+      x: canvasRect.left + objectBounds.left + objectBounds.width / 2,
+      y: canvasRect.top + objectBounds.top
+    })
+  }
+
+  const addTextElement = () => {
+    console.log('📝 Adding text element. Canvas exists:', !!fabricCanvasRef.current)
+    if (!fabricCanvasRef.current) {
+      console.error('❌ Fabric canvas not available for adding text')
+      return
+    }
+
+    // Position text in visible area (top-left of viewport)
+    const visiblePosition = {
+      x: 100,
+      y: 100
+    }
 
     const text = new fabric.IText('Click to edit text', {
-      left: 100,
-      top: 100,
+      left: visiblePosition.x,
+      top: visiblePosition.y,
+      fontSize: 18,
+      fontFamily: 'Inter, sans-serif',
+      fill: '#1f2937',
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 8,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)', // Add slight background for visibility
+      padding: 4
+    })
+
+    console.log('✅ Text element created, adding to canvas:', text)
+    console.log('📐 Canvas dimensions:', fabricCanvasRef.current.width, 'x', fabricCanvasRef.current.height)
+    console.log('📍 Text position:', text.left, ',', text.top)
+    fabricCanvasRef.current.add(text)
+    
+    // Set text object for toolbar display
+    setActiveTextObject(text)
+    setShowTextToolbar(true)
+    
+    // Force render and debug
+    fabricCanvasRef.current.renderAll()
+    
+    // Debug canvas state
+    console.log('✅ Text element added and canvas rendered')
+    console.log('🔍 Total objects on canvas:', fabricCanvasRef.current.getObjects().length)
+    console.log('🎯 Canvas element:', fabricCanvasRef.current.getElement())
+    console.log('📊 Canvas context:', fabricCanvasRef.current.getContext())
+    console.log('🎨 Text object bounds:', text.getBoundingRect())
+    console.log('🔧 Text object visible:', text.visible)
+    console.log('🎪 Text object opacity:', text.opacity)
+    
+    // Add a very visible test rectangle
+    const testRect = new fabric.Rect({
+      left: 50,
+      top: 50,
+      width: 100,
+      height: 100,
+      fill: 'red',
+      stroke: 'black',
+      strokeWidth: 5
+    })
+    fabricCanvasRef.current.add(testRect)
+    fabricCanvasRef.current.renderAll()
+    console.log('🔴 Added test red rectangle at (50,50)')
+    
+    // Set active object after render
+    fabricCanvasRef.current.setActiveObject(text)
+    
+    // Immediately enter editing mode so user can start typing
+    setTimeout(() => {
+      if (text instanceof fabric.IText) {
+        text.enterEditing()
+        text.selectAll()
+        fabricCanvasRef.current.renderAll() // Force another render
+      }
+    }, 100)
+  }
+
+  const addTextBox = () => {
+    console.log('📦 Adding text box. Canvas exists:', !!fabricCanvasRef.current)
+    if (!fabricCanvasRef.current) {
+      console.error('❌ Fabric canvas not available for adding text box')
+      return
+    }
+
+    // Position text box in visible area
+    const visiblePosition = {
+      x: 150,
+      y: 150
+    }
+
+    // Create background rectangle
+    const rect = new fabric.Rect({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 80,
+      fill: '#ffffff',
+      stroke: '#d1d5db',
+      strokeWidth: 2,
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 8,
+      selectable: false,
+      evented: false
+    })
+
+    // Create text element
+    const text = new fabric.IText('Click to edit text', {
+      left: 20,
+      top: 30,
       fontSize: 16,
       fontFamily: 'Inter, sans-serif',
       fill: '#1f2937',
       cornerColor: '#3b82f6',
       cornerStyle: 'circle',
       transparentCorners: false,
+      cornerSize: 8,
+      textAlign: 'left',
+      width: 160
+    })
+
+    // Group rectangle and text together
+    const textBox = new fabric.Group([rect, text], {
+      left: visiblePosition.x,
+      top: visiblePosition.y,
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      transparentCorners: false,
       cornerSize: 8
     })
 
-    fabricCanvasRef.current.add(text)
-    fabricCanvasRef.current.setActiveObject(text)
+    // Add metadata to identify as text box
+    textBox.set('elementType', 'textBox')
+
+    console.log('✅ Text box created, adding to canvas:', textBox)
+    fabricCanvasRef.current.add(textBox)
+    fabricCanvasRef.current.bringToFront(textBox)
+    fabricCanvasRef.current.setActiveObject(textBox)
     fabricCanvasRef.current.renderAll()
+    console.log('✅ Text box added and canvas rendered')
   }
 
   const clearCanvas = () => {
@@ -300,9 +519,6 @@ export default function MeetingCanvasModal({
     }
   }
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen)
-  }
 
   if (!isOpen) return null
 
@@ -317,20 +533,16 @@ export default function MeetingCanvasModal({
   }
 
   return (
-    <div className={`fixed inset-0 z-50 bg-black/50 ${isFullscreen ? '' : 'p-4'}`}>
-      <div className={`bg-white dark:bg-[#1a1a1a] ${
-        isFullscreen 
-          ? 'h-screen w-screen' 
-          : 'h-[calc(100vh-2rem)] w-full max-w-7xl mx-auto rounded-lg shadow-2xl'
-      } overflow-hidden flex flex-col`}>
+    <div className="fixed inset-0 z-50 bg-black/50">
+      <div className="bg-white dark:bg-[#1a1a1a] h-screen w-screen overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="bg-golden-400 dark:bg-[#09261d] text-white dark:text-golden-400 p-4 border-b border-golden-500 dark:border-[#0a2e21] flex-shrink-0">
+        <div className="bg-golden-400 dark:bg-[#09261d] p-4 border-b border-golden-500 dark:border-[#0a2e21] flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-3">
-                <h2 className="text-xl font-semibold">{activityTitle}</h2>
-                <div className="text-sm opacity-75 flex items-center space-x-4">
+                <h2 className="text-xl font-semibold text-green-700 dark:text-golden-400">{activityTitle}</h2>
+                <div className="text-sm text-gray-700 dark:text-golden-400/70 flex items-center space-x-4">
                   <div className="flex items-center space-x-1">
                     <Clock className="w-4 h-4" />
                     <span>{formatDateTime(meetingDate)}</span>
@@ -343,17 +555,17 @@ export default function MeetingCanvasModal({
                   )}
                 </div>
               </div>
-              <div className="mt-1 text-sm opacity-70 flex items-center space-x-4">
+              <div className="mt-1 text-sm text-gray-700 dark:text-golden-400/70 flex items-center space-x-4">
                 {lastSaved && (
                   <span>Last saved {formatDistanceToNow(lastSaved, { addSuffix: true })}</span>
                 )}
                 {hasUnsavedChanges && (
-                  <span className="bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded text-xs">
+                  <span className="bg-orange-500/20 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded text-xs">
                     Unsaved changes
                   </span>
                 )}
                 {isSaving && (
-                  <span className="bg-green-500/20 text-green-200 px-2 py-0.5 rounded text-xs">
+                  <span className="bg-green-500/20 text-green-800 dark:text-green-200 px-2 py-0.5 rounded text-xs">
                     Saving...
                   </span>
                 )}
@@ -364,7 +576,7 @@ export default function MeetingCanvasModal({
               <button
                 onClick={() => saveCanvas(false)}
                 disabled={isSaving || !hasUnsavedChanges}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-golden-400"
                 title="Save canvas"
               >
                 <Save className="w-4 h-4" />
@@ -372,16 +584,8 @@ export default function MeetingCanvasModal({
               </button>
               
               <button
-                onClick={toggleFullscreen}
-                className="p-1.5 hover:bg-white/10 rounded transition-colors"
-                title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              >
-                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-              </button>
-              
-              <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded transition-colors text-gray-700 dark:text-golden-400"
                 title="Close canvas"
               >
                 <X className="w-5 h-5" />
@@ -394,15 +598,30 @@ export default function MeetingCanvasModal({
         <CanvasToolbar
           canvas={fabricCanvasRef.current}
           onAddText={addTextElement}
+          onAddTextBox={addTextBox}
           onClear={clearCanvas}
         />
 
+        {/* Text Formatting Toolbar - positioned under main toolbar */}
+        {showTextToolbar && activeTextObject && (
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
+            <TextFormattingToolbar
+              activeTextObject={activeTextObject}
+              canvas={fabricCanvasRef.current}
+              onClose={() => setShowTextToolbar(false)}
+              position={{ x: 0, y: 0 }} // Position not used in static layout
+              isStatic={true}
+            />
+          </div>
+        )}
+
         {/* Canvas Container */}
-        <div className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-auto">
-          <div className="w-full h-full flex items-center justify-center p-4">
+        <div className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-visible">
+          <div className="w-full h-full p-4">
             <canvas 
               ref={canvasRef}
-              className="border border-gray-300 dark:border-gray-600 shadow-lg rounded-sm bg-white"
+              className="border-2 border-red-500 shadow-lg bg-white"
+              style={{ display: 'block' }}
             />
           </div>
         </div>
@@ -421,6 +640,7 @@ export default function MeetingCanvasModal({
           </div>
         </div>
       </div>
+
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Receipt } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import WolthersLogo from './WolthersLogo'
 import TripSquareButtons from './TripSquareButtons'
@@ -9,6 +10,7 @@ import RouteMap from './RouteMap'
 import TripActivities from './TripActivities'
 import CommentsSection from './CommentsSection'
 import TripNavigationBar from './TripNavigationBar'
+import ReceiptScanModal from '../expenses/ReceiptScanModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripDetails } from '@/hooks/useTrips'
@@ -24,6 +26,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   const [activeTab, setActiveTab] = useState(tripId)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [mobileMenuHeight, setMobileMenuHeight] = useState(0)
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
   const { confirm } = useDialogs()
   const { isAuthenticated, user } = useAuth()
   
@@ -194,6 +197,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       <WolthersLogo 
         onMobileMenuToggle={setIsMobileMenuOpen}
         onMenuHeightChange={setMobileMenuHeight}
+        onReceiptScanOpen={() => setIsReceiptModalOpen(true)}
+        showReceiptButton={!isGuestAccess} // Show for authenticated users on trip pages
       />
       
       {/* Trip Navigation Bar - Always visible */}
@@ -225,17 +230,17 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
 
       {/* Trip Content */}
       <div className={cn(
-        "max-w-7xl mx-auto px-4 py-6",
+        "max-w-7xl mx-auto px-0 md:px-4 py-0 md:py-6",
         userTrips.length > 1 && !isGuestAccess && "pt-2"
       )}>
         {/* Trip Header */}
-        <div className="mt-36 md:mt-6">
+        <div className="mt-0 md:mt-6 px-4 md:px-0">
           <TripHeader trip={trip} tripData={tripDetails} />
         </div>
 
         {/* Map Section - Only show if there are locations */}
         {hasLocations && (
-          <div className="mb-6">
+          <div className="mb-6 px-4 md:px-0">
             <RouteMap 
               itineraryDays={[]}
               tripTitle={trip.title}
@@ -246,7 +251,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           </div>
         )}
 
-        {/* Activities Section */}
+        {/* Activities Section - Full width on mobile */}
         <div className="mb-12">
           <TripActivities 
             activities={activities}
@@ -261,7 +266,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
 
       {/* Comments Section at Bottom */}
       <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-0 md:px-4">
           <CommentsSection 
             tripId={tripId} 
             isAuthenticated={isAuthenticated}
@@ -269,6 +274,30 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           />
         </div>
       </div>
+
+      {/* Mobile Receipt Capture Footer - Only show for Wolthers staff on mobile */}
+      {!isGuestAccess && user && (user.email?.endsWith('@wolthers.com') || user.user_type === 'wolthers_staff') && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-emerald-600 border-t border-emerald-500 p-4 z-30">
+          <button
+            onClick={() => setIsReceiptModalOpen(true)}
+            className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg"
+          >
+            <Receipt className="w-5 h-5" />
+            Add Receipt
+          </button>
+        </div>
+      )}
+
+      {/* Receipt Scan Modal */}
+      <ReceiptScanModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        tripId={tripId}
+        onExpenseAdded={() => {
+          // Could refresh expenses or show success message
+          console.log('Expenses added successfully')
+        }}
+      />
     </div>
   )
 }

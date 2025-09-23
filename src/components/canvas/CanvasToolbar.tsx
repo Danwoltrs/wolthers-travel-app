@@ -23,10 +23,11 @@ import { fabric } from 'fabric'
 interface CanvasToolbarProps {
   canvas: fabric.Canvas | null
   onAddText: () => void
+  onAddTextBox: () => void
   onClear: () => void
 }
 
-export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasToolbarProps) {
+export default function CanvasToolbar({ canvas, onAddText, onAddTextBox, onClear }: CanvasToolbarProps) {
   const [selectedColor, setSelectedColor] = useState('#3b82f6')
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -39,14 +40,24 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
   ]
 
   const addShape = (type: 'rectangle' | 'circle') => {
-    if (!canvas) return
+    console.log('🔵 Adding shape:', type, 'Canvas exists:', !!canvas)
+    if (!canvas) {
+      console.error('❌ Canvas not available for adding shape')
+      return
+    }
 
     let shape: fabric.Object
 
+    // Get canvas center position for better visibility
+    const canvasCenter = {
+      x: (canvas.width || 800) / 2,
+      y: (canvas.height || 600) / 2
+    }
+
     if (type === 'rectangle') {
       shape = new fabric.Rect({
-        left: 150,
-        top: 150,
+        left: canvasCenter.x - 60,
+        top: canvasCenter.y - 40,
         width: 120,
         height: 80,
         fill: selectedColor,
@@ -59,8 +70,8 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
       })
     } else {
       shape = new fabric.Circle({
-        left: 150,
-        top: 150,
+        left: canvasCenter.x - 50,
+        top: canvasCenter.y - 50,
         radius: 50,
         fill: selectedColor,
         stroke: '#1f2937',
@@ -72,13 +83,23 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
       })
     }
 
+    console.log('✅ Shape created, adding to canvas:', shape)
+    console.log('📐 Canvas dimensions:', canvas.width, 'x', canvas.height)
+    console.log('📍 Shape position:', shape.left, ',', shape.top)
     canvas.add(shape)
+    canvas.bringToFront(shape) // Ensure it's above grid
     canvas.setActiveObject(shape)
     canvas.renderAll()
+    console.log('✅ Shape added and canvas rendered')
+    console.log('🔍 Total objects on canvas:', canvas.getObjects().length)
   }
 
   const toggleDrawingMode = () => {
-    if (!canvas) return
+    console.log('✏️ Toggle drawing mode. Canvas exists:', !!canvas, 'Current mode:', isDrawingMode)
+    if (!canvas) {
+      console.error('❌ Canvas not available for drawing mode')
+      return
+    }
 
     const newDrawingMode = !isDrawingMode
     setIsDrawingMode(newDrawingMode)
@@ -86,12 +107,21 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
     canvas.isDrawingMode = newDrawingMode
 
     if (newDrawingMode) {
+      console.log('✅ Enabling drawing mode')
       canvas.freeDrawingBrush.color = selectedColor
       canvas.freeDrawingBrush.width = 3
       canvas.selection = false
+      canvas.hoverCursor = 'crosshair'
+      canvas.defaultCursor = 'crosshair'
     } else {
+      console.log('✅ Disabling drawing mode')
       canvas.selection = true
+      canvas.hoverCursor = 'pointer'
+      canvas.defaultCursor = 'default'
     }
+    
+    canvas.renderAll()
+    console.log('✅ Drawing mode updated and canvas rendered')
   }
 
   const addChart = () => {
@@ -223,6 +253,18 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
         break
       case 'meeting':
         applyMeetingTemplate()
+        break
+      case 'travel':
+        applyTravelTemplate()
+        break
+      case 'contract':
+        applyContractTemplate()
+        break
+      case 'financial':
+        applyFinancialTemplate()
+        break
+      case 'coffee':
+        applyCoffeeAnalysisTemplate()
         break
     }
     
@@ -373,6 +415,322 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
     canvas.renderAll()
   }
 
+  const applyTravelTemplate = () => {
+    if (!canvas) return
+
+    const objects = canvas.getObjects().filter(obj => obj.selectable !== false)
+    objects.forEach(obj => canvas.remove(obj))
+
+    // Travel itinerary template sections
+    const sections = [
+      { title: 'DESTINATION & DATES', y: 60 },
+      { title: 'ACCOMMODATION DETAILS', y: 120 },
+      { title: 'TRANSPORTATION', y: 180 },
+      { title: 'DAILY SCHEDULE', y: 240 },
+      { title: 'SPECIAL REQUIREMENTS', y: 340 },
+      { title: 'CONTACT INFORMATION', y: 400 },
+      { title: 'EMERGENCY CONTACTS', y: 460 }
+    ]
+
+    sections.forEach(({ title, y }) => {
+      const titleText = new fabric.Text(title, {
+        left: 60,
+        top: y,
+        fontSize: 14,
+        fontWeight: 'bold',
+        fill: '#1f2937',
+        fontFamily: 'Inter, sans-serif',
+        backgroundColor: '#dbeafe',
+        padding: 6
+      })
+
+      const underline = new fabric.Line([60, y + 20, 450, y + 20], {
+        stroke: '#3b82f6',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false
+      })
+
+      canvas.add(titleText, underline)
+    })
+
+    canvas.renderAll()
+  }
+
+  const applyContractTemplate = () => {
+    if (!canvas) return
+
+    const objects = canvas.getObjects().filter(obj => obj.selectable !== false)
+    objects.forEach(obj => canvas.remove(obj))
+
+    // Contract negotiation template sections
+    const sections = [
+      { title: 'PARTIES INVOLVED', y: 60 },
+      { title: 'CONTRACT TERMS & CONDITIONS', y: 120 },
+      { title: 'PRICING & PAYMENT TERMS', y: 180 },
+      { title: 'DELIVERABLES & TIMELINE', y: 240 },
+      { title: 'RISK ASSESSMENT', y: 300 },
+      { title: 'NEGOTIATION POINTS', y: 360 },
+      { title: 'NEXT STEPS & FOLLOW-UP', y: 420 }
+    ]
+
+    sections.forEach(({ title, y }) => {
+      const titleText = new fabric.Text(title, {
+        left: 60,
+        top: y,
+        fontSize: 14,
+        fontWeight: 'bold',
+        fill: '#1f2937',
+        fontFamily: 'Inter, sans-serif',
+        backgroundColor: '#fef3c7',
+        padding: 6
+      })
+
+      const underline = new fabric.Line([60, y + 20, 500, y + 20], {
+        stroke: '#f59e0b',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false
+      })
+
+      canvas.add(titleText, underline)
+    })
+
+    canvas.renderAll()
+  }
+
+  const applyFinancialTemplate = () => {
+    if (!canvas) return
+
+    const objects = canvas.getObjects().filter(obj => obj.selectable !== false)
+    objects.forEach(obj => canvas.remove(obj))
+
+    // Financial review template sections
+    const sections = [
+      { title: 'BUDGET OVERVIEW', y: 60 },
+      { title: 'COST BREAKDOWN', y: 120 },
+      { title: 'REVENUE PROJECTIONS', y: 180 },
+      { title: 'EXPENSE TRACKING', y: 240 },
+      { title: 'PROFIT MARGINS', y: 300 },
+      { title: 'FINANCIAL RISKS', y: 360 },
+      { title: 'RECOMMENDATIONS', y: 420 }
+    ]
+
+    sections.forEach(({ title, y }) => {
+      const titleText = new fabric.Text(title, {
+        left: 60,
+        top: y,
+        fontSize: 14,
+        fontWeight: 'bold',
+        fill: '#1f2937',
+        fontFamily: 'Inter, sans-serif',
+        backgroundColor: '#dcfce7',
+        padding: 6
+      })
+
+      const underline = new fabric.Line([60, y + 20, 400, y + 20], {
+        stroke: '#10b981',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false
+      })
+
+      canvas.add(titleText, underline)
+    })
+
+    canvas.renderAll()
+  }
+
+  const applyCoffeeAnalysisTemplate = () => {
+    if (!canvas) return
+
+    const objects = canvas.getObjects().filter(obj => obj.selectable !== false)
+    objects.forEach(obj => canvas.remove(obj))
+
+    const canvasWidth = canvas.width!
+    const canvasHeight = canvas.height!
+
+    // Title section
+    const titleText = new fabric.Text('COFFEE BUSINESS ANALYSIS', {
+      left: canvasWidth / 2,
+      top: 40,
+      fontSize: 20,
+      fontWeight: 'bold',
+      fill: '#8b4513',
+      fontFamily: 'Inter, sans-serif',
+      textAlign: 'center',
+      originX: 'center',
+      backgroundColor: '#fef3c7',
+      padding: 10
+    })
+
+    // Left side - Quality Assessment
+    const qualityTitle = new fabric.Text('QUALITY ASSESSMENT', {
+      left: 80,
+      top: 100,
+      fontSize: 14,
+      fontWeight: 'bold',
+      fill: '#1f2937',
+      fontFamily: 'Inter, sans-serif',
+      backgroundColor: '#dcfce7',
+      padding: 6
+    })
+
+    const qualityItems = [
+      'Aroma:',
+      'Flavor Profile:',
+      'Body:',
+      'Acidity:',
+      'Aftertaste:',
+      'Overall Rating:'
+    ]
+
+    qualityItems.forEach((item, index) => {
+      const itemText = new fabric.Text(item, {
+        left: 80,
+        top: 140 + (index * 25),
+        fontSize: 12,
+        fill: '#4b5563',
+        fontFamily: 'Inter, sans-serif'
+      })
+      canvas.add(itemText)
+    })
+
+    // Right side - Business Metrics with Chart placeholder
+    const metricsTitle = new fabric.Text('BUSINESS METRICS', {
+      left: 400,
+      top: 100,
+      fontSize: 14,
+      fontWeight: 'bold',
+      fill: '#1f2937',
+      fontFamily: 'Inter, sans-serif',
+      backgroundColor: '#dbeafe',
+      padding: 6
+    })
+
+    // Chart placeholder
+    const chartBackground = new fabric.Rect({
+      left: 400,
+      top: 140,
+      width: 280,
+      height: 160,
+      fill: '#f8fafc',
+      stroke: '#cbd5e1',
+      strokeWidth: 2,
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 6
+    })
+
+    const chartIcon = new fabric.Text('📊', {
+      left: 520,
+      top: 190,
+      fontSize: 32,
+      originX: 'center'
+    })
+
+    const chartLabel = new fabric.Text('Price Comparison Chart\n(Click to edit)', {
+      left: 520,
+      top: 240,
+      fontSize: 12,
+      fill: '#64748b',
+      fontFamily: 'Inter, sans-serif',
+      textAlign: 'center',
+      originX: 'center'
+    })
+
+    // Group chart elements
+    const chartGroup = new fabric.Group([chartBackground, chartIcon, chartLabel], {
+      left: 400,
+      top: 140,
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 8
+    })
+
+    chartGroup.set('elementType', 'chart')
+    chartGroup.set('chartData', {
+      type: 'bar',
+      title: 'Coffee Price Analysis',
+      data: [
+        { name: 'Brazil', value: 4.20 },
+        { name: 'Colombia', value: 5.80 },
+        { name: 'Ethiopia', value: 7.50 },
+        { name: 'Guatemala', value: 6.20 }
+      ]
+    })
+
+    // Bottom section - Action Items table placeholder
+    const actionTitle = new fabric.Text('ACTION ITEMS & DECISIONS', {
+      left: 80,
+      top: 330,
+      fontSize: 14,
+      fontWeight: 'bold',
+      fill: '#1f2937',
+      fontFamily: 'Inter, sans-serif',
+      backgroundColor: '#fef2f2',
+      padding: 6
+    })
+
+    // Table placeholder
+    const tableBackground = new fabric.Rect({
+      left: 80,
+      top: 370,
+      width: 600,
+      height: 120,
+      fill: '#ffffff',
+      stroke: '#e5e7eb',
+      strokeWidth: 2,
+      cornerColor: '#10b981',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 6
+    })
+
+    const tableIcon = new fabric.Text('📋', {
+      left: 360,
+      top: 410,
+      fontSize: 24,
+      originX: 'center'
+    })
+
+    const tableLabel = new fabric.Text('Action Items Table\n(Click to edit)', {
+      left: 360,
+      top: 445,
+      fontSize: 12,
+      fill: '#6b7280',
+      fontFamily: 'Inter, sans-serif',
+      textAlign: 'center',
+      originX: 'center'
+    })
+
+    // Group table elements
+    const tableGroup = new fabric.Group([tableBackground, tableIcon, tableLabel], {
+      left: 80,
+      top: 370,
+      cornerColor: '#10b981',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 8
+    })
+
+    tableGroup.set('elementType', 'table')
+    tableGroup.set('tableData', {
+      title: 'Action Items',
+      headers: ['Task', 'Assignee', 'Due Date', 'Status'],
+      rows: [
+        ['Quality testing', 'Ana', '2025-01-25', 'In Progress'],
+        ['Price negotiation', 'Daniel', '2025-01-30', 'Pending'],
+        ['Contract review', 'Carlos', '2025-02-05', 'Not Started']
+      ]
+    })
+
+    canvas.add(titleText, qualityTitle, metricsTitle, chartGroup, actionTitle, tableGroup)
+    canvas.renderAll()
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 flex-shrink-0">
       <div className="flex items-center justify-between">
@@ -380,7 +738,10 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
         <div className="flex items-center space-x-1">
           {/* Text tool */}
           <button
-            onClick={onAddText}
+            onClick={() => {
+              console.log('🔘 Text button clicked!')
+              onAddText()
+            }}
             className="flex items-center space-x-1 px-2 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
             title="Add text"
           >
@@ -388,9 +749,26 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
             <span className="hidden sm:inline">Text</span>
           </button>
 
+          {/* Text box tool */}
+          <button
+            onClick={() => {
+              console.log('🔘 Text box button clicked!')
+              onAddTextBox()
+            }}
+            className="flex items-center space-x-1 px-2 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded transition-colors"
+            title="Add text box"
+          >
+            <Square className="w-4 h-4" />
+            <Type className="w-3 h-3" />
+            <span className="hidden sm:inline">Text Box</span>
+          </button>
+
           {/* Drawing tool */}
           <button
-            onClick={toggleDrawingMode}
+            onClick={() => {
+              console.log('🔘 Draw button clicked!')
+              toggleDrawingMode()
+            }}
             className={`flex items-center space-x-1 px-2 py-1.5 text-sm rounded transition-colors ${
               isDrawingMode 
                 ? 'bg-blue-500 text-white' 
@@ -406,7 +784,10 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
 
           {/* Shapes */}
           <button
-            onClick={() => addShape('rectangle')}
+            onClick={() => {
+              console.log('🔘 Rectangle button clicked!')
+              addShape('rectangle')
+            }}
             className="flex items-center space-x-1 px-2 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
             title="Add rectangle"
           >
@@ -415,7 +796,10 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
           </button>
 
           <button
-            onClick={() => addShape('circle')}
+            onClick={() => {
+              console.log('🔘 Circle button clicked!')
+              addShape('circle')
+            }}
             className="flex items-center space-x-1 px-2 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
             title="Add circle"
           >
@@ -499,6 +883,30 @@ export default function CanvasToolbar({ canvas, onAddText, onClear }: CanvasTool
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                 >
                   🤝 Meeting Minutes
+                </button>
+                <button
+                  onClick={() => applyTemplate('travel')}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  ✈️ Travel Itinerary
+                </button>
+                <button
+                  onClick={() => applyTemplate('contract')}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  📋 Contract Review
+                </button>
+                <button
+                  onClick={() => applyTemplate('financial')}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  💰 Financial Analysis
+                </button>
+                <button
+                  onClick={() => applyTemplate('coffee')}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  ☕ Coffee Business Analysis
                 </button>
               </div>
             </div>
