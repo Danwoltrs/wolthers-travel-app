@@ -176,291 +176,103 @@ export function OverviewTab({
   // If in view mode, show the overview information
   if (mode === 'view') {
     return (
-      <div className={cn('flex flex-col gap-6', className)}>
-        <div className="flex items-center justify-end">
-          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-            <Clock className="w-3 h-3" />
-            <span>{calculateDuration(trip.startDate, trip.endDate)} days</span>
-          </div>
-        </div>
+      <div className={cn('flex flex-col gap-4', className)}>
 
-        {/* Trip Information Display */}
-        <div className="flex-shrink-0 bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column - Basic Info */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Trip Title
-                  </label>
-                  <div className="text-base text-gray-900 dark:text-gray-100">
-                    {trip.title}
-                  </div>
-                </div>
+        {/* Participants Overview - Compact - Only show sections with data */}
+        {(() => {
+          const hasGuests = trip.client.length > 0 && trip.guests.some(g => g.names.length > 0)
+          const hasStaff = liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0
+          const hasVehicles = trip.vehicles.length > 0
+          const hasDrivers = trip.drivers.length > 0
+          const totalSections = [hasGuests, hasStaff, hasVehicles, hasDrivers].filter(Boolean).length
+          const isStaffOnly = hasStaff && totalSections === 1
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <div className="text-base text-gray-900 dark:text-gray-100 capitalize">
-                    {trip.status}
+          return (hasGuests || hasStaff || hasVehicles || hasDrivers) && (
+            <div className="flex-shrink-0">
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-4">
+                {isStaffOnly ? (
+                  /* Compact staff-only format */
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers Staff: </span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {liveParticipantStats.staffMembers.map(staff => staff.fullName).join(', ')}
+                    </span>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Duration
-                  </label>
-                  <div className="text-base text-gray-900 dark:text-gray-100">
-                    {calculateDuration(trip.startDate, trip.endDate)} days
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column - Dates and Description */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Start Date
-                    </label>
-                    <div className="text-base text-gray-900 dark:text-gray-100">
-                      {trip.startDate instanceof Date ? 
-                        trip.startDate.toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        }) : 
-                        new Date(trip.startDate).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
-                      }
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      End Date
-                    </label>
-                    <div className="text-base text-gray-900 dark:text-gray-100">
-                      {trip.endDate instanceof Date ? 
-                        trip.endDate.toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        }) : 
-                        new Date(trip.endDate).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
-                      }
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <div className="text-base text-gray-900 dark:text-gray-100">
-                    {trip.subject || 'No description available'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Trip Statistics */}
-          <div className="border-t border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#111111]">
-            <div className="p-4">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                    {calculateDuration(trip.startDate, trip.endDate)}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Days
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                    {liveParticipantStats?.staff ?? trip.wolthersStaff.length}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Staff
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-golden-400">
-                    {trip.vehicles.length}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    Vehicles
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Participants Overview */}
-        <div className="flex-shrink-0 space-y-4">
-          
-          {/* Mobile: Simple text layout */}
-          <div className="md:hidden">
-            <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-              {/* Guest Companies */}
-              {trip.client.length > 0 && (
-                <span>
-                  <span className="font-medium text-gray-900 dark:text-gray-200">
-                    {trip.client.map(company => company.fantasyName || company.name).join(', ')}:
-                  </span>
-                  {' '}
-                  {trip.guests.map(guestGroup => guestGroup.names.join(', ')).join(', ')}
-                </span>
-              )}
-              
-              {/* Wolthers Staff */}
-              {liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0 && (
-                <>
-                  {trip.client.length > 0 && ' | '}
-                  <span>
-                    <span className="font-medium text-gray-900 dark:text-gray-200">Wolthers staff:</span>
-                    {' '}
-                    {liveParticipantStats.staffMembers.map(staff => staff.fullName).join(', ')}
-                  </span>
-                </>
-              )}
-              
-              {/* Vehicles */}
-              {trip.vehicles.length > 0 && (
-                <>
-                  {(trip.client.length > 0 || (liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0)) && ' | '}
-                  <span>
-                    <span className="font-medium text-gray-900 dark:text-gray-200">Vehicles:</span>
-                    {' '}
-                    {trip.vehicles.map(vehicle => `${vehicle.make} ${vehicle.model}`).join(', ')}
-                  </span>
-                </>
-              )}
-              
-              {/* Drivers */}
-              {trip.drivers.length > 0 && (
-                <>
-                  {(trip.client.length > 0 || (liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0) || trip.vehicles.length > 0) && ' | '}
-                  <span>
-                    <span className="font-medium text-gray-900 dark:text-gray-200">Drivers:</span>
-                    {' '}
-                    {trip.drivers.map(driver => driver.fullName).join(', ')}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Desktop: Flexible Card Layout */}
-          <div className="hidden md:block">
-            <div className="flex flex-wrap gap-4">
-              {/* Company Cards - Flexible sizing */}
-              {trip.client.map((company) => {
-                const companyGuests = trip.guests.find(g => g.companyId === company.id)
-                return (
-                  <div key={company.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-1 min-w-[200px]">
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                      {company.fantasyName || company.name}
-                    </h4>
-                    {companyGuests && (
-                      <div className="space-y-1">
-                        {companyGuests.names.map((name, index) => (
-                          <div key={index} className="text-sm text-gray-700 dark:text-gray-300">
-                            {name}
-                          </div>
-                        ))}
+                ) : (
+                  /* Grid format for multiple sections */
+                  <div className="grid grid-cols-1 md:grid-cols-auto gap-4 text-sm">
+                    {/* Guest Companies - Only show if there are guests */}
+                    {hasGuests && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-200 mb-2">Guests</h4>
+                        <div className="space-y-1">
+                          {trip.client.map((company) => {
+                            const companyGuests = trip.guests.find(g => g.companyId === company.id)
+                            if (!companyGuests || companyGuests.names.length === 0) return null
+                            return (
+                              <div key={company.id}>
+                                <div className="font-medium text-gray-800 dark:text-gray-300 text-xs">
+                                  {company.fantasyName || company.name}
+                                </div>
+                                {companyGuests.names.map((name, index) => (
+                                  <div key={index} className="text-xs text-gray-600 dark:text-gray-400">
+                                    {name}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
-                  </div>
-                )
-              })}
 
-              {/* Combined Wolthers Staff, Vehicles & Drivers Card */}
-              {((liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0) || trip.vehicles.length > 0 || trip.drivers.length > 0) && (
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-pearl-200 dark:border-[#2a2a2a] flex-[2] min-w-[400px]">
-                  <div className="grid grid-cols-3 gap-6 divide-x divide-gray-200 dark:divide-[#2a2a2a]">
-                    {/* Wolthers Staff */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                        Wolthers Staff
-                      </h4>
-                      {liveParticipantStats?.staffMembers && liveParticipantStats.staffMembers.length > 0 ? (
+                    {/* Wolthers Staff - Only show if there are staff and not staff-only */}
+                    {hasStaff && !isStaffOnly && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-200 mb-2">Wolthers Staff</h4>
                         <div className="space-y-1">
                           {liveParticipantStats.staffMembers.map((staff) => (
-                            <div key={staff.id} className="text-sm text-gray-700 dark:text-gray-300">
+                            <div key={staff.id} className="text-xs text-gray-600 dark:text-gray-400">
                               {staff.fullName}
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No staff
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Vehicles */}
-                    <div className="pl-6">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                        Vehicles
-                      </h4>
-                      {trip.vehicles.length > 0 ? (
+                      </div>
+                    )}
+
+                    {/* Vehicles - Only show if there are vehicles */}
+                    {hasVehicles && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-200 mb-2">Vehicles</h4>
                         <div className="space-y-1">
                           {trip.vehicles.map((vehicle) => (
-                            <div key={vehicle.id} className="text-sm text-gray-700 dark:text-gray-300">
+                            <div key={vehicle.id} className="text-xs text-gray-600 dark:text-gray-400">
                               {vehicle.make} {vehicle.model}
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No vehicles
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Drivers */}
-                    <div className="pl-6">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-3">
-                        Drivers
-                      </h4>
-                      {trip.drivers.length > 0 ? (
+                      </div>
+                    )}
+
+                    {/* Drivers - Only show if there are drivers */}
+                    {hasDrivers && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-200 mb-2">Drivers</h4>
                         <div className="space-y-1">
                           {trip.drivers.map((driver) => (
-                            <div key={driver.id} className="text-sm text-gray-700 dark:text-gray-300">
+                            <div key={driver.id} className="text-xs text-gray-600 dark:text-gray-400">
                               {driver.fullName}
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No drivers
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-          
-          {/* Separator Line */}
-          <div className="border-t border-gray-200 dark:border-[#2a2a2a]"></div>
-        </div>
+          )
+        })()}
 
         {/* Meetings & Activities */}
         {(activitiesLoading) ? (
@@ -477,11 +289,11 @@ export function OverviewTab({
           </div>
         ) : (
           <div className="flex flex-col">
-            
-            {/* Activities Container with Flexible Height */}
-            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden flex flex-col">
-              
-              {/* Activities Content */}
+
+            {/* Activities Container - Natural Height */}
+            <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a]">
+
+              {/* Activities Content - Natural height */}
               <div>
                 {/* Small screens: Full width list layout */}
                 <div className="block sm:hidden">
