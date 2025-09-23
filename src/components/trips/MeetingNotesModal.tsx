@@ -244,54 +244,47 @@ export default function MeetingNotesModal({
   }
 
   const processOCR = async (imageFile: File, index: number) => {
+    if (!activityId) {
+      console.error('Cannot process OCR without an activity id')
+      return
+    }
+
     setIsProcessingOCR(true)
     setSelectedImageIndex(index)
-    
+
     try {
-      // Convert file to base64
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string
-        
-        try {
-          const response = await fetch('/api/ocr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              image: base64Image.split(',')[1], // Remove data:image/jpeg;base64, prefix
-              mimeType: imageFile.type
-            })
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            const extractedText = data.text || 'No text detected'
-            
-            setOcrResults(prev => {
-              const newResults = [...prev]
-              newResults[index] = extractedText
-              return newResults
-            })
-            
-            // Optionally append to note text
-            if (extractedText && extractedText !== 'No text detected') {
-              setNoteText(prev => prev + (prev ? '\n\n' : '') + `**Extracted from ${imageFile.name}:**\n${extractedText}`)
-            }
-          } else {
-            throw new Error('OCR processing failed')
-          }
-        } catch (error) {
-          console.error('OCR error:', error)
-          setOcrResults(prev => {
-            const newResults = [...prev]
-            newResults[index] = 'Error processing image'
-            return newResults
-          })
-        }
+      const formData = new FormData()
+      formData.append('image', imageFile)
+
+      const response = await fetch(`/api/activities/${activityId}/ocr`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || 'OCR processing failed')
       }
-      reader.readAsDataURL(imageFile)
+
+      const data = await response.json()
+      const extractedText = data.text || 'No text detected'
+
+      setOcrResults(prev => {
+        const newResults = [...prev]
+        newResults[index] = extractedText
+        return newResults
+      })
+
+      if (extractedText && extractedText !== 'No text detected') {
+        setNoteText(prev => prev + (prev ? '\n\n' : '') + `**Extracted from ${imageFile.name}:**\n${extractedText}`)
+      }
     } catch (error) {
-      console.error('Error preparing image for OCR:', error)
+      console.error('OCR error:', error)
+      setOcrResults(prev => {
+        const newResults = [...prev]
+        newResults[index] = 'Error processing image'
+        return newResults
+      })
       alert('Failed to extract text from image. Please try again.')
     } finally {
       setIsProcessingOCR(false)
