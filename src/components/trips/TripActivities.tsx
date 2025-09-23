@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import MeetingNotesModal from './MeetingNotesModal'
+import MeetingCanvasModal from '../canvas/MeetingCanvasModal'
 
 interface TripActivitiesProps {
   activities: any[]
@@ -558,13 +558,14 @@ export default function TripActivities({ activities, loading, error, canEditTrip
         </p>
       </div>
 
-      {/* Meeting Notes Modal */}
+      {/* Meeting Canvas Modal */}
       {selectedActivity && (
-        <MeetingNotesModal
-          activity={selectedActivity}
-          tripType="in_land" // TODO: Get this from trip data
+        <MeetingCanvasModal
           isOpen={isNotesModalOpen}
           onClose={closeNotesModal}
+          activityId={selectedActivity.id}
+          activityTitle={selectedActivity.title}
+          meetingDate={selectedActivity.activity_date ? new Date(selectedActivity.activity_date) : new Date()}
         />
       )}
     </div>
