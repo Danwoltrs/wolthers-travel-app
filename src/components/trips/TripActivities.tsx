@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users } from 'lucide-react'
+import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users, Trash2, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import MeetingCanvasModal from '../canvas/MeetingCanvasModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface TripActivitiesProps {
   activities: any[]
@@ -87,6 +88,8 @@ const getConfirmationIcon = (isConfirmed: boolean) => {
 }
 
 export default function TripActivities({ activities, loading, error, canEditTrip = false, isAdmin = false, tripStatus = 'upcoming' }: TripActivitiesProps) {
+  const { user } = useAuth()
+  
   // Initialize with all activities and notes collapsed by default
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
   const [collapsedActivities, setCollapsedActivities] = useState<Set<string>>(() => {
@@ -104,6 +107,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
   const [selectedActivity, setSelectedActivity] = useState<any>(null)
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false)
   const [activityNoteCounts, setActivityNoteCounts] = useState<Record<string, number>>({})
+  const [activityNotes, setActivityNotes] = useState<Record<string, any[]>>({})
 
   // Refs for auto-scrolling to current day
   const currentDayRef = useRef<HTMLDivElement>(null)
@@ -214,10 +218,11 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     downloadICSFile(icsContent, filename)
   }
 
-  // Load note counts for all activities
+  // Load note counts and detailed notes for all activities
   useEffect(() => {
-    const loadNoteCounts = async () => {
+    const loadNotesData = async () => {
       const counts: Record<string, number> = {}
+      const notes: Record<string, any[]> = {}
       
       for (const activity of activities) {
         try {
@@ -227,20 +232,24 @@ export default function TripActivities({ activities, loading, error, canEditTrip
           
           if (response.ok) {
             const data = await response.json()
-            // Count public notes only for the indicator
-            counts[activity.id] = data.notes?.filter((note: any) => !note.is_private).length || 0
+            const allNotes = data.notes || []
+            notes[activity.id] = allNotes
+            // Count all notes for the indicator
+            counts[activity.id] = allNotes.length
           }
         } catch (error) {
-          console.error(`Error loading note count for activity ${activity.id}:`, error)
+          console.error(`Error loading notes for activity ${activity.id}:`, error)
           counts[activity.id] = 0
+          notes[activity.id] = []
         }
       }
       
       setActivityNoteCounts(counts)
+      setActivityNotes(notes)
     }
 
     if (activities.length > 0) {
-      loadNoteCounts()
+      loadNotesData()
     }
   }, [activities])
 
@@ -255,7 +264,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     
     // Refresh note counts when modal closes
     if (selectedActivity) {
-      const refreshNoteCounts = async () => {
+      const refreshNotesData = async () => {
         try {
           const response = await fetch(`/api/activities/${selectedActivity.id}/notes`, {
             credentials: 'include'
@@ -263,15 +272,45 @@ export default function TripActivities({ activities, loading, error, canEditTrip
           
           if (response.ok) {
             const data = await response.json()
-            const count = data.notes?.filter((note: any) => !note.is_private).length || 0
-            setActivityNoteCounts(prev => ({ ...prev, [selectedActivity.id]: count }))
+            const allNotes = data.notes || []
+            setActivityNoteCounts(prev => ({ ...prev, [selectedActivity.id]: allNotes.length }))
+            setActivityNotes(prev => ({ ...prev, [selectedActivity.id]: allNotes }))
           }
         } catch (error) {
-          console.error('Error refreshing note count:', error)
+          console.error('Error refreshing notes data:', error)
         }
       }
       
-      refreshNoteCounts()
+      refreshNotesData()
+    }
+  }
+
+  const deleteNote = async (activityId: string, noteId: string) => {
+    try {
+      const response = await fetch(`/api/activities/${activityId}/notes?note_id=${noteId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        // Refresh notes data after deletion
+        const refreshResponse = await fetch(`/api/activities/${activityId}/notes`, {
+          credentials: 'include'
+        })
+        
+        if (refreshResponse.ok) {
+          const data = await refreshResponse.json()
+          const allNotes = data.notes || []
+          setActivityNoteCounts(prev => ({ ...prev, [activityId]: allNotes.length }))
+          setActivityNotes(prev => ({ ...prev, [activityId]: allNotes }))
+        }
+      } else {
+        console.error('Failed to delete note')
+        alert('Failed to delete note. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      alert('Failed to delete note. Please try again.')
     }
   }
 
@@ -439,10 +478,10 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                 {dayActivities.map((activity: any, index: number) => {
                   const startTime = activity.start_time ? activity.start_time.slice(0, 5) : ''
                   const isActivityCollapsed = collapsedActivities.has(activity.id)
-                  const hasNotes = activity.meeting_notes && activity.meeting_notes.length > 0
+                  const noteCount = activityNoteCounts[activity.id] || 0
+                  const hasNotes = noteCount > 0
                   const areNotesCollapsed = collapsedNotes.has(activity.id)
                   const activityStatus = getActivityStatus(activity)
-                  const noteCount = activityNoteCounts[activity.id] || 0
                   
                   return (
                     <div 
@@ -480,7 +519,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                                   </h4>
                                   {hasNotes && (
                                     <span className="hidden md:inline text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                                      ({activity.meeting_notes.length} {activity.meeting_notes.length === 1 ? 'note' : 'notes'})
+                                      ({noteCount} {noteCount === 1 ? 'note' : 'notes'})
                                     </span>
                                   )}
                                 </div>
@@ -540,7 +579,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                       </div>
 
                       {/* Activity Details */}
-                      {!isActivityCollapsed && hasNotes && (
+                      {!isActivityCollapsed && noteCount > 0 && (
                         <div className="px-4 pb-4 pl-20">
                           {/* Meeting Notes */}
                           <div>
@@ -556,14 +595,67 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                               ) : (
                                 <ChevronDown className="w-3 h-3" />
                               )}
-                              Notes ({activity.meeting_notes.length})
+                              Notes ({noteCount})
                             </button>
                             
                             {!areNotesCollapsed && (
-                              <div className="p-3 bg-gray-50 dark:bg-[#111111] rounded-lg">
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                  {activity.meeting_notes[0].content}
-                                </div>
+                              <div className="space-y-3">
+                                {(activityNotes[activity.id] || []).map((note: any, index: number) => {
+                                  const isOwner = user && note.user_id === user.id
+                                  const noteContent = typeof note.content === 'object' 
+                                    ? (note.content.description || 'Canvas note')
+                                    : (note.content || 'No content')
+                                  
+                                  // Truncate content to max 2 lines
+                                  const truncatedContent = noteContent.length > 120 
+                                    ? noteContent.substring(0, 120) + '...'
+                                    : noteContent
+
+                                  return (
+                                    <div 
+                                      key={note.id}
+                                      className="p-3 bg-gray-50 dark:bg-[#111111] rounded-lg border border-gray-200 dark:border-[#2a2a2a]"
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <User className="w-3 h-3 text-gray-400" />
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                              {isOwner ? 'You' : 'Anonymous'}
+                                            </span>
+                                            <span className="text-xs text-gray-400">•</span>
+                                            <span className="text-xs text-gray-400">
+                                              {new Date(note.created_at).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </span>
+                                          </div>
+                                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                                            {truncatedContent}
+                                          </div>
+                                        </div>
+                                        
+                                        {isOwner && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              if (confirm('Delete this note?')) {
+                                                deleteNote(activity.id, note.id)
+                                              }
+                                            }}
+                                            className="flex-shrink-0 p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                            title="Delete note"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             )}
                           </div>

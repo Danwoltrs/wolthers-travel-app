@@ -51,9 +51,18 @@ export default function MeetingCanvasModal({
   useEffect(() => {
     if (!isOpen || !canvasRef.current) return
 
+    const canvasWidth = Math.min(window.innerWidth - 100, 1200)
+    const canvasHeight = Math.min(window.innerHeight - 200, 800)
+    
+    // Set HTML canvas element dimensions explicitly
+    canvasRef.current.width = canvasWidth
+    canvasRef.current.height = canvasHeight
+    canvasRef.current.style.width = `${canvasWidth}px`
+    canvasRef.current.style.height = `${canvasHeight}px`
+
     const canvas = new fabric.Canvas(canvasRef.current, {
-      width: Math.min(window.innerWidth - 100, 1200), // Limit canvas width
-      height: Math.min(window.innerHeight - 200, 800), // Limit canvas height
+      width: canvasWidth,
+      height: canvasHeight,
       backgroundColor: '#ffffff',
       selection: true,
       preserveObjectStacking: true,
@@ -62,19 +71,51 @@ export default function MeetingCanvasModal({
       defaultCursor: 'default'
     })
 
-    // Temporarily disable grid to debug visibility issues
-    // TODO: Re-enable grid once elements are visible
-    console.log('🚧 Grid temporarily disabled for debugging')
+    // Add grid lines for better alignment
+    const addGridLines = () => {
+      const gridSize = 20
+      const canvasWidth = canvas.width || 1200
+      const canvasHeight = canvas.height || 800
 
-    // Snap to grid temporarily disabled for debugging
-    // canvas.on('object:moving', (e) => {
-    //   const obj = e.target!
-    //   const snap = 20
-    //   obj.set({
-    //     left: Math.round(obj.left! / snap) * snap,
-    //     top: Math.round(obj.top! / snap) * snap
-    //   })
-    // })
+      // Add vertical grid lines
+      for (let i = 0; i <= canvasWidth / gridSize; i++) {
+        const line = new fabric.Line([i * gridSize, 0, i * gridSize, canvasHeight], {
+          stroke: '#e5e7eb',
+          strokeWidth: 1,
+          selectable: false,
+          evented: false,
+          strokeDashArray: [2, 2]
+        })
+        canvas.add(line)
+        canvas.sendToBack(line)
+      }
+
+      // Add horizontal grid lines
+      for (let i = 0; i <= canvasHeight / gridSize; i++) {
+        const line = new fabric.Line([0, i * gridSize, canvasWidth, i * gridSize], {
+          stroke: '#e5e7eb',
+          strokeWidth: 1,
+          selectable: false,
+          evented: false,
+          strokeDashArray: [2, 2]
+        })
+        canvas.add(line)
+        canvas.sendToBack(line)
+      }
+    }
+
+    // Add grid
+    addGridLines()
+
+    // Snap to grid
+    canvas.on('object:moving', (e) => {
+      const obj = e.target!
+      const snap = 20
+      obj.set({
+        left: Math.round(obj.left! / snap) * snap,
+        top: Math.round(obj.top! / snap) * snap
+      })
+    })
 
     // Track changes for auto-save
     canvas.on('object:added', () => setHasUnsavedChanges(true))
@@ -133,6 +174,16 @@ export default function MeetingCanvasModal({
 
     fabricCanvasRef.current = canvas
 
+    // Force initial render to ensure everything is displayed
+    console.log('🎨 Canvas initialized, forcing initial render')
+    canvas.renderAll()
+    
+    // Add a small delay to ensure DOM is ready
+    setTimeout(() => {
+      console.log('🔄 Secondary render after DOM ready')
+      canvas.renderAll()
+    }, 100)
+
     // Load existing canvas data
     loadCanvasData()
 
@@ -157,13 +208,25 @@ export default function MeetingCanvasModal({
 
   // Handle window resize
   useEffect(() => {
-    if (!fabricCanvasRef.current) return
+    if (!fabricCanvasRef.current || !canvasRef.current) return
 
     const handleResize = () => {
       const canvas = fabricCanvasRef.current!
+      const canvasElement = canvasRef.current!
+      
+      const newWidth = Math.min(window.innerWidth - 100, 1200)
+      const newHeight = Math.min(window.innerHeight - 200, 800)
+      
+      // Update HTML canvas element dimensions
+      canvasElement.width = newWidth
+      canvasElement.height = newHeight
+      canvasElement.style.width = `${newWidth}px`
+      canvasElement.style.height = `${newHeight}px`
+      
+      // Update Fabric.js canvas dimensions
       canvas.setDimensions({
-        width: Math.min(window.innerWidth - 100, 1200),
-        height: Math.min(window.innerHeight - 200, 800)
+        width: newWidth,
+        height: newHeight
       })
       canvas.renderAll()
     }
@@ -403,26 +466,6 @@ export default function MeetingCanvasModal({
     
     // Debug canvas state
     console.log('✅ Text element added and canvas rendered')
-    console.log('🔍 Total objects on canvas:', fabricCanvasRef.current.getObjects().length)
-    console.log('🎯 Canvas element:', fabricCanvasRef.current.getElement())
-    console.log('📊 Canvas context:', fabricCanvasRef.current.getContext())
-    console.log('🎨 Text object bounds:', text.getBoundingRect())
-    console.log('🔧 Text object visible:', text.visible)
-    console.log('🎪 Text object opacity:', text.opacity)
-    
-    // Add a very visible test rectangle
-    const testRect = new fabric.Rect({
-      left: 50,
-      top: 50,
-      width: 100,
-      height: 100,
-      fill: 'red',
-      stroke: 'black',
-      strokeWidth: 5
-    })
-    fabricCanvasRef.current.add(testRect)
-    fabricCanvasRef.current.renderAll()
-    console.log('🔴 Added test red rectangle at (50,50)')
     
     // Set active object after render
     fabricCanvasRef.current.setActiveObject(text)
@@ -617,11 +660,15 @@ export default function MeetingCanvasModal({
 
         {/* Canvas Container */}
         <div className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-visible">
-          <div className="w-full h-full p-4">
+          <div className="w-full h-full p-4 flex justify-center items-start">
             <canvas 
               ref={canvasRef}
-              className="border-2 border-red-500 shadow-lg bg-white"
-              style={{ display: 'block' }}
+              className="border border-gray-300 shadow-lg bg-white"
+              style={{ 
+                display: 'block',
+                maxWidth: '100%',
+                maxHeight: '100%'
+              }}
             />
           </div>
         </div>
