@@ -1212,4 +1212,237 @@ This was the continuation of a previous session where we:
 
 ---
 
-*Last Updated: September 11, 2025 by Claude Code*
+# Document Upload System with Trip Access Codes - September 22, 2025
+
+## 📄 Complete Document Upload System Overhaul - COMPLETED ✅
+
+### **Problem Statement**
+The document upload system was completely broken with multiple critical issues:
+1. **File upload authorization errors** when trying to upload documents to trips via quick view mode
+2. **Database schema mismatches** - trying to query non-existent columns (`company_id`, `destination`)
+3. **Search icon overlapping text** in DocumentFinder component
+4. **NextJS 15 compatibility issues** with async params
+5. **No support for trip access codes** - only worked with UUIDs
+6. **Missing semantic folder organization** for multi-year conferences
+
+### **Business Requirements from User**
+- **Coffee crop & supply info should be pulled automatically** after recognizing coffee crop numbers or supply info
+- **Documents accessible by "anyone who was at this trip"** - all trip participants and company representatives
+- **Smart folder structure** for recurring conferences like "First Watch Supplier Summit"
+- **Support trip access codes** like "FWSS-SEP25" in addition to UUIDs
+
+### **Root Cause Analysis**
+1. **Database Schema Issues**: Upload route querying `trips.company_id` and `trips.destination` which don't exist
+2. **Route Conflicts**: NextJS 15 async params not being awaited properly
+3. **Missing Trip Code Support**: Upload only accepted UUIDs, not access codes like "FWSS-SEP25"
+4. **UI Layout Issues**: Search icon positioning causing text overlap
+5. **Storage Bucket Configuration**: Need to verify bucket exists and RLS policies
+
+### **Complete Solution Implemented**
+
+#### **1. Fixed Database Schema Mismatches** ✅
+**File**: `src/app/api/trips/[id]/documents/upload/route.ts`
+**Changes**:
+- **Removed non-existent columns**: `company_id`, `destination` from trips query
+- **Updated to actual schema**: `id, title, access_code, status, start_date`
+- **Fixed document creation**: Removed `company_id` field from document data
+- **Used trip.title**: Instead of non-existent `destination` for folder naming
+
+#### **2. Added Trip Access Code Support** ✅
+**Features**:
+- **UUID Detection**: Regex pattern to identify UUIDs vs access codes
+- **Smart Querying**: Query by `trips.id` for UUIDs, `trips.access_code` for codes
+- **Consistent Usage**: Use resolved `trip.id` for all subsequent operations
+- **Error Handling**: Different error messages for UUID vs access code failures
+
+```typescript
+// Determine if tripId is a UUID or an access code
+const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tripId)
+
+// Query by appropriate field
+if (isUUID) {
+  tripQuery = supabase.from('trips').select('...').eq('id', tripId)
+} else {
+  tripQuery = supabase.from('trips').select('...').eq('access_code', tripId)
+}
+```
+
+#### **3. Enhanced Semantic Folder Structure for Recurring Conferences** ✅
+**Innovation**: Smart folder naming that handles multi-year conferences
+**Examples**:
+- **FWSS-SEP25** (2025) → `fwss-first-watch-supplier-summit/2025/`
+- **FWSS-OCT26** (2026) → `fwss-first-watch-supplier-summit/2026/`
+
+**Implementation**:
+```typescript
+// Extract prefix from access code for recurring conferences
+const codePrefix = accessCode.split('-')[0].toLowerCase() // "FWSS" from "FWSS-SEP25"
+if (codePrefix.length >= 3) {
+  folderName = `${codePrefix}-${folderName}` // "fwss-first-watch-supplier-summit"
+}
+const storagePath = `${folderName}/${tripYear}/${uniqueFileName}`
+```
+
+#### **4. Advanced Coffee Information Extraction** ✅
+**Features**:
+- **Automatic Crop Number Detection**: LOT123, CROP-2024-001, C240001 patterns
+- **Supply Chain Recognition**: Shipment references, container numbers
+- **Regional Information**: Coffee regions (Huehuetenango, Cerrado, etc.)
+- **Quality Assessment**: Specialty, premium, commercial grades
+- **Certification Detection**: Organic, Fairtrade, Rainforest Alliance
+- **Auto-categorization**: Based on extracted content
+
+#### **5. Company Access Control Through Trip Participants** ✅
+**Access Matrix**:
+- ✅ **All Trip Participants**: Read access to documents
+- ✅ **Document Uploader**: Write access (edit/delete)
+- ✅ **Wolthers Staff**: Global access to all documents (`can_view_all_trips: true`)
+- ✅ **Company Representatives**: Access through trip participation
+
+**Permission Implementation**:
+```typescript
+// Grant access to all trip participants (anyone who was at this trip)
+const { data: participants } = await supabase
+  .from('trip_participants')
+  .select('user_id, role, users!inner(email, full_name)')
+  .eq('trip_id', options.tripId)
+
+// Create permissions for each participant
+const permissions = participants.map(p => ({
+  document_id: document.id,
+  user_id: p.user_id,
+  access_level: 'read',
+  granted_by: options.userId
+}))
+```
+
+#### **6. NextJS 15 Compatibility** ✅
+**Fixes**:
+- **Async Params**: `{ params }: { params: Promise<{ id: string }> }`
+- **Awaited Parameters**: `const { id: tripId } = await params`
+- **Server Restart**: Fresh cache to clear route compilation errors
+
+#### **7. UI/UX Fixes** ✅
+**File**: `src/components/documents/DocumentFinder.tsx`
+**Changes**:
+- **Fixed Search Icon Overlap**: Proper positioning with `paddingLeft: '36px'`
+- **Icon Container**: Absolute positioning with pointer-events-none
+- **Standard Pattern**: Consistent with other search inputs in the app
+
+### **Storage Infrastructure Verified** ✅
+**Supabase Storage Configuration**:
+- ✅ **Documents Bucket Exists**: `documents` bucket with 100MB limit
+- ✅ **File Types Supported**: PDFs, Office docs, images, archives, text files
+- ✅ **RLS Policies Active**: Proper upload/download/delete policies
+- ✅ **Security Configuration**: Private bucket with access control
+
+### **Technical Architecture**
+
+#### **Document Upload Flow**
+1. **Authentication**: JWT token verification (Authorization header or cookies)
+2. **Trip Lookup**: UUID or access code resolution to actual trip
+3. **Permission Check**: Verify user is trip participant
+4. **File Upload**: Supabase storage with semantic path
+5. **Metadata Extraction**: Coffee information analysis
+6. **Document Record**: Database entry with all extracted data
+7. **Permission Grants**: Access for all trip participants
+8. **Related Data**: Link to coffee supply chain documents
+
+#### **Folder Structure Examples**
+```
+📁 Storage Organization:
+├── fwss-first-watch-supplier-summit/
+│   ├── 2025/
+│   │   ├── 1732276800000-abc123-contract.pdf
+│   │   └── 1732276801000-def456-quality-report.xlsx
+│   └── 2026/
+│       └── 1761175322000-ghi789-supply-agreement.pdf
+├── guatemala-origin-trip/
+│   └── 2024/
+│       └── 1701234567000-jkl012-harvest-data.csv
+```
+
+#### **Access Control Matrix**
+| User Type | Trip Participation | Document Access | Permission Level |
+|-----------|-------------------|-----------------|------------------|
+| **Wolthers Staff** | Any/None | ✅ All Documents | Global Admin |
+| **Trip Participant** | Required | ✅ Trip Documents | Read |
+| **Document Uploader** | Required | ✅ Own Documents | Write |
+| **Company Rep** | Via Trip | ✅ Trip Documents | Read |
+| **External User** | None | ❌ No Access | Denied |
+
+### **Coffee Information Recognition**
+**Patterns Detected**:
+- **Crop Numbers**: `LOT123`, `CROP-2024-001`, `C240001`, `GUATEMALA-HH-001`
+- **Supply References**: `SUPPLY-SCL-001`, `CONTAINER-4567`, `SHIPMENT-789`
+- **Regions**: Huehuetenango, Antigua, Cerrado, Yirgacheffe, Nyeri
+- **Quality Grades**: Specialty, Premium, Commercial, Estate, Micro-lot
+- **Certifications**: Organic, Fairtrade, Rainforest Alliance, UTZ, Bird Friendly
+
+**Auto-Generated Metadata**:
+- **Categories**: `crop_analysis`, `supply_chain`, `quality_control`, `certifications`
+- **Tags**: `coffee-lots`, `supply-chain`, `regional-coffee`, `certified-coffee`
+- **Descriptions**: "Contains 3 coffee crop number(s); From Huehuetenango, Antigua region(s)"
+- **Urgency Levels**: High (urgent/critical), Medium (contracts/quality), Low (correspondence)
+
+### **Files Modified (4 total)**
+```
+📁 New Trip Document Upload System:
+src/app/api/trips/[id]/documents/upload/route.ts - Complete new endpoint
+
+🔧 Enhanced Components:
+src/components/documents/DocumentFinder.tsx - Fixed search icon overlap
+src/hooks/useDocumentFinder.ts - Route to trip-specific upload endpoint
+
+🛠️ Legacy Compatibility:
+src/app/api/documents/coffee-supply/upload/route.ts - NextJS 15 cookies fix
+```
+
+### **Business Impact**
+- ✅ **Trip Documentation**: Documents now upload successfully to trips
+- ✅ **Multi-Year Conferences**: Smart organization for recurring events
+- ✅ **Coffee Supply Chain**: Automatic recognition and categorization
+- ✅ **Access Control**: Proper company and participant permissions
+- ✅ **User Experience**: Fixed UI issues and error handling
+- ✅ **Scalability**: Support for both trip codes and UUIDs
+
+### **User Access Scenarios Confirmed**
+
+#### **Wolthers Staff Global Access**
+All 4 Wolthers staff (`@wolthers.com`) have `can_view_all_trips: true`:
+- **Daniel Wolthers** (Global Admin)
+- **Rasmus Wolthers** (Global Admin)
+- **Svenn Wolthers** (Global Admin)
+- **Tom Sullivan** (Global Admin)
+**Result**: Access to ALL documents across ALL trips, regardless of participation
+
+#### **Conference Document Organization**
+**Scenario**: "First Watch Supplier Summit" recurring annually
+- **2025 Trip**: Access code `FWSS-SEP25` → Folder: `fwss-first-watch-supplier-summit/2025/`
+- **2026 Trip**: Access code `FWSS-OCT26` → Folder: `fwss-first-watch-supplier-summit/2026/`
+**Result**: Clear separation by year with consistent naming convention
+
+#### **Company Representative Access**
+**Scenario**: Upload during "Swiss Coffee Seminar 2025"
+- **Accessible By**: All trip participants (Wolthers staff + company representatives)
+- **Folder**: `swiss-coffee-seminar/2025/`
+- **Permissions**: Read access for participants, Write access for uploader
+
+### **Development Status**
+- ✅ **Production Ready**: Complete system with proper error handling
+- ✅ **Security Implemented**: JWT authentication and RLS policies
+- ✅ **Performance Optimized**: Efficient queries and file organization
+- ✅ **Mobile Compatible**: Responsive design maintained
+- ✅ **Backward Compatible**: Existing functionality preserved
+
+### **Testing Verified**
+- ✅ **UUID Upload**: Works with `9f0354c0-8896-4ab5-9c81-6fee47aa513c`
+- ✅ **Access Code Upload**: Works with `FWSS-SEP25`
+- ✅ **Coffee Recognition**: Automatic extraction and categorization
+- ✅ **Permission System**: Trip participants get appropriate access
+- ✅ **Folder Structure**: Semantic organization with year separation
+- ✅ **Error Handling**: Proper 401/403/404 responses with detailed logging
+
+---
+
+*Last Updated: September 22, 2025 by Claude Code*
