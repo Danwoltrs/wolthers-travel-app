@@ -293,8 +293,8 @@ export default function SimpleNotesModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50">
-      <div className="bg-white dark:bg-[#1a1a1a] h-screen w-screen max-w-5xl mx-auto overflow-hidden flex flex-col border-x border-pearl-200 dark:border-[#2a2a2a]">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#1a1a1a] w-full max-w-4xl h-[80vh] max-h-[800px] overflow-hidden flex flex-col rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a]">
         
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] p-4 border-b border-golden-500 dark:border-[#0a2e21] flex-shrink-0">
@@ -453,13 +453,13 @@ export default function SimpleNotesModal({
 
         {/* Editor */}
         <div className="flex-1 bg-white dark:bg-[#1a1a1a] overflow-auto">
-          <div className="max-w-4xl mx-auto p-8">
+          <div className="max-w-3xl mx-auto p-6">
             <div
               ref={editorRef}
               contentEditable
-              className="min-h-[500px] focus:outline-none prose prose-lg max-w-none dark:prose-invert"
+              className="min-h-[300px] focus:outline-none prose prose-base max-w-none dark:prose-invert"
               style={{
-                fontSize: '16px',
+                fontSize: '15px',
                 lineHeight: '1.6',
                 color: '#374151',
               }}
