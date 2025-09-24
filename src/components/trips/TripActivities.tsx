@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users, Trash2, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import MeetingCanvasModal from '../canvas/MeetingCanvasModal'
+import SimpleNotesModal from '../notes/SimpleNotesModal'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface TripActivitiesProps {
@@ -13,6 +13,8 @@ interface TripActivitiesProps {
   canEditTrip?: boolean
   isAdmin?: boolean
   tripStatus?: string
+  tripId?: string
+  onNoteCountChange?: (activityId: string, count: number) => void
 }
 
 
@@ -87,7 +89,7 @@ const getConfirmationIcon = (isConfirmed: boolean) => {
   return <Circle className="w-3 h-3 text-gray-400" />
 }
 
-export default function TripActivities({ activities, loading, error, canEditTrip = false, isAdmin = false, tripStatus = 'upcoming' }: TripActivitiesProps) {
+export default function TripActivities({ activities, loading, error, canEditTrip = false, isAdmin = false, tripStatus = 'upcoming', tripId, onNoteCountChange }: TripActivitiesProps) {
   const { user } = useAuth()
   
   // Initialize with all activities and notes collapsed by default
@@ -677,14 +679,40 @@ export default function TripActivities({ activities, loading, error, canEditTrip
         </p>
       </div>
 
-      {/* Meeting Canvas Modal */}
+      {/* Simple Notes Modal */}
       {selectedActivity && (
-        <MeetingCanvasModal
+        <SimpleNotesModal
           isOpen={isNotesModalOpen}
           onClose={closeNotesModal}
           activityId={selectedActivity.id}
           activityTitle={selectedActivity.title}
           meetingDate={selectedActivity.activity_date ? new Date(selectedActivity.activity_date) : new Date()}
+          companies={[]} // TODO: Pass company information from trip context
+          tripId={tripId}
+          onNoteCountChange={(newCount) => {
+            // Update the note count for this specific activity
+            if (onNoteCountChange) {
+              onNoteCountChange(selectedActivity.id, newCount)
+            }
+            // Refresh the activity notes data to show updated counts
+            const refreshNotesData = async () => {
+              try {
+                const response = await fetch(`/api/activities/${selectedActivity.id}/notes`, {
+                  credentials: 'include'
+                })
+                
+                if (response.ok) {
+                  const data = await response.json()
+                  const allNotes = data.notes || []
+                  setActivityNoteCounts(prev => ({ ...prev, [selectedActivity.id]: allNotes.length }))
+                  setActivityNotes(prev => ({ ...prev, [selectedActivity.id]: allNotes }))
+                }
+              } catch (error) {
+                console.error('Error refreshing notes data:', error)
+              }
+            }
+            refreshNotesData()
+          }}
         />
       )}
     </div>
