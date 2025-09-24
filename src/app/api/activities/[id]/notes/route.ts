@@ -159,8 +159,8 @@ export async function POST(
 
     console.log('POST Notes - User:', user.id, user.email, 'Activity:', activityId)
 
-    // First verify the user has access to this activity via trip participation
-    const { data: accessCheck, error: accessError } = await supabase
+    // First verify the user has access to this activity via trip participation OR activity participation
+    const { data: tripAccess, error: tripAccessError } = await supabase
       .from('itinerary_items')
       .select(`
         id,
@@ -175,14 +175,29 @@ export async function POST(
       `)
       .eq('id', activityId)
       .eq('trips.trip_participants.user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (accessError || !accessCheck) {
-      console.error('User does not have access to this activity:', accessError)
-      return NextResponse.json({ error: 'Access denied - you are not a participant in this trip' }, { status: 403 })
+    // Check for activity-specific participation (for seminar attendees)
+    const { data: activityAccess, error: activityAccessError } = await supabase
+      .from('activity_participants')
+      .select('id, activity_id, participant_id')
+      .eq('activity_id', activityId)
+      .eq('participant_id', user.id)
+      .maybeSingle()
+
+    // User must be either a trip participant OR an activity participant
+    if ((!tripAccess && !activityAccess) || (tripAccessError && activityAccessError)) {
+      console.error('User does not have access to this activity:', { tripAccessError, activityAccessError })
+      return NextResponse.json({ 
+        error: 'Access denied - you are not a participant in this trip or activity' 
+      }, { status: 403 })
     }
 
-    console.log('Access verified for trip:', accessCheck.trips.access_code)
+    if (tripAccess) {
+      console.log('Access verified for trip participant:', tripAccess.trips.access_code)
+    } else {
+      console.log('Access verified for activity participant:', activityId)
+    }
 
     // Use upsert to handle the unique constraint properly
     const { data: noteResult, error: upsertError } = await supabase

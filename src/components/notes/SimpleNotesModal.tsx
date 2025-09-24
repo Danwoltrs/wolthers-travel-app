@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns'
 import TableModal from './TableModal'
 import ChartModal from './ChartModal'
 import CompanyAccessManager from './CompanyAccessManager'
+import ActivityParticipantsManager from './ActivityParticipantsManager'
 import RecordingManager from './RecordingManager'
 import MediaTimeline from './MediaTimeline'
 import NoteTemplates from './NoteTemplates'
@@ -70,6 +71,18 @@ export default function SimpleNotesModal({
     name: string
     representatives?: Array<{ name: string; email: string }>
   }>>(companies)
+  const [activityParticipants, setActivityParticipants] = useState<Array<{
+    id: string
+    participant_id: string
+    role?: string
+    attendance_status?: string
+    user?: {
+      id: string
+      email: string
+      full_name: string
+      company?: { id: string; name: string }
+    }
+  }>>([])
   const [mediaEntries, setMediaEntries] = useState<MediaEntry[]>([])
   const [isRecording, setIsRecording] = useState(false)
   const [showMediaTimeline, setShowMediaTimeline] = useState(true)
@@ -81,6 +94,7 @@ export default function SimpleNotesModal({
   useEffect(() => {
     if (isOpen && activityId) {
       loadNotes()
+      loadActivityParticipants()
     }
   }, [isOpen, activityId])
 
@@ -172,6 +186,22 @@ export default function SimpleNotesModal({
     }
   }
 
+  const loadActivityParticipants = async () => {
+    try {
+      const response = await fetch(`/api/activities/${activityId}/participants`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setActivityParticipants(result.participants || [])
+      }
+    } catch (error) {
+      console.error('Failed to load activity participants:', error)
+    }
+  }
+
   const refreshNoteCount = async () => {
     if (!tripId || !onNoteCountChange) return
     
@@ -243,7 +273,14 @@ export default function SimpleNotesModal({
           setTimeout(() => setIsSaving(false), 500)
         }
       } else {
-        throw new Error('Failed to save note')
+        // Get the actual error details from the API response
+        const errorData = await response.text()
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorData
+        })
+        throw new Error(`Failed to save note: ${response.status} ${response.statusText} - ${errorData}`)
       }
     } catch (error) {
       console.error('Failed to save note:', error)
@@ -875,6 +912,16 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               activityId={activityId}
               companies={companiesWithAccess}
               onCompaniesChange={setCompaniesWithAccess}
+              readOnly={false}
+            />
+          </div>
+
+          {/* Activity Participants Management */}
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+            <ActivityParticipantsManager
+              activityId={activityId}
+              participants={activityParticipants}
+              onParticipantsChange={setActivityParticipants}
               readOnly={false}
             />
           </div>
