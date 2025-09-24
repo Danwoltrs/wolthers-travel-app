@@ -121,14 +121,15 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
       // Create the script tag
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker,geometry`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker,geometry&loading=async&callback=initMap`
       script.async = true
       script.defer = true
       
       // Set up the callback
       window.initMap = initializeMap
       script.onload = () => {
-        if (window.google) {
+        // Additional safety check - wait for all libs to load
+        if (window.google?.maps?.Map && window.google?.maps?.Geocoder) {
           initializeMap()
         }
       }
@@ -154,6 +155,13 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       if (!mapRef.current) return
 
       try {
+        // Wait for Google Maps API to be fully loaded
+        if (!window.google?.maps?.Map || !window.google?.maps?.Geocoder) {
+          console.warn('Google Maps API not fully loaded, waiting...')
+          setTimeout(() => initializeMap(), 100)
+          return
+        }
+
         // Extract locations from activities (now async)
         const locations = await extractLocations()
         
@@ -164,23 +172,13 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
         }
 
         // Initialize map with Map ID for Advanced Markers
+        // Note: When using mapId, styles must be configured in Google Cloud Console
         const map = new window.google.maps.Map(mapRef.current, {
           zoom: 8,
           center: locations[0],
           mapTypeId: 'terrain',
           mapId: 'WOLTHERS_TRAVEL_MAP', // Required for Advanced Markers
-          styles: [
-            {
-              featureType: 'water',
-              elementType: 'geometry',
-              stylers: [{ color: '#e9e9e9' }, { lightness: 17 }]
-            },
-            {
-              featureType: 'landscape',
-              elementType: 'geometry',
-              stylers: [{ color: '#f5f5f5' }, { lightness: 20 }]
-            }
-          ]
+          // styles removed - must be configured in Cloud Console when using mapId
         })
 
         mapInstanceRef.current = map
@@ -357,8 +355,8 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       // Helper function to geocode address using Google Maps API with retry logic
       const geocodeLocation = (address: string, retryCount = 0): Promise<{ lat: number; lng: number } | null> => {
         return new Promise((resolve) => {
-          if (!window.google || !window.google.maps) {
-            console.warn('Google Maps API not available for geocoding')
+          if (!window.google?.maps?.Geocoder) {
+            console.warn('Google Maps Geocoder API not available for geocoding')
             resolve(null)
             return
           }

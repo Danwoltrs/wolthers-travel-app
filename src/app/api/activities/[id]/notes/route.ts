@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let user: any = null
   
@@ -57,7 +57,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const activityId = params.id
+    const resolvedParams = await params
+    const activityId = resolvedParams.id
 
     // Create server-side Supabase client
     const supabase = createSupabaseServiceClient()
@@ -93,7 +94,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let user: any = null
   
@@ -146,7 +147,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const activityId = params.id
+    const resolvedParams = await params
+    const activityId = resolvedParams.id
     const body = await request.json()
     const { content, company_access } = body
 
@@ -186,8 +188,17 @@ export async function POST(
       .maybeSingle()
 
     // User must be either a trip participant OR an activity participant
-    if ((!tripAccess && !activityAccess) || (tripAccessError && activityAccessError)) {
-      console.error('User does not have access to this activity:', { tripAccessError, activityAccessError })
+    const hasAccess = (tripAccess && !tripAccessError) || (activityAccess && !activityAccessError)
+    
+    if (!hasAccess) {
+      console.error('User does not have access to this activity:', { 
+        tripAccess: !!tripAccess, 
+        tripAccessError: !!tripAccessError,
+        activityAccess: !!activityAccess, 
+        activityAccessError: !!activityAccessError,
+        userId: user.id,
+        activityId
+      })
       return NextResponse.json({ 
         error: 'Access denied - you are not a participant in this trip or activity' 
       }, { status: 403 })
@@ -237,7 +248,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let user: any = null
   
@@ -290,7 +301,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const activityId = params.id
+    const resolvedParams = await params
+    const activityId = resolvedParams.id
     const body = await request.json()
     const { note_id, content } = body
 
@@ -347,7 +359,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let user: any = null
   
