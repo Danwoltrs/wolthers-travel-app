@@ -163,11 +163,12 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
           return
         }
 
-        // Initialize map
+        // Initialize map with Map ID for Advanced Markers
         const map = new window.google.maps.Map(mapRef.current, {
           zoom: 8,
           center: locations[0],
           mapTypeId: 'terrain',
+          mapId: 'WOLTHERS_TRAVEL_MAP', // Required for Advanced Markers
           styles: [
             {
               featureType: 'water',
@@ -184,30 +185,69 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
         mapInstanceRef.current = map
 
-        // Add markers for each location using the new AdvancedMarkerElement
-        const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker')
+        // Add markers for each location using the new AdvancedMarkerElement with fallback
         const markers: any[] = []
+        let useAdvancedMarkers = true
         
-        locations.forEach((location, index) => {
-          // Create a custom marker element
-          const markerElement = document.createElement('div')
-          markerElement.className = 'custom-marker'
-          markerElement.style.cssText = `
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 3px solid #ffffff;
-            background-color: ${index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b'};
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-          `
+        try {
+          const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker')
+          
+          locations.forEach((location, index) => {
+            try {
+              // Create a custom marker element
+              const markerElement = document.createElement('div')
+              markerElement.className = 'custom-marker'
+              markerElement.style.cssText = `
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 3px solid #ffffff;
+                background-color: ${index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b'};
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;
+              `
 
-          const marker = new AdvancedMarkerElement({
-            position: { lat: location.lat, lng: location.lng },
-            map: map,
-            title: location.title || `Stop ${index + 1}`,
-            content: markerElement
+              const marker = new AdvancedMarkerElement({
+                position: { lat: location.lat, lng: location.lng },
+                map: map,
+                title: location.title || `Stop ${index + 1}`,
+                content: markerElement
+              })
+              
+              markers.push(marker)
+            } catch (markerError) {
+              console.warn('Failed to create Advanced Marker, falling back to legacy marker:', markerError)
+              useAdvancedMarkers = false
+              throw markerError // Re-throw to trigger fallback
+            }
           })
+        } catch (error) {
+          console.warn('Advanced Markers not available, using legacy markers:', error)
+          useAdvancedMarkers = false
+          
+          // Fallback to legacy markers
+          locations.forEach((location, index) => {
+            const marker = new window.google.maps.Marker({
+              position: { lat: location.lat, lng: location.lng },
+              map: map,
+              title: location.title || `Stop ${index + 1}`,
+              icon: {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2
+              }
+            })
+            markers.push(marker)
+          })
+        }
+        
+        // Add info windows and click handlers for all markers
+        locations.forEach((location, index) => {
+          const marker = markers[index]
+          if (!marker) return
 
           // Add info window with location details
           const infoWindow = new window.google.maps.InfoWindow({
@@ -226,7 +266,6 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
           })
 
           marker.infoWindow = infoWindow
-          markers.push(marker)
         })
 
         // Create route if we have multiple locations
