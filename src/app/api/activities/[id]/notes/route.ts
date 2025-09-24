@@ -64,16 +64,17 @@ export async function GET(
 
     // Get all notes for this activity that the user can access
     const { data: notes, error } = await supabase
-      .from('meeting_notes')
+      .from('activity_notes')
       .select(`
         id,
         user_id,
         content,
-        note_type,
+        is_private,
         created_at,
-        updated_at
+        updated_at,
+        created_by_name
       `)
-      .eq('activity_id', activityId)
+      .eq('itinerary_item_id', activityId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -147,7 +148,7 @@ export async function POST(
 
     const activityId = params.id
     const body = await request.json()
-    const { content, note_type = 'general' } = body
+    const { content, company_access } = body
 
     if (!content || typeof content !== 'object') {
       return NextResponse.json({ error: 'Content is required and must be an object' }, { status: 400 })
@@ -156,62 +157,60 @@ export async function POST(
     // Create server-side Supabase client
     const supabase = createSupabaseServiceClient()
 
-    // Check if user already has a note for this activity with the same note type
-    const { data: existingNote, error: checkError } = await supabase
-      .from('meeting_notes')
-      .select('id, content')
-      .eq('activity_id', activityId)
-      .eq('user_id', user.id)
-      .eq('note_type', note_type)
-      .maybeSingle()
+    console.log('POST Notes - User:', user.id, user.email, 'Activity:', activityId)
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing note:', checkError)
-      return NextResponse.json({ error: 'Failed to check existing note' }, { status: 500 })
+    // First verify the user has access to this activity via trip participation
+    const { data: accessCheck, error: accessError } = await supabase
+      .from('itinerary_items')
+      .select(`
+        id,
+        trip_id,
+        trips!inner (
+          id,
+          access_code,
+          trip_participants!inner (
+            user_id
+          )
+        )
+      `)
+      .eq('id', activityId)
+      .eq('trips.trip_participants.user_id', user.id)
+      .single()
+
+    if (accessError || !accessCheck) {
+      console.error('User does not have access to this activity:', accessError)
+      return NextResponse.json({ error: 'Access denied - you are not a participant in this trip' }, { status: 403 })
     }
 
-    let noteResult
+    console.log('Access verified for trip:', accessCheck.trips.access_code)
 
-    if (existingNote) {
-      // Update existing note
-      const { data: updatedNote, error: updateError } = await supabase
-        .from('meeting_notes')
-        .update({
-          content,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingNote.id)
-        .select()
-        .single()
+    // Use upsert to handle the unique constraint properly
+    const { data: noteResult, error: upsertError } = await supabase
+      .from('activity_notes')
+      .upsert({
+        itinerary_item_id: activityId,
+        user_id: user.id,
+        content,
+        is_private: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by_name: user.full_name || user.email
+      }, {
+        onConflict: 'itinerary_item_id,user_id,is_private',
+        ignoreDuplicates: false // This ensures updates happen on conflict
+      })
+      .select()
+      .single()
 
-      if (updateError) {
-        console.error('Error updating note:', updateError)
-        return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
-      }
-
-      noteResult = updatedNote
-    } else {
-      // Create new note
-      const { data: newNote, error: insertError } = await supabase
-        .from('meeting_notes')
-        .insert({
-          activity_id: activityId,
-          user_id: user.id,
-          content,
-          note_type,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (insertError) {
-        console.error('Error creating note:', insertError)
-        return NextResponse.json({ error: 'Failed to create note' }, { status: 500 })
-      }
-
-      noteResult = newNote
+    if (upsertError) {
+      console.error('Error upserting note:', upsertError)
+      return NextResponse.json({ 
+        error: 'Failed to save note', 
+        details: upsertError.message 
+      }, { status: 500 })
     }
+
+    console.log('Note saved successfully:', noteResult.id)
 
     return NextResponse.json(noteResult)
 
@@ -287,21 +286,24 @@ export async function PUT(
     // Create server-side Supabase client
     const supabase = createSupabaseServiceClient()
 
+    console.log('PUT Notes - User:', user.id, user.email, 'Note ID:', note_id)
+
     // Verify user owns this note
     const { data: note, error: fetchError } = await supabase
-      .from('meeting_notes')
+      .from('activity_notes')
       .select('id, content, user_id')
       .eq('id', note_id)
       .eq('user_id', user.id)
       .single()
 
     if (fetchError || !note) {
+      console.error('Note not found:', fetchError)
       return NextResponse.json({ error: 'Note not found or access denied' }, { status: 404 })
     }
 
     // Update note
     const { data: updatedNote, error: updateError } = await supabase
-      .from('meeting_notes')
+      .from('activity_notes')
       .update({
         content,
         updated_at: new Date().toISOString()
@@ -312,8 +314,13 @@ export async function PUT(
 
     if (updateError) {
       console.error('Error updating note:', updateError)
-      return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Failed to update note', 
+        details: updateError.message 
+      }, { status: 500 })
     }
+
+    console.log('Note updated successfully:', updatedNote.id)
 
     return NextResponse.json(updatedNote)
 
@@ -390,7 +397,7 @@ export async function DELETE(
 
     // Delete note (user can only delete their own notes due to RLS)
     const { error: deleteError } = await supabase
-      .from('meeting_notes')
+      .from('activity_notes')
       .delete()
       .eq('id', noteId)
       .eq('user_id', user.id)

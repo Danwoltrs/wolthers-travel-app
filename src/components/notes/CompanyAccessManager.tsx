@@ -98,7 +98,7 @@ export default function CompanyAccessManager({
         <div className="flex items-center space-x-2">
           <Building2 className="w-4 h-4 text-gray-500" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Companies with Access ({companies.length})
+            Companies Present at Meeting ({companies.length})
           </span>
         </div>
         <div className="space-y-1">
@@ -123,7 +123,7 @@ export default function CompanyAccessManager({
         <div className="flex items-center space-x-2">
           <Building2 className="w-4 h-4 text-gray-500" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Companies with Access ({companies.length})
+            Companies Present at Meeting ({companies.length})
           </span>
         </div>
         
@@ -133,7 +133,7 @@ export default function CompanyAccessManager({
             className="flex items-center space-x-1 text-xs bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors"
           >
             <Plus className="w-3 h-3" />
-            <span>Add Company</span>
+            <span>Add Attendee</span>
           </button>
         )}
       </div>
@@ -177,7 +177,7 @@ export default function CompanyAccessManager({
           <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a] max-w-md w-full">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Add Company Access</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Add Meeting Attendee</h3>
                 <button
                   onClick={() => setShowAddModal(false)}
                   className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-500 dark:text-gray-400"

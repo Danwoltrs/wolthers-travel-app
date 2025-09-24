@@ -1,12 +1,15 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Save, Bold, Italic, List, ListOrdered, CheckSquare, Table, BarChart3, Clock, Users, Undo, Redo, Type, Building2 } from 'lucide-react'
+import { X, Save, Bold, Italic, List, ListOrdered, CheckSquare, Table, BarChart3, Clock, Users, Undo, Redo, Type, Building2, Mic, Camera, Download, FileDown, Mail, Square, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDistanceToNow } from 'date-fns'
 import TableModal from './TableModal'
 import ChartModal from './ChartModal'
 import CompanyAccessManager from './CompanyAccessManager'
+import RecordingManager from './RecordingManager'
+import MediaTimeline from './MediaTimeline'
+import NoteTemplates from './NoteTemplates'
 
 interface SimpleNotesModalProps {
   isOpen: boolean
@@ -23,6 +26,15 @@ interface SimpleNotesModalProps {
   tripId?: string
 }
 
+interface MediaEntry {
+  id: string
+  timestamp: number
+  type: 'image' | 'audio' | 'transcript'
+  content: string | File
+  description?: string
+  relativeTime: string
+}
+
 interface NoteContent {
   html: string
   plainText: string
@@ -31,6 +43,7 @@ interface NoteContent {
     data: any
     position: number
   }>
+  media?: MediaEntry[]
 }
 
 export default function SimpleNotesModal({
@@ -57,6 +70,12 @@ export default function SimpleNotesModal({
     name: string
     representatives?: Array<{ name: string; email: string }>
   }>>(companies)
+  const [mediaEntries, setMediaEntries] = useState<MediaEntry[]>([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [showMediaTimeline, setShowMediaTimeline] = useState(true)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true)
+  const recordingManagerRef = useRef<any>(null)
 
   // Load existing notes
   useEffect(() => {
@@ -78,6 +97,21 @@ export default function SimpleNotesModal({
     return () => clearInterval(autoSaveInterval)
   }, [hasUnsavedChanges])
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu) {
+        const target = event.target as Element
+        if (!target.closest('.export-menu-container')) {
+          setShowExportMenu(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showExportMenu])
+
   const loadNotes = async () => {
     try {
       const response = await fetch(`/api/activities/${activityId}/notes`, {
@@ -89,27 +123,32 @@ export default function SimpleNotesModal({
         const result = await response.json()
         const notes = result.notes || []
         
-        // Find rich text note
-        const richTextNote = notes.find((note: any) => note.note_type === 'rich_text')
+        // Find the user's note (there should be only one per activity per user)
+        const userNote = notes.length > 0 ? notes[0] : null
 
-        if (richTextNote && richTextNote.content) {
-          if (typeof richTextNote.content === 'object') {
-            setContent(richTextNote.content as NoteContent)
+        if (userNote && userNote.content) {
+          if (typeof userNote.content === 'object') {
+            const noteContent = userNote.content as NoteContent
+            setContent(noteContent)
             if (editorRef.current) {
-              editorRef.current.innerHTML = richTextNote.content.html || ''
+              editorRef.current.innerHTML = noteContent.html || ''
+            }
+            // Load media entries if they exist
+            if (noteContent.media && Array.isArray(noteContent.media)) {
+              setMediaEntries(noteContent.media)
             }
           } else {
             // Legacy plain text content
-            const htmlContent = richTextNote.content.replace(/\n/g, '<br>')
+            const htmlContent = userNote.content.replace(/\n/g, '<br>')
             setContent({ 
               html: htmlContent, 
-              plainText: richTextNote.content 
+              plainText: userNote.content 
             })
             if (editorRef.current) {
               editorRef.current.innerHTML = htmlContent
             }
           }
-          setLastSaved(new Date(richTextNote.updated_at))
+          setLastSaved(new Date(userNote.updated_at))
         } else {
           // New note - add meeting title and attendees
           const companyList = companies.length > 0 
@@ -169,13 +208,13 @@ export default function SimpleNotesModal({
       const noteContent: NoteContent = {
         html: htmlContent,
         plainText: plainTextContent,
-        elements: content.elements
+        elements: content.elements,
+        media: mediaEntries
       }
 
       // Include company access information in the note metadata
       const noteData = {
         content: noteContent,
-        note_type: 'rich_text',
         company_access: companiesWithAccess.map(company => ({
           company_id: company.id,
           company_name: company.name,
@@ -280,6 +319,81 @@ export default function SimpleNotesModal({
     }
   }
 
+  const insertTemplate = (templateHtml: string) => {
+    if (editorRef.current) {
+      editorRef.current.focus()
+      document.execCommand('insertHTML', false, templateHtml)
+      handleContentChange()
+    }
+  }
+
+  const handleMediaAdd = (media: MediaEntry) => {
+    setMediaEntries(prev => [...prev, media])
+    setHasUnsavedChanges(true)
+    
+    // Auto-insert transcript into editor
+    if (media.type === 'transcript' && media.content && typeof media.content === 'string') {
+      insertTranscriptIntoEditor(media.content)
+    }
+  }
+
+  const handleMediaRemove = (mediaId: string) => {
+    setMediaEntries(prev => prev.filter(entry => entry.id !== mediaId))
+    setHasUnsavedChanges(true)
+  }
+
+  const handleTranscriptUpdate = (transcript: string) => {
+    // Live transcript updates during recording - no need to save immediately
+    if (editorRef.current && transcript.trim()) {
+      const existingTranscript = editorRef.current.querySelector('[data-live-transcript]')
+      if (existingTranscript) {
+        existingTranscript.textContent = `"${transcript}"`
+      } else {
+        // Insert live transcript indicator
+        const transcriptElement = `<div data-live-transcript style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 8px; margin: 8px 0; font-style: italic; color: #1e40af;">"${transcript}"</div>`
+        document.execCommand('insertHTML', false, transcriptElement)
+      }
+    }
+  }
+
+  const insertTranscriptIntoEditor = (transcript: string) => {
+    if (editorRef.current) {
+      // Remove any live transcript indicators
+      const liveTranscript = editorRef.current.querySelector('[data-live-transcript]')
+      if (liveTranscript) {
+        liveTranscript.remove()
+      }
+      
+      // Insert final transcript
+      const finalTranscript = `<div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 8px; margin: 8px 0;"><strong>Transcript:</strong><br>${transcript}</div>`
+      document.execCommand('insertHTML', false, finalTranscript)
+      handleContentChange()
+    }
+  }
+
+  const insertMediaIntoEditor = (media: MediaEntry) => {
+    if (editorRef.current) {
+      editorRef.current.focus()
+      
+      if (media.type === 'image' && media.content instanceof File) {
+        const imageUrl = URL.createObjectURL(media.content)
+        const imageHtml = `<div style="margin: 16px 0; text-align: center;"><img src="${imageUrl}" alt="${media.description || 'Captured image'}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"><br><small style="color: #666; font-style: italic;">${media.description || 'Captured image'} - ${media.relativeTime}</small></div>`
+        document.execCommand('insertHTML', false, imageHtml)
+      } else if (media.type === 'transcript' && typeof media.content === 'string') {
+        insertTranscriptIntoEditor(media.content)
+      }
+      
+      handleContentChange()
+    }
+  }
+
+  const handleRecordingToggle = () => {
+    setIsRecording(!isRecording)
+    if (recordingManagerRef.current) {
+      recordingManagerRef.current.toggleRecording()
+    }
+  }
+
   const formatMeetingDateTime = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -288,6 +402,148 @@ export default function SimpleNotesModal({
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // Export Functions
+  const exportAsHTML = async () => {
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Notes - ${activityTitle}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; padding-bottom: 15px; }
+        .meta { color: #6b7280; font-size: 14px; margin: 5px 0; }
+        .content { margin: 20px 0; }
+        .media-item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 15px 0; background: #f9fafb; }
+        .transcript { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin: 10px 0; }
+        .companies { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${activityTitle}</h1>
+        <div class="meta">Date: ${formatMeetingDateTime(meetingDate)}</div>
+        ${companiesWithAccess.length > 0 ? `
+        <div class="companies">
+            <strong>Companies with Access:</strong><br>
+            ${companiesWithAccess.map(c => `${c.name}${c.representatives ? ` (${c.representatives.map(r => r.name).join(', ')})` : ''}`).join('<br>')}
+        </div>` : ''}
+    </div>
+    
+    <div class="content">
+        ${content.html}
+    </div>
+    
+    ${mediaEntries.length > 0 ? `
+    <div class="media-section">
+        <h2>Media Timeline</h2>
+        ${mediaEntries.map(entry => `
+            <div class="media-item">
+                <strong>${entry.type.toUpperCase()}</strong> - ${entry.relativeTime}<br>
+                ${entry.description ? `<em>${entry.description}</em><br>` : ''}
+                ${entry.type === 'transcript' && typeof entry.content === 'string' ? 
+                    `<div class="transcript">${entry.content}</div>` : 
+                    entry.type === 'image' ? 
+                        `<p>Image captured (${entry.description || 'Untitled'})</p>` : 
+                        `<p>Audio recording (${entry.description || 'Untitled'})</p>`
+                }
+            </div>
+        `).join('')}
+    </div>` : ''}
+    
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
+        Generated from Wolthers Travel App - ${new Date().toLocaleString()}
+    </div>
+</body>
+</html>`
+
+    const blob = new Blob([htmlContent], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `meeting-notes-${activityTitle.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setShowExportMenu(false)
+  }
+
+  const exportAsText = () => {
+    let textContent = `MEETING NOTES\n`
+    textContent += `${'='.repeat(50)}\n\n`
+    textContent += `Activity: ${activityTitle}\n`
+    textContent += `Date: ${formatMeetingDateTime(meetingDate)}\n\n`
+    
+    if (companiesWithAccess.length > 0) {
+      textContent += `Companies Present:\n`
+      companiesWithAccess.forEach(c => {
+        textContent += `- ${c.name}`
+        if (c.representatives) {
+          textContent += ` (${c.representatives.map(r => r.name).join(', ')})`
+        }
+        textContent += `\n`
+      })
+      textContent += `\n`
+    }
+    
+    textContent += `CONTENT:\n`
+    textContent += `${'-'.repeat(20)}\n`
+    textContent += `${content.plainText}\n\n`
+    
+    if (mediaEntries.length > 0) {
+      textContent += `MEDIA TIMELINE:\n`
+      textContent += `${'-'.repeat(20)}\n`
+      mediaEntries.forEach(entry => {
+        textContent += `[${entry.relativeTime}] ${entry.type.toUpperCase()}`
+        if (entry.description) textContent += ` - ${entry.description}`
+        textContent += `\n`
+        if (entry.type === 'transcript' && typeof entry.content === 'string') {
+          textContent += `"${entry.content}"\n`
+        }
+        textContent += `\n`
+      })
+    }
+    
+    textContent += `\nGenerated: ${new Date().toLocaleString()}`
+    
+    const blob = new Blob([textContent], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `meeting-notes-${activityTitle.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setShowExportMenu(false)
+  }
+
+  const exportForEmail = () => {
+    const emailBody = `Meeting Notes: ${activityTitle}
+
+Date: ${formatMeetingDateTime(meetingDate)}
+
+${companiesWithAccess.length > 0 ? `Companies Present:
+${companiesWithAccess.map(c => `• ${c.name}${c.representatives ? ` (${c.representatives.map(r => r.name).join(', ')})` : ''}`).join('\n')}
+
+` : ''}Content:
+${content.plainText}
+
+${mediaEntries.length > 0 ? `Media Captured:
+${mediaEntries.map(entry => `• ${entry.type.toUpperCase()} - ${entry.relativeTime}${entry.description ? ` (${entry.description})` : ''}${entry.type === 'transcript' && typeof entry.content === 'string' ? `\n  "${entry.content}"` : ''}`).join('\n')}
+
+` : ''}---
+Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
+
+    const subject = `Meeting Notes: ${activityTitle} - ${new Date().toLocaleDateString()}`
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
+    window.open(mailtoLink)
+    setShowExportMenu(false)
   }
 
   if (!isOpen) return null
@@ -341,6 +597,45 @@ export default function SimpleNotesModal({
                 <Save className="w-4 h-4" />
                 <span className="text-sm">Save</span>
               </button>
+
+              {/* Export Menu */}
+              <div className="relative export-menu-container">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded transition-colors text-gray-700 dark:text-golden-400"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-sm">Export</span>
+                </button>
+                
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-10">
+                    <div className="py-1">
+                      <button
+                        onClick={exportAsHTML}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                      >
+                        <FileDown className="w-4 h-4" />
+                        <span>Export as HTML</span>
+                      </button>
+                      <button
+                        onClick={exportAsText}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                      >
+                        <FileDown className="w-4 h-4" />
+                        <span>Export as Text</span>
+                      </button>
+                      <button
+                        onClick={exportForEmail}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                      >
+                        <Mail className="w-4 h-4" />
+                        <span>Prepare for Email</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <button
                 onClick={onClose}
@@ -354,7 +649,10 @@ export default function SimpleNotesModal({
 
         {/* Formatting Toolbar */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
-          <div className="flex items-center space-x-2 flex-wrap gap-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-2 relative">
+            {/* Templates */}
+            <NoteTemplates onInsertTemplate={insertTemplate} />
+
             {/* Text Formatting */}
             <div className="flex items-center space-x-1 border-r border-gray-300 dark:border-gray-600 pr-3">
               <button
@@ -416,6 +714,45 @@ export default function SimpleNotesModal({
               </button>
             </div>
 
+            {/* Recording Controls */}
+            <div className="flex items-center space-x-1 border-r border-gray-300 dark:border-gray-600 pr-3">
+              <button
+                onClick={handleRecordingToggle}
+                className={`p-2 rounded transition-colors ${
+                  isRecording 
+                    ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400' 
+                    : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
+                }`}
+                title={isRecording ? "Stop Recording" : "Start Recording"}
+              >
+                {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+              
+              <button
+                onClick={() => setShowMediaTimeline(!showMediaTimeline)}
+                className={`p-2 rounded transition-colors ${
+                  showMediaTimeline 
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title={showMediaTimeline ? "Hide Media Panel" : "Show Media Panel"}
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
+              {isRecording && (
+                <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-xs">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span>Recording</span>
+                </div>
+              )}
+              {mediaEntries.length > 0 && (
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                  {mediaEntries.length} media
+                </span>
+              )}
+            </div>
+
             {/* Undo/Redo */}
             <div className="flex items-center space-x-1">
               <button
@@ -457,12 +794,12 @@ export default function SimpleNotesModal({
             <div
               ref={editorRef}
               contentEditable
-              className="min-h-[300px] focus:outline-none prose prose-base max-w-none dark:prose-invert"
+              className="min-h-[300px] focus:outline-none prose prose-base max-w-none dark:prose-invert text-gray-700 dark:text-[#F5F5DC]"
               style={{
                 fontSize: '15px',
                 lineHeight: '1.6',
-                color: '#374151',
               }}
+              data-placeholder="Start typing your meeting notes..."
               onInput={handleContentChange}
               onMouseUp={handleTextSelection}
               onKeyUp={handleTextSelection}
@@ -470,6 +807,65 @@ export default function SimpleNotesModal({
             />
           </div>
         </div>
+
+        {/* Media Timeline Panel */}
+        {showMediaTimeline && (
+          <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600">
+              <div className="flex items-center space-x-2">
+                <Camera className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Recording & Media
+                </span>
+                {mediaEntries.length > 0 && (
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                    {mediaEntries.length} items
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                  title={isMinimized ? "Expand Panel" : "Minimize Panel"}
+                >
+                  {isMinimized ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => setShowMediaTimeline(false)}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                  title="Close Panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Panel Content */}
+            {!isMinimized && (
+              <div className="max-w-3xl mx-auto p-4">
+                {/* Recording Controls */}
+                <div className="mb-4">
+                  <RecordingManager
+                    ref={recordingManagerRef}
+                    onTranscriptUpdate={handleTranscriptUpdate}
+                    onMediaAdd={handleMediaAdd}
+                    isRecording={isRecording}
+                    onRecordingStateChange={setIsRecording}
+                  />
+                </div>
+                
+                {/* Media Timeline */}
+                <MediaTimeline
+                  mediaEntries={mediaEntries}
+                  onRemoveMedia={handleMediaRemove}
+                  onInsertMediaIntoEditor={insertMediaIntoEditor}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Status Bar with Company Access */}
         <div className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
