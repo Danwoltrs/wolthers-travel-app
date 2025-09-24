@@ -11,6 +11,7 @@ import TripActivities from './TripActivities'
 import CommentsSection from './CommentsSection'
 import TripNavigationBar from './TripNavigationBar'
 import ReceiptScanModal from '../expenses/ReceiptScanModal'
+import LoginModal from './LoginModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripDetails } from '@/hooks/useTrips'
@@ -27,11 +28,37 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [mobileMenuHeight, setMobileMenuHeight] = useState(0)
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const { confirm } = useDialogs()
   const { isAuthenticated, user } = useAuth()
   
   // Use the hook to get trip details from Supabase
   const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(tripId)
+
+  // Handle authentication flow for trip access
+  useEffect(() => {
+    // Give auth context time to initialize
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false)
+      
+      // If we have an authentication error and we're not authenticated, show auth modal
+      if (tripError === 'Authentication required to view trip' && !isAuthenticated) {
+        setShowAuthModal(true)
+      }
+    }, 2000) // 2 second loading grace period
+
+    return () => clearTimeout(timer)
+  }, [tripError, isAuthenticated])
+
+  // Close auth modal and reload when authentication succeeds
+  useEffect(() => {
+    if (isAuthenticated && showAuthModal) {
+      setShowAuthModal(false)
+      // Reload the page to fetch trip data with authentication
+      window.location.reload()
+    }
+  }, [isAuthenticated, showAuthModal])
 
   // Load user trips for navigation (simplified to avoid timeouts)
   useEffect(() => {
@@ -92,6 +119,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   }, [isAuthenticated, tripId])
 
   // Convert database trip to frontend Trip interface format
+  // Create a placeholder trip for authentication errors to show blurred background
   const trip: Trip | null = tripDetails ? (() => {
     // Parse dates properly to avoid timezone conversion issues
     const parseDate = (dateStr: string) => {
@@ -116,7 +144,24 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       accessCode: tripDetails.access_code,
       createdAt: new Date(tripDetails.created_at)
     }
-  })() : null
+  })() : (tripError === 'Authentication required to view trip' ? {
+    // Placeholder trip for authentication modal background
+    id: tripId,
+    title: 'Trip Details',
+    description: 'Please sign in to view trip details',
+    subject: 'Trip Details',
+    startDate: new Date(),
+    endDate: new Date(),
+    status: 'planning' as any,
+    createdBy: '',
+    estimatedBudget: 0,
+    actualCost: 0,
+    tripCode: tripId,
+    isConvention: false,
+    metadata: {},
+    accessCode: tripId,
+    createdAt: new Date()
+  } : null)
 
   // Process itinerary items from the database
   const activities = tripDetails?.itinerary_items || []
@@ -139,20 +184,22 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     }
   }
 
-  // Show loading screen while fetching trip details
-  if (tripLoading) {
+  // Show loading screen while fetching trip details or during initial auth check
+  if (tripLoading || isInitialLoad) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
-          <div className="text-lg font-medium text-gray-600 dark:text-gray-300">Looking for trip...</div>
+          <div className="text-lg font-medium text-gray-600 dark:text-gray-300">
+            {isInitialLoad ? 'Loading...' : 'Looking for trip...'}
+          </div>
         </div>
       </div>
     )
   }
 
-  // Show error screen if there was an error fetching the trip
-  if (tripError) {
+  // Show error screen if there was a non-authentication error fetching the trip
+  if (tripError && tripError !== 'Authentication required to view trip') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4 text-center">
@@ -170,8 +217,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     )
   }
 
-  // Show trip not found only after loading is complete and no error occurred
-  if (!trip && !tripLoading) {
+  // Show trip not found only after loading is complete and no error occurred (but not for auth errors)
+  if (!trip && !tripLoading && tripError !== 'Authentication required to view trip') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4 text-center">
@@ -192,7 +239,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   }
 
   return (
-    <div className="min-h-screen bg-[#F3EDE2] dark:bg-[#212121]">
+    <div className={`min-h-screen bg-[#F3EDE2] dark:bg-[#212121] ${showAuthModal ? 'blur-sm' : ''}`}>
       {/* Wolthers Logo Header */}
       <WolthersLogo 
         onMobileMenuToggle={setIsMobileMenuOpen}
@@ -297,6 +344,13 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           // Could refresh expenses or show success message
           console.log('Expenses added successfully')
         }}
+      />
+
+      {/* Authentication Modal */}
+      <LoginModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message="Please sign in to access this trip"
       />
     </div>
   )
