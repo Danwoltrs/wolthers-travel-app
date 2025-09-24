@@ -121,7 +121,7 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
       // Create the script tag
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker,geometry`
       script.async = true
       script.defer = true
       
@@ -184,21 +184,29 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
         mapInstanceRef.current = map
 
-        // Add markers for each location
+        // Add markers for each location using the new AdvancedMarkerElement
+        const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker')
         const markers: any[] = []
+        
         locations.forEach((location, index) => {
-          const marker = new window.google.maps.Marker({
+          // Create a custom marker element
+          const markerElement = document.createElement('div')
+          markerElement.className = 'custom-marker'
+          markerElement.style.cssText = `
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid #ffffff;
+            background-color: ${index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b'};
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+          `
+
+          const marker = new AdvancedMarkerElement({
             position: { lat: location.lat, lng: location.lng },
             map: map,
             title: location.title || `Stop ${index + 1}`,
-            icon: {
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2
-            }
+            content: markerElement
           })
 
           // Add info window with location details
