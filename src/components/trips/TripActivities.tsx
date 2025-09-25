@@ -5,6 +5,7 @@ import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, 
 import { cn } from '@/lib/utils'
 import SimpleNotesModal from '../notes/SimpleNotesModal'
 import { useAuth } from '@/contexts/AuthContext'
+import { useDialogs } from '@/hooks/use-modal'
 import { formatNotePreview } from '@/lib/note-utils'
 
 interface TripActivitiesProps {
@@ -92,6 +93,7 @@ const getConfirmationIcon = (isConfirmed: boolean) => {
 
 export default function TripActivities({ activities, loading, error, canEditTrip = false, isAdmin = false, tripStatus = 'upcoming', tripId, onNoteCountChange }: TripActivitiesProps) {
   const { user } = useAuth()
+  const { confirm } = useDialogs()
   
   // Initialize with all activities and notes collapsed by default
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set())
@@ -135,8 +137,21 @@ export default function TripActivities({ activities, loading, error, canEditTrip
 
   // Helper functions to determine day and activity status
   const getDayStatus = (date: string) => {
+    // For future trips, show all activities as future/active
+    if (tripStatus === 'upcoming' || tripStatus === 'planning' || tripStatus === 'confirmed') {
+      const today = new Date()
+      const [year, month, day] = date.split('-').map(Number)
+      const dayDate = new Date(year, month - 1, day)
+      
+      today.setHours(0, 0, 0, 0)
+      dayDate.setHours(0, 0, 0, 0)
+      
+      if (dayDate.getTime() === today.getTime()) return 'current'
+      return 'future' // Show all dates as future for upcoming trips
+    }
+    
+    // For ongoing/completed trips, use actual date comparison
     const today = new Date()
-    // Parse date properly to avoid timezone conversion issues
     const [year, month, day] = date.split('-').map(Number)
     const dayDate = new Date(year, month - 1, day)
     
@@ -149,8 +164,21 @@ export default function TripActivities({ activities, loading, error, canEditTrip
   }
 
   const getActivityStatus = (activity: any) => {
+    // For future trips, show all activities as future/active
+    if (tripStatus === 'upcoming' || tripStatus === 'planning' || tripStatus === 'confirmed') {
+      const today = new Date()
+      const [year, month, day] = activity.activity_date.split('-').map(Number)
+      const activityDate = new Date(year, month - 1, day)
+      
+      today.setHours(0, 0, 0, 0)
+      activityDate.setHours(0, 0, 0, 0)
+      
+      if (activityDate.getTime() === today.getTime()) return 'current'
+      return 'future' // Show all activities as future for upcoming trips
+    }
+
+    // For ongoing/completed trips, use actual date and time comparison
     const now = new Date()
-    // Parse activity date properly to avoid timezone conversion issues
     const [year, month, day] = activity.activity_date.split('-').map(Number)
     const activityDate = new Date(year, month - 1, day)
     const today = new Date()
@@ -164,8 +192,6 @@ export default function TripActivities({ activities, loading, error, canEditTrip
     // If activity is today, check the time
     if (activity.start_time) {
       const [hours, minutes] = activity.start_time.split(':').map(Number)
-      // Parse activity date properly to avoid timezone conversion issues
-      const [year, month, day] = activity.activity_date.split('-').map(Number)
       const activityDateTime = new Date(year, month - 1, day)
       activityDateTime.setHours(hours, minutes, 0, 0)
       
@@ -741,9 +767,14 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                                           
                                           {isOwner && (
                                             <button
-                                              onClick={(e) => {
+                                              onClick={async (e) => {
                                                 e.stopPropagation()
-                                                if (confirm('Delete this note?')) {
+                                                const shouldDelete = await confirm(
+                                                  'Are you sure you want to delete this note?',
+                                                  'Delete Note',
+                                                  'warning'
+                                                )
+                                                if (shouldDelete) {
                                                   deleteNote(activity.id, note.id)
                                                 }
                                               }}

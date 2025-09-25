@@ -1,15 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { verify } from 'jsonwebtoken'
+import { createServerSupabaseClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient()
-
-    // Get user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    let user: any = null
     
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Try JWT authentication first (Microsoft OAuth users)
+    const authToken = request.cookies.get('auth-token')?.value
+    
+    if (authToken) {
+      try {
+        const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+        const decoded = verify(authToken, secret) as any
+        console.log('🔑 Notes Summary API: JWT Token decoded successfully:', { userId: decoded.userId })
+        
+        // Get user from database using service client to bypass RLS
+        const supabase = createSupabaseServiceClient()
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single()
+        
+        if (!userError && userData) {
+          user = userData
+          console.log('🔑 Notes Summary API: JWT User authenticated:', { userId: user.id, email: user.email })
+        }
+      } catch (jwtError) {
+        console.log('🔑 Notes Summary API: JWT verification failed, trying Supabase auth:', jwtError)
+      }
+    }
+    
+    // Fallback to Supabase authentication (OTP login users)
+    if (!user) {
+      try {
+        const supabase = createServerSupabaseClient()
+        const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser()
+        
+        if (!authError && supabaseUser) {
+          user = supabaseUser
+          console.log('🔑 Notes Summary API: Supabase User authenticated:', { userId: user.id, email: user.email })
+        }
+      } catch (supabaseError) {
+        console.log('🔑 Notes Summary API: Supabase auth also failed:', supabaseError)
+      }
+    }
+    
+    // If no authentication method worked
+    if (!user) {
+      console.log('🔑 Notes Summary API: No authentication found')
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
 
     // Get search params
@@ -20,16 +64,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No trip IDs provided' }, { status: 400 })
     }
 
-    // Get note counts for all trips by joining activities and notes tables
-    const { data: noteCounts, error: noteCountsError } = await supabase
-      .from('activities')
-      .select(`
-        trip_id,
-        activity_notes!inner (
-          id
-        )
-      `)
+    // Get note counts for all trips by joining itinerary_items and activity_notes tables
+    // Use service client to bypass RLS issues for better reliability
+    const supabase = createSupabaseServiceClient()
+    
+    // First get all itinerary_items for the trips (notes are linked to itinerary_items, not activities)
+    const { data: itineraryItems, error: itineraryError } = await supabase
+      .from('itinerary_items')
+      .select('id, trip_id')
       .in('trip_id', tripIds)
+    
+    if (itineraryError) {
+      console.error('Error fetching itinerary items:', itineraryError)
+      return NextResponse.json({ error: 'Failed to fetch itinerary items' }, { status: 500 })
+    }
+    
+    // Then get note counts for those itinerary items
+    const itineraryItemIds = itineraryItems?.map(item => item.id) || []
+    const { data: notes, error: noteCountsError } = await supabase
+      .from('activity_notes')
+      .select('id, itinerary_item_id')
+      .in('itinerary_item_id', itineraryItemIds)
       
     if (noteCountsError) {
       console.error('Error fetching note counts:', noteCountsError)
@@ -44,14 +99,18 @@ export async function GET(request: NextRequest) {
       tripNoteCounts[id] = 0
     })
     
+    // Create a map of itinerary_item ID to trip ID
+    const itineraryItemToTripMap: Record<string, string> = {}
+    itineraryItems?.forEach(item => {
+      itineraryItemToTripMap[item.id] = item.trip_id
+    })
+    
     // Count notes for each trip
-    noteCounts.forEach(activity => {
-      if (activity.activity_notes && Array.isArray(activity.activity_notes)) {
-        const tripId = activity.trip_id
-        if (!tripNoteCounts[tripId]) {
-          tripNoteCounts[tripId] = 0
-        }
-        tripNoteCounts[tripId] += activity.activity_notes.length
+    notes?.forEach(note => {
+      const itineraryItemId = note.itinerary_item_id
+      const tripId = itineraryItemToTripMap[itineraryItemId]
+      if (tripId && tripNoteCounts.hasOwnProperty(tripId)) {
+        tripNoteCounts[tripId] += 1
       }
     })
 
@@ -62,64 +121,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Trip notes summary error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-// Get note count for a single trip
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = createServerSupabaseClient()
-
-    // Get user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { tripId } = body
-
-    if (!tripId) {
-      return NextResponse.json({ error: 'Trip ID is required' }, { status: 400 })
-    }
-
-    // Get note count for single trip
-    const { data: activities, error: activitiesError } = await supabase
-      .from('activities')
-      .select(`
-        id,
-        activity_notes (
-          id
-        )
-      `)
-      .eq('trip_id', tripId)
-      
-    if (activitiesError) {
-      console.error('Error fetching trip activities for note count:', activitiesError)
-      return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 })
-    }
-
-    // Count total notes for this trip
-    let totalNotes = 0
-    activities.forEach(activity => {
-      if (activity.activity_notes && Array.isArray(activity.activity_notes)) {
-        totalNotes += activity.activity_notes.length
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      tripId,
-      notesCount: totalNotes
-    })
-
-  } catch (error) {
-    console.error('Single trip notes summary error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -162,6 +162,7 @@ export async function POST(
     console.log('POST Notes - User:', user.id, user.email, 'Activity:', activityId)
 
     // First verify the user has access to this activity via trip participation OR activity participation
+    console.log('🔍 Checking trip access for:', { userId: user.id, activityId })
     const { data: tripAccess, error: tripAccessError } = await supabase
       .from('itinerary_items')
       .select(`
@@ -178,17 +179,33 @@ export async function POST(
       .eq('id', activityId)
       .eq('trips.trip_participants.user_id', user.id)
       .maybeSingle()
+    
+    console.log('🔍 Trip access result:', { tripAccess, tripAccessError })
 
     // Check for activity-specific participation (for seminar attendees)
+    console.log('🔍 Checking activity access for:', { activityId, userId: user.id })
     const { data: activityAccess, error: activityAccessError } = await supabase
       .from('activity_participants')
       .select('id, activity_id, participant_id')
       .eq('activity_id', activityId)
       .eq('participant_id', user.id)
       .maybeSingle()
+    
+    console.log('🔍 Activity access result:', { activityAccess, activityAccessError })
 
     // User must be either a trip participant OR an activity participant
     const hasAccess = (tripAccess && !tripAccessError) || (activityAccess && !activityAccessError)
+    
+    console.log('🔍 Final access check:', {
+      hasAccess,
+      tripAccessExists: !!tripAccess,
+      tripAccessError,
+      activityAccessExists: !!activityAccess,
+      activityAccessError,
+      userId: user.id,
+      userEmail: user.email,
+      activityId
+    })
     
     if (!hasAccess) {
       console.error('User does not have access to this activity:', { 

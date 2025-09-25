@@ -345,8 +345,8 @@ export async function GET(
       console.warn('Error loading itinerary items:', itineraryError)
     }
 
-    // Combine the data - prioritize activities if available, fall back to itinerary_items
-    tripData.itinerary_items = activitiesData && activitiesData.length > 0 ? activitiesData : (itineraryData || [])
+    // Use proper itinerary_items data - don't mix with activities table data
+    tripData.itinerary_items = itineraryData || []
     tripData.activities = activitiesData || []
 
     // Transform the data to match frontend expectations

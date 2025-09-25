@@ -15,6 +15,7 @@ import LoginModal from './LoginModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripDetails } from '@/hooks/useTrips'
+import { useSingleTripNoteCount } from '@/hooks/useTripNoteCounts'
 import type { Trip } from '@/types'
 
 interface TripInterfaceProps {
@@ -35,6 +36,16 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   
   // Use the hook to get trip details from Supabase
   const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(tripId)
+  
+  // Get real-time note count for this trip - only when we have the actual trip UUID
+  const { noteCount, refreshNoteCount } = useSingleTripNoteCount(tripDetails?.id || '')
+  
+  // Callback to handle note count changes from activity notes
+  const handleActivityNoteCountChange = React.useCallback((activityId: string, newCount: number) => {
+    console.log(`Activity ${activityId} note count changed to ${newCount}`)
+    // Refresh the total trip note count
+    refreshNoteCount()
+  }, [refreshNoteCount])
 
   // Handle authentication flow for trip access
   useEffect(() => {
@@ -307,6 +318,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             canEditTrip={!isGuestAccess && trip?.createdBy === user?.id}
             isAdmin={user?.role === 'global_admin'}
             tripStatus={trip?.status}
+            tripId={tripId}
+            onNoteCountChange={handleActivityNoteCountChange}
           />
         </div>
       </div>

@@ -27,9 +27,11 @@ export function useTripNoteCounts(tripIds: string[]): UseTripNoteCountsResult {
     setError(null)
 
     try {
+      console.log('useTripNoteCounts: Fetching note counts for trips:', tripIds)
+      
       const response = await fetch(`/api/trips/notes-summary?trip_ids=${tripIds.join(',')}`, {
         method: 'GET',
-        credentials: 'include'
+        credentials: 'include' // Use cookie-based authentication
       })
 
       if (!response.ok) {
@@ -100,13 +102,12 @@ export function useSingleTripNoteCount(tripId: string) {
     setError(null)
 
     try {
-      const response = await fetch('/api/trips/notes-summary', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ tripId })
+      console.log('useSingleTripNoteCount: Fetching note count for trip:', tripId)
+      
+      // Use GET request with query parameter like the multiple trips hook
+      const response = await fetch(`/api/trips/notes-summary?trip_ids=${tripId}`, {
+        method: 'GET',
+        credentials: 'include' // Use cookie-based authentication
       })
 
       if (!response.ok) {
@@ -115,8 +116,9 @@ export function useSingleTripNoteCount(tripId: string) {
 
       const result = await response.json()
 
-      if (result.success) {
-        setNoteCount(result.notesCount || 0)
+      if (result.success && result.data) {
+        // Extract the count for this specific trip from the data object
+        setNoteCount(result.data[tripId] || 0)
       } else {
         throw new Error(result.error || 'Failed to fetch note count')
       }

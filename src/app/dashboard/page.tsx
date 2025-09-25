@@ -14,6 +14,7 @@ import { cn, getTripStatus } from '@/lib/utils'
 import { useSmartTrips } from '@/hooks/useSmartTrips'
 import { useRequireAuth, useAuth } from '@/contexts/AuthContext'
 import { extractCityFromLocation } from '@/lib/geographical-intelligence'
+import { useTripNoteCounts } from '@/hooks/useTripNoteCounts'
 
 export default function Dashboard() {
     const { isAuthenticated, isLoading: authLoading } = useRequireAuth()
@@ -26,6 +27,18 @@ export default function Dashboard() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
   const [showUserPanel, setShowUserPanel] = useState(false)
     const { trips, loading, error, isOffline, refreshSilently, refetch, addTripOptimistically, deleteTripOptimistically } = useSmartTrips()
+    
+    // Get note counts for all trips - memoize tripIds to prevent infinite re-renders
+    const tripIds = React.useMemo(() => trips.map(trip => trip.id), [trips])
+    const { noteCounts, refreshNoteCounts } = useTripNoteCounts(tripIds)
+    
+    // Merge note counts with trip data
+    const tripsWithNoteCounts = React.useMemo(() => {
+        return trips.map(trip => ({
+            ...trip,
+            notesCount: noteCounts[trip.id] || 0
+        }))
+    }, [trips, noteCounts])
 
     // All useCallback hooks must be defined early and unconditionally
     const handleCreateTrip = React.useCallback(() => {
@@ -171,12 +184,12 @@ export default function Dashboard() {
   const draftTripsAsTrips = draftTrips.map(convertDraftToTrip)
 
   // Separate and sort trips by calculated status (based on current date)
-  const ongoingTrips = trips.filter(trip => {
+  const ongoingTrips = tripsWithNoteCounts.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
     return calculatedStatus === 'ongoing'
   })
   
-  const upcomingTrips = trips
+  const upcomingTrips = tripsWithNoteCounts
     .filter(trip => {
       const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
       return calculatedStatus === 'upcoming'
@@ -184,7 +197,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()) // Sort by closest date first
   
   // Filter for draft trips (planning status only - ignore is_draft flag for completed trips)
-  const planningDraftTrips = trips.filter(trip => {
+  const planningDraftTrips = tripsWithNoteCounts.filter(trip => {
     return (trip as any).status === 'planning'
   })
   
@@ -194,7 +207,7 @@ export default function Dashboard() {
     ...ongoingTrips, 
     ...upcomingTrips,
     ...planningDraftTrips,
-    ...draftTripsAsTrips.filter(draft => !trips.some(trip => trip.id === draft.id))
+    ...draftTripsAsTrips.filter(draft => !tripsWithNoteCounts.some(trip => trip.id === draft.id))
   ]
   
   // Remove duplicates by ID to prevent duplicate cards
@@ -213,7 +226,7 @@ export default function Dashboard() {
     console.log('draftTripsAsTrips:', draftTripsAsTrips.length)
   }
   
-  const pastTrips = trips.filter(trip => {
+  const pastTrips = tripsWithNoteCounts.filter(trip => {
     const calculatedStatus = getTripStatus(trip.startDate, trip.endDate)
     // Exclude only planning trips from past trips (completed trips should show regardless of is_draft flag)
     const isPlanningTrip = (trip as any).status === 'planning'
@@ -607,6 +620,8 @@ export default function Dashboard() {
     // Add delay to avoid sync conflicts
     setTimeout(() => {
       refreshSilently()
+      // Also refresh note counts to get latest notes
+      refreshNoteCounts()
     }, 100)
   }
 

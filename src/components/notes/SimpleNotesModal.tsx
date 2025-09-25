@@ -257,19 +257,19 @@ export default function SimpleNotesModal({
     if (!tripId || !onNoteCountChange) return
     
     try {
-      const response = await fetch('/api/trips/notes-summary', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ tripId })
+      console.log('SimpleNotesModal: Refreshing note count for trip:', tripId)
+      
+      // Use GET request with query parameter for consistency
+      const response = await fetch(`/api/trips/notes-summary?trip_ids=${tripId}`, {
+        method: 'GET',
+        credentials: 'include' // Use cookie-based authentication
       })
 
       if (response.ok) {
         const result = await response.json()
-        if (result.success) {
-          onNoteCountChange(result.notesCount || 0)
+        if (result.success && result.data) {
+          // Extract the count for this specific trip from the data object
+          onNoteCountChange(result.data[tripId] || 0)
         }
       }
     } catch (error) {
