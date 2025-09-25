@@ -19,6 +19,7 @@ interface ScheduleTabProps {
   validationState?: any
   onSyncCalendar?: () => void
   activityManager?: any
+  onNoteCountChange?: (activityId: string, count: number) => void
   className?: string
 }
 
@@ -29,6 +30,7 @@ export function ScheduleTab({
   validationState,
   onSyncCalendar,
   activityManager: providedActivityManager,
+  onNoteCountChange,
   className = ''
 }: ScheduleTabProps) {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)

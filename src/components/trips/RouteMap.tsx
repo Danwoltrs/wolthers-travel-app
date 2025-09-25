@@ -121,14 +121,15 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
       // Create the script tag
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker,geometry&loading=async&callback=initMap`
       script.async = true
       script.defer = true
       
       // Set up the callback
       window.initMap = initializeMap
       script.onload = () => {
-        if (window.google) {
+        // Additional safety check - wait for all libs to load
+        if (window.google?.maps?.Map && window.google?.maps?.Geocoder) {
           initializeMap()
         }
       }
@@ -154,6 +155,13 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       if (!mapRef.current) return
 
       try {
+        // Wait for Google Maps API to be fully loaded
+        if (!window.google?.maps?.Map || !window.google?.maps?.Geocoder) {
+          console.warn('Google Maps API not fully loaded, waiting...')
+          setTimeout(() => initializeMap(), 100)
+          return
+        }
+
         // Extract locations from activities (now async)
         const locations = await extractLocations()
         
@@ -163,43 +171,81 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
           return
         }
 
-        // Initialize map
+        // Initialize map with Map ID for Advanced Markers
+        // Note: When using mapId, styles must be configured in Google Cloud Console
         const map = new window.google.maps.Map(mapRef.current, {
           zoom: 8,
           center: locations[0],
           mapTypeId: 'terrain',
-          styles: [
-            {
-              featureType: 'water',
-              elementType: 'geometry',
-              stylers: [{ color: '#e9e9e9' }, { lightness: 17 }]
-            },
-            {
-              featureType: 'landscape',
-              elementType: 'geometry',
-              stylers: [{ color: '#f5f5f5' }, { lightness: 20 }]
-            }
-          ]
+          mapId: 'WOLTHERS_TRAVEL_MAP', // Required for Advanced Markers
+          // styles removed - must be configured in Cloud Console when using mapId
         })
 
         mapInstanceRef.current = map
 
-        // Add markers for each location
+        // Add markers for each location using the new AdvancedMarkerElement with fallback
         const markers: any[] = []
-        locations.forEach((location, index) => {
-          const marker = new window.google.maps.Marker({
-            position: { lat: location.lat, lng: location.lng },
-            map: map,
-            title: location.title || `Stop ${index + 1}`,
-            icon: {
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2
+        let useAdvancedMarkers = true
+        
+        try {
+          const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker')
+          
+          locations.forEach((location, index) => {
+            try {
+              // Create a custom marker element
+              const markerElement = document.createElement('div')
+              markerElement.className = 'custom-marker'
+              markerElement.style.cssText = `
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 3px solid #ffffff;
+                background-color: ${index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b'};
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;
+              `
+
+              const marker = new AdvancedMarkerElement({
+                position: { lat: location.lat, lng: location.lng },
+                map: map,
+                title: location.title || `Stop ${index + 1}`,
+                content: markerElement
+              })
+              
+              markers.push(marker)
+            } catch (markerError) {
+              console.warn('Failed to create Advanced Marker, falling back to legacy marker:', markerError)
+              useAdvancedMarkers = false
+              throw markerError // Re-throw to trigger fallback
             }
           })
+        } catch (error) {
+          console.warn('Advanced Markers not available, using legacy markers:', error)
+          useAdvancedMarkers = false
+          
+          // Fallback to legacy markers
+          locations.forEach((location, index) => {
+            const marker = new window.google.maps.Marker({
+              position: { lat: location.lat, lng: location.lng },
+              map: map,
+              title: location.title || `Stop ${index + 1}`,
+              icon: {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: index === 0 ? '#10b981' : index === locations.length - 1 ? '#ef4444' : '#f59e0b',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2
+              }
+            })
+            markers.push(marker)
+          })
+        }
+        
+        // Add info windows and click handlers for all markers
+        locations.forEach((location, index) => {
+          const marker = markers[index]
+          if (!marker) return
 
           // Add info window with location details
           const infoWindow = new window.google.maps.InfoWindow({
@@ -218,7 +264,6 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
           })
 
           marker.infoWindow = infoWindow
-          markers.push(marker)
         })
 
         // Create route if we have multiple locations
@@ -310,8 +355,8 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
       // Helper function to geocode address using Google Maps API with retry logic
       const geocodeLocation = (address: string, retryCount = 0): Promise<{ lat: number; lng: number } | null> => {
         return new Promise((resolve) => {
-          if (!window.google || !window.google.maps) {
-            console.warn('Google Maps API not available for geocoding')
+          if (!window.google?.maps?.Geocoder) {
+            console.warn('Google Maps Geocoder API not available for geocoding')
             resolve(null)
             return
           }
@@ -432,10 +477,11 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
   return (
     <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
-      <div className="flex items-center justify-between p-6 pb-4 bg-[#2D5347] text-white">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
-          <div className="flex items-center space-x-4 text-sm text-white/80">
+      <div className="flex items-center justify-between p-3 md:p-6 pb-4 bg-[#2D5347] text-white">
+        <div className="flex items-center gap-2 md:gap-4">
+          <h2 className="text-base md:text-lg font-semibold text-white">{tripTitle}</h2>
+          {/* Hide legend on mobile */}
+          <div className="hidden md:flex items-center space-x-4 text-sm text-white/80">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
               Start
@@ -452,13 +498,24 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
         </div>
         
         {activities.length > 0 && (
-          <button
-            onClick={handleExportAllToCalendar}
-            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
-          >
-            <Calendar className="w-4 h-4" />
-            Export All to Calendar
-          </button>
+          <>
+            {/* Mobile: Just calendar icon with + */}
+            <button
+              onClick={handleExportAllToCalendar}
+              className="md:hidden p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="Add all to calendar"
+            >
+              <Calendar className="w-5 h-5" />
+            </button>
+            {/* Desktop: Full button with text */}
+            <button
+              onClick={handleExportAllToCalendar}
+              className="hidden md:flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
+            >
+              <Calendar className="w-4 h-4" />
+              Export All to Calendar
+            </button>
+          </>
         )}
       </div>
       

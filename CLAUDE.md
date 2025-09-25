@@ -34,6 +34,18 @@ This is a Next.js 15 application with TypeScript, built for travel itinerary man
 - **Utilities**: clsx and tailwind-merge for className management
 - **Drag & Drop**: React DnD with HTML5 backend for calendar interactions
 - **Touch Support**: React DnD Touch backend for mobile drag operations
+### New Additions for Canvas Notes System:
+- **Canvas Manipulation**: Fabric.js for interactive canvas objects and transformations
+- **Drawing & Sketching**: React Sketch Canvas or Excalidraw for freehand drawing
+- **Chart Generation**: Chart.js or Recharts for embedded data visualizations
+- **Voice Recording**: MediaRecorder API with react-media-recorder wrapper
+- **Speech-to-Text**: Web Speech API or Deepgram for real-time transcription
+- **File Upload**: React Dropzone for drag-and-drop file handling
+- **Real-time Collaboration**: Supabase Realtime (already available) + Yjs for conflict resolution
+- **Gesture Support**: Hammer.js for touch gestures (pinch, zoom, rotate)
+- **Vector Graphics**: React SVG or Konva.js for scalable drawing elements
+- **PDF Generation**: jsPDF or Puppeteer for meeting summary exports
+
 
 ### Project Structure
 - `/src/app/` - Next.js App Router pages and layouts

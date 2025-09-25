@@ -121,7 +121,7 @@ export default function CommentsSection({ tripId, isAuthenticated = false, isGue
     : 0
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-md p-6 border border-[#D4C5B0] dark:border-[#2a2a2a]">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-none md:rounded-lg shadow-md p-4 md:p-6 border-0 md:border border-[#D4C5B0] dark:border-[#2a2a2a]">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <MessageSquare className="w-6 h-6 text-golden-400" />

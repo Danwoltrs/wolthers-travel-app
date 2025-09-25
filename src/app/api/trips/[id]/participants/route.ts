@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import { ParticipantEmailService } from '@/services/participant-email-service'
 
 interface ParticipantUpdateRequest {
@@ -40,7 +40,7 @@ export async function PATCH(
       
       try {
         const decoded = verify(token, secret) as any
-        const supabase = createServerSupabaseClient()
+        const supabase = createSupabaseServiceClient()
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
@@ -52,7 +52,7 @@ export async function PATCH(
         }
       } catch (jwtError) {
         // Try Supabase session authentication
-        const supabaseClient = createServerSupabaseClient()
+        const supabaseClient = createSupabaseServiceClient()
         
         if (token && token.includes('.')) {
           const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
@@ -83,7 +83,7 @@ export async function PATCH(
     const body: ParticipantUpdateRequest = await request.json()
     const { staff, guests, action } = body
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createSupabaseServiceClient()
 
     // Check if user has permission to edit this trip
     const { data: trip, error: tripError } = await supabase
@@ -329,7 +329,7 @@ export async function PATCH(
  * Helper function to send emails to participants
  */
 async function sendParticipantEmails(tripId: string, participants: Array<{ participantId: string; role: string }>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = createSupabaseServiceClient()
   
   // Get trip context for emails
   const { data: trip, error: tripError } = await supabase
@@ -414,7 +414,7 @@ export async function POST(
       
       try {
         const decoded = verify(token, secret) as any
-        const supabase = createServerSupabaseClient()
+        const supabase = createSupabaseServiceClient()
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
@@ -426,7 +426,7 @@ export async function POST(
         }
       } catch (jwtError) {
         // Try Supabase session authentication
-        const supabaseClient = createServerSupabaseClient()
+        const supabaseClient = createSupabaseServiceClient()
         
         if (token && token.includes('.')) {
           const { data: { user: supabaseUser }, error: sessionError } = await supabaseClient.auth.getUser(token)
@@ -456,7 +456,7 @@ export async function POST(
     const { id: tripId } = await params
     const participant = await request.json()
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createSupabaseServiceClient()
 
     // Add participant to trip_participants table with conflict handling
     const now = new Date().toISOString()
@@ -531,8 +531,28 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
-    const { id: tripId } = await params
+    const supabase = createSupabaseServiceClient()
+    const { id: tripIdentifier } = await params
+
+    // Resolve trip ID - check if it's a UUID or access code
+    let tripId = tripIdentifier
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tripIdentifier)
+    
+    if (!isUUID) {
+      // It's an access code, resolve to UUID
+      const { data: tripData, error: tripResolveError } = await supabase
+        .from('trips')
+        .select('id')
+        .eq('access_code', tripIdentifier)
+        .single()
+      
+      if (tripResolveError || !tripData) {
+        console.error('Trip not found for access code:', tripIdentifier, tripResolveError)
+        return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
+      }
+      
+      tripId = tripData.id
+    }
 
     // Get staff participants
     const { data: staffParticipants, error: staffError } = await supabase

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Receipt } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import WolthersLogo from './WolthersLogo'
 import TripSquareButtons from './TripSquareButtons'
@@ -9,9 +10,12 @@ import RouteMap from './RouteMap'
 import TripActivities from './TripActivities'
 import CommentsSection from './CommentsSection'
 import TripNavigationBar from './TripNavigationBar'
+import ReceiptScanModal from '../expenses/ReceiptScanModal'
+import LoginModal from './LoginModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTripDetails } from '@/hooks/useTrips'
+import { useSingleTripNoteCount } from '@/hooks/useTripNoteCounts'
 import type { Trip } from '@/types'
 
 interface TripInterfaceProps {
@@ -24,11 +28,48 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   const [activeTab, setActiveTab] = useState(tripId)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [mobileMenuHeight, setMobileMenuHeight] = useState(0)
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const { confirm } = useDialogs()
   const { isAuthenticated, user } = useAuth()
   
   // Use the hook to get trip details from Supabase
   const { trip: tripDetails, loading: tripLoading, error: tripError } = useTripDetails(tripId)
+  
+  // Get real-time note count for this trip - only when we have the actual trip UUID
+  const { noteCount, refreshNoteCount } = useSingleTripNoteCount(tripDetails?.id || '')
+  
+  // Callback to handle note count changes from activity notes
+  const handleActivityNoteCountChange = React.useCallback((activityId: string, newCount: number) => {
+    console.log(`Activity ${activityId} note count changed to ${newCount}`)
+    // Refresh the total trip note count
+    refreshNoteCount()
+  }, [refreshNoteCount])
+
+  // Handle authentication flow for trip access
+  useEffect(() => {
+    // Give auth context time to initialize
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false)
+      
+      // If we have an authentication error and we're not authenticated, show auth modal
+      if (tripError === 'Authentication required to view trip' && !isAuthenticated) {
+        setShowAuthModal(true)
+      }
+    }, 2000) // 2 second loading grace period
+
+    return () => clearTimeout(timer)
+  }, [tripError, isAuthenticated])
+
+  // Close auth modal and reload when authentication succeeds
+  useEffect(() => {
+    if (isAuthenticated && showAuthModal) {
+      setShowAuthModal(false)
+      // Reload the page to fetch trip data with authentication
+      window.location.reload()
+    }
+  }, [isAuthenticated, showAuthModal])
 
   // Load user trips for navigation (simplified to avoid timeouts)
   useEffect(() => {
@@ -89,6 +130,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   }, [isAuthenticated, tripId])
 
   // Convert database trip to frontend Trip interface format
+  // Create a placeholder trip for authentication errors to show blurred background
   const trip: Trip | null = tripDetails ? (() => {
     // Parse dates properly to avoid timezone conversion issues
     const parseDate = (dateStr: string) => {
@@ -113,7 +155,24 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       accessCode: tripDetails.access_code,
       createdAt: new Date(tripDetails.created_at)
     }
-  })() : null
+  })() : (tripError === 'Authentication required to view trip' ? {
+    // Placeholder trip for authentication modal background
+    id: tripId,
+    title: 'Trip Details',
+    description: 'Please sign in to view trip details',
+    subject: 'Trip Details',
+    startDate: new Date(),
+    endDate: new Date(),
+    status: 'planning' as any,
+    createdBy: '',
+    estimatedBudget: 0,
+    actualCost: 0,
+    tripCode: tripId,
+    isConvention: false,
+    metadata: {},
+    accessCode: tripId,
+    createdAt: new Date()
+  } : null)
 
   // Process itinerary items from the database
   const activities = tripDetails?.itinerary_items || []
@@ -136,20 +195,22 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     }
   }
 
-  // Show loading screen while fetching trip details
-  if (tripLoading) {
+  // Show loading screen while fetching trip details or during initial auth check
+  if (tripLoading || isInitialLoad) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
-          <div className="text-lg font-medium text-gray-600 dark:text-gray-300">Looking for trip...</div>
+          <div className="text-lg font-medium text-gray-600 dark:text-gray-300">
+            {isInitialLoad ? 'Loading...' : 'Looking for trip...'}
+          </div>
         </div>
       </div>
     )
   }
 
-  // Show error screen if there was an error fetching the trip
-  if (tripError) {
+  // Show error screen if there was a non-authentication error fetching the trip
+  if (tripError && tripError !== 'Authentication required to view trip') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4 text-center">
@@ -167,8 +228,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     )
   }
 
-  // Show trip not found only after loading is complete and no error occurred
-  if (!trip && !tripLoading) {
+  // Show trip not found only after loading is complete and no error occurred (but not for auth errors)
+  if (!trip && !tripLoading && tripError !== 'Authentication required to view trip') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#212121] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4 text-center">
@@ -189,11 +250,13 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   }
 
   return (
-    <div className="min-h-screen bg-[#F3EDE2] dark:bg-[#212121]">
+    <div className={`min-h-screen bg-[#F3EDE2] dark:bg-[#212121] ${showAuthModal ? 'blur-sm' : ''}`}>
       {/* Wolthers Logo Header */}
       <WolthersLogo 
         onMobileMenuToggle={setIsMobileMenuOpen}
         onMenuHeightChange={setMobileMenuHeight}
+        onReceiptScanOpen={() => setIsReceiptModalOpen(true)}
+        showReceiptButton={!isGuestAccess} // Show for authenticated users on trip pages
       />
       
       {/* Trip Navigation Bar - Always visible */}
@@ -225,17 +288,17 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
 
       {/* Trip Content */}
       <div className={cn(
-        "max-w-7xl mx-auto px-4 py-6",
+        "max-w-7xl mx-auto px-0 md:px-4 py-0 md:py-6",
         userTrips.length > 1 && !isGuestAccess && "pt-2"
       )}>
         {/* Trip Header */}
-        <div className="mt-36 md:mt-6">
+        <div className="mt-0 md:mt-6 px-4 md:px-0">
           <TripHeader trip={trip} tripData={tripDetails} />
         </div>
 
         {/* Map Section - Only show if there are locations */}
         {hasLocations && (
-          <div className="mb-6">
+          <div className="mb-6 px-4 md:px-0">
             <RouteMap 
               itineraryDays={[]}
               tripTitle={trip.title}
@@ -246,7 +309,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           </div>
         )}
 
-        {/* Activities Section */}
+        {/* Activities Section - Full width on mobile */}
         <div className="mb-12">
           <TripActivities 
             activities={activities}
@@ -255,13 +318,15 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             canEditTrip={!isGuestAccess && trip?.createdBy === user?.id}
             isAdmin={user?.role === 'global_admin'}
             tripStatus={trip?.status}
+            tripId={tripId}
+            onNoteCountChange={handleActivityNoteCountChange}
           />
         </div>
       </div>
 
       {/* Comments Section at Bottom */}
       <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-0 md:px-4">
           <CommentsSection 
             tripId={tripId} 
             isAuthenticated={isAuthenticated}
@@ -269,6 +334,37 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
           />
         </div>
       </div>
+
+      {/* Mobile Receipt Capture Footer - Only show for Wolthers staff on mobile */}
+      {!isGuestAccess && user && (user.email?.endsWith('@wolthers.com') || user.user_type === 'wolthers_staff') && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-emerald-600 border-t border-emerald-500 p-4 z-30">
+          <button
+            onClick={() => setIsReceiptModalOpen(true)}
+            className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg"
+          >
+            <Receipt className="w-5 h-5" />
+            Add Receipt
+          </button>
+        </div>
+      )}
+
+      {/* Receipt Scan Modal */}
+      <ReceiptScanModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        tripId={tripId}
+        onExpenseAdded={() => {
+          // Could refresh expenses or show success message
+          console.log('Expenses added successfully')
+        }}
+      />
+
+      {/* Authentication Modal */}
+      <LoginModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message="Please sign in to access this trip"
+      />
     </div>
   )
 }

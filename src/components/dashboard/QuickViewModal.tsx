@@ -5,6 +5,7 @@ import { getTripProgress, getTripStatus, formatDateRange, calculateDuration } fr
 import { useTripDetails } from '@/hooks/useTrips'
 import { useActivityManager } from '@/hooks/useActivityManager'
 import { useEnhancedModal } from '@/hooks/useEnhancedModal'
+import { useSingleTripNoteCount } from '@/hooks/useTripNoteCounts'
 import { EnhancedTabNavigation } from './EnhancedTabNavigation'
 import { OverviewTab } from './tabs/OverviewTab'
 import { ParticipantsSection } from '@/components/participants'
@@ -151,6 +152,17 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     isAutoSaving
   } = useEnhancedModal(localTrip, { onSave, autoSaveEnabled: true })
   
+  // Get real-time note count for this trip
+  const { noteCount, refreshNoteCount, updateNoteCount } = useSingleTripNoteCount(trip.id)
+  
+  // Callback to handle note count changes from activity notes
+  const handleActivityNoteCountChange = useCallback((activityId: string, newCount: number) => {
+    // When individual activity notes change, refresh the total trip note count
+    console.log(`Activity ${activityId} note count changed to ${newCount}`)
+    // Refresh the total trip note count
+    refreshNoteCount()
+  }, [refreshNoteCount])
+  
   // Update localTrip.wolthersStaff when live participant data changes
   React.useEffect(() => {
     setLocalTrip(prev => ({
@@ -294,7 +306,8 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   const sortedDates = Object.keys(groupedActivities).sort()
 
   const durationDays = calculateDuration(localTrip.startDate, localTrip.endDate)
-  const notesTotal = localTrip.notesCount ?? trip.notesCount ?? 0
+  // Use real-time note count, fallback to cached values
+  const notesTotal = noteCount > 0 ? noteCount : (localTrip.notesCount ?? trip.notesCount ?? 0)
   const footerStats = [
     {
       label: 'Meetings',
@@ -486,6 +499,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                   validationState={modalState.validationState.schedule}
                   mode={editingMode}
                   activityManager={activityManager}
+                  onNoteCountChange={handleActivityNoteCountChange}
                   className=""
                 />
               )}

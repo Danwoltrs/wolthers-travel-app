@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { UserCircle, Sun, Moon, Menu, X } from 'lucide-react'
+import { UserCircle, Sun, Moon, Menu, X, Receipt } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { cn } from '@/lib/utils'
@@ -11,9 +11,11 @@ import { cn } from '@/lib/utils'
 interface WolthersLogoProps {
   onMobileMenuToggle?: (isOpen: boolean) => void
   onMenuHeightChange?: (height: number) => void
+  onReceiptScanOpen?: () => void
+  showReceiptButton?: boolean
 }
 
-export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }: WolthersLogoProps) {
+export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange, onReceiptScanOpen, showReceiptButton = false }: WolthersLogoProps) {
   const { user, isAuthenticated } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -51,8 +53,8 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
           ? 'bg-emerald-800/95 dark:bg-emerald-900/95 backdrop-blur-xl py-3 border-b border-emerald-700/30 dark:border-emerald-800/40 shadow-lg' 
           : 'bg-emerald-800 dark:bg-emerald-900 py-6 border-b border-emerald-700/50 dark:border-emerald-800/60'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-          {/* Left side - Logo */}
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between md:justify-between justify-center relative">
+          {/* Left side - Logo (Desktop) / Centered Logo (Mobile) */}
           <div className="flex items-center">
             {isAuthenticated ? (
               <Link href="/dashboard" className="cursor-pointer">
@@ -107,7 +109,7 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
             )}
           </div>
           
-          {/* Center content - Trip Itinerary (Hidden on mobile) */}
+          {/* Center content - Trip Itinerary (Desktop only) */}
           <div className="absolute left-1/2 transform -translate-x-1/2 flex-col items-center hidden md:flex">
             <p className={`text-golden-400 font-semibold tracking-wider uppercase transition-all duration-300 ${
               isScrolled ? 'text-sm' : 'text-lg'
@@ -132,6 +134,17 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
                 </div>
                 
                 <div className="flex items-center space-x-3">
+                  {/* Receipt Scanner Button - Only for Wolthers staff/drivers on trip pages */}
+                  {showReceiptButton && user && (user.email?.endsWith('@wolthers.com') || user.user_type === 'wolthers_staff') && (
+                    <button
+                      onClick={onReceiptScanOpen}
+                      title="Scan receipts"
+                      className="p-2 rounded-full text-emerald-100 dark:text-emerald-200 hover:text-white hover:bg-emerald-700/20 dark:hover:bg-emerald-800/20 transition-all duration-200"
+                    >
+                      <Receipt className={`${isScrolled ? 'w-6 h-6' : 'w-8 h-8'} transition-all duration-300`} />
+                    </button>
+                  )}
+                  
                   {/* Theme Toggle */}
                   <button
                     onClick={toggleTheme}
@@ -199,8 +212,8 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
             )}
           </div>
 
-          {/* Mobile - Hamburger Menu */}
-          <div className="md:hidden">
+          {/* Mobile - Hamburger Menu (Absolute positioned to allow centered logo) */}
+          <div className="md:hidden absolute right-0">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-full text-emerald-100 dark:text-emerald-200 hover:text-white hover:bg-emerald-700/20 dark:hover:bg-emerald-800/20 transition-all duration-200"
@@ -288,7 +301,7 @@ export default function WolthersLogo({ onMobileMenuToggle, onMenuHeightChange }:
       
       {/* Spacer div to prevent content from going under fixed header and mobile menu */}
       <div className={`transition-all duration-300 ${
-        isScrolled ? 'h-16' : 'h-24'
+        isScrolled ? 'h-12 md:h-16' : 'h-16 md:h-24'
       } ${isMobileMenuOpen ? 'mb-48' : ''}`}></div>
     </div>
   )
