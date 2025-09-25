@@ -292,7 +292,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
         userTrips.length > 1 && !isGuestAccess && "pt-2"
       )}>
         {/* Trip Header */}
-        <div className="mt-0 md:mt-6 px-4 md:px-0">
+        <div className="mt-4 md:mt-6 px-4 md:px-0">
           <TripHeader trip={trip} tripData={tripDetails} />
         </div>
 
@@ -335,18 +335,6 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
         </div>
       </div>
 
-      {/* Mobile Receipt Capture Footer - Only show for Wolthers staff on mobile */}
-      {!isGuestAccess && user && (user.email?.endsWith('@wolthers.com') || user.user_type === 'wolthers_staff') && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-emerald-600 border-t border-emerald-500 p-4 z-30">
-          <button
-            onClick={() => setIsReceiptModalOpen(true)}
-            className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Receipt className="w-5 h-5" />
-            Add Receipt
-          </button>
-        </div>
-      )}
 
       {/* Receipt Scan Modal */}
       <ReceiptScanModal
