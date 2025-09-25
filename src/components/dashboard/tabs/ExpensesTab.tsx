@@ -25,7 +25,7 @@ import {
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import { cn } from '@/lib/utils'
-import ReceiptScanModal from '@/components/receipts/ReceiptScanModal'
+import ReceiptScanModal from '@/components/expenses/ReceiptScanModal'
 
 interface ExpensesTabProps {
   trip: TripCard
@@ -52,16 +52,10 @@ export function ExpensesTab({
   // For now, show empty state until real expenses are implemented
   const mockExpenses: any[] = []
 
-  const handleReceiptSave = async (receiptData: any) => {
-    try {
-      // Here you would save the expense data to your backend
-      console.log('Saving receipt data:', receiptData)
-      // TODO: Implement actual save to database
-      // await fetch(`/api/trips/${trip.id}/expenses`, { method: 'POST', body: JSON.stringify(receiptData) })
-    } catch (error) {
-      console.error('Failed to save expense:', error)
-      throw error
-    }
+  const handleExpenseAdded = (expense: any) => {
+    console.log('Expense added:', expense)
+    // TODO: Refresh expenses list or show success message
+    // This could trigger a refetch of expenses data
   }
 
   const expenseCategories = [
@@ -472,7 +466,7 @@ export function ExpensesTab({
       <ReceiptScanModal
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
-        onSave={handleReceiptSave}
+        onExpenseAdded={handleExpenseAdded}
         tripId={trip.id}
       />
     </div>
