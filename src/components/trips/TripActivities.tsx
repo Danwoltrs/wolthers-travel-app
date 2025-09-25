@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users, Trash2, User } from 'lucide-react'
+import { CheckCircle, Circle, AlertCircle, ChevronDown, ChevronRight, Calendar, Plus, FileText, Users, Trash2, User, MessageSquare, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SimpleNotesModal from '../notes/SimpleNotesModal'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatNotePreview } from '@/lib/note-utils'
 
 interface TripActivitiesProps {
   activities: any[]
@@ -205,6 +206,19 @@ export default function TripActivities({ activities, loading, error, canEditTrip
       newCollapsed.add(activityId)
     }
     setCollapsedNotes(newCollapsed)
+  }
+
+  // Auto-expand all notes when showing activity details
+  const showActivityWithNotes = (activityId: string) => {
+    // First expand the activity
+    const newCollapsedActivities = new Set(collapsedActivities)
+    newCollapsedActivities.delete(activityId)
+    setCollapsedActivities(newCollapsedActivities)
+    
+    // Then expand the notes
+    const newCollapsedNotes = new Set(collapsedNotes)
+    newCollapsedNotes.delete(activityId)
+    setCollapsedNotes(newCollapsedNotes)
   }
 
   const handleExportDayToCalendar = (date: string, dayActivities: any[], dayIndex: number) => {
@@ -580,38 +594,99 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                         </button>
                       </div>
 
-                      {/* Activity Details */}
+                      {/* Activity Details with Smart Notes Summary */}
                       {!isActivityCollapsed && noteCount > 0 && (
                         <div className="px-4 pb-4 pl-20">
-                          {/* Meeting Notes */}
+                          {/* Meeting Notes with Smart Summary */}
                           <div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                toggleNotes(activity.id)
+                                showActivityWithNotes(activity.id)
                               }}
-                              className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mb-2"
+                              className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mb-3"
                             >
                               {areNotesCollapsed ? (
                                 <ChevronRight className="w-3 h-3" />
                               ) : (
                                 <ChevronDown className="w-3 h-3" />
                               )}
+                              <MessageSquare className="w-3 h-3" />
                               Notes ({noteCount})
                             </button>
                             
-                            {!areNotesCollapsed && (
-                              <div className="space-y-3">
+                            {areNotesCollapsed ? (
+                              // Show note summaries when collapsed
+                              <div className="space-y-2 ml-5">
+                                {(activityNotes[activity.id] || []).slice(0, 3).map((note: any) => {
+                                  const preview = formatNotePreview(note)
+                                  
+                                  return (
+                                    <div 
+                                      key={note.id}
+                                      className="p-2 bg-gray-50 dark:bg-[#111111] rounded border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#0a0a0a] transition-colors"
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <div 
+                                          className="flex-1 min-w-0 cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            showActivityWithNotes(activity.id)
+                                          }}
+                                        >
+                                          <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+                                            {preview.summary}
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                                            <Clock className="w-3 h-3" />
+                                            <span>{preview.timeAgo}</span>
+                                            {preview.hasTranscript && (
+                                              <>
+                                                <span>•</span>
+                                                <MessageSquare className="w-3 h-3" />
+                                                <span>Transcript</span>
+                                              </>
+                                            )}
+                                            {preview.mediaInfo && (
+                                              <>
+                                                <span>•</span>
+                                                <span>{preview.mediaInfo}</span>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openNotesModal(activity)
+                                          }}
+                                          className="flex-shrink-0 p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 rounded transition-colors text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                                          title="Open full note editor"
+                                        >
+                                          <FileText className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                                {noteCount > 3 && (
+                                  <div 
+                                    className="text-xs text-gray-500 dark:text-gray-400 italic cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      showActivityWithNotes(activity.id)
+                                    }}
+                                  >
+                                    +{noteCount - 3} more notes...
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              // Show full notes when expanded
+                              <div className="space-y-3 ml-5">
                                 {(activityNotes[activity.id] || []).map((note: any, index: number) => {
                                   const isOwner = user && note.user_id === user.id
-                                  const noteContent = typeof note.content === 'object' 
-                                    ? (note.content.description || 'Canvas note')
-                                    : (note.content || 'No content')
-                                  
-                                  // Truncate content to max 2 lines
-                                  const truncatedContent = noteContent.length > 120 
-                                    ? noteContent.substring(0, 120) + '...'
-                                    : noteContent
+                                  const preview = formatNotePreview(note)
 
                                   return (
                                     <div 
@@ -620,40 +695,65 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                                     >
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 mb-1">
+                                          <div className="flex items-center gap-2 mb-2">
                                             <User className="w-3 h-3 text-gray-400" />
                                             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                              {isOwner ? 'You' : 'Anonymous'}
+                                              {isOwner ? 'You' : (note.created_by_name || 'Anonymous')}
                                             </span>
                                             <span className="text-xs text-gray-400">•</span>
+                                            <Clock className="w-3 h-3 text-gray-400" />
                                             <span className="text-xs text-gray-400">
-                                              {new Date(note.created_at).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                              })}
+                                              {preview.timeAgo}
                                             </span>
+                                            {preview.hasTranscript && (
+                                              <>
+                                                <span className="text-xs text-gray-400">•</span>
+                                                <MessageSquare className="w-3 h-3 text-emerald-500" />
+                                                <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                                  Has transcript
+                                                </span>
+                                              </>
+                                            )}
                                           </div>
-                                          <div className="text-sm text-gray-600 dark:text-gray-300">
-                                            {truncatedContent}
+                                          <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                                            {preview.summary}
                                           </div>
+                                          {preview.mediaInfo && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                              <FileText className="w-3 h-3" />
+                                              {preview.mediaInfo}
+                                            </div>
+                                          )}
                                         </div>
                                         
-                                        {isOwner && (
+                                        <div className="flex items-center gap-1">
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation()
-                                              if (confirm('Delete this note?')) {
-                                                deleteNote(activity.id, note.id)
-                                              }
+                                              openNotesModal(activity)
                                             }}
-                                            className="flex-shrink-0 p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                            title="Delete note"
+                                            className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/40 rounded transition-colors"
+                                            title="View full note"
                                           >
-                                            <Trash2 className="w-3 h-3" />
+                                            <FileText className="w-3 h-3" />
+                                            <span>View</span>
                                           </button>
-                                        )}
+                                          
+                                          {isOwner && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                if (confirm('Delete this note?')) {
+                                                  deleteNote(activity.id, note.id)
+                                                }
+                                              }}
+                                              className="flex-shrink-0 p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                              title="Delete note"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   )

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Save, Bold, Italic, List, ListOrdered, CheckSquare, Table, BarChart3, Clock, Users, Undo, Redo, Type, Building2, Mic, Camera, Download, FileDown, Mail, Square, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Save, Bold, Italic, List, ListOrdered, CheckSquare, Table, BarChart3, Clock, Users, Undo, Redo, Type, Building2, Mic, Camera, Download, FileDown, Mail, Square, ChevronDown, ChevronUp, Paperclip, Upload, File, Trash2, Maximize, Minimize } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDistanceToNow } from 'date-fns'
 import TableModal from './TableModal'
@@ -36,6 +36,16 @@ interface MediaEntry {
   relativeTime: string
 }
 
+interface FileAttachment {
+  id: string
+  name: string
+  size: number
+  type: string
+  url: string
+  uploadedAt: Date
+  uploadedBy: string
+}
+
 interface NoteContent {
   html: string
   plainText: string
@@ -45,6 +55,7 @@ interface NoteContent {
     position: number
   }>
   media?: MediaEntry[]
+  attachments?: FileAttachment[]
 }
 
 export default function SimpleNotesModal({
@@ -88,7 +99,21 @@ export default function SimpleNotesModal({
   const [showMediaTimeline, setShowMediaTimeline] = useState(true)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true)
+  const [fileAttachments, setFileAttachments] = useState<FileAttachment[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [audioWaveData, setAudioWaveData] = useState<number[]>(new Array(30).fill(0))
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null)
+  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false)
+  const [currentTranscript, setCurrentTranscript] = useState<string>('')
+  const [isProcessingTranscript, setIsProcessingTranscript] = useState(false)
   const recordingManagerRef = useRef<any>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyzerRef = useRef<AnalyserNode | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Load existing notes
   useEffect(() => {
@@ -126,6 +151,25 @@ export default function SimpleNotesModal({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showExportMenu])
 
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Cleanup audio resources when modal closes
+  useEffect(() => {
+    return () => {
+      if (isRecording) {
+        stopRecording()
+      }
+    }
+  }, [isOpen])
+
   const loadNotes = async () => {
     try {
       const response = await fetch(`/api/activities/${activityId}/notes`, {
@@ -151,6 +195,13 @@ export default function SimpleNotesModal({
             if (noteContent.media && Array.isArray(noteContent.media)) {
               setMediaEntries(noteContent.media)
             }
+            // Load file attachments if they exist
+            if (noteContent.attachments && Array.isArray(noteContent.attachments)) {
+              setFileAttachments(noteContent.attachments.map(att => ({
+                ...att,
+                uploadedAt: new Date(att.uploadedAt)
+              })))
+            }
           } else {
             // Legacy plain text content
             const htmlContent = userNote.content.replace(/\n/g, '<br>')
@@ -174,7 +225,7 @@ export default function SimpleNotesModal({
               }).join('<br>')
             : ''
           
-          const initialContent = `<h3>${activityTitle}</h3><p><strong>${formatMeetingDateTime(meetingDate)}</strong></p>${companies.length > 0 ? `<p><strong>Companies Present:</strong><br>${companyList}</p>` : ''}<p><br></p><p>Meeting notes...</p>`
+          const initialContent = `<h3>${activityTitle}</h3><p><strong>${formatMeetingDateTime(new Date())}</strong></p>${companies.length > 0 ? `<p><strong>Companies Present:</strong><br>${companyList}</p>` : ''}<p><br></p><p class="placeholder-text" style="color: #9ca3af; font-style: italic;">Click here to start writing your meeting notes...</p>`
           setContent({ html: initialContent, plainText: activityTitle })
           if (editorRef.current) {
             editorRef.current.innerHTML = initialContent
@@ -239,7 +290,8 @@ export default function SimpleNotesModal({
         html: htmlContent,
         plainText: plainTextContent,
         elements: content.elements,
-        media: mediaEntries
+        media: mediaEntries,
+        attachments: fileAttachments
       }
 
       // Include company access information in the note metadata
@@ -303,6 +355,25 @@ export default function SimpleNotesModal({
       setSelectedText(selection.toString().trim())
     } else {
       setSelectedText('')
+    }
+  }
+
+  const handleEditorClick = () => {
+    if (editorRef.current) {
+      const placeholderElement = editorRef.current.querySelector('.placeholder-text')
+      if (placeholderElement) {
+        placeholderElement.remove()
+        // Focus the editor after removing placeholder
+        editorRef.current.focus()
+        
+        // Place cursor at the end of content
+        const range = document.createRange()
+        const selection = window.getSelection()
+        range.selectNodeContents(editorRef.current)
+        range.collapse(false)
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+      }
     }
   }
 
@@ -424,11 +495,312 @@ export default function SimpleNotesModal({
     }
   }
 
-  const handleRecordingToggle = () => {
-    setIsRecording(!isRecording)
-    if (recordingManagerRef.current) {
-      recordingManagerRef.current.toggleRecording()
+  const startRecording = async () => {
+    try {
+      // Request microphone permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      setAudioStream(stream)
+      
+      // Create audio context for waveform visualization
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const analyzer = audioContext.createAnalyser()
+      const source = audioContext.createMediaStreamSource(stream)
+      
+      analyzer.fftSize = 256
+      analyzer.smoothingTimeConstant = 0.3
+      source.connect(analyzer)
+      
+      audioContextRef.current = audioContext
+      analyzerRef.current = analyzer
+      
+      // Start media recorder
+      const recorder = new MediaRecorder(stream)
+      const audioChunks: Blob[] = []
+      
+      recorder.ondataavailable = (event) => {
+        audioChunks.push(event.data)
+      }
+      
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
+        const audioUrl = URL.createObjectURL(audioBlob)
+        
+        // Add to media entries
+        const mediaEntry: MediaEntry = {
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+          type: 'audio',
+          content: audioBlob,
+          description: 'Voice recording',
+          relativeTime: formatRelativeTime(0)
+        }
+        
+        handleMediaAdd(mediaEntry)
+        
+        // Process transcription
+        await processRecordingTranscription(audioBlob)
+      }
+      
+      recorder.start()
+      setMediaRecorder(recorder)
+      setIsRecording(true)
+      
+      // Start waveform animation
+      updateWaveform()
+      
+    } catch (error) {
+      console.error('Failed to start recording:', error)
+      alert('Failed to access microphone. Please check your permissions and try again.')
     }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop()
+    }
+    
+    if (audioStream) {
+      audioStream.getTracks().forEach(track => track.stop())
+      setAudioStream(null)
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    
+    setMediaRecorder(null)
+    setIsRecording(false)
+    setAudioWaveData(new Array(30).fill(0))
+    analyzerRef.current = null
+  }
+
+  const updateWaveform = () => {
+    if (!analyzerRef.current) return
+    
+    const bufferLength = analyzerRef.current.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+    analyzerRef.current.getByteFrequencyData(dataArray)
+    
+    // Calculate average amplitude for visualization
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
+    const normalizedValue = average / 255 // Normalize to 0-1
+    
+    setAudioWaveData(prev => {
+      const newData = [...prev.slice(1), normalizedValue]
+      return newData
+    })
+    
+    if (isRecording) {
+      animationFrameRef.current = requestAnimationFrame(updateWaveform)
+    }
+  }
+
+  const handleRecordingToggle = () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  const formatRelativeTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  const processRecordingTranscription = async (audioBlob: Blob) => {
+    try {
+      setIsProcessingTranscript(true)
+      
+      // Convert audio to text using the existing transcription API
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.wav')
+      formData.append('activityId', activityId)
+      
+      const transcriptionResponse = await fetch(`/api/activities/${activityId}/transcribe`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      })
+      
+      if (transcriptionResponse.ok) {
+        const transcriptionResult = await transcriptionResponse.json()
+        const transcript = transcriptionResult.transcript || 'Unable to transcribe audio'
+        
+        setCurrentTranscript(transcript)
+        setShowTranscriptDialog(true)
+      } else {
+        console.error('Transcription failed:', transcriptionResponse.statusText)
+        alert('Failed to transcribe audio. You can still access the recording in the media timeline.')
+      }
+    } catch (error) {
+      console.error('Transcription error:', error)
+      alert('Failed to process recording. You can still access the recording in the media timeline.')
+    } finally {
+      setIsProcessingTranscript(false)
+    }
+  }
+
+  const generateAISummary = async (transcript: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/ai/summarize-transcript', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transcript,
+          context: {
+            activityTitle,
+            meetingDate: meetingDate.toISOString(),
+            companies: companiesWithAccess.map(c => c.name)
+          }
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        return result.summary || 'Unable to generate summary'
+      } else {
+        console.error('AI summary failed:', response.statusText)
+        return 'Unable to generate AI summary'
+      }
+    } catch (error) {
+      console.error('AI summary error:', error)
+      return 'Unable to generate AI summary'
+    }
+  }
+
+  const handleTranscriptChoice = async (choice: 'ai_summary' | 'full_transcript' | 'skip') => {
+    setShowTranscriptDialog(false)
+    
+    if (choice === 'skip') {
+      return
+    }
+    
+    let contentToInsert = ''
+    
+    if (choice === 'full_transcript') {
+      contentToInsert = `<div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin: 16px 0;"><strong>Recording Transcript:</strong><br><em>${new Date().toLocaleTimeString()}</em><br><br>${currentTranscript.replace(/\n/g, '<br>')}</div>`
+    } else if (choice === 'ai_summary') {
+      // Show loading state
+      if (editorRef.current) {
+        const loadingContent = `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0;"><strong>Generating AI Summary...</strong><br><em>Processing your recording...</em></div>`
+        editorRef.current.focus()
+        document.execCommand('insertHTML', false, loadingContent)
+        handleContentChange()
+      }
+      
+      // Generate AI summary
+      const summary = await generateAISummary(currentTranscript)
+      
+      // Replace loading with actual summary
+      if (editorRef.current) {
+        // Remove the loading div
+        const loadingDiv = editorRef.current.querySelector('div[style*="fef3c7"]')
+        if (loadingDiv) {
+          loadingDiv.remove()
+        }
+        
+        contentToInsert = `<div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px; margin: 16px 0;"><strong>AI Summary:</strong><br><em>${new Date().toLocaleTimeString()}</em><br><br>${summary.replace(/\n/g, '<br>')}</div>`
+      }
+    }
+    
+    // Insert content into editor
+    if (contentToInsert && editorRef.current) {
+      editorRef.current.focus()
+      document.execCommand('insertHTML', false, contentToInsert)
+      handleContentChange()
+    }
+  }
+
+  const handleFileUpload = async (files: FileList) => {
+    if (!user || files.length === 0) return
+
+    setIsUploading(true)
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        
+        // Check file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`File "${file.name}" is too large. Maximum size is 10MB.`)
+          continue
+        }
+
+        // Create form data for upload
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('activityId', activityId)
+
+        // Upload to Supabase storage via API
+        const uploadResponse = await fetch('/api/files/upload', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        })
+
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          
+          // Create attachment object
+          const attachment: FileAttachment = {
+            id: uploadResult.id || crypto.randomUUID(),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: uploadResult.url,
+            uploadedAt: new Date(),
+            uploadedBy: user.full_name || user.email
+          }
+
+          // Add to attachments list
+          setFileAttachments(prev => [...prev, attachment])
+          setHasUnsavedChanges(true)
+        } else {
+          const error = await uploadResponse.json()
+          console.error('Upload failed:', error)
+          alert(`Failed to upload "${file.name}": ${error.error || 'Unknown error'}`)
+        }
+      }
+    } catch (error) {
+      console.error('File upload error:', error)
+      alert('Failed to upload files. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(e.target.files)
+    }
+  }
+
+  const removeAttachment = (attachmentId: string) => {
+    setFileAttachments(prev => prev.filter(att => att.id !== attachmentId))
+    setHasUnsavedChanges(true)
+  }
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   const formatMeetingDateTime = (date: Date) => {
@@ -560,34 +932,92 @@ export default function SimpleNotesModal({
     setShowExportMenu(false)
   }
 
-  const exportForEmail = () => {
-    const emailBody = `Meeting Notes: ${activityTitle}
-
-Date: ${formatMeetingDateTime(meetingDate)}
-
-${companiesWithAccess.length > 0 ? `Companies Present:
-${companiesWithAccess.map(c => `• ${c.name}${c.representatives ? ` (${c.representatives.map(r => r.name).join(', ')})` : ''}`).join('\n')}
-
-` : ''}Content:
-${content.plainText}
-
-${mediaEntries.length > 0 ? `Media Captured:
-${mediaEntries.map(entry => `• ${entry.type.toUpperCase()} - ${entry.relativeTime}${entry.description ? ` (${entry.description})` : ''}${entry.type === 'transcript' && typeof entry.content === 'string' ? `\n  "${entry.content}"` : ''}`).join('\n')}
-
-` : ''}---
-Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
+  const exportForEmail = async () => {
+    const emailAddress = prompt('Enter email address to send notes to:')
+    if (!emailAddress || !emailAddress.includes('@')) {
+      alert('Please enter a valid email address')
+      return
+    }
 
     const subject = `Meeting Notes: ${activityTitle} - ${new Date().toLocaleDateString()}`
-    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
-    window.open(mailtoLink)
-    setShowExportMenu(false)
+    
+    try {
+      setShowExportMenu(false) // Close menu immediately
+      
+      const response = await fetch('/api/notes/email', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: emailAddress,
+          subject: subject,
+          activityTitle: activityTitle,
+          meetingDate: meetingDate,
+          content: content,
+          companies: companiesWithAccess,
+          mediaEntries: mediaEntries,
+          attachments: fileAttachments
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`Email sent successfully to ${emailAddress}!`)
+      } else {
+        const error = await response.json()
+        console.error('Email send failed:', error)
+        alert(`Failed to send email: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Email send error:', error)
+      alert('Failed to send email. Please try again.')
+    }
+  }
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!isFullscreen) {
+        // Enter fullscreen
+        if (modalRef.current?.requestFullscreen) {
+          await modalRef.current.requestFullscreen()
+        } else if ((modalRef.current as any)?.webkitRequestFullscreen) {
+          await (modalRef.current as any).webkitRequestFullscreen()
+        } else if ((modalRef.current as any)?.mozRequestFullScreen) {
+          await (modalRef.current as any).mozRequestFullScreen()
+        } else if ((modalRef.current as any)?.msRequestFullscreen) {
+          await (modalRef.current as any).msRequestFullscreen()
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen()
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen()
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen()
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen()
+        }
+      }
+    } catch (error) {
+      console.error('Fullscreen toggle failed:', error)
+    }
   }
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] w-full max-w-4xl h-[80vh] max-h-[800px] overflow-hidden flex flex-col rounded-lg shadow-xl border border-pearl-200 dark:border-[#2a2a2a]">
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-50 bg-black/60 flex items-center justify-center p-2 md:p-4">
+      <div 
+        ref={modalRef}
+        className={`bg-white dark:bg-[#1a1a1a] w-full overflow-hidden flex flex-col shadow-2xl border border-pearl-200 dark:border-[#2a2a2a] ${
+          isFullscreen 
+            ? 'h-screen max-w-none rounded-none' 
+            : 'max-w-6xl h-[85vh] max-h-none rounded-lg'
+        }`}
+      >
         
         {/* Header */}
         <div className="bg-golden-400 dark:bg-[#09261d] p-4 border-b border-golden-500 dark:border-[#0a2e21] flex-shrink-0">
@@ -675,6 +1105,14 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               </div>
               
               <button
+                onClick={toggleFullscreen}
+                className="p-1.5 hover:bg-white/10 rounded transition-colors text-gray-700 dark:text-golden-400"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              </button>
+              
+              <button
                 onClick={onClose}
                 className="p-1.5 hover:bg-white/10 rounded transition-colors text-gray-700 dark:text-golden-400"
               >
@@ -751,43 +1189,40 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               </button>
             </div>
 
-            {/* Recording Controls */}
+            {/* File Attachments */}
+            <div className="flex items-center space-x-1 border-r border-gray-300 dark:border-gray-600 pr-3">
+              <button
+                onClick={handleFileSelect}
+                disabled={isUploading}
+                className={`p-2 rounded transition-colors ${
+                  isUploading 
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title="Attach Files"
+              >
+                {isUploading ? <Upload className="w-4 h-4 animate-pulse" /> : <Paperclip className="w-4 h-4" />}
+              </button>
+              {fileAttachments.length > 0 && (
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                  {fileAttachments.length} files
+                </span>
+              )}
+            </div>
+
+            {/* Single Recording Button */}
             <div className="flex items-center space-x-1 border-r border-gray-300 dark:border-gray-600 pr-3">
               <button
                 onClick={handleRecordingToggle}
                 className={`p-2 rounded transition-colors ${
                   isRecording 
                     ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400' 
-                    : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
                 title={isRecording ? "Stop Recording" : "Start Recording"}
               >
                 {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
-              
-              <button
-                onClick={() => setShowMediaTimeline(!showMediaTimeline)}
-                className={`p-2 rounded transition-colors ${
-                  showMediaTimeline 
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                title={showMediaTimeline ? "Hide Media Panel" : "Show Media Panel"}
-              >
-                <Camera className="w-4 h-4" />
-              </button>
-
-              {isRecording && (
-                <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-xs">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <span>Recording</span>
-                </div>
-              )}
-              {mediaEntries.length > 0 && (
-                <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
-                  {mediaEntries.length} media
-                </span>
-              )}
             </div>
 
             {/* Undo/Redo */}
@@ -808,8 +1243,32 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               </button>
             </div>
 
+            {/* Audio Waveform Visualization */}
+            {isRecording && (
+              <div className="ml-auto flex items-center space-x-2">
+                <div className="flex items-center space-x-1 px-2 py-1 bg-red-50 dark:bg-red-900/10 rounded">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-red-600 dark:text-red-400 font-medium">Recording</span>
+                </div>
+                <div className="flex items-center h-8 px-3 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-end space-x-1 h-6">
+                    {audioWaveData.map((amplitude, index) => (
+                      <div
+                        key={index}
+                        className="w-1 bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-400 dark:to-emerald-200 rounded-full transition-all duration-75"
+                        style={{
+                          height: `${Math.max(2, amplitude * 24)}px`,
+                          opacity: isRecording ? 0.8 + (amplitude * 0.2) : 0.3
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Selected text indicator */}
-            {selectedText && (
+            {selectedText && !isRecording && (
               <div className="flex items-center space-x-2 ml-auto">
                 <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                   "{selectedText.substring(0, 30)}{selectedText.length > 30 ? '...' : ''}"
@@ -840,6 +1299,7 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               onInput={handleContentChange}
               onMouseUp={handleTextSelection}
               onKeyUp={handleTextSelection}
+              onClick={handleEditorClick}
               placeholder="Start typing your meeting notes..."
             />
           </div>
@@ -925,6 +1385,56 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
               readOnly={false}
             />
           </div>
+
+          {/* File Attachments Management */}
+          {fileAttachments.length > 0 && (
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <File className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    File Attachments ({fileAttachments.length})
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {fileAttachments.map(attachment => (
+                    <div 
+                      key={attachment.id} 
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <File className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <a 
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                            >
+                              {attachment.name}
+                            </a>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatFileSize(attachment.size)} • {attachment.uploadedBy} • {attachment.uploadedAt.toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => removeAttachment(attachment.id)}
+                        className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors ml-2 flex-shrink-0"
+                        title="Remove attachment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Editor Stats */}
           <div className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 flex justify-between items-center">
@@ -940,6 +1450,16 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
         </div>
       </div>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileInputChange}
+        style={{ display: 'none' }}
+        accept="*/*"
+      />
+
       {/* Table Modal */}
       <TableModal 
         isOpen={showTableModal}
@@ -953,6 +1473,107 @@ Generated from Wolthers Travel App on ${new Date().toLocaleDateString()}`
         onClose={() => setShowChartModal(false)}
         onInsert={insertChart}
       />
+
+      {/* Transcript Processing Dialog */}
+      {showTranscriptDialog && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-500 to-blue-500 p-4 text-white">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Mic className="w-5 h-5" />
+                Recording Processed Successfully
+              </h3>
+              <p className="text-sm text-white/90 mt-1">
+                Choose how to add this recording to your notes
+              </p>
+            </div>
+            
+            <div className="p-6">
+              {isProcessingTranscript ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Processing your recording...</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">This may take a moment</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Preview:</h4>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded border max-h-32 overflow-y-auto">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 italic">
+                        "{currentTranscript.length > 200 ? currentTranscript.substring(0, 200) + '...' : currentTranscript}"
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      What would you like to add to your notes?
+                    </p>
+                    
+                    <button
+                      onClick={() => handleTranscriptChoice('ai_summary')}
+                      className="w-full p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-700 rounded-lg hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-lg">🤖</span>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-300">
+                            AI Summary (Recommended)
+                          </h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Get a concise, intelligent summary of key points and insights
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handleTranscriptChoice('full_transcript')}
+                      className="w-full p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-700 rounded-lg hover:from-blue-100 hover:to-cyan-100 dark:hover:from-blue-900/30 dark:hover:to-cyan-900/30 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-lg">📝</span>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                            Full Transcript
+                          </h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Add the complete word-for-word transcription
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handleTranscriptChoice('skip')}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm">×</span>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
+                            Don't Add to Notes
+                          </h5>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Keep the audio recording only (available in media timeline)
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

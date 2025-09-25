@@ -1445,6 +1445,269 @@ All 4 Wolthers staff (`@wolthers.com`) have `can_view_all_trips: true`:
 
 ---
 
+# File Attachment System & Notes Enhancement - September 25, 2025
+
+## 📎 Complete File Attachment & Notes System Implementation - COMPLETED ✅
+
+### **Problem Statement**
+User requested two critical enhancements to the notes system:
+1. **File attachments for exporters/suppliers**: Users need to attach documents, contracts, quality reports, etc. received during meetings or added by suppliers/exporters themselves
+2. **Email export integration**: When exporting notes via email, attached files should be included as downloadable links
+3. **Notes display improvements**: Show actual note summaries instead of generic "Canvas note" text when clicking the arrow to expand notes
+
+### **Business Requirements**
+- **File Upload Capability**: Allow meeting participants to attach various file types (PDF, images, documents, etc.)
+- **10MB File Size Limit**: Reasonable limit for business documents while preventing abuse
+- **Email Integration**: Attachment links included in email exports sent via Resend API
+- **Instant Notes Display**: Real note content summaries appear immediately when expanding notes dropdown
+- **Professional Email Export**: Replace mailto links with actual email sending via trips@trips.wolthers.com
+
+### **Complete Solution Implemented**
+
+#### **1. Enhanced Notes Authorization Fix** ✅
+**File**: `src/app/api/activities/[id]/notes/route.ts`
+**Critical Fix**: Fixed the 403 authorization errors preventing note saves
+**Changes**:
+- **Authorization Logic Fix**: Changed from AND logic to proper OR logic for access control
+- **Enhanced Error Logging**: Added detailed debugging information for access checks
+- **Next.js 15 Compatibility**: Fixed async params handling
+- **Trip vs Activity Access**: Users granted access if they are EITHER trip participants OR activity participants
+
+```typescript
+// Fixed authorization logic
+const hasAccess = (tripAccess && !tripAccessError) || (activityAccess && !activityAccessError)
+if (!hasAccess) {
+  // Enhanced error logging with detailed access information
+  console.error('User does not have access to this activity:', { 
+    tripAccess: !!tripAccess, 
+    tripAccessError: !!tripAccessError,
+    activityAccess: !!activityAccess, 
+    activityAccessError: !!activityAccessError,
+    userId: user.id,
+    activityId
+  })
+  return NextResponse.json({ 
+    error: 'Access denied - you are not a participant in this trip or activity' 
+  }, { status: 403 })
+}
+```
+
+#### **2. Real Note Content Display Instead of "Canvas note"** ✅
+**File**: `src/components/trips/TripActivities.tsx`
+**Enhancement**: Notes dropdown now shows actual note content summaries
+**Changes**:
+- **Smart Content Extraction**: Extracts `plainText` or `html` from note objects
+- **HTML Stripping**: Removes HTML tags for clean text display
+- **Content Normalization**: Handles both legacy string content and new object format
+- **Truncation**: Limits to 120 characters with "..." for readability
+
+```typescript
+// Enhanced content extraction
+const noteContent = typeof note.content === 'object' 
+  ? (note.content.plainText || note.content.html || 'Empty note')
+      .replace(/<[^>]*>/g, '') // Strip HTML tags
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+  : (note.content || 'No content')
+```
+
+#### **3. Complete File Attachment System** ✅
+**New Components & APIs**:
+- **File Upload API**: `/api/files/upload` - Handles file uploads to Supabase Storage
+- **Enhanced Note Interface**: Added `FileAttachment` interface and `attachments[]` to note content
+- **UI Components**: File upload button, attachment management, file display with download links
+
+**Key Features**:
+- **📎 Attachment Button**: Added to notes toolbar with upload status indicator
+- **📁 Multi-file Support**: Users can select and upload multiple files simultaneously
+- **📏 Size Validation**: 10MB per file limit with user-friendly error messages
+- **☁️ Supabase Storage**: Files stored in `activity-attachments` bucket with organized folder structure
+- **🗑️ Delete Functionality**: Users can remove attachments they've uploaded
+- **📊 File Counter**: Shows attachment count in toolbar
+
+#### **4. Professional Email Export with Attachments** ✅
+**Files**: 
+- `src/app/api/notes/email/route.ts` (NEW)
+- `src/components/notes/SimpleNotesModal.tsx` (Enhanced)
+
+**Features**:
+- **Resend API Integration**: Professional email sending using `trips@trips.wolthers.com`
+- **HTML Email Templates**: Beautiful, responsive email design with attachment sections
+- **File Link Inclusion**: All attached files included as downloadable links in emails
+- **Professional Styling**: Clean email format with company branding
+- **Interactive Workflow**: User enters email address, system sends professional email
+
+```typescript
+// Email export with attachments
+const exportForEmail = async () => {
+  const emailAddress = prompt('Enter email address to send notes to:')
+  if (!emailAddress || !emailAddress.includes('@')) {
+    alert('Please enter a valid email address')
+    return
+  }
+
+  const response = await fetch('/api/notes/email', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: emailAddress,
+      subject: `Meeting Notes: ${activityTitle} - ${new Date().toLocaleDateString()}`,
+      activityTitle: activityTitle,
+      meetingDate: meetingDate,
+      content: content,
+      companies: companiesWithAccess,
+      mediaEntries: mediaEntries,
+      attachments: fileAttachments
+    })
+  })
+
+  if (response.ok) {
+    alert(`Email sent successfully to ${emailAddress}!`)
+  }
+}
+```
+
+#### **5. Enhanced File Management UI** ✅
+**Interface Components**:
+- **Attachment Display**: Clean file cards showing name, size, uploader, and upload date
+- **Download Links**: Direct links to files with file icons
+- **Remove Functionality**: Delete button for each attachment
+- **Upload Progress**: Visual feedback during file uploads
+- **File Type Support**: Accepts all file types (*/*) for maximum flexibility
+
+**User Experience Flow**:
+1. **📎 Click attachment button** → File picker opens
+2. **📁 Select files** → Upload progress shown with animated icon
+3. **✅ Files uploaded** → Appear in organized attachment list
+4. **💾 Auto-saves** → Attachments included in note data
+5. **📧 Email export** → Files listed with download links in email
+
+#### **6. Data Structure Enhancements** ✅
+**New Interfaces**:
+```typescript
+interface FileAttachment {
+  id: string
+  name: string
+  size: number
+  type: string
+  url: string
+  uploadedAt: Date
+  uploadedBy: string
+}
+
+interface NoteContent {
+  html: string
+  plainText: string
+  elements?: Array<{
+    type: 'table' | 'chart'
+    data: any
+    position: number
+  }>
+  media?: MediaEntry[]
+  attachments?: FileAttachment[] // NEW
+}
+```
+
+#### **7. Title Time Display Updates** ✅
+**Enhancement**: Note titles now show current time when writing instead of meeting time
+**User Request Accommodation**: Changed yellow header to show original meeting time while note content shows current writing time
+
+### **Technical Architecture**
+
+#### **File Upload Flow**
+1. **User Selection**: Multi-file selection via hidden file input
+2. **Size Validation**: Client-side 10MB limit checking
+3. **FormData Upload**: Secure upload to `/api/files/upload` endpoint
+4. **Supabase Storage**: Files stored in organized folder structure by activity
+5. **Metadata Creation**: File attachment objects created with full details
+6. **State Management**: Immediate UI updates with attachment display
+7. **Auto-save**: Attachments automatically saved with note content
+
+#### **Email Export Flow**
+1. **User Initiation**: Click "Prepare for Email" in export menu
+2. **Email Address Prompt**: User enters recipient email
+3. **Data Aggregation**: Collect note content, attachments, companies, media
+4. **Email Generation**: Create professional HTML email template
+5. **Resend API Call**: Send via `trips@trips.wolthers.com` with attachment links
+6. **User Feedback**: Success/error notifications
+
+#### **Storage Organization**
+```
+📁 Supabase Storage Structure:
+activity-attachments/
+├── {activityId}/
+│   ├── {timestamp}_original-filename.pdf
+│   ├── {timestamp}_contract-draft.docx
+│   └── {timestamp}_quality-report.xlsx
+```
+
+### **Security Implementation**
+- ✅ **Authentication Required**: All file operations require valid JWT tokens
+- ✅ **File Size Limits**: 10MB per file enforced on both client and server
+- ✅ **Activity Participation**: Users must be trip/activity participants to upload
+- ✅ **Secure File Names**: Timestamp prefixes prevent conflicts and expose attempts
+- ✅ **Public URLs**: Supabase generates secure, accessible download links
+
+### **Files Modified (4 total)**
+```
+📎 New File System:
+src/app/api/files/upload/route.ts - File upload API endpoint
+src/app/api/notes/email/route.ts - Professional email sending with attachments
+
+🔧 Enhanced Components:
+src/components/notes/SimpleNotesModal.tsx - File attachment UI and email export
+src/components/trips/TripActivities.tsx - Real note content display
+
+🛡️ Security Fixes:
+src/app/api/activities/[id]/notes/route.ts - Authorization logic fix
+```
+
+### **Business Impact**
+- ✅ **Professional Meeting Documentation**: Participants can attach contracts, quality reports, samples photos, etc.
+- ✅ **Email Export Functionality**: Notes with attachments can be professionally emailed to stakeholders
+- ✅ **Real Note Visibility**: Users can see actual note content immediately when expanding notes
+- ✅ **Enhanced User Experience**: Clean, intuitive file management within meeting notes
+- ✅ **Secure File Storage**: Enterprise-grade file handling with proper permissions
+- ✅ **Email Automation**: Replace manual mailto links with professional automated emails
+
+### **User Workflows Now Available**
+
+#### **For Exporters/Suppliers**
+1. **Document Sharing**: Upload contracts, quality certificates, sample photos during meetings
+2. **Email Distribution**: Send professional emails with all attachments to relevant parties
+3. **Note Organization**: Attach supporting documents directly to specific meeting notes
+
+#### **For Wolthers Staff**
+1. **Meeting Documentation**: Comprehensive notes with file attachments from all parties
+2. **Client Communication**: Professional email exports with complete meeting records
+3. **File Management**: Easy access to all meeting-related documents
+
+#### **For Meeting Participants**
+1. **Real-time Collaboration**: Upload files during meetings for immediate sharing
+2. **Professional Follow-up**: Receive beautifully formatted emails with all meeting materials
+3. **Easy Access**: Download any attached files via direct links
+
+### **Testing Verified**
+- ✅ **File Upload**: Multi-file upload with progress indicators
+- ✅ **Storage Integration**: Files properly stored in Supabase with public URLs
+- ✅ **Email Export**: Professional emails sent via Resend with attachment links
+- ✅ **Note Display**: Real content summaries instead of "Canvas note"
+- ✅ **Authorization**: Notes now save successfully without 403 errors
+- ✅ **File Management**: Upload, display, and delete functionality all working
+
+### **Production Ready Features**
+- **File Type Support**: Accepts any file type for maximum business flexibility
+- **Professional Emails**: Branded HTML emails with responsive design
+- **Real-time Updates**: Immediate UI feedback for all file operations
+- **Error Handling**: Comprehensive error messages and user guidance
+- **Mobile Compatibility**: Touch-friendly file upload and management
+- **Security Compliance**: Enterprise-grade authentication and file handling
+
+**The file attachment system is now fully operational and ready for business use. Meeting participants can seamlessly share documents, and the enhanced email export ensures professional communication with all relevant materials included.** 🚀
+
+---
+
 # Canvas Rendering & Notes Enhancement - January 16, 2025
 
 ## 🎨 Canvas & Notes System Overhaul - COMPLETED ✅
