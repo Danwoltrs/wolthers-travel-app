@@ -6,12 +6,12 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { 
-  DollarSign, 
-  Plus, 
-  Receipt, 
-  CreditCard, 
-  TrendingUp, 
+import {
+  DollarSign,
+  Plus,
+  Receipt,
+  CreditCard,
+  TrendingUp,
   TrendingDown,
   AlertTriangle,
   CheckCircle2,
@@ -25,6 +25,7 @@ import {
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import { cn } from '@/lib/utils'
+import ReceiptScanModal from '@/components/receipts/ReceiptScanModal'
 
 interface ExpensesTabProps {
   trip: TripCard
@@ -34,21 +35,34 @@ interface ExpensesTabProps {
   className?: string
 }
 
-export function ExpensesTab({ 
-  trip, 
-  tripDetails, 
-  onUpdate, 
+export function ExpensesTab({
+  trip,
+  tripDetails,
+  onUpdate,
   validationState,
   className = ''
 }: ExpensesTabProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'expenses' | 'receipts' | 'reports'>('overview')
   const [showAddExpense, setShowAddExpense] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState('BRL')
   const [dateFilter, setDateFilter] = useState('all')
 
   // Real expense data would come from API call to /api/trips/${trip.id}/expenses
   // For now, show empty state until real expenses are implemented
   const mockExpenses: any[] = []
+
+  const handleReceiptSave = async (receiptData: any) => {
+    try {
+      // Here you would save the expense data to your backend
+      console.log('Saving receipt data:', receiptData)
+      // TODO: Implement actual save to database
+      // await fetch(`/api/trips/${trip.id}/expenses`, { method: 'POST', body: JSON.stringify(receiptData) })
+    } catch (error) {
+      console.error('Failed to save expense:', error)
+      throw error
+    }
+  }
 
   const expenseCategories = [
     { id: 'transportation', label: 'Transportation', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
@@ -392,27 +406,75 @@ export function ExpensesTab({
         </div>
       )}
 
-      {(activeSection === 'receipts' || activeSection === 'reports') && (
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-12 text-center">
-          {activeSection === 'receipts' ? (
-            <>
-              <FileText className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">Receipt management coming soon</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                Upload and organize expense receipts
+      {/* Receipts Section */}
+      {activeSection === 'receipts' && (
+        <div className="relative">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
+            {/* Receipts Header */}
+            <div className="px-6 py-4 bg-emerald-800 dark:bg-emerald-900 border-b border-emerald-700">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-golden-400">Receipt Management</h4>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setShowReceiptModal(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Receipt</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Receipts Content */}
+            <div className="p-8 text-center">
+              <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h5 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Smart Receipt Scanning
+              </h5>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                Scan receipts with your camera to automatically extract expense data
               </p>
-            </>
-          ) : (
-            <>
-              <Download className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">Expense reporting coming soon</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                Generate detailed expense reports and analytics
-              </p>
-            </>
-          )}
+              <button
+                onClick={() => setShowReceiptModal(true)}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                <Receipt className="w-5 h-5" />
+                <span>Scan Your First Receipt</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Floating Receipt Button */}
+          <div className="md:hidden fixed bottom-6 right-6 z-40">
+            <button
+              onClick={() => setShowReceiptModal(true)}
+              className="group flex items-center space-x-3 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <Receipt className="w-5 h-5" />
+              <span className="font-medium">Receipts</span>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Reports Section */}
+      {activeSection === 'reports' && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] p-12 text-center">
+          <Download className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-gray-400">Expense reporting coming soon</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+            Generate detailed expense reports and analytics
+          </p>
+        </div>
+      )}
+      {/* Receipt Scan Modal */}
+      <ReceiptScanModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        onSave={handleReceiptSave}
+        tripId={trip.id}
+      />
     </div>
   )
 }
