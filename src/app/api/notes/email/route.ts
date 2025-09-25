@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { 
-      to, 
+      recipients, // Changed from 'to' to 'recipients' array
       subject, 
       activityTitle, 
       meetingDate, 
@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
       attachments 
     } = body
 
-    if (!to || !subject || !activityTitle) {
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !subject || !activityTitle) {
       return NextResponse.json({ 
-        error: 'Missing required fields: to, subject, activityTitle' 
+        error: 'Missing required fields: recipients (array), subject, activityTitle' 
       }, { status: 400 })
     }
 
@@ -207,28 +207,73 @@ export async function POST(request: NextRequest) {
       </html>
     `
 
-    // Send email using Resend
-    const { data, error } = await resend.emails.send({
-      from: 'trips@trips.wolthers.com',
-      to: Array.isArray(to) ? to : [to],
-      subject: subject,
-      html: emailContent,
-    })
+    // Send emails one by one with rate limiting (Resend allows 10/second)
+    const results = []
+    const errors = []
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-    if (error) {
-      console.error('Resend error:', error)
-      return NextResponse.json({ 
-        error: 'Failed to send email', 
-        details: error 
-      }, { status: 500 })
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i]
+      
+      try {
+        // Add a 100ms delay between each email to respect rate limits
+        if (i > 0) {
+          await delay(100)
+        }
+
+        const { data, error } = await resend.emails.send({
+          from: 'trips@trips.wolthers.com',
+          to: recipient,
+          subject: subject,
+          html: emailContent,
+        })
+
+        if (error) {
+          console.error(`Failed to send email to ${recipient}:`, error)
+          errors.push({ recipient, error })
+        } else {
+          console.log(`Email sent successfully to ${recipient}:`, data)
+          results.push({ recipient, messageId: data?.id })
+        }
+      } catch (err) {
+        console.error(`Error sending email to ${recipient}:`, err)
+        errors.push({ recipient, error: err instanceof Error ? err.message : 'Unknown error' })
+      }
     }
 
-    console.log('Email sent successfully:', data)
-    return NextResponse.json({ 
-      success: true, 
-      messageId: data?.id,
-      message: 'Email sent successfully'
-    })
+    // Return results
+    const totalSent = results.length
+    const totalFailed = errors.length
+
+    if (totalFailed === recipients.length) {
+      // All emails failed
+      return NextResponse.json({ 
+        success: false,
+        error: 'All emails failed to send', 
+        totalSent: 0,
+        totalFailed,
+        errors 
+      }, { status: 500 })
+    } else if (totalFailed > 0) {
+      // Some emails failed
+      return NextResponse.json({ 
+        success: true,
+        message: `${totalSent} of ${recipients.length} emails sent successfully`,
+        totalSent,
+        totalFailed,
+        results,
+        errors
+      }, { status: 207 }) // Multi-Status
+    } else {
+      // All emails sent successfully
+      return NextResponse.json({ 
+        success: true, 
+        message: `All ${totalSent} emails sent successfully`,
+        totalSent,
+        totalFailed: 0,
+        results
+      })
+    }
 
   } catch (error) {
     console.error('Error sending email:', error)

@@ -11,6 +11,7 @@ import ActivityParticipantsManager from './ActivityParticipantsManager'
 import RecordingManager from './RecordingManager'
 import MediaTimeline from './MediaTimeline'
 import NoteTemplates from './NoteTemplates'
+import EmailPromptModal from './EmailPromptModal'
 
 interface SimpleNotesModalProps {
   isOpen: boolean
@@ -98,6 +99,7 @@ export default function SimpleNotesModal({
   const [isRecording, setIsRecording] = useState(false)
   const [showMediaTimeline, setShowMediaTimeline] = useState(true)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true)
   const [fileAttachments, setFileAttachments] = useState<FileAttachment[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -932,48 +934,43 @@ export default function SimpleNotesModal({
     setShowExportMenu(false)
   }
 
-  const exportForEmail = async () => {
-    const emailAddress = prompt('Enter email address to send notes to:')
-    if (!emailAddress || !emailAddress.includes('@')) {
-      alert('Please enter a valid email address')
-      return
-    }
-
+  const handleEmailSend = async (recipients: string[]) => {
     const subject = `Meeting Notes: ${activityTitle} - ${new Date().toLocaleDateString()}`
     
-    try {
-      setShowExportMenu(false) // Close menu immediately
-      
-      const response = await fetch('/api/notes/email', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: emailAddress,
-          subject: subject,
-          activityTitle: activityTitle,
-          meetingDate: meetingDate,
-          content: content,
-          companies: companiesWithAccess,
-          mediaEntries: mediaEntries,
-          attachments: fileAttachments
-        })
+    const response = await fetch('/api/notes/email', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipients: recipients,
+        subject: subject,
+        activityTitle: activityTitle,
+        meetingDate: meetingDate,
+        content: content,
+        companies: companiesWithAccess,
+        mediaEntries: mediaEntries,
+        attachments: fileAttachments
       })
+    })
 
-      if (response.ok) {
-        const result = await response.json()
-        alert(`Email sent successfully to ${emailAddress}!`)
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success) {
+        return result
       } else {
-        const error = await response.json()
-        console.error('Email send failed:', error)
-        alert(`Failed to send email: ${error.error || 'Unknown error'}`)
+        throw new Error(result.error || 'Failed to send emails')
       }
-    } catch (error) {
-      console.error('Email send error:', error)
-      alert('Failed to send email. Please try again.')
+    } else {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to send emails')
     }
+  }
+
+  const exportForEmail = () => {
+    setShowExportMenu(false)
+    setShowEmailModal(true)
   }
 
   const toggleFullscreen = async () => {
@@ -1574,6 +1571,17 @@ export default function SimpleNotesModal({
           </div>
         </div>
       )}
+
+      {/* Email Prompt Modal */}
+      <EmailPromptModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSend={handleEmailSend}
+        activityTitle={activityTitle}
+        companies={companiesWithAccess}
+        activityParticipants={activityParticipants}
+        tripId={tripId}
+      />
     </div>
   )
 }

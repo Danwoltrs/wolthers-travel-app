@@ -72,13 +72,20 @@ export async function GET(
         role,
         attendance_status,
         created_at,
-        users!activity_participants_participant_id_fkey (
+        trip_participants!inner (
           id,
-          email,
-          full_name,
-          companies (
+          user_id,
+          guest_name,
+          guest_email,
+          guest_company,
+          users (
             id,
-            name
+            email,
+            full_name,
+            companies (
+              id,
+              name
+            )
           )
         )
       `)
