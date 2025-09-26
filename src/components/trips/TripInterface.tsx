@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { Plus } from 'lucide-react'
 import WolthersLogo from './WolthersLogo'
 import TripSquareButtons from './TripSquareButtons'
 import TripHeader from './TripHeader'
@@ -342,10 +343,10 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       </div>
 
       {/* Comments Section at Bottom */}
-      <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8">
+      <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8 pb-24">
         <div className="max-w-7xl mx-auto px-0 md:px-4">
-          <CommentsSection 
-            tripId={tripId} 
+          <CommentsSection
+            tripId={tripId}
             isAuthenticated={isAuthenticated}
             isGuestAccess={isGuestAccess}
           />
@@ -369,7 +370,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
               "border border-white/30 dark:border-white/10",
               "shadow-2xl shadow-black/10 dark:shadow-black/30",
               "hover:scale-105 active:scale-95",
-              scrollY > 200
+              scrollY > 50
                 ? "rounded-full h-12 w-12"
                 : "rounded-full h-12 w-28 md:w-32"
             )}
@@ -380,15 +381,10 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             {/* Content */}
             <div className="relative flex items-center justify-center h-full">
               <div className="flex items-center gap-2 text-gray-800 dark:text-white font-medium text-sm">
-                <div className="w-5 h-5 flex items-center justify-center relative">
-                  {/* Plus icon - horizontal line */}
-                  <div className="absolute w-3 h-0.5 bg-current" />
-                  {/* Plus icon - vertical line */}
-                  <div className="absolute w-0.5 h-3 bg-current" />
-                </div>
+                <Plus className="w-5 h-5" />
                 <span className={cn(
                   "transition-all duration-300 whitespace-nowrap overflow-hidden",
-                  scrollY > 200 ? "w-0 opacity-0" : "w-auto opacity-100"
+                  scrollY > 50 ? "w-0 opacity-0" : "w-auto opacity-100"
                 )}>
                   Expense
                 </span>
