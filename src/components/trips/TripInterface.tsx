@@ -366,19 +366,25 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             onClick={() => setIsReceiptModalOpen(true)}
             className={cn(
               "group relative overflow-hidden transition-all duration-300 ease-out",
-              // Apple-style liquid glass effect
-              "backdrop-blur-3xl bg-white/80 dark:bg-black/80",
-              "border border-white/40 dark:border-white/20",
+              // Apple-style liquid glass effect - force important styles
+              "!backdrop-blur-3xl !bg-white/90 dark:!bg-black/90",
+              "!border !border-white/50 dark:!border-white/30",
               // Enhanced shadows for depth
-              "shadow-2xl shadow-black/20 dark:shadow-black/40",
-              // Perfect circle dimensions
-              "rounded-full flex items-center justify-center",
-              "hover:scale-105 active:scale-95 hover:shadow-3xl",
+              "!shadow-2xl !shadow-black/25 dark:!shadow-black/50",
+              // Perfect circle dimensions - force circular
+              "!rounded-full !flex !items-center !justify-center",
+              "hover:!scale-105 active:!scale-95 hover:!shadow-3xl",
               // Dynamic sizing with perfect circle constraint
               scrollY > 50
-                ? "h-12 w-12"
-                : "h-12 w-32"
+                ? "!h-12 !w-12"
+                : "!h-12 !w-32"
             )}
+            style={{
+              // Inline styles to override any conflicting CSS
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: '50px',
+            }}
           >
             {/* Liquid glass inner glow */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/30 via-transparent to-transparent opacity-60 dark:opacity-30" />
@@ -388,26 +394,22 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
 
             {/* Content with perfect centering */}
             <div className="relative flex items-center justify-center h-full w-full">
-              <div className="flex items-center gap-2 font-semibold text-sm">
-                {/* Plus icon with perfect centering */}
+              {scrollY > 50 ? (
+                /* Collapsed state - only plus icon, perfectly centered */
                 <Plus 
-                  className={cn(
-                    "transition-all duration-300",
-                    // Adaptive text color based on background
-                    "text-gray-900 dark:text-white",
-                    // Perfect centering when collapsed
-                    scrollY > 50 ? "w-5 h-5" : "w-5 h-5"
-                  )} 
+                  className="w-5 h-5 text-gray-900 dark:text-white" 
                 />
-                {/* Text with smooth collapse */}
-                <span className={cn(
-                  "transition-all duration-300 whitespace-nowrap overflow-hidden",
-                  "text-gray-900 dark:text-white font-medium",
-                  scrollY > 50 ? "w-0 opacity-0" : "w-auto opacity-100"
-                )}>
-                  Expense
-                </span>
-              </div>
+              ) : (
+                /* Expanded state - plus icon with text */
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <Plus 
+                    className="w-5 h-5 text-gray-900 dark:text-white" 
+                  />
+                  <span className="text-gray-900 dark:text-white font-medium whitespace-nowrap">
+                    Expense
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Subtle inner border highlight */}

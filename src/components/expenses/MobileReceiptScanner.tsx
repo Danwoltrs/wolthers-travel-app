@@ -361,45 +361,22 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
                   muted
                 />
                 
-                {/* Receipt Frame Overlay with surrounding blur */}
+                {/* Receipt Frame Overlay with precise blur positioning */}
                 <div className="absolute inset-0 pointer-events-none">
-                  {/* Calculate frame position */}
+                  {/* Backdrop blur overlay that covers everything */}
+                  <div className="absolute inset-0 backdrop-blur-lg bg-black/30"></div>
+                  
+                  {/* Clear cutout area for receipt frame */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="relative w-80 h-96 max-w-[90vw] max-h-[60vh]">
-                      {/* Calculate frame boundaries for overlay positioning */}
-                      {/* We'll use fixed positioning to create blur overlays around the frame */}
-                    </div>
-                  </div>
-                  
-                  {/* Top blur overlay */}
-                  <div className="absolute top-0 left-0 right-0 backdrop-blur-lg bg-black/20" 
-                       style={{ height: 'calc(50vh - 192px)' }}></div>
-                  
-                  {/* Bottom blur overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 backdrop-blur-lg bg-black/20" 
-                       style={{ height: 'calc(50vh - 192px)' }}></div>
-                  
-                  {/* Left blur overlay */}
-                  <div className="absolute left-0 backdrop-blur-lg bg-black/20" 
-                       style={{ 
-                         top: 'calc(50vh - 192px)', 
-                         bottom: 'calc(50vh - 192px)', 
-                         width: 'calc(50vw - 160px)' 
-                       }}></div>
-                  
-                  {/* Right blur overlay */}
-                  <div className="absolute right-0 backdrop-blur-lg bg-black/20" 
-                       style={{ 
-                         top: 'calc(50vh - 192px)', 
-                         bottom: 'calc(50vh - 192px)', 
-                         width: 'calc(50vw - 160px)' 
-                       }}></div>
-                  
-                  {/* Clear receipt frame area */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-80 h-96 max-w-[90vw] max-h-[60vh]">
-                      {/* Receipt frame border - now over clear area */}
-                      <div className="absolute inset-0 border-4 border-emerald-400 rounded-2xl bg-transparent shadow-lg">
+                      {/* Clear area (no blur) - this creates the "cutout" effect */}
+                      <div className="absolute inset-0 bg-transparent rounded-2xl" style={{
+                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.3)',
+                        backdropFilter: 'none'
+                      }}></div>
+                      
+                      {/* Receipt frame border */}
+                      <div className="absolute inset-0 border-4 border-emerald-400 rounded-2xl bg-transparent shadow-lg z-10">
                         {/* Corner guides */}
                         <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-xl shadow-lg"></div>
                         <div className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-xl shadow-lg"></div>
@@ -408,7 +385,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
                       </div>
                       
                       {/* Instructions inside clear frame */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-20">
                         <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 mb-4 shadow-lg">
                           <p className="text-sm font-medium text-center">📄 Fit entire receipt in frame</p>
                         </div>
