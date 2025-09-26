@@ -20,11 +20,13 @@ import {
   Calendar,
   User,
   Filter,
-  Download
+  Download,
+  Camera
 } from 'lucide-react'
 import type { TripCard } from '@/types'
 import type { TabValidationState } from '@/types/enhanced-modal'
 import { cn } from '@/lib/utils'
+import MobileReceiptScanner from '@/components/expenses/MobileReceiptScanner'
 
 interface ExpensesTabProps {
   trip: TripCard
@@ -43,6 +45,7 @@ export function ExpensesTab({
 }: ExpensesTabProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'expenses' | 'receipts' | 'reports'>('overview')
   const [showAddExpense, setShowAddExpense] = useState(false)
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState('BRL')
   const [dateFilter, setDateFilter] = useState('all')
 
@@ -125,13 +128,22 @@ export function ExpensesTab({
             <option value="EUR">EUR</option>
           </select>
           
-          <button
-            onClick={() => setShowAddExpense(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Expense</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowReceiptScanner(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Scan Receipt</span>
+            </button>
+            <button
+              onClick={() => setShowAddExpense(true)}
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Manual</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -413,6 +425,18 @@ export function ExpensesTab({
           )}
         </div>
       )}
+
+      {/* Mobile Receipt Scanner */}
+      <MobileReceiptScanner
+        isOpen={showReceiptScanner}
+        onClose={() => setShowReceiptScanner(false)}
+        tripId={trip.id}
+        onExpenseAdded={(expense) => {
+          console.log('Expense added successfully:', expense)
+          setShowReceiptScanner(false)
+          // Here you would refresh the expenses list
+        }}
+      />
     </div>
   )
 }

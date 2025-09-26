@@ -10,7 +10,7 @@ import RouteMap from './RouteMap'
 import TripActivities from './TripActivities'
 import CommentsSection from './CommentsSection'
 import TripNavigationBar from './TripNavigationBar'
-import ReceiptScanModal from '../expenses/ReceiptScanModal'
+import MobileReceiptScanner from '../expenses/MobileReceiptScanner'
 import LoginModal from './LoginModal'
 import { useDialogs } from '@/hooks/use-modal'
 import { useAuth } from '@/contexts/AuthContext'
@@ -343,19 +343,19 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg"
           >
             <Receipt className="w-5 h-5" />
-            Add Receipt
+            Scan Receipt
           </button>
         </div>
       )}
 
-      {/* Receipt Scan Modal */}
-      <ReceiptScanModal
+      {/* Mobile Receipt Scanner */}
+      <MobileReceiptScanner
         isOpen={isReceiptModalOpen}
         onClose={() => setIsReceiptModalOpen(false)}
         tripId={tripId}
         onExpenseAdded={() => {
           // Could refresh expenses or show success message
-          console.log('Expenses added successfully')
+          console.log('Expense added successfully')
         }}
       />
 

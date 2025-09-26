@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createWorker } from 'tesseract.js'
+import sharp from 'sharp'
 
 // Enhanced categories for multi-language expense classification
 const expenseCategories = {
@@ -57,6 +58,33 @@ const cardPatterns = {
   'diners': /3[0689]\d{2}/
 }
 
+// Image preprocessing for better OCR accuracy
+async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    // Use sharp to enhance the image for better OCR results
+    const processedImage = await sharp(imageBuffer)
+      .resize(1600, 2000, { 
+        fit: 'inside', 
+        withoutEnlargement: true 
+      })
+      .grayscale() // Convert to grayscale
+      .normalize() // Normalize contrast
+      .sharpen() // Sharpen text
+      .jpeg({ 
+        quality: 95,
+        progressive: false,
+        mozjpeg: true
+      })
+      .toBuffer()
+    
+    console.log('Image preprocessing completed')
+    return processedImage
+  } catch (error) {
+    console.error('Image preprocessing failed, using original:', error)
+    return imageBuffer
+  }
+}
+
 // Enhanced OCR processing with timeout and fallback mechanisms
 async function processReceiptWithOCR(imageBuffer: Buffer): Promise<{
   amount: number | null
@@ -78,8 +106,11 @@ async function processReceiptWithOCR(imageBuffer: Buffer): Promise<{
   try {
     console.log('Starting OCR processing with timeout...')
     
+    // Preprocess image for better OCR accuracy
+    const preprocessedBuffer = await preprocessImage(imageBuffer)
+    
     // Race between OCR processing and timeout
-    const ocrPromise = performOCRWithTimeout(imageBuffer)
+    const ocrPromise = performOCRWithTimeout(preprocessedBuffer)
     const result = await Promise.race([ocrPromise, timeoutPromise])
     
     console.log('OCR processing result:', result)
@@ -106,9 +137,9 @@ async function performOCRWithTimeout(imageBuffer: Buffer) {
   let worker = null
   
   try {
-    // Use only English for faster processing - users can manually correct if needed
-    console.log('Creating OCR worker (English only for speed)...')
-    worker = await createWorker(['eng'], 1, {
+    // Use multiple languages for better international receipt support
+    console.log('Creating OCR worker (multi-language support)...')
+    worker = await createWorker(['eng', 'por', 'spa'], 1, {
       logger: m => {
         // Reduce logging noise
         if (m.status === 'recognizing text') {
@@ -122,11 +153,13 @@ async function performOCRWithTimeout(imageBuffer: Buffer) {
     // Convert buffer to base64 for Tesseract.js
     const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
     
-    // Perform OCR recognition with optimized settings
+    // Perform OCR recognition with optimized settings for receipts
     const { data: { text } } = await worker.recognize(base64Image, {
-      tessedit_ocr_engine_mode: '1', // Use LSTM OCR engine only (faster)
-      tessedit_pageseg_mode: '6',    // Uniform block of text
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/:$€£¥R-'
+      tessedit_ocr_engine_mode: '1', // Use LSTM OCR engine only (better accuracy)
+      tessedit_pageseg_mode: '6',    // Uniform block of text (good for receipts)
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ0123456789.,/:$€£¥R-*#@()[]{}',
+      preserve_interword_spaces: '1',
+      tessedit_do_invert: '0'
     })
     
     console.log('OCR completed. Extracted text:', text.substring(0, 500) + '...')
