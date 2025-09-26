@@ -27,6 +27,9 @@ interface MobileReceiptScannerProps {
 type ScannerStep = 'camera' | 'preview' | 'extracted' | 'confirm'
 
 export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpenseAdded }: MobileReceiptScannerProps) {
+  // Device detection
+  const [isMobile, setIsMobile] = useState(false)
+  
   // Core state
   const [currentStep, setCurrentStep] = useState<ScannerStep>('camera')
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
@@ -41,6 +44,20 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Detect mobile device on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase()
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent)
+      const isSmallScreen = window.innerWidth <= 768
+      setIsMobile(isMobileDevice || isSmallScreen)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Start camera stream
   const startCamera = useCallback(async () => {
@@ -277,7 +294,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
 
   // Handle modal open/close
   useEffect(() => {
-    if (isOpen && currentStep === 'camera') {
+    if (isOpen && currentStep === 'camera' && isMobile) {
       startCamera()
     } else {
       stopCamera()
@@ -286,7 +303,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
     return () => {
       stopCamera()
     }
-  }, [isOpen, currentStep, startCamera, stopCamera])
+  }, [isOpen, currentStep, isMobile, startCamera, stopCamera])
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -353,12 +370,12 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
           <FileText className="w-6 h-6" />
           <div>
             <h2 className="text-lg font-semibold">
-              {currentStep === 'camera' ? 'Scan Receipt' : 
+              {currentStep === 'camera' ? (isMobile ? 'Scan Receipt' : 'Upload Receipts') : 
                currentStep === 'preview' ? 'Receipt Preview' :
                currentStep === 'extracted' ? 'Verify Details' : 'Confirm Expense'}
             </h2>
             <p className="text-sm text-emerald-100">
-              {currentStep === 'camera' ? 'Position receipt in frame' :
+              {currentStep === 'camera' ? (isMobile ? 'Position receipt in frame' : 'Select receipt images from your computer') :
                currentStep === 'preview' ? 'Ready to scan' :
                currentStep === 'extracted' ? 'Review extracted data' : 'Ready to save'}
             </p>
@@ -366,7 +383,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
         </div>
         
         <div className="flex items-center gap-2">
-          {currentStep === 'camera' && (
+          {currentStep === 'camera' && isMobile && (
             <button
               onClick={toggleCamera}
               className="p-2 hover:bg-emerald-800 rounded-lg transition-colors"
@@ -392,7 +409,34 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
         {/* Camera Step */}
         {currentStep === 'camera' && (
           <>
-            {error ? (
+            {!isMobile ? (
+              /* Desktop File Upload Interface */
+              <div className="flex flex-col h-full bg-white dark:bg-gray-900 p-8">
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center max-w-md">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Upload Receipt Images</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      Select one or more receipt images from your computer
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-5 h-5" />
+                        Choose Files
+                      </button>
+                      
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Supports: JPG, PNG, WebP, GIF (max 20MB each)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : error ? (
               <div className="flex flex-col h-full bg-gray-900">
                 {/* Error content and buttons centered together */}
                 <div className="flex-1 flex items-center justify-center p-6">
@@ -434,14 +478,30 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
                 
                 {/* Receipt Frame Overlay with cutout for clear center */}
                 <div className="absolute inset-0 pointer-events-none">
-                  {/* Full screen blur with a clear center cutout */}
-                  <div 
-                    className="absolute inset-0 backdrop-blur-lg bg-black/40"
-                    style={{
-                      mask: 'radial-gradient(ellipse 160px 192px at center, transparent 100%, black 100%)',
-                      WebkitMask: 'radial-gradient(ellipse 160px 192px at center, transparent 100%, black 100%)'
-                    }}
-                  ></div>
+                  {/* Create 4 blur rectangles around the center frame */}
+                  {/* Top blur area */}
+                  <div className="absolute top-0 left-0 right-0 backdrop-blur-lg bg-black/40" 
+                       style={{ height: 'calc(50% - 192px)' }}></div>
+                  
+                  {/* Bottom blur area */}
+                  <div className="absolute bottom-0 left-0 right-0 backdrop-blur-lg bg-black/40" 
+                       style={{ height: 'calc(50% - 192px)' }}></div>
+                  
+                  {/* Left blur area */}
+                  <div className="absolute left-0 backdrop-blur-lg bg-black/40" 
+                       style={{ 
+                         top: 'calc(50% - 192px)', 
+                         height: '384px',
+                         width: 'calc(50% - 160px)'
+                       }}></div>
+                  
+                  {/* Right blur area */}
+                  <div className="absolute right-0 backdrop-blur-lg bg-black/40" 
+                       style={{ 
+                         top: 'calc(50% - 192px)', 
+                         height: '384px',
+                         width: 'calc(50% - 160px)'
+                       }}></div>
                   
                   {/* Position the receipt frame */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -717,7 +777,8 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        multiple={!isMobile}
+        capture={isMobile ? "environment" : undefined}
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (file) handleFileUpload(file)
