@@ -354,7 +354,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       </div>
 
 
-      {/* Floating Glassmorphic Expense Button - Only show for authenticated users */}
+      {/* Apple-style Liquid Glass Floating Button - Only show for authenticated users */}
       {!isGuestAccess && user && (
         <div
           className={cn(
@@ -366,30 +366,52 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
             onClick={() => setIsReceiptModalOpen(true)}
             className={cn(
               "group relative overflow-hidden transition-all duration-300 ease-out",
-              "backdrop-blur-xl bg-white/20 dark:bg-black/30",
-              "border border-white/30 dark:border-white/10",
-              "shadow-2xl shadow-black/10 dark:shadow-black/30",
-              "hover:scale-105 active:scale-95",
+              // Apple-style liquid glass effect
+              "backdrop-blur-3xl bg-white/80 dark:bg-black/80",
+              "border border-white/40 dark:border-white/20",
+              // Enhanced shadows for depth
+              "shadow-2xl shadow-black/20 dark:shadow-black/40",
+              // Perfect circle dimensions
+              "rounded-full flex items-center justify-center",
+              "hover:scale-105 active:scale-95 hover:shadow-3xl",
+              // Dynamic sizing with perfect circle constraint
               scrollY > 50
-                ? "rounded-full h-12 w-12"
-                : "rounded-full h-12 w-28 md:w-32"
+                ? "h-12 w-12"
+                : "h-12 w-32"
             )}
           >
-            {/* Background glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            {/* Liquid glass inner glow */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/30 via-transparent to-transparent opacity-60 dark:opacity-30" />
+            
+            {/* Subtle animated glow on hover */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400/20 to-blue-400/20 opacity-0 group-hover:opacity-100 transition-all duration-500 animate-pulse" />
 
-            {/* Content */}
-            <div className="relative flex items-center justify-center h-full">
-              <div className="flex items-center gap-2 text-gray-800 dark:text-white font-medium text-sm">
-                <Plus className="w-5 h-5" />
+            {/* Content with perfect centering */}
+            <div className="relative flex items-center justify-center h-full w-full">
+              <div className="flex items-center gap-2 font-semibold text-sm">
+                {/* Plus icon with perfect centering */}
+                <Plus 
+                  className={cn(
+                    "transition-all duration-300",
+                    // Adaptive text color based on background
+                    "text-gray-900 dark:text-white",
+                    // Perfect centering when collapsed
+                    scrollY > 50 ? "w-5 h-5" : "w-5 h-5"
+                  )} 
+                />
+                {/* Text with smooth collapse */}
                 <span className={cn(
                   "transition-all duration-300 whitespace-nowrap overflow-hidden",
+                  "text-gray-900 dark:text-white font-medium",
                   scrollY > 50 ? "w-0 opacity-0" : "w-auto opacity-100"
                 )}>
                   Expense
                 </span>
               </div>
             </div>
+
+            {/* Subtle inner border highlight */}
+            <div className="absolute inset-0.5 rounded-full border border-white/50 dark:border-white/20 pointer-events-none" />
           </button>
         </div>
       )}
