@@ -129,7 +129,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
     stopCamera()
   }, [stopCamera])
 
-  // Process receipt with OCR
+  // Process receipt with OCR using Google Vision API
   const processReceipt = useCallback(async () => {
     if (!capturedFile) return
 
@@ -138,9 +138,10 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
 
     try {
       const formData = new FormData()
-      formData.append('file', capturedFile)
+      formData.append('image', capturedFile) // Google Vision API expects 'image' field
 
-      const response = await fetch('/api/expenses/scan-receipt', {
+      // Use Google Vision API endpoint for better OCR results
+      const response = await fetch('/api/receipts/google-ocr', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -152,24 +153,25 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
 
       const result = await response.json()
 
-      if (result.success && result.data) {
+      if (result.success) {
         setExtractedData({
-          amount: result.data.amount || 0,
-          currency: result.data.currency || 'BRL',
-          date: result.data.date || new Date().toISOString().split('T')[0],
-          venue: result.data.venue || 'Unknown Venue',
-          category: result.data.category || 'other',
-          cardLast4: result.data.cardLast4,
-          isPersonalCard: result.data.isPersonalCard,
-          confidence: result.data.confidence || 0.7,
-          extractedText: result.data.extractedText || ''
+          amount: result.amount || 0,
+          currency: result.currency || 'BRL',
+          date: result.date || new Date().toISOString().split('T')[0],
+          venue: result.merchant || 'Unknown Venue',
+          category: result.category || 'other',
+          cardLast4: undefined, // Google Vision doesn't extract card info
+          isPersonalCard: undefined,
+          confidence: result.confidence?.amount === 'high' ? 0.9 : 
+                     result.confidence?.amount === 'medium' ? 0.7 : 0.5,
+          extractedText: result.rawText || ''
         })
         setCurrentStep('extracted')
       } else {
         throw new Error(result.error || 'Failed to extract data')
       }
     } catch (err) {
-      console.error('OCR processing failed:', err)
+      console.error('Google Vision OCR failed:', err)
       setError('Failed to read receipt. You can enter the details manually.')
       // Still go to extracted step but with empty data for manual entry
       setExtractedData({
