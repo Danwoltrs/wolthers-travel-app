@@ -48,10 +48,12 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
       })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        videoRef.current.play()
       }
       setCurrentStep('camera')
     } catch (err) {
-      setError('Could not access camera. Please use file upload instead.')
+      console.error('Camera access error:', err)
+      setError('Camera access denied. Please allow camera permissions or use file upload.')
     }
   }
 
@@ -182,6 +184,19 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
       stream.getTracks().forEach(track => track.stop())
     }
   }
+
+  // Handle body scroll lock
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
