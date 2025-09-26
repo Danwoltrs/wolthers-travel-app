@@ -75,7 +75,7 @@ const downloadICSFile = (content: string, filename: string) => {
   URL.revokeObjectURL(link.href)
 }
 
-export default function RouteMap({ itineraryDays, tripTitle, activities = [], tripStartDate, tripEndDate }: RouteMapProps) {
+export default function RouteMap({ itineraryDays, tripTitle, activities = [], tripStartDate, tripEndDate, hideHeaderOnMobile = false }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -461,10 +461,12 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
-        <div className="p-6 pb-4 bg-[#2D5347] text-white">
-          <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
-        </div>
+      <div className="bg-white dark:bg-[#1a1a1a] md:rounded-lg shadow-lg border-0 md:border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
+        {!hideHeaderOnMobile && (
+          <div className="hidden md:block p-6 pb-4 bg-[#2D5347] text-white">
+            <h2 className="text-lg font-semibold text-white">{tripTitle}</h2>
+          </div>
+        )}
         <div className="flex items-center justify-center h-64 bg-[#F9F6F0] dark:bg-[#111111]">
           <div className="text-center">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
@@ -476,8 +478,9 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
   }
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
-      <div className="flex items-center justify-between p-3 md:p-6 pb-4 bg-[#2D5347] text-white">
+    <div className="bg-white dark:bg-[#1a1a1a] md:rounded-lg shadow-lg border-0 md:border border-[#D4C5B0] dark:border-[#2a2a2a] overflow-hidden">
+      {!hideHeaderOnMobile && (
+        <div className="hidden md:flex items-center justify-between p-3 md:p-6 pb-4 bg-[#2D5347] text-white">
         <div className="flex items-center gap-2 md:gap-4">
           <h2 className="text-base md:text-lg font-semibold text-white">{tripTitle}</h2>
           {/* Hide legend on mobile */}
@@ -517,7 +520,8 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
             </button>
           </>
         )}
-      </div>
+        </div>
+      )}
       
       <div className="relative h-96 bg-[#F9F6F0] dark:bg-[#111111] overflow-hidden">
         {isLoading && (

@@ -556,7 +556,7 @@ export default function TripActivities({ activities, loading, error, canEditTrip
                             <div className="flex-1 min-w-0 pr-2 md:pr-0">
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-1 flex-1 min-w-0">
-                                  <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                                  <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate max-w-[180px] md:max-w-none">
                                     {activity.title}
                                   </h4>
                                   {hasNotes && (

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Receipt } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Plus } from 'lucide-react'
 import WolthersLogo from './WolthersLogo'
 import TripSquareButtons from './TripSquareButtons'
 import TripHeader from './TripHeader'
@@ -31,6 +31,8 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const [scrollY, setScrollY] = useState(0)
   const { confirm } = useDialogs()
   const { isAuthenticated, user } = useAuth()
   
@@ -47,12 +49,24 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
     refreshNoteCount()
   }, [refreshNoteCount])
 
+  // Handle scroll behavior for floating button and header
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 50
+      setIsScrolled(scrolled)
+      setScrollY(window.scrollY)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   // Handle authentication flow for trip access
   useEffect(() => {
     // Give auth context time to initialize
     const timer = setTimeout(() => {
       setIsInitialLoad(false)
-      
+
       // If we have an authentication error and we're not authenticated, show auth modal
       if (tripError === 'Authentication required to view trip' && !isAuthenticated) {
         setShowAuthModal(true)
@@ -292,19 +306,23 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
         userTrips.length > 1 && !isGuestAccess && "pt-2"
       )}>
         {/* Trip Header */}
-        <div className="mt-0 md:mt-6 px-4 md:px-0">
+        <div className={cn(
+          "transition-all duration-300 px-4 md:px-0",
+          isScrolled ? "-mt-4 md:mt-6" : "mt-4 md:mt-6"
+        )}>
           <TripHeader trip={trip} tripData={tripDetails} />
         </div>
 
-        {/* Map Section - Only show if there are locations */}
+        {/* Map Section - Full width on mobile, only show if there are locations */}
         {hasLocations && (
-          <div className="mb-6 px-4 md:px-0">
-            <RouteMap 
+          <div className="mb-6 px-0 md:px-0">
+            <RouteMap
               itineraryDays={[]}
               tripTitle={trip.title}
               activities={activities}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
+              hideHeaderOnMobile={true}
             />
           </div>
         )}
@@ -325,25 +343,53 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
       </div>
 
       {/* Comments Section at Bottom */}
-      <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8">
+      <div className="bg-gradient-to-b from-[#E8DDD0] to-[#F3EDE2] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#1a1a1a] border-t border-[#D4C5B0] dark:border-[#2a2a2a] py-8 pb-24">
         <div className="max-w-7xl mx-auto px-0 md:px-4">
-          <CommentsSection 
-            tripId={tripId} 
+          <CommentsSection
+            tripId={tripId}
             isAuthenticated={isAuthenticated}
             isGuestAccess={isGuestAccess}
           />
         </div>
       </div>
 
-      {/* Mobile Receipt Capture Footer - Only show for Wolthers staff on mobile */}
-      {!isGuestAccess && user && (user.email?.endsWith('@wolthers.com') || user.user_type === 'wolthers_staff') && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-emerald-600 border-t border-emerald-500 p-4 z-30">
+
+      {/* Floating Glassmorphic Expense Button - Only show for authenticated users */}
+      {!isGuestAccess && user && (
+        <div
+          className={cn(
+            "md:hidden fixed bottom-6 right-6 z-50 transition-all duration-500 ease-out",
+            scrollY > 100 ? "transform translate-y-0" : "transform translate-y-0"
+          )}
+        >
           <button
             onClick={() => setIsReceiptModalOpen(true)}
-            className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg"
+            className={cn(
+              "group relative overflow-hidden transition-all duration-300 ease-out",
+              "backdrop-blur-xl bg-white/20 dark:bg-black/30",
+              "border border-white/30 dark:border-white/10",
+              "shadow-2xl shadow-black/10 dark:shadow-black/30",
+              "hover:scale-105 active:scale-95",
+              scrollY > 50
+                ? "rounded-full h-12 w-12"
+                : "rounded-full h-12 w-28 md:w-32"
+            )}
           >
-            <Receipt className="w-5 h-5" />
-            Scan Receipt
+            {/* Background glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Content */}
+            <div className="relative flex items-center justify-center h-full">
+              <div className="flex items-center gap-2 text-gray-800 dark:text-white font-medium text-sm">
+                <Plus className="w-5 h-5" />
+                <span className={cn(
+                  "transition-all duration-300 whitespace-nowrap overflow-hidden",
+                  scrollY > 50 ? "w-0 opacity-0" : "w-auto opacity-100"
+                )}>
+                  Expense
+                </span>
+              </div>
+            </div>
           </button>
         </div>
       )}
