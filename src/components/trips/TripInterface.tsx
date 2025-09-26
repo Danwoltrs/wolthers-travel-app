@@ -308,7 +308,7 @@ export default function TripInterface({ tripId, isGuestAccess = false }: TripInt
         {/* Trip Header */}
         <div className={cn(
           "transition-all duration-300 px-4 md:px-0",
-          isScrolled ? "-mt-4 md:mt-6" : "mt-4 md:mt-6"
+          isScrolled ? "-mt-4 md:mt-6" : "-mt-2 md:mt-6"
         )}>
           <TripHeader trip={trip} tripData={tripDetails} />
         </div>

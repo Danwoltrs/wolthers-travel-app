@@ -51,6 +51,11 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
         streamRef.current.getTracks().forEach(track => track.stop())
       }
 
+      // Check if camera is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported on this device or connection')
+      }
+
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode: facingMode,
@@ -69,9 +74,24 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
         videoRef.current.play()
         setIsStreaming(true)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera access error:', err)
-      setError('Camera access denied. Please enable camera permissions and try again.')
+      
+      let errorMessage = 'Camera access denied.'
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.'
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'No camera found on this device.'
+      } else if (err.name === 'NotSupportedError') {
+        errorMessage = 'Camera not supported. Try using HTTPS or a supported browser.'
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Camera is being used by another application.'
+      } else if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+        errorMessage = 'Camera requires HTTPS connection. Please use the Vercel deployment link or localhost.'
+      }
+      
+      setError(errorMessage)
     }
   }, [facingMode])
 
@@ -131,6 +151,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
 
   // Process receipt with OCR using Google Vision API
   const processReceipt = useCallback(async () => {
+    console.log('🚀 processReceipt called', { hasCapturedFile: !!capturedFile })
     if (!capturedFile) return
 
     setIsProcessing(true)
@@ -141,17 +162,23 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
       formData.append('image', capturedFile) // Google Vision API expects 'image' field
 
       // Use Google Vision API endpoint for better OCR results
+      console.log('📡 Calling OCR API endpoint...')
       const response = await fetch('/api/receipts/google-ocr', {
         method: 'POST',
         credentials: 'include',
         body: formData,
       })
 
+      console.log('📡 OCR API response:', { status: response.status, ok: response.ok })
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.log('❌ OCR API error response:', errorText)
         throw new Error('Failed to process receipt')
       }
 
       const result = await response.json()
+      console.log('✅ OCR result received:', { success: result.success, amount: result.amount, merchant: result.merchant })
 
       if (result.success) {
         setExtractedData({
@@ -261,6 +288,31 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
     }
   }, [isOpen, currentStep, startCamera, stopCamera])
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      
+      // Lock body scroll
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.left = '0'
+      document.body.style.right = '0'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore scroll position
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.left = ''
+        document.body.style.right = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
+
   // Restart camera when facing mode changes
   useEffect(() => {
     if (isStreaming) {
@@ -280,7 +332,21 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+    <div 
+      className="fixed bg-black z-[9999] flex flex-col overflow-hidden"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: '100dvh', // Use dynamic viewport height for mobile
+        minHeight: '100vh',
+        width: '100vw',
+        zIndex: 9999,
+        maxHeight: '100vh'
+      }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white relative z-10">
         <div className="flex items-center gap-3">
@@ -322,31 +388,36 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
       </div>
 
       {/* Content */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden min-h-0">
         {/* Camera Step */}
         {currentStep === 'camera' && (
           <>
             {error ? (
-              <div className="flex items-center justify-center h-full bg-gray-900 p-6">
-                <div className="text-center text-white max-w-md">
-                  <Camera className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg mb-2">Camera Access Required</p>
-                  <p className="text-gray-400 mb-6">{error}</p>
-                  <div className="space-y-3">
-                    <button
-                      onClick={startCamera}
-                      className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Camera className="w-5 h-5" />
-                      Try Camera Again
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Upload className="w-5 h-5" />
-                      Upload Image Instead
-                    </button>
+              <div className="flex flex-col h-full bg-gray-900">
+                {/* Error content and buttons centered together */}
+                <div className="flex-1 flex items-center justify-center p-6">
+                  <div className="text-center text-white max-w-md">
+                    <Camera className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg mb-2">Camera Access Required</p>
+                    <p className="text-gray-400 mb-8">{error}</p>
+                    
+                    {/* Buttons moved up to be part of centered content */}
+                    <div className="space-y-3">
+                      <button
+                        onClick={startCamera}
+                        className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Camera className="w-5 h-5" />
+                        Try Camera Again
+                      </button>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-5 h-5" />
+                        Upload Image Instead
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,19 +432,20 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
                   muted
                 />
                 
-                {/* Receipt Frame Overlay with precise blur positioning */}
+                {/* Receipt Frame Overlay with cutout for clear center */}
                 <div className="absolute inset-0 pointer-events-none">
-                  {/* Backdrop blur overlay that covers everything */}
-                  <div className="absolute inset-0 backdrop-blur-lg bg-black/30"></div>
+                  {/* Full screen blur with a clear center cutout */}
+                  <div 
+                    className="absolute inset-0 backdrop-blur-lg bg-black/40"
+                    style={{
+                      mask: 'radial-gradient(ellipse 160px 192px at center, transparent 100%, black 100%)',
+                      WebkitMask: 'radial-gradient(ellipse 160px 192px at center, transparent 100%, black 100%)'
+                    }}
+                  ></div>
                   
-                  {/* Clear cutout area for receipt frame */}
+                  {/* Position the receipt frame */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="relative w-80 h-96 max-w-[90vw] max-h-[60vh]">
-                      {/* Clear area (no blur) - this creates the "cutout" effect */}
-                      <div className="absolute inset-0 bg-transparent rounded-2xl" style={{
-                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.3)',
-                        backdropFilter: 'none'
-                      }}></div>
                       
                       {/* Receipt frame border */}
                       <div className="absolute inset-0 border-4 border-emerald-400 rounded-2xl bg-transparent shadow-lg z-10">
@@ -552,7 +624,7 @@ export default function MobileReceiptScanner({ isOpen, onClose, tripId, onExpens
       </div>
 
       {/* Bottom Actions */}
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
         {currentStep === 'camera' && (
           <div className="flex items-center justify-center gap-4">
             <button

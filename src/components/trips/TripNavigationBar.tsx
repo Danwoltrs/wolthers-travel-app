@@ -77,7 +77,7 @@ export default function TripNavigationBar({
 
   // Calculate top position based on scroll state and actual mobile menu height
   const getTopPosition = () => {
-    const headerHeight = isScrolled ? 64 : 96 // Header height in pixels
+    const headerHeight = isScrolled ? 48 : 64 // Reduced height to eliminate gap
     const menuHeight = isMobileMenuOpen ? mobileMenuHeight : 0
     return headerHeight + menuHeight
   }

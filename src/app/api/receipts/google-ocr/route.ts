@@ -1,26 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { verify } from 'jsonwebtoken'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 // Google Vision API client (no npm package needed, use REST API)
 const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY
 const GOOGLE_VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate'
 
 export async function POST(request: NextRequest) {
+  console.log('🔍 OCR API called - Google Vision endpoint hit')
+  
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Use the same authentication logic as other APIs
+    const authToken = request.cookies.get('auth-token')?.value
+    
+    if (!authToken) {
+      console.log('🔑 OCR API: No auth-token cookie found')
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Verify the JWT token (same as other APIs)
+    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    let user: any = null
+    
+    try {
+      const decoded = verify(authToken, secret) as any
+      console.log('🔑 OCR API: JWT Token decoded successfully:', { userId: decoded.userId })
+      
+      // Get user from database
+      const supabase = createServerSupabaseClient()
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.userId)
+        .single()
+
+      if (userError || !userData) {
+        console.log('🔑 OCR API: User lookup failed:', userError?.message)
+        return NextResponse.json({ error: 'User not found' }, { status: 401 })
+      }
+
+      user = userData
+      console.log('🔑 OCR API: Successfully authenticated user:', user.email)
+    } catch (jwtError) {
+      console.log('🔑 OCR API: JWT verification failed:', jwtError)
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
     const formData = await request.formData()
     const imageFile = formData.get('image') as File
 
+    console.log('📁 Image file received:', { 
+      hasImage: !!imageFile, 
+      fileName: imageFile?.name, 
+      fileSize: imageFile?.size,
+      fileType: imageFile?.type 
+    })
+
     if (!imageFile) {
+      console.log('❌ No image file found in request')
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
     }
 
@@ -39,15 +76,20 @@ export async function POST(request: NextRequest) {
     try {
       // Check if Google Vision is configured
       if (!GOOGLE_VISION_API_KEY) {
+        console.log('❌ Google Vision API key not configured')
         return NextResponse.json({
           error: 'OCR service not configured. Please configure GOOGLE_VISION_API_KEY environment variable.'
         }, { status: 503 })
       }
 
+      console.log('🔑 Google Vision API key configured, processing image...')
+
       // Convert image to base64
       const bytes = await imageFile.arrayBuffer()
       const buffer = Buffer.from(bytes)
       const base64Image = buffer.toString('base64')
+
+      console.log('📸 Image converted to base64, calling Google Vision API...')
 
       // Use Google Vision API for OCR with document text detection
       const response = await fetch(`${GOOGLE_VISION_API_URL}?key=${GOOGLE_VISION_API_KEY}`, {
@@ -74,12 +116,26 @@ export async function POST(request: NextRequest) {
 
       const visionResult = await response.json()
 
+      console.log('📬 Google Vision API response:', { 
+        status: response.status,
+        hasError: !!visionResult.error,
+        hasResponses: !!visionResult.responses,
+        responseCount: visionResult.responses?.length || 0
+      })
+
       if (visionResult.error) {
+        console.log('❌ Google Vision API error:', visionResult.error)
         throw new Error(`Google Vision API error: ${visionResult.error.message}`)
       }
 
       const textAnnotations = visionResult.responses?.[0]?.textAnnotations
       const fullTextAnnotation = visionResult.responses?.[0]?.fullTextAnnotation
+
+      console.log('📝 Text extraction results:', {
+        annotationCount: textAnnotations?.length || 0,
+        hasFullText: !!fullTextAnnotation,
+        firstTextLength: textAnnotations?.[0]?.description?.length || 0
+      })
 
       if (!textAnnotations || textAnnotations.length === 0) {
         return NextResponse.json({
