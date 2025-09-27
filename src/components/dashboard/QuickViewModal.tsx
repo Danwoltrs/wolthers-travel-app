@@ -465,7 +465,9 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
             {/* Tab Content Area */}
             <div
-              className="p-3 sm:p-6 touch-pan-y overflow-y-auto flex-1 min-h-0"
+              className={`touch-pan-y overflow-y-auto flex-1 min-h-0 ${
+                activeTab === 'schedule' ? 'p-0 sm:p-3 lg:p-6' : 'p-3 sm:p-6'
+              }`}
               ref={(el) => {
               // Auto-scroll to top when Schedule tab becomes active
               if (activeTab === 'schedule' && el) {

@@ -712,38 +712,49 @@ const TimeSlotComponent = memo(function TimeSlotComponent({
 function getCalendarDimensions(dayCount: number) {
   // Get available browser width, fallback for SSR
   const browserWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
-  const availableWidth = Math.max(800, browserWidth - 40) // Use full width minus padding
-  
-  let dayWidth, sideColumns
-  
-  // Calculate minimum widths based on trip duration - focus on usability
-  if (dayCount <= 3) {
-    dayWidth = 160  // Minimum width for readability
-    sideColumns = 140 
-  } else if (dayCount <= 7) {
-    dayWidth = 140  
-    sideColumns = 120
-  } else if (dayCount <= 14) {
-    dayWidth = 120  
-    sideColumns = 100
-  } else if (dayCount <= 21) {
-    dayWidth = 100  
-    sideColumns = 80
-  } else if (dayCount <= 30) {
-    dayWidth = 90   
-    sideColumns = 70
+  const isMobile = browserWidth < 768
+
+  let timeColumn, addColumns
+
+  if (isMobile) {
+    // Mobile-optimized: much narrower time column, no add columns
+    timeColumn = 50  // Very narrow time column on mobile
+    addColumns = 0   // Remove add columns on mobile to save space
   } else {
-    dayWidth = 80   
-    sideColumns = 60
+    // Desktop: comfortable time column with add columns
+    if (dayCount <= 3) {
+      timeColumn = 80
+      addColumns = 60
+    } else if (dayCount <= 7) {
+      timeColumn = 70
+      addColumns = 50
+    } else if (dayCount <= 14) {
+      timeColumn = 60
+      addColumns = 40
+    } else {
+      timeColumn = 50
+      addColumns = 30
+    }
   }
-  
-  const totalMinWidth = sideColumns + (dayCount * dayWidth) + sideColumns
-  
-  // For the grid template, use 1fr for all day columns to distribute available space evenly
-  // This ensures border-to-border layout with flexible columns
-  const gridTemplate = `${sideColumns}px repeat(${dayCount}, 1fr) ${sideColumns}px`
-  
-  return { dayWidth, sideColumns, totalWidth: totalMinWidth, gridTemplate }
+
+  // Calculate total minimum width
+  const dayWidth = Math.max(80, (browserWidth - timeColumn - addColumns * 2) / dayCount)
+  const totalMinWidth = timeColumn + (dayCount * dayWidth) + addColumns * 2
+
+  // Mobile grid template: time column + flexible day columns (no add columns)
+  // Desktop grid template: time column + flexible day columns + add columns
+  const gridTemplate = isMobile
+    ? `${timeColumn}px repeat(${dayCount}, 1fr)`
+    : `${timeColumn}px repeat(${dayCount}, 1fr) ${addColumns}px`
+
+  return {
+    timeColumn,
+    addColumns,
+    dayWidth,
+    totalWidth: totalMinWidth,
+    gridTemplate,
+    isMobile
+  }
 }
 
 export function OutlookCalendar({ 
@@ -1098,7 +1109,11 @@ export function OutlookCalendar({
 
   return (
     <OptimizedDndProvider>
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden relative">
+      <div className={`bg-white dark:bg-[#1a1a1a] overflow-hidden relative ${
+        calendarDimensions.isMobile
+          ? 'rounded-none border-0' // Full-width on mobile
+          : 'rounded-lg border border-pearl-200 dark:border-[#2a2a2a]' // Normal container on desktop
+      }`}>
         {/* Refreshing Overlay */}
         {refreshing && (
           <div className="absolute inset-0 bg-white/80 dark:bg-[#1a1a1a]/80 rounded-lg flex items-center justify-center z-30">
@@ -1155,18 +1170,27 @@ export function OutlookCalendar({
               }}
             >
               {/* Day Headers - Dynamic Responsive Layout Based on Trip Duration */}
-              <div className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700" style={{ 
+              <div className="grid gap-x-[3px] gap-y-px border-b border-gray-200 dark:border-gray-700" style={{
                 gridTemplateColumns: calendarDimensions.gridTemplate
               }}>
                 {/* Time column header */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
-                  <button
-                    onClick={() => onExtendTrip('before')}
-                    className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                    title="Add day before trip"
-                  >
-                    <Plus className="w-3 h-3 md:w-4 md:h-4" />
-                  </button>
+                <div className="p-1 md:p-2 lg:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
+                  {/* Hide add before button on mobile, show on desktop */}
+                  {!calendarDimensions.isMobile && (
+                    <button
+                      onClick={() => onExtendTrip('before')}
+                      className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      title="Add day before trip"
+                    >
+                      <Plus className="w-3 h-3 md:w-4 md:h-4" />
+                    </button>
+                  )}
+                  {/* Mobile: Show minimal time indicator */}
+                  {calendarDimensions.isMobile && (
+                    <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+                      Time
+                    </div>
+                  )}
                 </div>
 
                 {/* Day columns with dynamic responsive layout */}
@@ -1174,11 +1198,13 @@ export function OutlookCalendar({
                   <div
                     key={day.dateString}
                     className={`bg-gray-50 dark:bg-[#2a2a2a] text-center ${
-                      // Dynamic padding based on trip length
-                      calendarDays.length <= 3 ? 'p-3 md:p-4' :
-                      calendarDays.length <= 7 ? 'p-2 md:p-3' :
-                      calendarDays.length <= 14 ? 'p-1 md:p-2' :
-                      'p-1'
+                      // Mobile-first padding with more aggressive optimization
+                      calendarDimensions.isMobile
+                        ? 'p-1'  // Minimal padding on mobile
+                        : calendarDays.length <= 3 ? 'p-3 md:p-4' :
+                          calendarDays.length <= 7 ? 'p-2 md:p-3' :
+                          calendarDays.length <= 14 ? 'p-1 md:p-2' :
+                          'p-1'
                     }`}
                   >
                     {/* Day header with inline remove buttons - improved for multi-day */}
@@ -1214,29 +1240,38 @@ export function OutlookCalendar({
                       )}
                       <div className="flex-1 min-w-0">
                         <div className={`font-medium text-gray-900 dark:text-gray-100 truncate ${
-                          // Dynamic text sizing based on trip length  
-                          calendarDays.length <= 3 ? 'text-sm md:text-base lg:text-lg' :
-                          calendarDays.length <= 7 ? 'text-xs md:text-sm lg:text-base' :
-                          calendarDays.length <= 14 ? 'text-xs md:text-sm' :
-                          'text-xs'
+                          // Mobile-first text sizing
+                          calendarDimensions.isMobile
+                            ? 'text-xs'  // Very compact on mobile
+                            : calendarDays.length <= 3 ? 'text-sm md:text-base lg:text-lg' :
+                              calendarDays.length <= 7 ? 'text-xs md:text-sm lg:text-base' :
+                              calendarDays.length <= 14 ? 'text-xs md:text-sm' :
+                              'text-xs'
                         }`}>
-                          {/* Dynamic day name length based on available space */}
-                          {calendarDays.length <= 7 ? day.dayName : 
-                           calendarDays.length <= 14 ? day.dayName.slice(0, 3) :
-                           day.dayName.slice(0, 2)}
+                          {/* Mobile-first day name length */}
+                          {calendarDimensions.isMobile
+                            ? day.dayName.slice(0, 1)  // Single letter on mobile (M, T, W, etc.)
+                            : calendarDays.length <= 7 ? day.dayName :
+                              calendarDays.length <= 14 ? day.dayName.slice(0, 3) :
+                              day.dayName.slice(0, 2)
+                          }
                         </div>
                         <div className={`text-gray-500 dark:text-gray-400 truncate ${
-                          calendarDays.length <= 3 ? 'text-xs md:text-sm' :
-                          calendarDays.length <= 7 ? 'text-xs md:text-sm' :
-                          calendarDays.length <= 14 ? 'text-xs' :
-                          'text-xs hidden md:block'
+                          calendarDimensions.isMobile
+                            ? 'text-xs'  // Show day number only on mobile
+                            : calendarDays.length <= 3 ? 'text-xs md:text-sm' :
+                              calendarDays.length <= 7 ? 'text-xs md:text-sm' :
+                              calendarDays.length <= 14 ? 'text-xs' :
+                              'text-xs hidden md:block'
                         }`}>
-                          {/* Dynamic date format based on available space */}
-                          {calendarDays.length <= 7 
-                            ? `${day.monthName} ${day.dayNumber}`
-                            : calendarDays.length <= 14
-                            ? `${day.monthName.slice(0, 3)} ${day.dayNumber}`
-                            : `${day.dayNumber}`
+                          {/* Mobile-first date format */}
+                          {calendarDimensions.isMobile
+                            ? `${day.dayNumber}`  // Just day number on mobile
+                            : calendarDays.length <= 7
+                              ? `${day.monthName} ${day.dayNumber}`
+                              : calendarDays.length <= 14
+                              ? `${day.monthName.slice(0, 3)} ${day.dayNumber}`
+                              : `${day.dayNumber}`
                           }
                         </div>
                       </div>
@@ -1273,16 +1308,18 @@ export function OutlookCalendar({
                   </div>
                 ))}
 
-                {/* Add day after button */}
-                <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
-                  <button
-                    onClick={() => onExtendTrip('after')}
-                    className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                    title="Add day after trip"
-                  >
-                    <Plus className="w-3 h-3 md:w-4 md:h-4" />
-                  </button>
-                </div>
+                {/* Add day after button - Hide on mobile */}
+                {!calendarDimensions.isMobile && (
+                  <div className="p-2 md:p-3 bg-gray-50 dark:bg-[#2a2a2a]">
+                    <button
+                      onClick={() => onExtendTrip('after')}
+                      className="w-full h-6 md:h-8 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      title="Add day after trip"
+                    >
+                      <Plus className="w-3 h-3 md:w-4 md:h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Time Slots Grid with dynamic responsive layout */}
@@ -1296,9 +1333,15 @@ export function OutlookCalendar({
                     }}
                   >
                     {/* Time label */}
-                    <div className="px-2 md:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
-                      <div className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {timeSlot.display}
+                    <div className="px-1 md:px-2 lg:px-4 py-3 bg-gray-50 dark:bg-[#2a2a2a] text-center">
+                      <div className={`font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap ${
+                        calendarDimensions.isMobile ? 'text-xs' : 'text-xs md:text-sm'
+                      }`}>
+                        {/* Show abbreviated time on mobile */}
+                        {calendarDimensions.isMobile
+                          ? timeSlot.display.replace(':00', '')  // Show just hour number on mobile
+                          : timeSlot.display
+                        }
                       </div>
                     </div>
 
@@ -1320,8 +1363,8 @@ export function OutlookCalendar({
                       </div>
                     ))}
 
-                    {/* Empty cell for add day after column */}
-                    <div />
+                    {/* Empty cell for add day after column - Hide on mobile */}
+                    {!calendarDimensions.isMobile && <div />}
                   </div>
                 ))}
               </div>
