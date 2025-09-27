@@ -294,11 +294,11 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             </div>
           </div>
 
-          {/* Action buttons moved higher up for mobile */}
-          <div className="absolute bottom-24 sm:bottom-32 left-1/2 transform -translate-x-1/2 flex items-center gap-4 sm:gap-6 z-10">
+          {/* Action buttons positioned above bottom UI mask */}
+          <div className="absolute bottom-32 sm:bottom-40 left-1/2 transform -translate-x-1/2 flex items-center gap-4 sm:gap-6 z-20">
             <button
               onClick={() => setCurrentStep('landing')}
-              className="bg-gray-700/80 backdrop-blur-sm text-white py-2 px-4 sm:py-3 sm:px-6 rounded-full shadow-lg hover:bg-gray-600/80 transition-colors flex items-center gap-2"
+              className="bg-gray-800/90 backdrop-blur-sm text-white py-3 px-5 sm:py-3 sm:px-6 rounded-full shadow-xl hover:bg-gray-700/90 transition-colors flex items-center gap-2 border border-gray-600/50"
             >
               <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">Retake</span>
@@ -306,7 +306,7 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
 
             <button
               onClick={capturePhoto}
-              className="bg-emerald-600 text-white p-5 sm:p-6 rounded-full shadow-lg hover:scale-105 transition-transform"
+              className="bg-emerald-600 text-white p-5 sm:p-6 rounded-full shadow-xl hover:scale-105 transition-transform border border-emerald-500/50"
             >
               <FileScan className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>

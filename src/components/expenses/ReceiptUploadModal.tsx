@@ -218,30 +218,24 @@ export default function ReceiptUploadModal({ isOpen, onClose, tripId, onExpenseA
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="bg-emerald-600 dark:bg-emerald-700 px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <FileScan className="w-6 h-6 text-white" />
-            <h2 className="text-xl font-semibold text-white">Upload Receipt</h2>
-          </div>
-          <button
-            onClick={() => {
-              resetModal()
-              onClose()
-            }}
-            className="text-white hover:text-gray-200 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden relative">
+        {/* Close button */}
+        <button
+          onClick={() => {
+            resetModal()
+            onClose()
+          }}
+          className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="p-8">
           {!receiptData ? (
-            /* Upload Area */
+            /* Clean Upload Area */
             <div
               className={cn(
-                "border-2 border-dashed rounded-xl p-8 text-center transition-colors",
+                "border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer min-h-[300px] flex flex-col items-center justify-center",
                 dragActive
                   ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
                   : "border-gray-300 dark:border-gray-600 hover:border-emerald-400 dark:hover:border-emerald-500"
@@ -250,47 +244,42 @@ export default function ReceiptUploadModal({ isOpen, onClose, tripId, onExpenseA
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
+              onClick={() => document.getElementById('receipt-file-input')?.click()}
             >
               {preview ? (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <img
                     src={preview}
                     alt="Receipt preview"
-                    className="max-w-sm mx-auto rounded-lg shadow-md"
+                    className="max-w-md max-h-64 mx-auto rounded-lg shadow-md object-contain"
                   />
                   {isProcessing && (
-                    <div className="flex items-center justify-center gap-2 text-emerald-600">
+                    <div className="flex items-center justify-center gap-3 text-emerald-600">
                       <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full" />
-                      <span>Processing receipt...</span>
+                      <span className="text-lg">Processing receipt...</span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-lg font-medium text-gray-900 dark:text-white">
-                      Drop your receipt here
+                <div className="space-y-6">
+                  <Upload className="w-16 h-16 text-gray-400 mx-auto" />
+                  <div className="space-y-2">
+                    <p className="text-xl font-medium text-gray-900 dark:text-white">
+                      Drop receipt here
                     </p>
                     <p className="text-gray-500 dark:text-gray-400">
-                      or click to browse files
+                      or click to upload
                     </p>
                   </div>
-                  <button
-                    onClick={() => document.getElementById('receipt-file-input')?.click()}
-                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-                  >
-                    Choose File
-                  </button>
-                  <input
-                    id="receipt-file-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleChange}
-                    className="hidden"
-                  />
                 </div>
               )}
+              <input
+                id="receipt-file-input"
+                type="file"
+                accept="image/*"
+                onChange={handleChange}
+                className="hidden"
+              />
             </div>
           ) : (
             /* Receipt Data Review/Edit */
@@ -480,25 +469,16 @@ export default function ReceiptUploadModal({ isOpen, onClose, tripId, onExpenseA
           )}
 
           {receiptData && (
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  resetModal()
-                  onClose()
-                }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="mt-8 flex justify-center">
               <button
                 onClick={saveExpense}
                 disabled={isProcessing}
-                className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="bg-emerald-600 text-white px-8 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-2 text-lg"
               >
                 {isProcessing ? (
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
                 ) : (
-                  <Save className="w-4 h-4" />
+                  <Save className="w-5 h-5" />
                 )}
                 Save Expense
               </button>
