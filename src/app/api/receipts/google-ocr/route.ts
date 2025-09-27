@@ -136,6 +136,8 @@ function parseReceiptText(text: string) {
   let currency = 'BRL'
   let date = new Date().toISOString().split('T')[0]
   let category = 'other'
+  let cardLastFour = ''
+  let cardType = ''
 
   // Confidence levels based on pattern matching
   let merchantConfidence: 'high' | 'medium' | 'low' = 'low'
@@ -179,11 +181,11 @@ function parseReceiptText(text: string) {
     }
   }
 
-  // Extract date
+  // Extract date with improved parsing for MM/DD/YY format
   const datePatterns = [
-    /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/g, // DD/MM/YYYY or DD-MM-YYYY
+    /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/g, // DD/MM/YYYY or MM/DD/YYYY
     /(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/g, // YYYY/MM/DD or YYYY-MM-DD
-    /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})/g  // DD/MM/YY or DD-MM-YY
+    /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})/g  // MM/DD/YY or DD/MM/YY
   ]
 
   for (const pattern of datePatterns) {
@@ -194,29 +196,69 @@ function parseReceiptText(text: string) {
         let year, month, day
 
         if (match[3] && match[3].length === 4) {
-          // Full year format
-          if (parseInt(match[1]) > 12) {
-            // First number > 12, likely YYYY/MM/DD
-            [, year, month, day] = match
-          } else {
-            // Likely DD/MM/YYYY
+          // Full year format - assume MM/DD/YYYY for US format receipts
+          if (parseInt(match[1]) <= 12 && parseInt(match[2]) <= 31) {
+            // Could be MM/DD/YYYY
+            [, month, day, year] = match
+          } else if (parseInt(match[1]) > 12) {
+            // Must be DD/MM/YYYY
             [, day, month, year] = match
+          } else {
+            // Default to MM/DD/YYYY for US receipts
+            [, month, day, year] = match
           }
         } else {
-          // Short year format DD/MM/YY
-          [, day, month] = match
+          // Short year format - handle MM/DD/YY (common in US)
+          [, month, day] = match
           const shortYear = match[3] ? parseInt(match[3]) : new Date().getFullYear() % 100
-          year = shortYear < 50 ? `20${shortYear}` : `19${shortYear}`
+          // For years 25-99, assume 19xx; for 00-24, assume 20xx
+          year = shortYear >= 25 ? `19${shortYear.toString().padStart(2, '0')}` : `20${shortYear.toString().padStart(2, '0')}`
         }
 
+        // Create date object with proper month/day order
         const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-        if (!isNaN(dateObj.getTime())) {
+        if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() >= 1900 && dateObj.getFullYear() <= 2100) {
           date = dateObj.toISOString().split('T')[0]
           dateConfidence = 'high'
           break
         }
       } catch (e) {
         // Continue to next pattern
+      }
+    }
+  }
+
+  // Extract credit card information
+  const textLower = text.toLowerCase()
+
+  // Extract card type
+  if (textLower.includes('mastercard')) {
+    cardType = 'Mastercard'
+  } else if (textLower.includes('visa')) {
+    cardType = 'Visa'
+  } else if (textLower.includes('amex') || textLower.includes('american express')) {
+    cardType = 'American Express'
+  } else if (textLower.includes('discover')) {
+    cardType = 'Discover'
+  }
+
+  // Extract last 4 digits - look for patterns like "****1234", "XXXX1234", or just "1234" near card-related text
+  const lastFourPatterns = [
+    /\*{4,}(\d{4})/g,                    // ****1234
+    /x{4,}(\d{4})/gi,                   // XXXX1234 or xxxx1234
+    /\d{4}\s*\d{4}\s*\d{4}\s*(\d{4})/g, // Full card number (extract last 4)
+    /(?:aid|a\d+):\s*[a-z]*(\d{4})/gi,  // AID: A000000041010 (extract last 4)
+    /(\d{4})(?=\s*$)/gm                 // 4 digits at end of line
+  ]
+
+  for (const pattern of lastFourPatterns) {
+    const matches = [...text.matchAll(pattern)]
+    if (matches.length > 0) {
+      const match = matches[0]
+      const possibleLastFour = match[1]
+      if (possibleLastFour && possibleLastFour.length === 4) {
+        cardLastFour = possibleLastFour
+        break
       }
     }
   }
@@ -230,7 +272,6 @@ function parseReceiptText(text: string) {
     other: []
   }
 
-  const textLower = text.toLowerCase()
   for (const [cat, keywords] of Object.entries(categoryKeywords)) {
     if (keywords.some(keyword => textLower.includes(keyword))) {
       category = cat
@@ -244,6 +285,8 @@ function parseReceiptText(text: string) {
     currency,
     date,
     category,
+    cardLastFour,
+    cardType,
     confidence: {
       merchant: merchantConfidence,
       amount: amountConfidence,

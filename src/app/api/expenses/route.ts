@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       expense_date,
       expense_location,
       card_last_four,
+      card_type,
       is_personal_card = false,
       requires_reimbursement = false
     } = data
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate category against enum
+    // Validate category against enum (note: database enum values may differ)
     const validCategories = ['transport', 'accommodation', 'meals', 'activities', 'business', 'other']
     if (!validCategories.includes(category)) {
       return NextResponse.json(
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         expense_date,
         expense_location,
         card_last_four,
+        card_type,
         is_personal_card,
         requires_reimbursement
       })
@@ -90,7 +92,11 @@ export async function POST(request: NextRequest) {
     if (expenseError) {
       console.error('Error creating expense:', expenseError)
       return NextResponse.json(
-        { error: 'Failed to create expense' },
+        {
+          error: 'Failed to create expense',
+          details: expenseError.message,
+          code: expenseError.code
+        },
         { status: 500 }
       )
     }

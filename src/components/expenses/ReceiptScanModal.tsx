@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useRef } from 'react'
-import { X, Camera, Check, Edit2, Plus, ChevronRight, AlertCircle } from 'lucide-react'
+import { X, Camera, Check, Edit2, Plus, ChevronRight, AlertCircle, FileScan, ScanLine } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ReceiptData {
@@ -10,6 +10,8 @@ interface ReceiptData {
   currency: string
   date: string
   category: string
+  cardLastFour: string
+  cardType: string
   confidence: {
     merchant: 'high' | 'medium' | 'low'
     amount: 'high' | 'medium' | 'low'
@@ -153,19 +155,23 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
           category: receiptData.category,
           description: `${receiptData.merchant} - ${receiptData.date}`,
           expense_date: receiptData.date,
-          expense_location: receiptData.merchant
+          expense_location: receiptData.merchant,
+          card_last_four: receiptData.cardLastFour || null,
+          card_type: receiptData.cardType || null
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save expense')
+        const errorData = await response.json()
+        throw new Error(errorData.details || errorData.error || 'Failed to save expense')
       }
 
       onExpenseAdded?.(receiptData)
       onClose()
       resetModal()
     } catch (err) {
-      setError('Failed to save expense. Please try again.')
+      console.error('Expense save error:', err)
+      setError(`Failed to save expense: ${err.message}`)
     } finally {
       setIsProcessing(false)
     }
@@ -205,7 +211,7 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
       {currentStep === 'landing' && (
         <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 m-4 max-w-sm w-full text-center">
           <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Camera className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+            <FileScan className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
           </div>
 
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -220,8 +226,8 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
               onClick={startCamera}
               className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
             >
-              <Camera className="w-5 h-5" />
-              Take Photo
+              <FileScan className="w-5 h-5" />
+              Scan Receipt
             </button>
 
             <label className="w-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer flex items-center justify-center gap-2">
@@ -258,28 +264,51 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             className="flex-1 object-cover"
           />
 
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+          {/* Header with close button */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
             <button
               onClick={() => {
                 resetModal()
                 setCurrentStep('landing')
               }}
-              className="bg-black/20 backdrop-blur-sm text-white p-2 rounded-full"
+              className="bg-black/30 backdrop-blur-sm text-white p-2 rounded-full"
             >
               <X className="w-6 h-6" />
             </button>
 
-            <div className="bg-black/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
-              Position receipt in frame
+            <div className="bg-emerald-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Scan Receipt
             </div>
           </div>
 
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          {/* Guidance messages at the top */}
+          <div className="absolute top-16 left-4 right-4 z-10 space-y-2">
+            <div className="bg-black/60 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-center">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                <span className="text-xs sm:text-sm font-medium">Keep receipt flat, well-lit, and avoid shadows</span>
+              </div>
+            </div>
+            <div className="bg-black/60 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-center">
+              <span className="text-xs sm:text-sm">📄 Fit entire receipt in frame</span>
+            </div>
+          </div>
+
+          {/* Action buttons moved higher up for mobile */}
+          <div className="absolute bottom-24 sm:bottom-32 left-1/2 transform -translate-x-1/2 flex items-center gap-4 sm:gap-6 z-10">
+            <button
+              onClick={() => setCurrentStep('landing')}
+              className="bg-gray-700/80 backdrop-blur-sm text-white py-2 px-4 sm:py-3 sm:px-6 rounded-full shadow-lg hover:bg-gray-600/80 transition-colors flex items-center gap-2"
+            >
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm font-medium">Retake</span>
+            </button>
+
             <button
               onClick={capturePhoto}
-              className="bg-white text-gray-900 p-4 rounded-full shadow-lg hover:scale-105 transition-transform"
+              className="bg-emerald-600 text-white p-5 sm:p-6 rounded-full shadow-lg hover:scale-105 transition-transform"
             >
-              <Camera className="w-8 h-8" />
+              <FileScan className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>
           </div>
 
@@ -366,6 +395,20 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
               <label className="text-sm text-gray-500 dark:text-gray-400">Category</label>
               <p className="font-medium text-gray-900 dark:text-white capitalize">{receiptData.category}</p>
             </div>
+
+            {(receiptData.cardType || receiptData.cardLastFour) && (
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Payment Method</label>
+                <div className="flex items-center gap-2">
+                  {receiptData.cardType && (
+                    <span className="font-medium text-gray-900 dark:text-white">{receiptData.cardType}</span>
+                  )}
+                  {receiptData.cardLastFour && (
+                    <span className="text-gray-600 dark:text-gray-300">•••• {receiptData.cardLastFour}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {error && (
