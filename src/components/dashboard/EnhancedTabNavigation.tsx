@@ -101,75 +101,83 @@ export function EnhancedTabNavigation({
   }
 
   return (
-    <div className={`flex flex-wrap gap-1 ${className}`}>
-      {TAB_DEFINITIONS.map((tab) => {
-        const Icon = tab.icon
-        const isActive = activeTab === tab.id
-        const validationStatus = getTabValidationStatus(tab.id)
-        const hasValidationIssues = validationStatus === 'error' || validationStatus === 'warning'
-        
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`
-              flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors
-              relative group
-              ${
-                isActive
-                  ? 'bg-white dark:bg-emerald-800/80 text-[#333333] dark:text-golden-400 shadow-sm'
-                  : `text-[#333333] dark:text-golden-400/70 hover:text-[#006D5B] hover:bg-white/10 
-                     dark:hover:text-golden-400 dark:hover:bg-emerald-800/40
-                     ${hasValidationIssues ? 'bg-red-500/10 dark:bg-red-900/20' : ''}`
-              }
-            `}
-            title={tab.description}
-          >
-            <Icon className="w-4 h-4" />
-            <span>{tab.label}</span>
-            
-            {/* Validation Status Indicator */}
-            {hasValidationIssues && (
-              <div className="absolute -top-1 -right-1">
-                {getValidationIcon(validationStatus)}
-              </div>
-            )}
-            
-            {/* Save Status Indicator */}
-            {saveStatus.isSaving && isActive && (
-              <div className="absolute -top-1 -right-1">
-                <Loader2 className="w-3 h-3 text-emerald-500 animate-spin" />
-              </div>
-            )}
-            
-            {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-              {tab.description}
+    <div className={`${className}`}>
+      {/* Mobile-optimized tab navigation */}
+      <div className="flex justify-between items-center gap-1 sm:gap-2">
+        {TAB_DEFINITIONS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          const validationStatus = getTabValidationStatus(tab.id)
+          const hasValidationIssues = validationStatus === 'error' || validationStatus === 'warning'
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`
+                flex items-center justify-center gap-1 px-2 py-2 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors
+                relative group flex-1 min-w-0
+                ${
+                  isActive
+                    ? 'bg-white dark:bg-emerald-800/80 text-[#333333] dark:text-golden-400 shadow-sm'
+                    : `text-[#333333] dark:text-golden-400/70 hover:text-[#006D5B] hover:bg-white/10
+                       dark:hover:text-golden-400 dark:hover:bg-emerald-800/40
+                       ${hasValidationIssues ? 'bg-red-500/10 dark:bg-red-900/20' : ''}`
+                }
+              `}
+              title={tab.description}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              {/* Show label only for active tab on mobile, always show on desktop */}
+              <span className={`truncate ${isActive ? 'block' : 'hidden sm:block'}`}>
+                {tab.label}
+              </span>
+
+              {/* Validation Status Indicator */}
               {hasValidationIssues && (
-                <div className="text-red-300">
-                  {validationStatus === 'error' ? 'Has errors' : 'Has warnings'}
+                <div className="absolute -top-1 -right-1">
+                  {getValidationIcon(validationStatus)}
                 </div>
               )}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-            </div>
-          </button>
-        )
-      })}
-      
-      {/* Global Save Status Indicator */}
-      {saveStatus.error && (
-        <div className="flex items-center space-x-2 px-3 py-2 text-xs text-red-400 bg-red-900/20 rounded-md">
-          <AlertCircle className="w-3 h-3" />
-          <span>Save failed</span>
-        </div>
-      )}
-      
-      {saveStatus.status === 'success' && (
-        <div className="flex items-center space-x-2 px-3 py-2 text-xs text-emerald-400 bg-emerald-900/20 rounded-md">
-          <CheckCircle2 className="w-3 h-3" />
-          <span>Saved</span>
-        </div>
-      )}
+
+              {/* Save Status Indicator */}
+              {saveStatus.isSaving && isActive && (
+                <div className="absolute -top-1 -right-1">
+                  <Loader2 className="w-3 h-3 text-emerald-500 animate-spin" />
+                </div>
+              )}
+
+              {/* Tooltip for desktop only */}
+              <div className="hidden sm:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                {tab.description}
+                {hasValidationIssues && (
+                  <div className="text-red-300">
+                    {validationStatus === 'error' ? 'Has errors' : 'Has warnings'}
+                  </div>
+                )}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Global Save Status Indicator - Mobile optimized */}
+      <div className="flex justify-center mt-2">
+        {saveStatus.error && (
+          <div className="flex items-center space-x-2 px-3 py-1 text-xs text-red-400 bg-red-900/20 rounded-md">
+            <AlertCircle className="w-3 h-3" />
+            <span className="hidden sm:inline">Save failed</span>
+          </div>
+        )}
+
+        {saveStatus.status === 'success' && (
+          <div className="flex items-center space-x-2 px-3 py-1 text-xs text-emerald-400 bg-emerald-900/20 rounded-md">
+            <CheckCircle2 className="w-3 h-3" />
+            <span className="hidden sm:inline">Saved</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

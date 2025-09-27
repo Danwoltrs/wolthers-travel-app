@@ -368,52 +368,52 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-8 overflow-y-auto">
-      <div className={`bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-pearl-200 dark:border-[#2a2a2a] ${
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-0 sm:p-4 lg:p-8">
+      <div className={`bg-white dark:bg-[#1a1a1a] rounded-none sm:rounded-xl shadow-xl border-0 sm:border border-pearl-200 dark:border-[#2a2a2a] ${
         getScheduleWidth()
-      } w-full my-auto max-h-[90vh] overflow-hidden flex flex-col`}>
+      } w-full h-full sm:h-auto sm:my-auto sm:max-h-[90vh] overflow-hidden flex flex-col`}>
         {/* Header with Title and Edit Toggle */}
-        <div className="bg-golden-400 dark:bg-[#09261d] px-3 md:px-6 py-4 relative border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-xl">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-[#006D5B] dark:text-golden-400">{localTrip.title}</h2>
-              <div className="text-sm text-[#333333] dark:text-golden-400/70 font-medium">
+        <div className="bg-golden-400 dark:bg-[#09261d] px-3 sm:px-6 py-3 sm:py-4 relative border-b border-pearl-200 dark:border-[#0a2e21] rounded-t-none sm:rounded-t-xl">
+          <div className="flex items-center justify-between w-full mb-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-[#006D5B] dark:text-golden-400 truncate">{localTrip.title}</h2>
+              <div className="text-xs sm:text-sm text-[#333333] dark:text-golden-400/70 font-medium">
                 {formatDateRange(localTrip.startDate, localTrip.endDate)} | {calculateDuration(localTrip.startDate, localTrip.endDate)} days
               </div>
             </div>
-            
-            <div className="flex items-center space-x-3">
-              {/* Edit Toggle */}
+
+            <div className="flex items-center space-x-2 ml-3">
+              {/* Edit Toggle - More compact on mobile */}
               {!readOnly && (
                 <button
                   onClick={handleModeSwitch}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isEditing 
-                      ? 'bg-[#009B77] text-white hover:bg-[#008066] dark:bg-emerald-800/50 dark:text-golden-400' 
+                  className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                    isEditing
+                      ? 'bg-[#009B77] text-white hover:bg-[#008066] dark:bg-emerald-800/50 dark:text-golden-400'
                       : 'bg-white/10 text-[#333333] hover:bg-white/20 hover:text-[#006D5B] dark:bg-emerald-800/30 dark:text-golden-400/80 dark:hover:bg-emerald-800/50 dark:hover:text-golden-400'
                   }`}
                 >
-                  <Edit3 className="w-4 h-4" />
-                  <span>{isEditing ? 'View Mode' : 'Edit Mode'}</span>
+                  <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{isEditing ? 'View Mode' : 'Edit Mode'}</span>
                 </button>
               )}
-              
+
               <button
                 onClick={onClose}
                 className="text-[#009B77] dark:text-golden-400 hover:text-[#006D5B] dark:hover:text-golden-300 transition-colors flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
           </div>
-          
+
           {/* Enhanced Tab Navigation - Always shown */}
           <EnhancedTabNavigation
             activeTab={activeTab}
             onTabChange={setActiveTab}
             validationState={modalState.validationState}
             saveStatus={modalState.saveStatus}
-            className="mt-4"
+            className=""
           />
         </div>
 
@@ -439,7 +439,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
           <div className="flex flex-col flex-1 min-h-0">
             {/* Auto-save Status Bar - Only in edit mode */}
             {isEditing && (hasUnsavedChanges || isAutoSaving) && (
-              <div className="px-3 md:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+              <div className="px-3 sm:px-6 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     {isAutoSaving ? (
@@ -455,7 +455,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     ) : null}
                   </div>
                   {modalState.lastSaved && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400">
                       Last saved: {modalState.lastSaved.toLocaleTimeString()}
                     </span>
                   )}
@@ -465,7 +465,7 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
 
             {/* Tab Content Area */}
             <div
-              className="p-3 md:p-6 touch-pan-y overflow-y-auto flex-1 min-h-0"
+              className="p-3 sm:p-6 touch-pan-y overflow-y-auto flex-1 min-h-0"
               ref={(el) => {
               // Auto-scroll to top when Schedule tab becomes active
               if (activeTab === 'schedule' && el) {
@@ -553,12 +553,13 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
           </div>
         </div>
 
-        {/* Enhanced Footer */}
-        <div className="flex-shrink-0 rounded-b-xl border-t border-pearl-200 dark:border-[#2a2a2a] p-3 md:p-4 bg-white dark:bg-[#1a1a1a]">
+        {/* Enhanced Footer - Mobile optimized */}
+        <div className="flex-shrink-0 rounded-b-none sm:rounded-b-xl border-t border-pearl-200 dark:border-[#2a2a2a] p-3 sm:p-4 bg-white dark:bg-[#1a1a1a]">
+          {/* Trip Stats */}
           <div className="grid grid-cols-3 gap-3 mb-3">
             {footerStats.map((stat) => (
               <div key={stat.label} className="text-center">
-                <div className="text-sm font-semibold text-gray-900 dark:text-golden-400 md:text-base">
+                <div className="text-base sm:text-lg font-semibold text-gray-900 dark:text-golden-400">
                   {stat.value}
                 </div>
                 <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -568,17 +569,19 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {trip.accessCode && (
+          {/* Action Buttons - Stacked on mobile */}
+          <div className="space-y-3 sm:space-y-0">
+            {/* Trip Access Code */}
+            {trip.accessCode && (
+              <div className="flex justify-center sm:justify-start">
                 <div className="relative">
                   <button
                     onClick={handleCopyAccessCode}
-                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-[#2a2a2a] dark:hover:text-gray-200"
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-[#2a2a2a] dark:hover:text-gray-200"
                     title={`Copy access code: ${trip.accessCode}`}
                   >
-                    <Key className="w-3.5 h-3.5" />
-                    <span className="text-xs font-mono">{trip.accessCode}</span>
+                    <Key className="w-4 h-4" />
+                    <span className="text-sm font-mono">{trip.accessCode}</span>
                   </button>
                   {showCopyTooltip && (
                     <div className="absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform rounded bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap">
@@ -587,48 +590,51 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center">
               <button
                 onClick={onClose}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
+                className="order-2 sm:order-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
               >
                 {hasUnsavedChanges && isEditing ? 'Close (Unsaved)' : 'Close'}
               </button>
 
-              {isEditing ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {hasUnsavedChanges && (
+              <div className="order-1 sm:order-2 flex flex-col sm:flex-row gap-2">
+                {isEditing ? (
+                  <>
+                    {hasUnsavedChanges && (
+                      <button
+                        onClick={saveFormData}
+                        disabled={modalState.saveStatus.isSaving}
+                        className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800 disabled:opacity-50"
+                      >
+                        {modalState.saveStatus.isSaving ? (
+                          <div className="h-3.5 w-3.5 animate-spin rounded-full border border-golden-400 border-t-transparent"></div>
+                        ) : (
+                          <Save className="w-3.5 h-3.5" />
+                        )}
+                        <span>{modalState.saveStatus.isSaving ? 'Saving...' : 'Save Now'}</span>
+                      </button>
+                    )}
                     <button
-                      onClick={saveFormData}
-                      disabled={modalState.saveStatus.isSaving}
-                      className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800 disabled:opacity-50"
+                      onClick={handleModeSwitch}
+                      className="rounded-lg bg-gray-500 px-4 py-2.5 text-sm text-white transition-colors hover:bg-gray-600"
                     >
-                      {modalState.saveStatus.isSaving ? (
-                        <div className="h-3.5 w-3.5 animate-spin rounded-full border border-golden-400 border-t-transparent"></div>
-                      ) : (
-                        <Save className="w-3.5 h-3.5" />
-                      )}
-                      <span>{modalState.saveStatus.isSaving ? 'Saving...' : 'Save Now'}</span>
+                      {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}
                     </button>
-                  )}
+                  </>
+                ) : (
                   <button
-                    onClick={handleModeSwitch}
-                    className="rounded-lg bg-gray-500 px-3 py-1.5 text-sm text-white transition-colors hover:bg-gray-600"
+                    onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+                    className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800"
                   >
-                    {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}
+                    View Details
                   </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
-                  className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800"
-                >
-                  View Details
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
