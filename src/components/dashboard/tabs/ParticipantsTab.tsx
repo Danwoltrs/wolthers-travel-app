@@ -102,50 +102,63 @@ export function ParticipantsTab({
         </div>
       </div>
 
-      {/* Section Navigation - Mobile 2x2 grid layout */}
-      <div className="border-b border-gray-200 dark:border-[#2a2a2a]">
-        <nav className="grid grid-cols-2 gap-2 md:flex md:gap-1 md:overflow-x-auto md:scrollbar-hide pb-2">
-          {[
-            { id: 'wolthers', label: 'Wolthers Staff', shortLabel: 'Staff', icon: Users, count: wolthersStaff.length },
-            { id: 'companies', label: 'Company Guests', shortLabel: 'Guests', icon: Building, count: trip.guests.reduce((acc, g) => acc + g.names.length, 0) },
-            { id: 'external', label: 'External Guests', shortLabel: 'External', icon: UserPlus, count: 0 },
-            { id: 'host', label: 'Host Companies', shortLabel: 'Host', icon: MapPin, count: 0 }
-          ].map((section) => {
-            const Icon = section.icon
-            const isActive = activeSection === section.id
+     {/* Section Navigation - Clean 2x2 mobile grid */}
+<div className="border-b border-gray-200 dark:border-[#2a2a2a]">
+  <nav className="grid grid-cols-2 gap-3 md:flex md:gap-1 md:overflow-x-auto md:scrollbar-hide pb-3">
+    {[
+      { id: 'wolthers', label: 'Wolthers Staff', shortLabel: 'Staff', icon: Users, count: wolthersStaff.length },
+      { id: 'companies', label: 'Company Guests', shortLabel: 'Guests', icon: Building, count: trip.guests.reduce((acc, g) => acc + g.names.length, 0) },
+      { id: 'external', label: 'External Guests', shortLabel: 'External', icon: UserPlus, count: 0 },
+      { id: 'host', label: 'Host Companies', shortLabel: 'Host', icon: MapPin, count: 0 }
+    ].map((section) => {
+      const Icon = section.icon
+      const isActive = activeSection === section.id
 
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id as any)}
-                className={`
-                  flex items-center justify-center gap-1 py-3 px-2 rounded-md text-xs font-medium transition-colors
-                  w-full min-h-[44px]
-                  ${
-                    isActive
-                      ? 'bg-emerald-800 dark:bg-emerald-800/80 text-golden-400 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-800/40'
-                  }
-                `}
-                title={section.label}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {/* Text and count - show short labels on mobile, full labels on desktop */}
-                <span className="truncate text-center">
-                  <span className="md:hidden">{section.shortLabel}</span>
-                  <span className="hidden md:inline">{section.label}</span>
-                </span>
-                <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full flex-shrink-0 ${
-                  isActive ? 'bg-golden-400/20 text-golden-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                }`}>
-                  {section.count}
-                </span>
-              </button>
-            )
-          })}
-        </nav>
-      </div>
-
+      return (
+        <button
+          key={section.id}
+          onClick={() => setActiveSection(section.id as any)}
+          className={`
+            relative flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-xl text-xs font-medium transition-all duration-200
+            min-h-[80px] md:min-h-[44px] md:flex-row md:gap-1 md:py-3 md:px-4
+            ${
+              isActive
+                ? 'bg-emerald-800 dark:bg-emerald-800/80 text-golden-400 shadow-md transform scale-[1.02] md:scale-100'
+                : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-gray-300 dark:hover:bg-gray-800/40 border border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-gray-600'
+            }
+          `}
+        >
+          {/* Icon */}
+          <Icon className={`w-5 h-5 md:w-4 md:h-4 flex-shrink-0 ${isActive ? 'text-golden-400' : ''}`} />
+          
+          {/* Label */}
+          <div className="flex flex-col md:flex-row md:items-center md:gap-1 text-center md:text-left">
+            <span className="leading-tight">
+              <span className="md:hidden block">{section.shortLabel}</span>
+              <span className="hidden md:inline">{section.label}</span>
+            </span>
+            
+            {/* Count Badge */}
+            <span className={`
+              inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs rounded-full font-medium
+              ${isActive 
+                ? 'bg-golden-400/20 text-golden-400 border border-golden-400/30' 
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600'
+              }
+            `}>
+              {section.count}
+            </span>
+          </div>
+          
+          {/* Active indicator for mobile */}
+          {isActive && (
+            <div className="absolute top-1 right-1 w-2 h-2 bg-golden-400 rounded-full md:hidden" />
+          )}
+        </button>
+      )
+    })}
+  </nav>
+</div>
       {/* Content Area */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-pearl-200 dark:border-[#2a2a2a] overflow-hidden">
         {activeSection === 'wolthers' && (
