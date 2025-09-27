@@ -230,4 +230,9 @@
     @apply fixed inset-0 z-50 bg-black/60 dark:bg-black/80;
     backdrop-filter: blur(8px);
   }
+
+  /* Custom flex utilities for tab navigation */
+  .flex-2 {
+    flex: 2 1 0%;
+  }
 }

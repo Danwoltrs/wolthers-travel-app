@@ -103,7 +103,7 @@ export function EnhancedTabNavigation({
   return (
     <div className={`${className}`}>
       {/* Mobile-optimized tab navigation */}
-      <div className="flex justify-between items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         {TAB_DEFINITIONS.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -116,12 +116,12 @@ export function EnhancedTabNavigation({
               onClick={() => onTabChange(tab.id)}
               className={`
                 flex items-center justify-center gap-1 px-2 py-2 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors
-                relative group flex-1 min-w-0
+                relative group min-w-0
                 ${
                   isActive
-                    ? 'bg-white dark:bg-emerald-800/80 text-[#333333] dark:text-golden-400 shadow-sm'
+                    ? 'bg-white dark:bg-emerald-800/80 text-[#333333] dark:text-golden-400 shadow-sm flex-2'
                     : `text-[#333333] dark:text-golden-400/70 hover:text-[#006D5B] hover:bg-white/10
-                       dark:hover:text-golden-400 dark:hover:bg-emerald-800/40
+                       dark:hover:text-golden-400 dark:hover:bg-emerald-800/40 flex-1
                        ${hasValidationIssues ? 'bg-red-500/10 dark:bg-red-900/20' : ''}`
                 }
               `}

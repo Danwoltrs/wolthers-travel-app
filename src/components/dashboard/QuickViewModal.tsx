@@ -569,11 +569,11 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
             ))}
           </div>
 
-          {/* Action Buttons - Stacked on mobile */}
-          <div className="space-y-3 sm:space-y-0">
+          {/* Action Buttons - Single line: Key card, Close, View Details */}
+          <div className="flex items-center justify-between gap-2">
             {/* Trip Access Code */}
-            {trip.accessCode && (
-              <div className="flex justify-center sm:justify-start">
+            <div className="flex-shrink-0">
+              {trip.accessCode ? (
                 <div className="relative">
                   <button
                     onClick={handleCopyAccessCode}
@@ -590,51 +590,52 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="w-8"></div>
+              )}
+            </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center">
-              <button
-                onClick={onClose}
-                className="order-2 sm:order-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
-              >
-                {hasUnsavedChanges && isEditing ? 'Close (Unsaved)' : 'Close'}
-              </button>
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
+            >
+              {hasUnsavedChanges && isEditing ? 'Close (Unsaved)' : 'Close'}
+            </button>
 
-              <div className="order-1 sm:order-2 flex flex-col sm:flex-row gap-2">
-                {isEditing ? (
-                  <>
-                    {hasUnsavedChanges && (
-                      <button
-                        onClick={saveFormData}
-                        disabled={modalState.saveStatus.isSaving}
-                        className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800 disabled:opacity-50"
-                      >
-                        {modalState.saveStatus.isSaving ? (
-                          <div className="h-3.5 w-3.5 animate-spin rounded-full border border-golden-400 border-t-transparent"></div>
-                        ) : (
-                          <Save className="w-3.5 h-3.5" />
-                        )}
-                        <span>{modalState.saveStatus.isSaving ? 'Saving...' : 'Save Now'}</span>
-                      </button>
-                    )}
+            {/* View Details / Save Buttons */}
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
+                  {hasUnsavedChanges && (
                     <button
-                      onClick={handleModeSwitch}
-                      className="rounded-lg bg-gray-500 px-4 py-2.5 text-sm text-white transition-colors hover:bg-gray-600"
+                      onClick={saveFormData}
+                      disabled={modalState.saveStatus.isSaving}
+                      className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800 disabled:opacity-50"
                     >
-                      {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}
+                      {modalState.saveStatus.isSaving ? (
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border border-golden-400 border-t-transparent"></div>
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>{modalState.saveStatus.isSaving ? 'Saving...' : 'Save Now'}</span>
                     </button>
-                  </>
-                ) : (
+                  )}
                   <button
-                    onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
-                    className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800"
+                    onClick={handleModeSwitch}
+                    className="rounded-lg bg-gray-500 px-4 py-2.5 text-sm text-white transition-colors hover:bg-gray-600"
                   >
-                    View Details
+                    {hasUnsavedChanges ? 'Discard & Exit' : 'Done Editing'}
                   </button>
-                )}
-              </div>
+                </>
+              ) : (
+                <button
+                  onClick={() => window.location.href = `/trips/${trip.accessCode || trip.id}`}
+                  className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm text-golden-400 transition-colors hover:bg-emerald-800"
+                >
+                  View Details
+                </button>
+              )}
             </div>
           </div>
         </div>
