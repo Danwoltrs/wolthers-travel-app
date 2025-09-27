@@ -6,18 +6,19 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
-import { 
-  Users, 
-  UserPlus, 
-  Building, 
-  Mail, 
-  Phone, 
+import {
+  Users,
+  UserPlus,
+  Building,
+  Mail,
+  Phone,
   Calendar,
   Clock,
   AlertCircle,
   CheckCircle2,
   Trash2,
-  Settings
+  Settings,
+  MapPin
 } from 'lucide-react'
 import { useWolthersStaff } from '@/hooks/useWolthersStaff'
 import type { TripCard } from '@/types'
@@ -29,17 +30,16 @@ interface ParticipantsTabProps {
   validationState?: any
 }
 
-export function ParticipantsTab({ 
-  trip, 
-  tripDetails, 
-  onUpdate, 
-  validationState 
+export function ParticipantsTab({
+  trip,
+  tripDetails,
+  onUpdate,
+  validationState
 }: ParticipantsTabProps) {
-  const [activeSection, setActiveSection] = useState<'wolthers' | 'companies' | 'external'>('wolthers')
+  const [activeSection, setActiveSection] = useState<'wolthers' | 'companies' | 'external' | 'host'>('wolthers')
   const [showAddModal, setShowAddModal] = useState(false)
   const [bulkSelectMode, setBulkSelectMode] = useState(false)
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([])
-
   // Load Wolthers staff from Supabase
   const { wolthersStaff, loading: staffLoading, error: staffError } = useWolthersStaff()
 
@@ -81,50 +81,68 @@ export function ParticipantsTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-golden-400">
           Participants Management
         </h3>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2 sm:space-x-3">
           <button
             onClick={() => setBulkSelectMode(!bulkSelectMode)}
-            className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+            className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 flex-shrink-0"
           >
-            {bulkSelectMode ? 'Exit Bulk Select' : 'Bulk Select'}
+            {bulkSelectMode ? 'Exit Bulk' : 'Bulk'}
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex-1 sm:flex-initial justify-center"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Add Participant</span>
+            <UserPlus className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm sm:text-base">Add Participant</span>
           </button>
         </div>
       </div>
 
-      {/* Section Navigation */}
+      {/* Section Navigation - Mobile 2x2 grid layout */}
       <div className="border-b border-gray-200 dark:border-[#2a2a2a]">
-        <nav className="flex space-x-6">
+        <nav className="grid grid-cols-2 gap-2 md:flex md:gap-1 md:overflow-x-auto md:scrollbar-hide pb-2">
           {[
-            { id: 'wolthers', label: 'Wolthers Staff', count: wolthersStaff.length },
-            { id: 'companies', label: 'Company Guests', count: trip.guests.reduce((acc, g) => acc + g.names.length, 0) },
-            { id: 'external', label: 'External Guests', count: 0 }
-          ].map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id as any)}
-              className={`pb-3 border-b-2 transition-colors ${
-                activeSection === section.id
-                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              {section.label}
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                {section.count}
-              </span>
-            </button>
-          ))}
+            { id: 'wolthers', label: 'Wolthers Staff', shortLabel: 'Staff', icon: Users, count: wolthersStaff.length },
+            { id: 'companies', label: 'Company Guests', shortLabel: 'Guests', icon: Building, count: trip.guests.reduce((acc, g) => acc + g.names.length, 0) },
+            { id: 'external', label: 'External Guests', shortLabel: 'External', icon: UserPlus, count: 0 },
+            { id: 'host', label: 'Host Companies', shortLabel: 'Host', icon: MapPin, count: 0 }
+          ].map((section) => {
+            const Icon = section.icon
+            const isActive = activeSection === section.id
+
+            return (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id as any)}
+                className={`
+                  flex items-center justify-center gap-1 py-3 px-2 rounded-md text-xs font-medium transition-colors
+                  w-full min-h-[44px]
+                  ${
+                    isActive
+                      ? 'bg-emerald-800 dark:bg-emerald-800/80 text-golden-400 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-800/40'
+                  }
+                `}
+                title={section.label}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {/* Text and count - show short labels on mobile, full labels on desktop */}
+                <span className="truncate text-center">
+                  <span className="md:hidden">{section.shortLabel}</span>
+                  <span className="hidden md:inline">{section.label}</span>
+                </span>
+                <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full flex-shrink-0 ${
+                  isActive ? 'bg-golden-400/20 text-golden-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {section.count}
+                </span>
+              </button>
+            )
+          })}
         </nav>
       </div>
 
@@ -343,6 +361,16 @@ export function ParticipantsTab({
             <p className="text-gray-500 dark:text-gray-400">External guest management coming soon</p>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
               Add external guests and contractors
+            </p>
+          </div>
+        )}
+
+        {activeSection === 'host' && (
+          <div className="px-6 py-12 text-center">
+            <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-gray-400">Host company management coming soon</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+              Manage local host companies and venues
             </p>
           </div>
         )}

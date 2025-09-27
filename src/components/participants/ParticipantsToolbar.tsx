@@ -58,15 +58,15 @@ export function ParticipantsToolbar({
 
   return (
     <div className="sticky top-0 bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-[#2a2a2a] z-10">
-      <div className="px-4 md:px-6 py-4">
-        <div className="flex items-center justify-between space-x-4">
-          {/* Left Section: Search and Filters */}
-          <div className="flex items-center space-x-3 flex-1 max-w-lg">
+      <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center sm:justify-between">
+          {/* Mobile-optimized Search and Filters Section */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-1">
             {/* Bulk Select Checkbox */}
             {bulkSelectMode && (
               <button
                 onClick={onSelectAll}
-                className="flex items-center justify-center w-5 h-5 rounded border border-gray-300 dark:border-gray-600 hover:border-emerald-500 dark:hover:border-emerald-400 transition-colors"
+                className="flex items-center justify-center w-5 h-5 rounded border border-gray-300 dark:border-gray-600 hover:border-emerald-500 dark:hover:border-emerald-400 transition-colors flex-shrink-0"
               >
                 {isAllSelected ? (
                   <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -76,8 +76,8 @@ export function ParticipantsToolbar({
               </button>
             )}
 
-            {/* Search Input */}
-            <div className="relative flex-1">
+            {/* Search Input - Compact on mobile */}
+            <div className="relative flex-1 min-w-0">
               <div className="absolute left-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <Search className="w-4 h-4 text-gray-400" />
               </div>
@@ -87,28 +87,28 @@ export function ParticipantsToolbar({
                 value={filters.search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 style={{ paddingLeft: '36px' }}
-                className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                className="w-full pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-sm"
               />
             </div>
 
-            {/* Filters Button */}
-            <div className="relative">
+            {/* Filters Button - Icon only on mobile */}
+            <div className="relative flex-shrink-0">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-2 px-3 py-2 border rounded-md transition-colors ${
+                className={`flex items-center gap-1 px-2 sm:px-3 py-2 border rounded-md transition-colors ${
                   showFilters || filters.availability !== 'all' || filters.companyId !== 'all'
                     ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                     : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm">Filters</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                <Filter className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline text-sm">Filters</span>
+                <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${showFilters ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Filters Dropdown */}
+              {/* Filters Dropdown - Positioned to the left on mobile */}
               {showFilters && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg shadow-lg z-20">
+                <div className="absolute top-full right-0 sm:left-0 mt-2 w-64 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg shadow-lg z-20">
                   <div className="p-4 space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -185,39 +185,40 @@ export function ParticipantsToolbar({
               )}
             </div>
 
-            {/* Add Company Guest Button */}
-            {showAddGuestButton && onAddGuest && (
-              <button
-                onClick={onAddGuest}
-                className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Company Guest</span>
-                <span className="sm:hidden">Add Guest</span>
-              </button>
-            )}
-          </div>
-
-          {/* Right Section: Actions */}
-          <div className="flex items-center space-x-3">
             {/* Refresh Availability */}
             <button
               onClick={onRefreshAvailability}
               disabled={availabilityLoading}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2 sm:px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex-shrink-0"
             >
               <RefreshCw className={`w-4 h-4 ${availabilityLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
 
+            {/* Add Company Guest Button */}
+            {showAddGuestButton && onAddGuest && (
+              <button
+                onClick={onAddGuest}
+                className="flex items-center gap-1 px-2 sm:px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium transition-colors flex-shrink-0"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Company Guest</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
+          </div>
+
+          {/* Right Section: Actions */}
+          <div className="flex items-center gap-1 sm:gap-3">
             {/* Bulk Actions Dropdown */}
             {bulkSelectMode && (
               <div className="relative">
                 <button
                   onClick={() => setShowBulkActions(!showBulkActions)}
-                  className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                  className="flex items-center gap-1 px-2 sm:px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors flex-shrink-0"
                 >
-                  <span className="text-sm">Bulk Actions</span>
+                  <span className="text-sm hidden sm:inline">Bulk Actions</span>
+                  <span className="text-sm sm:hidden">Bulk</span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${showBulkActions ? 'rotate-180' : ''}`} />
                 </button>
 
