@@ -1,15 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { getServerSession } from 'next-auth'
+import { verify } from 'jsonwebtoken'
 
 export async function POST(request: NextRequest) {
+  console.log('💰 [Expenses API] POST request received')
+  
   try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Use JWT authentication (same as other APIs)
+    const authToken = request.cookies.get('auth-token')?.value
+    
+    if (!authToken) {
+      console.log('🔑 [Expenses API] No auth-token cookie found')
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Verify the JWT token
+    const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret'
+    let user: any = null
+    
+    try {
+      const decoded = verify(authToken, secret) as any
+      console.log('🔑 [Expenses API] JWT Token decoded successfully:', { userId: decoded.userId })
+      
+      // Get user from database
+      const supabase = createServerSupabaseClient()
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.userId)
+        .single()
+
+      if (userError || !userData) {
+        console.log('🔑 [Expenses API] User lookup failed:', userError?.message)
+        return NextResponse.json({ error: 'User not found' }, { status: 401 })
+      }
+
+      user = userData
+      console.log('🔑 [Expenses API] Successfully authenticated user:', user.email)
+    } catch (jwtError) {
+      console.log('🔑 [Expenses API] JWT verification failed:', jwtError)
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
     const data = await request.json()
+    console.log('📥 [Expenses API] Request data:', {
+      trip_id: data.trip_id,
+      amount: data.amount,
+      currency: data.currency,
+      category: data.category
+    })
     const {
       trip_id,
       amount,
@@ -42,18 +81,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get user ID from email
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
     // Verify user has access to this trip (either participant or creator)
+    console.log('🔍 [Expenses API] Checking trip access for user:', user.id)
     const { data: tripAccess, error: accessError } = await supabase
       .from('trips')
       .select(`
@@ -62,18 +91,19 @@ export async function POST(request: NextRequest) {
         trip_participants!inner(user_id)
       `)
       .eq('id', trip_id)
-      .or(`creator_id.eq.${userData.id},trip_participants.user_id.eq.${userData.id}`)
+      .or(`creator_id.eq.${user.id},trip_participants.user_id.eq.${user.id}`)
 
     if (accessError || !tripAccess || tripAccess.length === 0) {
       return NextResponse.json({ error: 'Access denied to this trip' }, { status: 403 })
     }
 
     // Create expense record
+    console.log('💾 [Expenses API] Creating expense in database...')
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
         trip_id,
-        user_id: userData.id,
+        user_id: user.id,
         amount: parseFloat(amount),
         currency,
         category,
@@ -88,13 +118,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (expenseError) {
-      console.error('Error creating expense:', expenseError)
+      console.error('❌ [Expenses API] Error creating expense:', expenseError)
       return NextResponse.json(
-        { error: 'Failed to create expense' },
+        { error: 'Failed to create expense: ' + expenseError.message },
         { status: 500 }
       )
     }
 
+    console.log('✅ [Expenses API] Expense created successfully:', expense.id)
     return NextResponse.json({
       success: true,
       expense

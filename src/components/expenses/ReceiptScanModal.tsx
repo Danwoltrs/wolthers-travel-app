@@ -210,6 +210,17 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
     if (!receiptData) return
 
     setIsProcessing(true)
+    setError(null) // Clear previous errors
+    
+    console.log('💾 Saving expense:', {
+      trip_id: tripId,
+      amount: receiptData.amount,
+      currency: receiptData.currency,
+      category: receiptData.category,
+      merchant: receiptData.merchant,
+      date: receiptData.date
+    })
+    
     try {
       const response = await fetch('/api/expenses', {
         method: 'POST',
@@ -226,15 +237,28 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
         })
       })
 
+      console.log('📥 Save expense response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
       if (!response.ok) {
-        throw new Error('Failed to save expense')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Failed to save expense:', errorData)
+        throw new Error(errorData.error || `Failed to save expense (${response.status})`)
       }
+
+      const result = await response.json()
+      console.log('✅ Expense saved successfully:', result)
 
       onExpenseAdded?.(receiptData)
       onClose()
       resetModal()
-    } catch (err) {
-      setError('Failed to save expense. Please try again.')
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to save expense. Please try again.'
+      console.error('❌ Save expense error:', err)
+      setError(errorMessage)
     } finally {
       setIsProcessing(false)
     }
@@ -327,27 +351,31 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             className="flex-1 object-cover"
           />
 
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+          {/* Top controls - close button only */}
+          <div className="absolute top-4 left-4 z-10">
             <button
               onClick={() => {
                 resetModal()
                 setCurrentStep('landing')
               }}
-              className="bg-black/20 backdrop-blur-sm text-white p-2 rounded-full"
+              className="bg-black/50 backdrop-blur-sm text-white p-3 rounded-full"
             >
               <X className="w-6 h-6" />
             </button>
+          </div>
 
-            <div className="bg-black/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
+          {/* Helper text - positioned at top center */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm whitespace-nowrap">
               Position receipt in frame
             </div>
           </div>
 
-          {/* Capture button - positioned higher to avoid bottom bar */}
-          <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-10">
+          {/* Capture button - positioned much higher to avoid bottom bar */}
+          <div className="absolute bottom-40 left-1/2 transform -translate-x-1/2 z-10">
             <button
               onClick={capturePhoto}
-              className="bg-white text-gray-900 p-5 rounded-full shadow-2xl hover:scale-105 transition-transform active:scale-95"
+              className="bg-white text-gray-900 p-6 rounded-full shadow-2xl hover:scale-105 transition-transform active:scale-95"
             >
               <Camera className="w-10 h-10" />
             </button>
@@ -401,10 +429,37 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             </div>
 
             <div>
-              <label className="text-sm text-gray-500 dark:text-gray-400">Amount</label>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {receiptData.currency} {receiptData.amount.toFixed(2)}
-              </p>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Amount & Currency</label>
+              <div className="flex gap-2 items-center mt-1">
+                <select
+                  value={receiptData.currency}
+                  onChange={(e) => setReceiptData({ ...receiptData, currency: e.target.value })}
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 font-medium"
+                >
+                  <option value="BRL">BRL (R$)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="CHF">CHF</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="DKK">DKK (kr)</option>
+                  <option value="SEK">SEK (kr)</option>
+                  <option value="NOK">NOK (kr)</option>
+                  <option value="JPY">JPY (¥)</option>
+                  <option value="CNY">CNY (¥)</option>
+                  <option value="INR">INR (₹)</option>
+                  <option value="AUD">AUD ($)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="MXN">MXN ($)</option>
+                  <option value="ARS">ARS ($)</option>
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={receiptData.amount}
+                  onChange={(e) => setReceiptData({ ...receiptData, amount: parseFloat(e.target.value) || 0 })}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-[#2a2a2a] rounded-md bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 font-medium"
+                />
+              </div>
               <div className="flex items-center gap-1 mt-1">
                 <div className={cn(
                   "w-2 h-2 rounded-full",
