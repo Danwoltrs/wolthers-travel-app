@@ -281,6 +281,15 @@ export function ScheduleTab({
           console.log('✅ [ScheduleTab] Activity update successful')
           setShowActivityEditor(false)
           setEditingActivity(null)
+          
+          // Force refresh activities to sync with trip overview
+          await forceRefreshActivities()
+          
+          // Notify parent component to refresh trip data
+          onUpdate('schedule', { 
+            tripRefresh: true,
+            lastActivityUpdate: new Date().toISOString()
+          })
         } else {
           console.error('❌ [ScheduleTab] Activity update returned null')
         }
@@ -297,6 +306,15 @@ export function ScheduleTab({
         if (result) {
           console.log('✅ [ScheduleTab] Activity creation successful, closing modal')
           setShowActivityEditor(false)
+          
+          // Force refresh activities to sync with trip overview
+          await forceRefreshActivities()
+          
+          // Notify parent component to refresh trip data
+          onUpdate('schedule', { 
+            tripRefresh: true,
+            lastActivityUpdate: new Date().toISOString()
+          })
           
           // Reset form for next use
           setFormData({
@@ -321,7 +339,7 @@ export function ScheduleTab({
     } catch (error: any) {
       console.error('❌ [ScheduleTab] Activity save failed:', error)
     }
-  }, [editingActivity, formData, updateActivity, createActivity])
+  }, [editingActivity, formData, updateActivity, createActivity, forceRefreshActivities, onUpdate])
 
   // Handle activity delete with improved error handling
   const handleActivityDelete = useCallback(async () => {
@@ -669,8 +687,11 @@ export function ScheduleTab({
                     <option value="BRL">BRL (R$)</option>
                     <option value="USD">USD ($)</option>
                     <option value="EUR">EUR (€)</option>
+                    <option value="CHF">CHF (CHF)</option>
                     <option value="GBP">GBP (£)</option>
                     <option value="DKK">DKK (kr)</option>
+                    <option value="SEK">SEK (kr)</option>
+                    <option value="NOK">NOK (kr)</option>
                   </select>
                 </div>
               </div>

@@ -36,28 +36,48 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize camera
+  // Initialize camera with high quality settings
   const startCamera = async () => {
     try {
+      // Request highest quality video for clearer receipt scanning
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 3840, min: 1920 }, // Request 4K if available, min Full HD
+          height: { ideal: 2160, min: 1080 }, // Request 4K if available, min Full HD
+          aspectRatio: { ideal: 16/9 }
         }
       })
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        videoRef.current.play()
+        
+        // Wait for video metadata to load before playing
+        await new Promise<void>((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              resolve()
+            }
+          }
+        })
+        
+        // Play video
+        await videoRef.current.play()
+        console.log('📹 Camera started successfully with resolution:', {
+          width: videoRef.current.videoWidth,
+          height: videoRef.current.videoHeight
+        })
       }
+      
       setCurrentStep('camera')
+      setError(null) // Clear any previous errors
     } catch (err) {
       console.error('Camera access error:', err)
       setError('Camera access denied. Please allow camera permissions or use file upload.')
     }
   }
 
-  // Capture photo
+  // Capture photo with high quality
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return
 
@@ -65,16 +85,36 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
+    if (!ctx) {
+      console.error('❌ Could not get canvas context')
+      setError('Failed to capture image. Please try again.')
+      return
+    }
+
+    // Use full video resolution for better OCR results
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
 
-    ctx?.drawImage(video, 0, 0)
-    const imageData = canvas.toDataURL('image/jpeg', 0.8)
+    console.log('📸 Capturing photo at resolution:', {
+      width: canvas.width,
+      height: canvas.height
+    })
+
+    // Draw the video frame to canvas
+    ctx.drawImage(video, 0, 0)
+    
+    // Convert to JPEG with good quality (0.92 = high quality with reasonable file size)
+    const imageData = canvas.toDataURL('image/jpeg', 0.92)
     setCapturedImage(imageData)
 
-    // Stop camera stream
+    console.log('✅ Photo captured successfully, size:', Math.round(imageData.length / 1024), 'KB')
+
+    // Stop camera stream to free resources
     const stream = video.srcObject as MediaStream
-    stream.getTracks().forEach(track => track.stop())
+    stream.getTracks().forEach(track => {
+      track.stop()
+      console.log('📹 Camera track stopped:', track.kind)
+    })
 
     // Process the captured image
     processImage(imageData)
@@ -86,13 +126,22 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
     setError(null)
 
     try {
+      console.log('🔄 Starting image processing...')
+      
       // Convert base64 to blob
       const response = await fetch(imageData)
       const blob = await response.blob()
 
+      console.log('📦 Image blob created:', {
+        size: Math.round(blob.size / 1024) + ' KB',
+        type: blob.type
+      })
+
       // Create form data
       const formData = new FormData()
-      formData.append('image', blob)
+      formData.append('image', blob, 'receipt.jpg')
+
+      console.log('📤 Sending to Google Vision OCR API...')
 
       // Send to Google Vision OCR
       const ocrResponse = await fetch('/api/receipts/google-ocr', {
@@ -101,11 +150,25 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
         body: formData
       })
 
+      console.log('📥 OCR API response:', {
+        status: ocrResponse.status,
+        statusText: ocrResponse.statusText,
+        ok: ocrResponse.ok
+      })
+
       if (!ocrResponse.ok) {
-        throw new Error('OCR processing failed')
+        const errorData = await ocrResponse.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ OCR API error:', errorData)
+        throw new Error(errorData.error || `OCR failed with status ${ocrResponse.status}`)
       }
 
       const result = await ocrResponse.json()
+      console.log('✅ OCR result received:', {
+        success: result.success,
+        merchant: result.merchant,
+        amount: result.amount,
+        hasRawText: !!result.rawText
+      })
 
       if (result.success) {
         setReceiptData(result)
@@ -114,9 +177,15 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
         throw new Error(result.error || 'OCR processing failed')
       }
 
-    } catch (err) {
-      setError('Failed to process receipt. Please try again.')
-      console.error('OCR error:', err)
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to process receipt. Please try again.'
+      console.error('❌ OCR processing error:', err)
+      setError(errorMessage)
+      
+      // Reset to landing page so user can try again
+      setTimeout(() => {
+        setCurrentStep('landing')
+      }, 3000)
     } finally {
       setIsProcessing(false)
     }
@@ -258,7 +327,7 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             className="flex-1 object-cover"
           />
 
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
             <button
               onClick={() => {
                 resetModal()
@@ -274,12 +343,13 @@ export default function ReceiptScanModal({ isOpen, onClose, tripId, onExpenseAdd
             </div>
           </div>
 
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          {/* Capture button - positioned higher to avoid bottom bar */}
+          <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-10">
             <button
               onClick={capturePhoto}
-              className="bg-white text-gray-900 p-4 rounded-full shadow-lg hover:scale-105 transition-transform"
+              className="bg-white text-gray-900 p-5 rounded-full shadow-2xl hover:scale-105 transition-transform active:scale-95"
             >
-              <Camera className="w-8 h-8" />
+              <Camera className="w-10 h-10" />
             </button>
           </div>
 

@@ -82,7 +82,15 @@ export async function POST(request: NextRequest) {
         }, { status: 503 })
       }
 
-      console.log('🔑 Google Vision API key configured, processing image...')
+      // Validate API key format (should be ~40 characters)
+      if (GOOGLE_VISION_API_KEY.length < 30) {
+        console.error('❌ Invalid Google Vision API key format (too short)')
+        return NextResponse.json({
+          error: 'OCR service misconfigured. Invalid API key format.'
+        }, { status: 503 })
+      }
+
+      console.log('🔑 Google Vision API key configured and validated, processing image...')
 
       // Convert image to base64
       const bytes = await imageFile.arrayBuffer()
@@ -124,8 +132,25 @@ export async function POST(request: NextRequest) {
       })
 
       if (visionResult.error) {
-        console.log('❌ Google Vision API error:', visionResult.error)
-        throw new Error(`Google Vision API error: ${visionResult.error.message}`)
+        console.error('❌ Google Vision API error:', {
+          code: visionResult.error.code,
+          message: visionResult.error.message,
+          details: visionResult.error.details
+        })
+        
+        // Provide more specific error messages
+        let userMessage = 'OCR processing failed. '
+        if (visionResult.error.code === 400) {
+          userMessage += 'Invalid image format. Please try a different image.'
+        } else if (visionResult.error.code === 401 || visionResult.error.code === 403) {
+          userMessage += 'API authentication failed. Please contact support.'
+        } else if (visionResult.error.code === 429) {
+          userMessage += 'Too many requests. Please try again in a few moments.'
+        } else {
+          userMessage += visionResult.error.message || 'Please try again.'
+        }
+        
+        throw new Error(userMessage)
       }
 
       const textAnnotations = visionResult.responses?.[0]?.textAnnotations
@@ -210,10 +235,19 @@ function parseReceiptText(text: string) {
 
   // Extract amount (look for currency symbols and numbers)
   const amountPatterns = [
+    /CHF\s*([0-9]+[.,][0-9]{2})/i, // CHF 4.20
+    /([0-9]+[.,][0-9]{2})\s*CHF/i, // 4.20 CHF
     /R?\$\s*([0-9]+[.,][0-9]{2})/i, // R$ 25.50 or $ 25.50
     /([0-9]+[.,][0-9]{2})\s*R?\$/i, // 25.50 R$ or 25.50 $
-    /total[:\s]*R?\$?\s*([0-9]+[.,][0-9]{2})/i, // Total: R$ 25.50
-    /([0-9]+[.,][0-9]{2})/g // Any decimal number
+    /€\s*([0-9]+[.,][0-9]{2})/i, // € 25.50
+    /([0-9]+[.,][0-9]{2})\s*€/i, // 25.50 €
+    /£\s*([0-9]+[.,][0-9]{2})/i, // £ 25.50
+    /([0-9]+[.,][0-9]{2})\s*£/i, // 25.50 £
+    /kr\s*([0-9]+[.,][0-9]{2})/i, // kr 25.50 (DKK, SEK, NOK)
+    /([0-9]+[.,][0-9]{2})\s*kr/i, // 25.50 kr
+    /total[:\s-]*(?:CHF|R?\$|€|£|kr)?\s*([0-9]+[.,][0-9]{2})/i, // Total: CHF 25.50, Total-EFT CHF: 4.20
+    /sum[:\s-]*(?:CHF|R?\$|€|£|kr)?\s*([0-9]+[.,][0-9]{2})/i, // Sum: 25.50
+    /([0-9]+[.,][0-9]{2})/g // Any decimal number (fallback)
   ]
 
   for (const pattern of amountPatterns) {
@@ -223,12 +257,27 @@ function parseReceiptText(text: string) {
       const parsedAmount = parseFloat(amountStr.replace(',', '.').replace(/[^\d.]/g, ''))
       if (parsedAmount > 0) {
         amount = parsedAmount
-        amountConfidence = pattern.source.includes('total') ? 'high' : 'medium'
+        amountConfidence = pattern.source.includes('total') || pattern.source.includes('sum') ? 'high' : 'medium'
 
-        // Detect currency
-        if (text.includes('R$') || text.includes('BRL')) currency = 'BRL'
-        else if (text.includes('$') || text.includes('USD')) currency = 'USD'
-        else if (text.includes('€') || text.includes('EUR')) currency = 'EUR'
+        // Smart currency detection based on context
+        const textLower = text.toLowerCase()
+        if (textLower.includes('chf') || textLower.includes('schweiz') || textLower.includes('switzerland') || textLower.includes('basel')) {
+          currency = 'CHF'
+        } else if (textLower.includes('r$') || textLower.includes('brl') || textLower.includes('brazil') || textLower.includes('brasil')) {
+          currency = 'BRL'
+        } else if (textLower.includes('€') || textLower.includes('eur') || textLower.includes('euro')) {
+          currency = 'EUR'
+        } else if (textLower.includes('£') || textLower.includes('gbp') || textLower.includes('pound')) {
+          currency = 'GBP'
+        } else if (textLower.includes('dkk') || textLower.includes('denmark') || textLower.includes('danmark')) {
+          currency = 'DKK'
+        } else if (textLower.includes('sek') || textLower.includes('sweden') || textLower.includes('sverige')) {
+          currency = 'SEK'
+        } else if (textLower.includes('nok') || textLower.includes('norway') || textLower.includes('norge')) {
+          currency = 'NOK'
+        } else if (textLower.includes('$') || textLower.includes('usd') || textLower.includes('dollar')) {
+          currency = 'USD'
+        }
 
         break
       }

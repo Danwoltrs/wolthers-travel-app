@@ -352,6 +352,29 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
 
       const locations: Array<{ lat: number; lng: number; title: string; address: string }> = []
       
+      // Helper function to validate address format (requires city AND country)
+      const isValidAddress = (address: string): boolean => {
+        if (!address || address.length < 5) return false
+        
+        // Split by comma and check for at least 2 parts (city, country)
+        const parts = address.split(',').map(s => s.trim()).filter(s => s.length > 0)
+        
+        // Must have at least 2 parts: city and country (e.g., "Santos, Brazil" or "Street, City, Country")
+        if (parts.length < 2) {
+          console.warn(`⚠️ Invalid address format (needs city + country): "${address}"`)
+          return false
+        }
+        
+        // Each part should have reasonable length (at least 2 characters)
+        const hasValidParts = parts.every(part => part.length >= 2)
+        if (!hasValidParts) {
+          console.warn(`⚠️ Address parts too short: "${address}"`)
+          return false
+        }
+        
+        return true
+      }
+      
       // Helper function to geocode address using Google Maps API with retry logic
       const geocodeLocation = (address: string, retryCount = 0): Promise<{ lat: number; lng: number } | null> => {
         return new Promise((resolve) => {
@@ -414,9 +437,16 @@ export default function RouteMap({ itineraryDays, tripTitle, activities = [], tr
           address = activity.location || activity.custom_location
           locationKey = address
           
+          // Validate address format before attempting geocoding
+          if (!isValidAddress(address)) {
+            console.warn(`⚠️ Skipping invalid address (needs city + country): "${address}" for activity: ${activity.title}`)
+            failedCount++
+            continue // Skip this activity
+          }
+          
           if (!uniqueLocations.has(locationKey)) {
             try {
-              // Try to geocode the custom location
+              // Try to geocode the validated location
               const coordinates = await geocodeLocation(address)
               if (coordinates) {
                 uniqueLocations.set(locationKey, {

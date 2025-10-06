@@ -350,21 +350,21 @@ export default function QuickViewModal({ trip, isOpen, onClose, onSave, readOnly
     const days = calculateDuration(localTrip.startDate, localTrip.endDate)
     
     // Mobile: always full width
-    // Desktop: scale based on days but respect maximum, accounting for + button padding
+    // Desktop: Much wider breakpoints for optimal calendar visibility
     let widthClass = ''
     if (days <= 2) {
-      widthClass = 'max-w-4xl lg:max-w-5xl' // Slightly larger for padding accommodation
+      widthClass = 'max-w-6xl lg:max-w-7xl' // Even wider for 2-day trips
     } else if (days <= 3) {
-      widthClass = 'max-w-5xl lg:max-w-6xl' // Increased for current 3-day optimal size + padding
+      widthClass = 'max-w-7xl lg:max-w-[85vw]' // Larger for 3-day view
     } else if (days <= 5) {
-      widthClass = 'max-w-6xl lg:max-w-7xl' // Medium for 4-5 days + padding
+      widthClass = 'max-w-[85vw] lg:max-w-[90vw]' // Much larger for 4-5 days
     } else if (days <= 7) {
-      widthClass = 'max-w-7xl lg:max-w-[88vw]' // Large for 6-7 days + padding
+      widthClass = 'max-w-[92vw]' // Near-maximum for 6-7 days
     } else {
-      widthClass = 'max-w-[92vw]' // Maximum for 8+ days + padding
+      widthClass = 'max-w-[96vw]' // Maximum width for 8+ days
     }
     
-    return `${widthClass}`
+    return `${widthClass} h-[95vh]` // Add fixed height for better scroll control
   }
 
   return (

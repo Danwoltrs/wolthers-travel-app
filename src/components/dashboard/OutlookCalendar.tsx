@@ -67,7 +67,18 @@ function generateTimeSlots(activities: Activity[]): TimeSlot[] {
   
   // Check if any activities start before 6 AM or after 10 PM
   activities.forEach(activity => {
+    // Skip activities without valid start_time
+    if (!activity.start_time || typeof activity.start_time !== 'string') {
+      console.warn('⚠️ Activity missing start_time:', { id: activity.id, title: activity.title })
+      return
+    }
+    
     const activityHour = parseInt(activity.start_time.split(':')[0], 10)
+    if (isNaN(activityHour)) {
+      console.warn('⚠️ Could not parse start_time hour:', { id: activity.id, start_time: activity.start_time })
+      return
+    }
+    
     if (activityHour < startHour) {
       startHour = Math.max(4, activityHour) // Don't go earlier than 4 AM
     }
@@ -82,6 +93,8 @@ function generateTimeSlots(activities: Activity[]): TimeSlot[] {
     const display = `${hour.toString().padStart(2, '0')}:00`
     slots.push({ hour, time, display })
   }
+  
+  console.log(`📅 Generated ${slots.length} time slots from ${startHour}:00 to ${endHour}:00 based on ${activities.length} activities`)
   
   return slots
 }
@@ -167,10 +180,10 @@ const ActivityCard = memo(function ActivityCard({
     return hours * 60 + minutes
   }
 
-  // Check if this is a multi-day activity
+  // Check if this is a multi-day activity - use local timezone parsing
   const isMultiDay = activity.end_date && activity.end_date !== activity.activity_date
-  const startDate = new Date(activity.activity_date + 'T00:00:00')
-  const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00')
+  const startDate = new Date(activity.activity_date + 'T00:00:00') // Local timezone
+  const endDate = new Date((activity.end_date || activity.activity_date) + 'T00:00:00') // Local timezone
   const dayDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
   
   // Determine what part of the multi-day activity this card represents
@@ -767,13 +780,22 @@ export function OutlookCalendar({
 
   // Generate calendar days - moved before usage
   const calendarDays: CalendarDay[] = useMemo(() => {
-    // Ensure dates are Date objects, not strings
-    const startDate = trip.startDate instanceof Date ? trip.startDate : new Date(trip.startDate)
-    const endDate = trip.endDate instanceof Date ? trip.endDate : new Date(trip.endDate)
+    // Ensure dates are Date objects, not strings - parse as LOCAL dates to avoid timezone shifts
+    const startDate = trip.startDate instanceof Date 
+      ? trip.startDate 
+      : new Date(trip.startDate + 'T00:00:00') // Add time component to ensure local timezone
+    const endDate = trip.endDate instanceof Date 
+      ? trip.endDate 
+      : new Date(trip.endDate + 'T00:00:00') // Add time component to ensure local timezone
     
     return Array.from({ length: calculateDuration(startDate, endDate) }, (_, index) => {
       const date = new Date(startDate.getTime() + index * 24 * 60 * 60 * 1000)
-      const dateString = date.toISOString().split('T')[0]
+      
+      // Format date as YYYY-MM-DD in local timezone (NOT UTC)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${day}`
       
       return {
         date,
