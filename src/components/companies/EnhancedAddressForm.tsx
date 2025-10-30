@@ -16,6 +16,8 @@ interface AddressData {
   state?: string
   region?: string
   country?: string
+  neighbourhood?: string
+  zipCode?: string
 }
 
 interface EnhancedAddressFormProps {
@@ -199,7 +201,7 @@ export default function EnhancedAddressForm({
         </div>
       </div>
 
-      {/* Manual Input Grid */}
+      {/* Manual Input Grid - Row 1: City, State, Region */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -237,7 +239,7 @@ export default function EnhancedAddressForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Region * 
+            Region *
             {data.city && data.city.toLowerCase() === 'varginha' && (
               <span className="text-emerald-600 dark:text-emerald-400 text-xs ml-1">(AI: Sul de Minas)</span>
             )}
@@ -269,6 +271,70 @@ export default function EnhancedAddressForm({
               <option value="Espírito Santo">Espírito Santo</option>
             </optgroup>
           </select>
+        </div>
+      </div>
+
+      {/* Manual Input Grid - Row 2: Country, Neighbourhood, ZIP Code */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Country *
+          </label>
+          <select
+            value={data.country || 'Brazil'}
+            onChange={(e) => onChange({ country: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          >
+            <option value="Brazil">Brazil</option>
+            <option value="United States">United States</option>
+            <option value="Canada">Canada</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Germany">Germany</option>
+            <option value="France">France</option>
+            <option value="Italy">Italy</option>
+            <option value="Spain">Spain</option>
+            <option value="Portugal">Portugal</option>
+            <option value="Netherlands">Netherlands</option>
+            <option value="Belgium">Belgium</option>
+            <option value="Switzerland">Switzerland</option>
+            <option value="Austria">Austria</option>
+            <option value="Japan">Japan</option>
+            <option value="South Korea">South Korea</option>
+            <option value="China">China</option>
+            <option value="Australia">Australia</option>
+            <option value="New Zealand">New Zealand</option>
+            <option value="Mexico">Mexico</option>
+            <option value="Colombia">Colombia</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Chile">Chile</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Neighbourhood
+            <span className="text-gray-500 text-xs ml-1">(Optional)</span>
+          </label>
+          <input
+            type="text"
+            value={data.neighbourhood || ''}
+            onChange={(e) => onChange({ neighbourhood: e.target.value })}
+            placeholder="e.g., Centro, Jardins"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            ZIP Code *
+          </label>
+          <input
+            type="text"
+            value={data.zipCode || ''}
+            onChange={(e) => onChange({ zipCode: e.target.value })}
+            placeholder="e.g., 37010-000"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
         </div>
       </div>
 

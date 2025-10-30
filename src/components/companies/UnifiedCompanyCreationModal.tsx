@@ -46,7 +46,9 @@ export default function UnifiedCompanyCreationModal({
     city: '',
     state: '',
     region: '',
-    country: 'Brazil'
+    country: 'Brazil',
+    neighbourhood: '',
+    zipCode: ''
   })
   const [picData, setPicData] = useState<PICData | null>(null)
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
@@ -74,7 +76,9 @@ export default function UnifiedCompanyCreationModal({
         city: '',
         state: '',
         region: '',
-        country: 'Brazil'
+        country: 'Brazil',
+        neighbourhood: '',
+        zipCode: ''
       })
       setPicData(null)
       setAdditionalLocations([])
@@ -279,7 +283,9 @@ export default function UnifiedCompanyCreationModal({
               city: companyData.city || '',
               state: companyData.state || '',
               region: companyData.region || '',
-              country: companyData.country || 'Brazil'
+              country: companyData.country || 'Brazil',
+              neighbourhood: companyData.neighbourhood || '',
+              zip_code: companyData.zipCode || ''
             },
             headquarters: {
               name: 'Main Headquarters',
@@ -465,7 +471,7 @@ export default function UnifiedCompanyCreationModal({
                   AI-Enhanced Location Management
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro.
+                  AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro. Complete all required fields (Country, City, State, Region, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional.
                 </p>
                 
                 <EnhancedAddressForm
@@ -474,7 +480,9 @@ export default function UnifiedCompanyCreationModal({
                     city: companyData.city,
                     state: companyData.state,
                     region: companyData.region,
-                    country: companyData.country
+                    country: companyData.country,
+                    neighbourhood: companyData.neighbourhood,
+                    zipCode: companyData.zipCode
                   }}
                   onChange={(updates) => {
                     setCompanyData(prev => ({ ...prev, ...updates }))

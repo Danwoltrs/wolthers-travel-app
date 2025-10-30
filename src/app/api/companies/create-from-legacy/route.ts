@@ -85,6 +85,12 @@ export async function POST(request: NextRequest) {
         subcategories: companyOverrides?.subcategories || subcategories,
         legacy_client_id: legacyClientId,
         staff_count: 0,
+        address: legacyClient.endereco || null,
+        city: legacyClient.cidade || null,
+        state: legacyClient.uf || null,
+        country: legacyClient.pais || 'Brazil',
+        neighbourhood: legacyClient.bairro || null,
+        zip_code: legacyClient.cep || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

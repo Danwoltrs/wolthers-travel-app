@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
         subcategories: company.subcategories || [],
         legacy_client_id: company.legacy_company_id ? parseInt(company.legacy_company_id) : null,
         staff_count: 0,
+        address: company.address || null,
+        city: company.city || null,
+        state: company.state || null,
+        region: company.region || null,
+        country: company.country || 'Brazil',
+        neighbourhood: company.neighbourhood || null,
+        zip_code: company.zip_code || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
