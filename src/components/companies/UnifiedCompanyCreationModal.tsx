@@ -477,7 +477,7 @@ export default function UnifiedCompanyCreationModal({
                   AI-Enhanced Location Management
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  AI automatically detects location details: Brazil (Varginha → Sul de Minas), International (Tokyo → Japan). Complete all required fields (Street, Number, City, State, Region, Country, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional. For non-Brazilian addresses, State and Region are text inputs.
+                  ✨ <strong>Smart Address Parsing:</strong> Just paste the complete address in the "Full Address" field and AI will automatically fill Street, Number, City, State, ZIP Code, Country, and Region (for Brazil). Works for addresses worldwide! For international addresses, only Region needs manual entry. Neighbourhood is optional.
                 </p>
                 
                 <EnhancedAddressForm

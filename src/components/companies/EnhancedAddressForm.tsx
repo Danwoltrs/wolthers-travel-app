@@ -60,64 +60,95 @@ export default function EnhancedAddressForm({
     setFilteredLocations(matches)
   }, [searchQuery])
 
-  // AI-powered address detection
+  // AI-powered address detection with Google Geocoding API
   const handleAddressChange = async (address: string) => {
     onChange({ address })
 
-    if (!address || address.length < 3) return
+    if (!address || address.length < 10) return
 
     setIsDetecting(true)
     try {
       // Small delay to avoid excessive API calls
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 800))
 
-      // Try to detect country from address keywords
-      const addressLower = address.toLowerCase()
-      let detectedCountry = 'Brazil' // Default
+      // Call Google Geocoding API to parse the full address
+      const response = await fetch('/api/locations/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address })
+      })
 
-      // Simple country detection based on common keywords
-      if (addressLower.includes('japan') || addressLower.includes('tokyo') || addressLower.includes('osaka')) {
-        detectedCountry = 'Japan'
-      } else if (addressLower.includes('usa') || addressLower.includes('united states')) {
-        detectedCountry = 'United States'
-      } else if (addressLower.includes('canada')) {
-        detectedCountry = 'Canada'
-      } else if (addressLower.includes('uk') || addressLower.includes('united kingdom') || addressLower.includes('london')) {
-        detectedCountry = 'United Kingdom'
-      } else if (addressLower.includes('germany') || addressLower.includes('berlin')) {
-        detectedCountry = 'Germany'
-      } else if (addressLower.includes('france') || addressLower.includes('paris')) {
-        detectedCountry = 'France'
+      if (!response.ok) {
+        console.warn('Geocoding failed, falling back to keyword detection')
+        throw new Error('Geocoding failed')
       }
 
-      // For Brazilian addresses, use the existing detection system
-      if (detectedCountry === 'Brazil') {
+      const geocodedData = await response.json()
+      console.log('🤖 AI parsed address:', geocodedData)
+
+      const components = geocodedData.addressComponents
+
+      // Determine if this is a Brazilian address
+      const isBrazil = components.country === 'Brazil' || components.country === 'Brasil'
+
+      if (isBrazil) {
+        // For Brazil, detect coffee region
         const detectedLocation = detectLocationFromAddress(address)
 
         if (detectedLocation) {
-          console.log('🤖 AI detected Brazilian location:', detectedLocation)
           setSelectedLocation(detectedLocation)
-
-          // Auto-fill the detected information
-          onChange({
-            address,
-            city: detectedLocation.city,
-            state: detectedLocation.state,
-            region: detectedLocation.region || detectedLocation.coffeeRegion,
-            country: 'Brazil'
-          })
         }
-      } else {
-        // For international addresses, just set the country
-        console.log('🤖 AI detected country:', detectedCountry)
-        setDetectedCountry(detectedCountry)
+
+        // Auto-fill all fields for Brazilian address
         onChange({
           address,
-          country: detectedCountry
+          street: components.street || '',
+          streetNumber: components.streetNumber || '',
+          neighbourhood: components.neighborhood || '',
+          city: components.city || detectedLocation?.city || '',
+          state: components.state || detectedLocation?.state || '',
+          region: detectedLocation?.region || detectedLocation?.coffeeRegion || '',
+          country: 'Brazil',
+          zipCode: components.postalCode || ''
+        })
+      } else {
+        // For international addresses, auto-fill all available fields
+        setDetectedCountry(components.country)
+
+        onChange({
+          address,
+          street: components.street || '',
+          streetNumber: components.streetNumber || '',
+          neighbourhood: components.neighborhood || '',
+          city: components.city || '',
+          state: components.state || '',
+          region: '', // Let user fill this for international
+          country: components.country || 'Brazil',
+          zipCode: components.postalCode || ''
         })
       }
     } catch (error) {
-      console.error('Error detecting location:', error)
+      console.error('Error parsing address:', error)
+      // Fallback to simple keyword detection if geocoding fails
+      try {
+        const addressLower = address.toLowerCase()
+        let detectedCountry = 'Brazil'
+
+        if (addressLower.includes('japan') || addressLower.includes('tokyo')) {
+          detectedCountry = 'Japan'
+        } else if (addressLower.includes('usa') || addressLower.includes('united states')) {
+          detectedCountry = 'United States'
+        } else if (addressLower.includes('canada')) {
+          detectedCountry = 'Canada'
+        }
+
+        if (detectedCountry !== 'Brazil') {
+          setDetectedCountry(detectedCountry)
+          onChange({ address, country: detectedCountry })
+        }
+      } catch (fallbackError) {
+        console.error('Fallback detection also failed:', fallbackError)
+      }
     } finally {
       setIsDetecting(false)
     }
@@ -180,21 +211,21 @@ export default function EnhancedAddressForm({
 
       {/* Selected Location Display - Brazilian */}
       {selectedLocation && data.country === 'Brazil' && (
-        <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+        <div className="flex items-center space-x-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
           <Check className="w-4 h-4" />
           <span>
-            AI detected: {selectedLocation.city}, {selectedLocation.state}
-            {selectedLocation.coffeeRegion && ` (${selectedLocation.coffeeRegion})`}
+            ✨ AI auto-filled: {selectedLocation.city}, {selectedLocation.state}
+            {selectedLocation.coffeeRegion && ` → ${selectedLocation.coffeeRegion}`}. All fields populated automatically!
           </span>
         </div>
       )}
 
       {/* Selected Country Display - International */}
       {detectedCountry && detectedCountry !== 'Brazil' && data.country === detectedCountry && (
-        <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+        <div className="flex items-center space-x-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
           <Check className="w-4 h-4" />
           <span>
-            AI detected country: {detectedCountry}. Please complete City, State, and Region fields manually.
+            ✨ AI auto-filled: {detectedCountry} address parsed! Street, Number, City, State, ZIP Code populated. Please add Region manually.
           </span>
         </div>
       )}
@@ -209,12 +240,12 @@ export default function EnhancedAddressForm({
           <textarea
             value={data.address || ''}
             onChange={(e) => handleAddressChange(e.target.value)}
-            placeholder="Enter complete address (AI will auto-detect location details)"
+            placeholder="Paste complete address here - AI will auto-fill ALL fields below"
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Examples: "Rua das Flores, 123, Centro, Varginha, MG" (AI → Sul de Minas) | "2-1 Ohtemachi, Chiyoda-Ku, Tokyo, Japan" (AI → Japan)
+            ✨ Smart Parsing: Just paste the full address and AI will automatically fill Street, Number, City, State, ZIP Code, Country, and Region. Works worldwide!
           </p>
         </div>
       )}
