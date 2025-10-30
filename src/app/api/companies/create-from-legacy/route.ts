@@ -86,6 +86,8 @@ export async function POST(request: NextRequest) {
         legacy_client_id: legacyClientId,
         staff_count: 0,
         address: legacyClient.endereco || null,
+        street: legacyClient.endereco || null,
+        street_number: legacyClient.numero || null,
         city: legacyClient.cidade || null,
         state: legacyClient.uf || null,
         country: legacyClient.pais || 'Brazil',

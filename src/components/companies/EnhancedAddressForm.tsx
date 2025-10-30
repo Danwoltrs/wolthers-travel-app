@@ -12,6 +12,8 @@ import {
 
 interface AddressData {
   address?: string
+  street?: string
+  streetNumber?: string
   city?: string
   state?: string
   region?: string
@@ -201,7 +203,36 @@ export default function EnhancedAddressForm({
         </div>
       </div>
 
-      {/* Manual Input Grid - Row 1: City, State, Region */}
+      {/* Manual Input Grid - Row 1: Street and Number */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Street *
+          </label>
+          <input
+            type="text"
+            value={data.street || ''}
+            onChange={(e) => onChange({ street: e.target.value })}
+            placeholder="e.g., Rua das Flores, Avenida Paulista"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Number *
+          </label>
+          <input
+            type="text"
+            value={data.streetNumber || ''}
+            onChange={(e) => onChange({ streetNumber: e.target.value })}
+            placeholder="e.g., 123, S/N"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+      </div>
+
+      {/* Manual Input Grid - Row 2: City, State, Region */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -274,7 +305,7 @@ export default function EnhancedAddressForm({
         </div>
       </div>
 
-      {/* Manual Input Grid - Row 2: Country, Neighbourhood, ZIP Code */}
+      {/* Manual Input Grid - Row 3: Country, Neighbourhood, ZIP Code */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -43,6 +43,8 @@ export default function UnifiedCompanyCreationModal({
     category: companyType,
     subcategories: [] as string[],
     address: '',
+    street: '',
+    streetNumber: '',
     city: '',
     state: '',
     region: '',
@@ -73,6 +75,8 @@ export default function UnifiedCompanyCreationModal({
         category: companyType,
         subcategories: [],
         address: '',
+        street: '',
+        streetNumber: '',
         city: '',
         state: '',
         region: '',
@@ -280,6 +284,8 @@ export default function UnifiedCompanyCreationModal({
           body: JSON.stringify({
             company: {
               ...companyData,
+              street: companyData.street || '',
+              street_number: companyData.streetNumber || '',
               city: companyData.city || '',
               state: companyData.state || '',
               region: companyData.region || '',
@@ -471,12 +477,14 @@ export default function UnifiedCompanyCreationModal({
                   AI-Enhanced Location Management
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro. Complete all required fields (Country, City, State, Region, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional.
+                  AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro. Complete all required fields (Street, Number, City, State, Region, Country, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional.
                 </p>
                 
                 <EnhancedAddressForm
                   data={{
                     address: companyData.address,
+                    street: companyData.street,
+                    streetNumber: companyData.streetNumber,
                     city: companyData.city,
                     state: companyData.state,
                     region: companyData.region,

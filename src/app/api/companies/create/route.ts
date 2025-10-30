@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
         legacy_client_id: company.legacy_company_id ? parseInt(company.legacy_company_id) : null,
         staff_count: 0,
         address: company.address || null,
+        street: company.street || null,
+        street_number: company.street_number || null,
         city: company.city || null,
         state: company.state || null,
         region: company.region || null,
