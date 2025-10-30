@@ -477,7 +477,7 @@ export default function UnifiedCompanyCreationModal({
                   AI-Enhanced Location Management
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro. Complete all required fields (Street, Number, City, State, Region, Country, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional.
+                  AI automatically detects location details: Brazil (Varginha → Sul de Minas), International (Tokyo → Japan). Complete all required fields (Street, Number, City, State, Region, Country, ZIP Code) for accurate Google Maps integration. Neighbourhood is optional. For non-Brazilian addresses, State and Region are text inputs.
                 </p>
                 
                 <EnhancedAddressForm
