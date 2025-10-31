@@ -14,10 +14,14 @@ interface Company {
   subcategories?: string[]
   logo_url?: string
   address?: string
+  street?: string
+  street_number?: string
   city?: string
   state?: string
   region?: string
   country?: string
+  neighbourhood?: string
+  zip_code?: string
 }
 
 interface Location {
@@ -74,13 +78,17 @@ export default function CompanyEditModal({
         subcategories: company.subcategories || [],
         logo_url: company.logo_url,
         address: company.address || '',
+        street: company.street || '',
+        street_number: company.street_number || '',
         city: company.city || '',
         state: company.state || '',
         region: company.region || '',
-        country: company.country || 'Brazil'
+        country: company.country || 'Brazil',
+        neighbourhood: company.neighbourhood || '',
+        zip_code: company.zip_code || ''
       })
       setLogoPreview(company.logo_url || null)
-      
+
       // Fetch locations for this company
       fetchLocations()
     }
@@ -606,19 +614,35 @@ export default function CompanyEditModal({
                       AI-Enhanced Location Management
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      AI automatically detects location details from addresses. Varginha → Sul de Minas, Carmo do Paranaíba → Cerrado Mineiro.
+                      ✨ <strong>Smart Address Parsing:</strong> Paste the complete address in "Full Address" and AI will automatically fill Street, Number, City, State, ZIP Code, Country, and Region. Works worldwide!
                     </p>
-                    
+
                     <EnhancedAddressForm
                       data={{
                         address: formData.address,
+                        street: formData.street,
+                        streetNumber: formData.street_number,
                         city: formData.city,
                         state: formData.state,
                         region: formData.region,
-                        country: formData.country
+                        country: formData.country,
+                        neighbourhood: formData.neighbourhood,
+                        zipCode: formData.zip_code
                       }}
                       onChange={(updates) => {
-                        setFormData(prev => ({ ...prev, ...updates }))
+                        // Map EnhancedAddressForm field names to Company field names
+                        const mappedUpdates: any = {}
+                        if (updates.address !== undefined) mappedUpdates.address = updates.address
+                        if (updates.street !== undefined) mappedUpdates.street = updates.street
+                        if (updates.streetNumber !== undefined) mappedUpdates.street_number = updates.streetNumber
+                        if (updates.city !== undefined) mappedUpdates.city = updates.city
+                        if (updates.state !== undefined) mappedUpdates.state = updates.state
+                        if (updates.region !== undefined) mappedUpdates.region = updates.region
+                        if (updates.country !== undefined) mappedUpdates.country = updates.country
+                        if (updates.neighbourhood !== undefined) mappedUpdates.neighbourhood = updates.neighbourhood
+                        if (updates.zipCode !== undefined) mappedUpdates.zip_code = updates.zipCode
+
+                        setFormData(prev => ({ ...prev, ...mappedUpdates }))
                       }}
                       showFullAddress={true}
                     />

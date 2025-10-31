@@ -98,18 +98,27 @@ export default function UnifiedCompanyCreationModal({
     setSelectedLegacy(company)
     setIsCreatingNew(false)
     setError(null)
-    
+
     // Pre-fill company data from legacy
-    setCompanyData({
+    const baseCompanyData = {
       name: company.name,
       fantasyName: company.fantasyName || company.name,
       category: companyType,
-      subcategories: determineSubcategories(company.group1, company.group2)
-    })
+      subcategories: determineSubcategories(company.group1, company.group2),
+      address: company.fullAddress || '',
+      street: '',
+      streetNumber: '',
+      city: '',
+      state: '',
+      region: '',
+      country: 'Brazil',
+      neighbourhood: '',
+      zipCode: ''
+    }
 
     // Don't auto-fetch legacy locations anymore - let user search manually
 
-    // Geocode headquarters for preview
+    // Geocode headquarters for preview AND auto-fill address fields
     if (company.fullAddress) {
       try {
         const response = await fetch('/api/locations/geocode', {
@@ -117,14 +126,48 @@ export default function UnifiedCompanyCreationModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address: company.fullAddress })
         })
-        
+
         if (response.ok) {
           const geocoded = await response.json()
           setHeadquartersPreview(geocoded)
+
+          // Auto-fill all address fields from geocoding results
+          const components = geocoded.addressComponents
+          if (components) {
+            setCompanyData({
+              ...baseCompanyData,
+              address: company.fullAddress,
+              street: components.street || '',
+              streetNumber: components.streetNumber || '',
+              neighbourhood: components.neighborhood || '',
+              city: components.city || '',
+              state: components.state || '',
+              region: components.region || '',
+              country: components.country || 'Brazil',
+              zipCode: components.postalCode || ''
+            })
+
+            console.log('✅ Auto-filled address fields from legacy company:', {
+              street: components.street,
+              city: components.city,
+              state: components.state,
+              region: components.region
+            })
+          } else {
+            // Fallback if geocoding doesn't return components
+            setCompanyData(baseCompanyData)
+          }
+        } else {
+          // Fallback if geocoding fails
+          setCompanyData(baseCompanyData)
         }
       } catch (error) {
         console.warn('Preview geocoding failed:', error)
+        setCompanyData(baseCompanyData)
       }
+    } else {
+      // No address to geocode
+      setCompanyData(baseCompanyData)
     }
 
     setCurrentStep(CreationStep.COMPANY_INFO)
