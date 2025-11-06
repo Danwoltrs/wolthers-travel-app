@@ -41,7 +41,7 @@ export async function POST(
     console.log(`[API] Creating contact for company ID: ${params.id}`)
 
     const body = await request.json()
-    const { name, role, email, phone } = body
+    const { name, role, title, email, phone, whatsapp, department, is_primary, contact_type, notes } = body
 
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -60,11 +60,14 @@ export async function POST(
     const contactData = {
       company_id: params.id,
       name: name.trim(),
-      role: role?.trim() || null,
+      title: title?.trim() || role?.trim() || null, // Accept either title or role field
       email: email?.trim() || null,
       phone: phone?.trim() || null,
-      created_by: '550e8400-e29b-41d4-a716-446655440001', // TODO: Get from auth
-      updated_by: '550e8400-e29b-41d4-a716-446655440001'  // TODO: Get from auth
+      whatsapp: whatsapp?.trim() || null,
+      department: department?.trim() || null,
+      is_primary: is_primary || false,
+      contact_type: contact_type || 'business',
+      notes: notes?.trim() || null
     }
 
     const { data: contact, error } = await supabase
